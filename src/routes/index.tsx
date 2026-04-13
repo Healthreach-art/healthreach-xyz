@@ -127,12 +127,16 @@ function HomePage() {
               Connecting patients, pharmacies, hospitals, and delivery services in one seamless platform. Order medication, coordinate care, and track everything in real-time.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Button variant="hero" size="xl">
-                Get Started
-              </Button>
-              <Button variant="heroOutline" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                Learn More
-              </Button>
+              <Link to="/signup">
+                <Button variant="hero" size="xl">
+                  Get Started
+                </Button>
+              </Link>
+              <Link to="/about">
+                <Button variant="heroOutline" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                  Learn More
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
