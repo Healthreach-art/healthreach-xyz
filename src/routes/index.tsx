@@ -230,9 +230,11 @@ function HomePage() {
             Join thousands of healthcare professionals and patients already using HEALTHREACH.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Button variant="heroOutline" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
-              Sign Up Free
-            </Button>
+            <Link to="/signup">
+              <Button variant="heroOutline" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                Sign Up Free
+              </Button>
+            </Link>
             <Link to="/contact">
               <Button variant="ghost" size="xl" className="text-primary-foreground hover:bg-primary-foreground/10">
                 Contact Sales
