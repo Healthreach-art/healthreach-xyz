@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
-const navLinks = [
+const publicLinks = [
   { to: "/", label: "Home" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
@@ -11,6 +12,9 @@ const navLinks = [
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, role, signOut } = useAuth();
+
+  const dashboardPath = role ? `/dashboard/${role}` : "/login";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -25,7 +29,7 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {navLinks.map((link) => (
+          {publicLinks.map((link) => (
             <Link
               key={link.to}
               to={link.to}
@@ -39,12 +43,27 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Button variant="ghost" size="sm">
-            Log in
-          </Button>
-          <Button variant="default" size="sm">
-            Sign up
-          </Button>
+          {user ? (
+            <>
+              <Link to={dashboardPath as any}>
+                <Button variant="ghost" size="sm" className="gap-1">
+                  <LayoutDashboard className="h-4 w-4" /> Dashboard
+                </Button>
+              </Link>
+              <Button variant="outline" size="sm" onClick={signOut} className="gap-1">
+                <LogOut className="h-4 w-4" /> Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="ghost" size="sm">Log in</Button>
+              </Link>
+              <Link to="/signup">
+                <Button variant="default" size="sm">Sign up</Button>
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -59,7 +78,7 @@ export function Header() {
       {mobileOpen && (
         <div className="border-t border-border bg-background px-4 pb-4 pt-2 md:hidden">
           <nav className="flex flex-col gap-1">
-            {navLinks.map((link) => (
+            {publicLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
@@ -73,12 +92,27 @@ export function Header() {
             ))}
           </nav>
           <div className="mt-3 flex flex-col gap-2">
-            <Button variant="ghost" size="sm" className="justify-start">
-              Log in
-            </Button>
-            <Button variant="default" size="sm">
-              Sign up
-            </Button>
+            {user ? (
+              <>
+                <Link to={dashboardPath as any} onClick={() => setMobileOpen(false)}>
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-1">
+                    <LayoutDashboard className="h-4 w-4" /> Dashboard
+                  </Button>
+                </Link>
+                <Button variant="outline" size="sm" onClick={() => { signOut(); setMobileOpen(false); }} className="gap-1">
+                  <LogOut className="h-4 w-4" /> Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setMobileOpen(false)}>
+                  <Button variant="ghost" size="sm" className="w-full justify-start">Log in</Button>
+                </Link>
+                <Link to="/signup" onClick={() => setMobileOpen(false)}>
+                  <Button variant="default" size="sm" className="w-full">Sign up</Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
