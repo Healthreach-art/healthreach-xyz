@@ -96,6 +96,11 @@ function LoginPage() {
               Sign up
             </Link>
           </p>
+
+          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            <p className="font-medium text-foreground mb-1">Demo: Create an admin account</p>
+            <p>Sign up with role <span className="font-medium">Admin</span> — admins are auto-approved and unlimited admins are allowed.</p>
+          </div>
         </div>
       </div>
     </div>
