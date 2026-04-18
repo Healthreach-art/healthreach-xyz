@@ -5,6 +5,22 @@ import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered";
+interface LiveDelivery {
+  id: string; order_id: string; status: DStatus;
+  pickup_address: string | null; delivery_address: string | null;
+  estimated_time: string | null;
+}
+const nextStatus: Record<DStatus, DStatus | null> = {
+  assigned: "picked_up", picked_up: "in_transit", in_transit: "delivered", delivered: null,
+};
+const nextLabel: Record<DStatus, string> = {
+  assigned: "Mark Picked Up", picked_up: "Start Delivery", in_transit: "Complete Delivery", delivered: "",
+};
 
 export const Route = createFileRoute("/dashboard/driver")({
   head: () => ({ meta: [{ title: "Driver Dashboard — HEALTHREACH" }] }),
