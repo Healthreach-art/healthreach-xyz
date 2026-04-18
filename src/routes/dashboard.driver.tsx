@@ -92,6 +92,19 @@ function DriverDashboard() {
     else toast.success(`Marked ${next.replace(/_/g, " ")}`);
   }
 
+  if (approvalStatus === "pending") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <div className="healthcare-card p-8 max-w-md text-center">
+          <Clock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-bold text-foreground">Pending Approval</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Your driver account is awaiting admin approval.</p>
+          <Button variant="outline" className="mt-6" onClick={signOut}>Sign Out</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
