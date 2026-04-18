@@ -1,7 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Link } from "@tanstack/react-router";
 import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
   TrendingUp, CalendarDays, FileText, MapPin
@@ -105,7 +104,9 @@ function PatientDashboard() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold text-foreground">{med.price}</span>
-                    <Button size="sm" variant="default">Order</Button>
+                    <Button size="sm" variant="default" asChild>
+                      <Link to="/payment">Order</Link>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -144,15 +145,15 @@ function PatientDashboard() {
             <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { icon: Pill, label: "New Order" },
-                { icon: MapPin, label: "Track Delivery" },
-                { icon: CreditCard, label: "Payments" },
-                { icon: CalendarDays, label: "Prescriptions" },
+                { icon: Pill, label: "New Order", to: "/payment" },
+                { icon: MapPin, label: "Track Delivery", to: "/track" },
+                { icon: CreditCard, label: "Payments", to: "/payment" },
+                { icon: CalendarDays, label: "Prescriptions", to: "/dashboard/patient" },
               ].map((action) => (
-                <button key={action.label} className="flex flex-col items-center gap-2 rounded-lg border border-border p-4 transition-colors hover:bg-accent">
+                <Link key={action.label} to={action.to as any} className="flex flex-col items-center gap-2 rounded-lg border border-border p-4 transition-colors hover:bg-accent">
                   <action.icon className="h-5 w-5 text-primary" />
                   <span className="text-xs font-medium text-foreground">{action.label}</span>
-                </button>
+                </Link>
               ))}
             </div>
           </div>
