@@ -59,22 +59,7 @@ const deliveryStatusLabels: Record<string, { label: string; color: string; nextA
 };
 
 function DriverDashboard() {
-  const { profile, approvalStatus, signOut } = useAuth();
-
-  if (approvalStatus === "pending") {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4">
-        <div className="healthcare-card p-8 max-w-md text-center">
-          <Clock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-bold text-foreground">Pending Approval</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Your driver account is awaiting admin approval.</p>
-          <Button variant="outline" className="mt-6" onClick={signOut}>Sign Out</Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Live deliveries from DB (combined with mock for demo if none exist yet)
+  const { user, profile, approvalStatus, signOut } = useAuth();
   const [liveDeliveries, setLiveDeliveries] = useState<LiveDelivery[]>([]);
   const [updating, setUpdating] = useState<string | null>(null);
 
