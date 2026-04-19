@@ -4,6 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
 import { CreditCard, Lock, CheckCircle2, Smartphone, Building2, Wallet } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/payment")({
   head: () => ({
@@ -26,6 +29,7 @@ const methods: { id: Method; label: string; icon: typeof CreditCard; desc: strin
 
 function PaymentPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [method, setMethod] = useState<Method>("card");
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -33,17 +37,87 @@ function PaymentPage() {
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [name, setName] = useState("");
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [txnRef, setTxnRef] = useState<string>("");
 
-  const amount = "R 145.00";
-  const orderId = "ORD-2026-04-001";
+  const amountNum = 145.0;
+  const amount = `R ${amountNum.toFixed(2)}`;
+  const medicationName = "Amoxicillin 500mg";
+  const quantity = 1;
+  const deliveryFee = 25.0;
 
-  const handlePay = (e: FormEvent) => {
+  const handlePay = async (e: FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      toast.error("Please sign in to place an order.");
+      navigate({ to: "/login" });
+      return;
+    }
     setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
+
+    try {
+      // 1. Find any pharmacy to fulfill the order (first approved pharmacy)
+      const { data: pharmacyRole } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "pharmacy")
+        .limit(1)
+        .maybeSingle();
+
+      // Fallback: use the patient's own id if no pharmacy exists yet (demo mode)
+      const pharmacyId = pharmacyRole?.user_id ?? user.id;
+
+      // 2. Create the order
+      const { data: order, error: orderErr } = await supabase
+        .from("orders")
+        .insert({
+          patient_id: user.id,
+          pharmacy_id: pharmacyId,
+          medication_name: medicationName,
+          quantity,
+          delivery_fee: deliveryFee,
+          total_amount: amountNum,
+          status: "accepted",
+          delivery_address: "123 Patient St, Johannesburg",
+          notes: `Paid via ${method}`,
+        })
+        .select()
+        .single();
+
+      if (orderErr || !order) throw orderErr ?? new Error("Failed to create order");
+
+      // 3. Create the payment row
+      const reference = `TXN-${Date.now().toString().slice(-8)}`;
+      const { error: payErr } = await supabase.from("payments").insert({
+        order_id: order.id,
+        patient_id: user.id,
+        amount: amountNum,
+        payment_method: method,
+        status: "completed",
+        transaction_ref: reference,
+      });
+      if (payErr) throw payErr;
+
+      // 4. Auto-create the delivery so realtime tracking has data
+      const { error: delErr } = await supabase.from("deliveries").insert({
+        order_id: order.id,
+        status: "assigned",
+        pickup_address: "City Pharmacy, Sandton",
+        delivery_address: "123 Patient St, Johannesburg",
+        estimated_time: "30-45 minutes",
+      });
+      if (delErr) throw delErr;
+
+      setCreatedOrderId(order.id);
+      setTxnRef(reference);
       setSuccess(true);
-    }, 1800);
+      toast.success("Payment successful — your order is on the way!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Payment failed. Please try again.");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   if (success) {
@@ -58,12 +132,12 @@ function PaymentPage() {
             Your payment of <span className="font-semibold text-foreground">{amount}</span> has been processed.
           </p>
           <div className="my-6 rounded-lg border border-border p-4 text-left text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono">{orderId}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono text-xs">{createdOrderId?.slice(0, 8)}</span></div>
             <div className="flex justify-between mt-1"><span className="text-muted-foreground">Method</span><span className="capitalize">{method}</span></div>
-            <div className="flex justify-between mt-1"><span className="text-muted-foreground">Reference</span><span className="font-mono">TXN-{Date.now().toString().slice(-8)}</span></div>
+            <div className="flex justify-between mt-1"><span className="text-muted-foreground">Reference</span><span className="font-mono">{txnRef}</span></div>
           </div>
           <div className="flex flex-col gap-2">
-            <Button onClick={() => navigate({ to: "/track" as any })}>Track Order</Button>
+            <Button onClick={() => navigate({ to: "/track" })}>Track Order</Button>
             <Button variant="outline" asChild><Link to="/dashboard/patient">Back to Dashboard</Link></Button>
           </div>
         </div>
@@ -148,9 +222,8 @@ function PaymentPage() {
         <div className="healthcare-card p-6 h-fit">
           <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
           <div className="space-y-2 text-sm border-b border-border pb-4">
-            <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono text-xs">{orderId}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Amoxicillin 500mg × 1</span><span>R 120.00</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Delivery fee</span><span>R 25.00</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{medicationName} × {quantity}</span><span>R 120.00</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Delivery fee</span><span>R {deliveryFee.toFixed(2)}</span></div>
           </div>
           <div className="flex justify-between pt-4 text-base font-semibold">
             <span>Total</span><span>{amount}</span>
