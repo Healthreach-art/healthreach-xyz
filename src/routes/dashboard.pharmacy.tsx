@@ -330,6 +330,41 @@ function PharmacyDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Assign Driver Dialog */}
+      <Dialog open={!!assignOrder} onOpenChange={(o) => !o && setAssignOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Driver</DialogTitle>
+          </DialogHeader>
+          {assignOrder && (
+            <div className="text-sm text-muted-foreground mb-2">
+              Order <span className="font-mono">{assignOrder.id.slice(0, 8)}</span> — {assignOrder.medication_name}
+            </div>
+          )}
+          {drivers.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No approved drivers available. Ask the admin to approve drivers first.</p>
+          ) : (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {drivers.map((d) => (
+                <button
+                  key={d.user_id}
+                  type="button"
+                  disabled={assigning}
+                  onClick={() => assignDriver(d.user_id)}
+                  className="flex w-full items-center justify-between rounded-lg border border-border p-3 text-left hover:bg-accent transition-colors disabled:opacity-50"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{d.full_name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{d.user_id.slice(0, 8)}</p>
+                  </div>
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                </button>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
