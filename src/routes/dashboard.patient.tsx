@@ -47,17 +47,21 @@ function PatientDashboard() {
 
   useEffect(() => {
     async function load() {
-      const promises: Promise<any>[] = [
-        supabase.from("medications").select("id, pharmacy_id, name, price, stock_quantity").gt("stock_quantity", 0).order("name"),
-      ];
-      if (user) {
-        promises.push(
-          supabase.from("orders").select("id, medication_name, status, total_amount, created_at").eq("patient_id", user.id).order("created_at", { ascending: false })
-        );
-      }
-      const [medsRes, ordersRes] = await Promise.all(promises);
+      const medsRes = await supabase
+        .from("medications")
+        .select("id, pharmacy_id, name, price, stock_quantity")
+        .gt("stock_quantity", 0)
+        .order("name");
       setMeds((medsRes.data ?? []) as Med[]);
-      setOrders(((ordersRes?.data ?? []) as Order[]));
+
+      if (user) {
+        const ordersRes = await supabase
+          .from("orders")
+          .select("id, medication_name, status, total_amount, created_at")
+          .eq("patient_id", user.id)
+          .order("created_at", { ascending: false });
+        setOrders((ordersRes.data ?? []) as Order[]);
+      }
       setLoading(false);
     }
     load();
