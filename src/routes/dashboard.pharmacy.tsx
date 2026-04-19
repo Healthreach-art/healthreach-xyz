@@ -59,6 +59,11 @@ function PharmacyDashboard() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", price: "", stock: "", category: "" });
 
+  // Driver assignment
+  const [drivers, setDrivers] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [assignOrder, setAssignOrder] = useState<Order | null>(null);
+  const [assigning, setAssigning] = useState(false);
+
   async function loadData() {
     if (!user) return;
     setLoading(true);
@@ -71,8 +76,21 @@ function PharmacyDashboard() {
     setLoading(false);
   }
 
+  async function loadDrivers() {
+    const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "driver");
+    const ids = (roleRows ?? []).map((r) => r.user_id);
+    if (ids.length === 0) { setDrivers([]); return; }
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("user_id, full_name, approval_status")
+      .in("user_id", ids)
+      .eq("approval_status", "approved");
+    setDrivers((profs ?? []).map((p) => ({ user_id: p.user_id, full_name: p.full_name || "Driver" })));
+  }
+
   useEffect(() => {
     loadData();
+    loadDrivers();
 
     if (!user) return;
     const channel = supabase
@@ -107,14 +125,32 @@ function PharmacyDashboard() {
     loadData();
   }
 
-  async function updateOrderStatus(orderId: string, status: "accepted" | "cancelled" | "preparing") {
-    if (orderId.startsWith("demo-")) {
-      toast.info("Demo order — sign in real patients to persist changes.");
-      return;
-    }
-    const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
+  async function rejectOrder(orderId: string) {
+    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+    const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
     if (error) { toast.error(error.message); return; }
-    toast.success(`Order ${status}`);
+    toast.success("Order rejected");
+    loadData();
+  }
+
+  async function markPreparing(orderId: string) {
+    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+    const { error } = await supabase.from("orders").update({ status: "preparing" }).eq("id", orderId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Order marked preparing");
+    loadData();
+  }
+
+  async function assignDriver(driverId: string) {
+    if (!assignOrder) return;
+    if (assignOrder.id.startsWith("demo-")) { toast.info("Demo order — cannot assign."); setAssignOrder(null); return; }
+    setAssigning(true);
+    const { error: orderErr } = await supabase.from("orders").update({ status: "accepted" }).eq("id", assignOrder.id);
+    const { error: delErr } = await supabase.from("deliveries").update({ driver_id: driverId }).eq("order_id", assignOrder.id);
+    setAssigning(false);
+    if (orderErr || delErr) { toast.error((orderErr ?? delErr)!.message); return; }
+    toast.success("Order accepted and driver assigned");
+    setAssignOrder(null);
     loadData();
   }
 
@@ -213,16 +249,16 @@ function PharmacyDashboard() {
                 <p className="text-xs text-muted-foreground mt-1">Total: R {Number(order.total_amount).toFixed(2)}</p>
                 {order.status === "pending" && (
                   <div className="flex gap-2 mt-3">
-                    <Button size="sm" variant="default" className="gap-1" onClick={() => updateOrderStatus(order.id, "accepted")}>
-                      <CheckCircle className="h-3 w-3" /> Accept
+                    <Button size="sm" variant="default" className="gap-1" onClick={() => setAssignOrder(order)}>
+                      <CheckCircle className="h-3 w-3" /> Accept & Assign
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => updateOrderStatus(order.id, "cancelled")}>
+                    <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectOrder(order.id)}>
                       <XCircle className="h-3 w-3" /> Reject
                     </Button>
                   </div>
                 )}
                 {order.status === "accepted" && (
-                  <Button size="sm" variant="secondary" className="mt-3" onClick={() => updateOrderStatus(order.id, "preparing")}>
+                  <Button size="sm" variant="secondary" className="mt-3" onClick={() => markPreparing(order.id)}>
                     <Pill className="h-3 w-3 mr-1" /> Mark as Preparing
                   </Button>
                 )}
@@ -294,6 +330,41 @@ function PharmacyDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Assign Driver Dialog */}
+      <Dialog open={!!assignOrder} onOpenChange={(o) => !o && setAssignOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Driver</DialogTitle>
+          </DialogHeader>
+          {assignOrder && (
+            <div className="text-sm text-muted-foreground mb-2">
+              Order <span className="font-mono">{assignOrder.id.slice(0, 8)}</span> — {assignOrder.medication_name}
+            </div>
+          )}
+          {drivers.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No approved drivers available. Ask the admin to approve drivers first.</p>
+          ) : (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {drivers.map((d) => (
+                <button
+                  key={d.user_id}
+                  type="button"
+                  disabled={assigning}
+                  onClick={() => assignDriver(d.user_id)}
+                  className="flex w-full items-center justify-between rounded-lg border border-border p-3 text-left hover:bg-accent transition-colors disabled:opacity-50"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{d.full_name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{d.user_id.slice(0, 8)}</p>
+                  </div>
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                </button>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
