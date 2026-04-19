@@ -249,16 +249,16 @@ function PharmacyDashboard() {
                 <p className="text-xs text-muted-foreground mt-1">Total: R {Number(order.total_amount).toFixed(2)}</p>
                 {order.status === "pending" && (
                   <div className="flex gap-2 mt-3">
-                    <Button size="sm" variant="default" className="gap-1" onClick={() => updateOrderStatus(order.id, "accepted")}>
-                      <CheckCircle className="h-3 w-3" /> Accept
+                    <Button size="sm" variant="default" className="gap-1" onClick={() => setAssignOrder(order)}>
+                      <CheckCircle className="h-3 w-3" /> Accept & Assign
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => updateOrderStatus(order.id, "cancelled")}>
+                    <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectOrder(order.id)}>
                       <XCircle className="h-3 w-3" /> Reject
                     </Button>
                   </div>
                 )}
                 {order.status === "accepted" && (
-                  <Button size="sm" variant="secondary" className="mt-3" onClick={() => updateOrderStatus(order.id, "preparing")}>
+                  <Button size="sm" variant="secondary" className="mt-3" onClick={() => markPreparing(order.id)}>
                     <Pill className="h-3 w-3 mr-1" /> Mark as Preparing
                   </Button>
                 )}
