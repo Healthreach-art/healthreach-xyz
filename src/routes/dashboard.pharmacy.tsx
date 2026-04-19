@@ -125,14 +125,32 @@ function PharmacyDashboard() {
     loadData();
   }
 
-  async function updateOrderStatus(orderId: string, status: "accepted" | "cancelled" | "preparing") {
-    if (orderId.startsWith("demo-")) {
-      toast.info("Demo order — sign in real patients to persist changes.");
-      return;
-    }
-    const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
+  async function rejectOrder(orderId: string) {
+    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+    const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
     if (error) { toast.error(error.message); return; }
-    toast.success(`Order ${status}`);
+    toast.success("Order rejected");
+    loadData();
+  }
+
+  async function markPreparing(orderId: string) {
+    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+    const { error } = await supabase.from("orders").update({ status: "preparing" }).eq("id", orderId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Order marked preparing");
+    loadData();
+  }
+
+  async function assignDriver(driverId: string) {
+    if (!assignOrder) return;
+    if (assignOrder.id.startsWith("demo-")) { toast.info("Demo order — cannot assign."); setAssignOrder(null); return; }
+    setAssigning(true);
+    const { error: orderErr } = await supabase.from("orders").update({ status: "accepted" }).eq("id", assignOrder.id);
+    const { error: delErr } = await supabase.from("deliveries").update({ driver_id: driverId }).eq("order_id", assignOrder.id);
+    setAssigning(false);
+    if (orderErr || delErr) { toast.error((orderErr ?? delErr)!.message); return; }
+    toast.success("Order accepted and driver assigned");
+    setAssignOrder(null);
     loadData();
   }
 
