@@ -7,8 +7,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Package, AlertTriangle, ShoppingCart, DollarSign,
   CheckCircle, XCircle, Clock, Pill, TrendingDown, Loader2,
+  Pencil, Trash2, Plus, Minus, Truck,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,7 +44,6 @@ interface Order {
 
 const LOW_STOCK_THRESHOLD = 10;
 
-// Mock fallback (used when no real data exists yet)
 const mockInventory: Medication[] = [
   { id: "m1", name: "Amoxicillin 500mg", stock_quantity: 45, price: 120, category: "Antibiotics" },
   { id: "m2", name: "Ibuprofen 400mg", stock_quantity: 8, price: 55, category: "Pain Relief" },
@@ -55,12 +59,19 @@ function PharmacyDashboard() {
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [addOpen, setAddOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
+
+  // Add / Edit medication
+  const [medDialogOpen, setMedDialogOpen] = useState(false);
+  const [editingMed, setEditingMed] = useState<Medication | null>(null);
+  const [savingMed, setSavingMed] = useState(false);
   const [form, setForm] = useState({ name: "", price: "", stock: "", category: "" });
 
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<Medication | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   // Driver assignment
-  const [drivers, setDrivers] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [drivers, setDrivers] = useState<{ user_id: string; full_name: string; active: number }[]>([]);
   const [assignOrder, setAssignOrder] = useState<Order | null>(null);
   const [assigning, setAssigning] = useState(false);
 
@@ -80,48 +91,89 @@ function PharmacyDashboard() {
     const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "driver");
     const ids = (roleRows ?? []).map((r) => r.user_id);
     if (ids.length === 0) { setDrivers([]); return; }
-    const { data: profs } = await supabase
-      .from("profiles")
-      .select("user_id, full_name, approval_status")
-      .in("user_id", ids)
-      .eq("approval_status", "approved");
-    setDrivers((profs ?? []).map((p) => ({ user_id: p.user_id, full_name: p.full_name || "Driver" })));
+    const [{ data: profs }, { data: activeDeliveries }] = await Promise.all([
+      supabase.from("profiles").select("user_id, full_name, approval_status").in("user_id", ids).eq("approval_status", "approved"),
+      supabase.from("deliveries").select("driver_id, status").in("driver_id", ids).in("status", ["assigned", "picked_up", "in_transit"]),
+    ]);
+    const counts = new Map<string, number>();
+    (activeDeliveries ?? []).forEach((d) => {
+      if (d.driver_id) counts.set(d.driver_id, (counts.get(d.driver_id) ?? 0) + 1);
+    });
+    setDrivers((profs ?? []).map((p) => ({
+      user_id: p.user_id,
+      full_name: p.full_name || "Driver",
+      active: counts.get(p.user_id) ?? 0,
+    })));
   }
 
   useEffect(() => {
     loadData();
     loadDrivers();
-
     if (!user) return;
     const channel = supabase
       .channel("pharmacy-orders")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => {
-        loadData();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => loadData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  async function handleAddMedication(e: FormEvent) {
+  function openAddMedication() {
+    setEditingMed(null);
+    setForm({ name: "", price: "", stock: "", category: "" });
+    setMedDialogOpen(true);
+  }
+
+  function openEditMedication(med: Medication) {
+    if (med.id.startsWith("m")) { toast.info("Demo item — add a real one to edit."); return; }
+    setEditingMed(med);
+    setForm({
+      name: med.name,
+      price: String(med.price),
+      stock: String(med.stock_quantity),
+      category: med.category ?? "",
+    });
+    setMedDialogOpen(true);
+  }
+
+  async function handleSaveMedication(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
-    setAdding(true);
-    const { error } = await supabase.from("medications").insert({
+    setSavingMed(true);
+    const payload = {
       pharmacy_id: user.id,
       name: form.name,
       price: Number(form.price) || 0,
       stock_quantity: Number(form.stock) || 0,
       category: form.category || null,
-    });
-    setAdding(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Medication added");
-    setForm({ name: "", price: "", stock: "", category: "" });
-    setAddOpen(false);
+    };
+    const { error } = editingMed
+      ? await supabase.from("medications").update(payload).eq("id", editingMed.id)
+      : await supabase.from("medications").insert(payload);
+    setSavingMed(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(editingMed ? "Medication updated" : "Medication added");
+    setMedDialogOpen(false);
+    setEditingMed(null);
+    loadData();
+  }
+
+  async function adjustStock(med: Medication, delta: number) {
+    if (med.id.startsWith("m")) { toast.info("Demo item — cannot adjust."); return; }
+    const next = Math.max(0, med.stock_quantity + delta);
+    const { error } = await supabase.from("medications").update({ stock_quantity: next }).eq("id", med.id);
+    if (error) { toast.error(error.message); return; }
+    setInventory((prev) => prev.map((m) => (m.id === med.id ? { ...m, stock_quantity: next } : m)));
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.from("medications").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Medication deleted");
+    setDeleteTarget(null);
     loadData();
   }
 
@@ -141,6 +193,26 @@ function PharmacyDashboard() {
     loadData();
   }
 
+  // Auto-assigns the least-busy approved driver, then sets order → ready and delivery → assigned
+  async function markReadyAndAutoAssign(orderId: string) {
+    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+    await loadDrivers();
+    if (drivers.length === 0) {
+      toast.error("No approved drivers available. Ask the admin to approve a driver.");
+      return;
+    }
+    const best = [...drivers].sort((a, b) => a.active - b.active)[0];
+    const { error: orderErr } = await supabase.from("orders").update({ status: "ready" }).eq("id", orderId);
+    const { error: delErr } = await supabase
+      .from("deliveries")
+      .update({ driver_id: best.user_id, status: "assigned" })
+      .eq("order_id", orderId);
+    if (orderErr || delErr) { toast.error((orderErr ?? delErr)!.message); return; }
+    toast.success(`Order ready — assigned to ${best.full_name}`);
+    loadData();
+    loadDrivers();
+  }
+
   async function assignDriver(driverId: string) {
     if (!assignOrder) return;
     if (assignOrder.id.startsWith("demo-")) { toast.info("Demo order — cannot assign."); setAssignOrder(null); return; }
@@ -152,6 +224,7 @@ function PharmacyDashboard() {
     toast.success("Order accepted and driver assigned");
     setAssignOrder(null);
     loadData();
+    loadDrivers();
   }
 
   if (approvalStatus === "pending") {
@@ -167,7 +240,6 @@ function PharmacyDashboard() {
     );
   }
 
-  // Use real data when available; otherwise show demo placeholders
   const displayInventory = inventory.length > 0 ? inventory : mockInventory;
   const displayOrders = orders.length > 0 ? orders : mockOrders;
   const usingMockInventory = inventory.length === 0;
@@ -247,8 +319,9 @@ function PharmacyDashboard() {
                 </div>
                 <p className="text-sm font-medium text-foreground">{order.medication_name} × {order.quantity}</p>
                 <p className="text-xs text-muted-foreground mt-1">Total: R {Number(order.total_amount).toFixed(2)}</p>
+
                 {order.status === "pending" && (
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex flex-wrap gap-2 mt-3">
                     <Button size="sm" variant="default" className="gap-1" onClick={() => setAssignOrder(order)}>
                       <CheckCircle className="h-3 w-3" /> Accept & Assign
                     </Button>
@@ -257,12 +330,20 @@ function PharmacyDashboard() {
                     </Button>
                   </div>
                 )}
+
                 {order.status === "accepted" && (
                   <Button size="sm" variant="secondary" className="mt-3" onClick={() => markPreparing(order.id)}>
                     <Pill className="h-3 w-3 mr-1" /> Mark as Preparing
                   </Button>
                 )}
-                {!["pending", "accepted"].includes(order.status) && (
+
+                {order.status === "preparing" && (
+                  <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markReadyAndAutoAssign(order.id)}>
+                    <Truck className="h-3 w-3" /> Mark Ready (Auto-assign Driver)
+                  </Button>
+                )}
+
+                {!["pending", "accepted", "preparing"].includes(order.status) && (
                   <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-accent capitalize">{order.status.replace(/_/g, " ")}</span>
                 )}
               </div>
@@ -276,60 +357,105 @@ function PharmacyDashboard() {
             <h2 className="text-lg font-semibold text-foreground">
               Inventory {usingMockInventory && <span className="ml-2 text-xs font-normal text-muted-foreground">(Demo)</span>}
             </h2>
-            <Dialog open={addOpen} onOpenChange={setAddOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline">+ Add Item</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Medication</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleAddMedication} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
-                    <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Price (R)</Label>
-                      <Input id="price" type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="stock">Stock</Label>
-                      <Input id="stock" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} required />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Input id="category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Antibiotics" />
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit" disabled={adding}>{adding ? "Adding..." : "Add Medication"}</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button size="sm" variant="outline" onClick={openAddMedication}>+ Add Item</Button>
           </div>
           <div className="space-y-2">
             {displayInventory.map((item) => {
               const low = item.stock_quantity <= LOW_STOCK_THRESHOLD;
+              const isDemo = item.id.startsWith("m");
               return (
-                <div key={item.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.category || "—"} • R {Number(item.price).toFixed(2)}</p>
+                <div key={item.id} className="rounded-lg border border-border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{item.category || "—"} • R {Number(item.price).toFixed(2)}</p>
+                    </div>
+                    <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
+                      low ? "bg-destructive/10 text-destructive" : "bg-healthcare-green/20 text-healthcare-green"
+                    }`}>
+                      {item.stock_quantity} units
+                    </span>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    low ? "bg-destructive/10 text-destructive" : "bg-healthcare-green/20 text-healthcare-green"
-                  }`}>
-                    {item.stock_quantity} units
-                  </span>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="outline" className="h-7 w-7" disabled={isDemo} onClick={() => adjustStock(item, -1)}>
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <Button size="icon" variant="outline" className="h-7 w-7" disabled={isDemo} onClick={() => adjustStock(item, +1)}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" className="h-7 gap-1" disabled={isDemo} onClick={() => openEditMedication(item)}>
+                        <Pencil className="h-3 w-3" /> Edit
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" disabled={isDemo} onClick={() => setDeleteTarget(item)}>
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
       </div>
+
+      {/* Add / Edit Medication Dialog */}
+      <Dialog open={medDialogOpen} onOpenChange={(o) => { setMedDialogOpen(o); if (!o) setEditingMed(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingMed ? "Edit Medication" : "Add Medication"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveMedication} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="price">Price (R)</Label>
+                <Input id="price" type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="stock">Stock</Label>
+                <Input id="stock" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} required />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Input id="category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Antibiotics" />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={savingMed}>
+                {savingMed ? "Saving..." : editingMed ? "Save Changes" : "Add Medication"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete medication?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <span className="font-medium text-foreground">{deleteTarget?.name}</span> from your inventory. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Assign Driver Dialog */}
       <Dialog open={!!assignOrder} onOpenChange={(o) => !o && setAssignOrder(null)}>
@@ -346,7 +472,7 @@ function PharmacyDashboard() {
             <p className="text-sm text-muted-foreground py-4 text-center">No approved drivers available. Ask the admin to approve drivers first.</p>
           ) : (
             <div className="space-y-2 max-h-72 overflow-y-auto">
-              {drivers.map((d) => (
+              {[...drivers].sort((a, b) => a.active - b.active).map((d) => (
                 <button
                   key={d.user_id}
                   type="button"
@@ -356,7 +482,7 @@ function PharmacyDashboard() {
                 >
                   <div>
                     <p className="text-sm font-medium text-foreground">{d.full_name}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{d.user_id.slice(0, 8)}</p>
+                    <p className="text-xs text-muted-foreground">{d.active} active deliveries</p>
                   </div>
                   <CheckCircle className="h-4 w-4 text-primary" />
                 </button>
