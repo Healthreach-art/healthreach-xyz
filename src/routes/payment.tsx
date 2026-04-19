@@ -7,6 +7,16 @@ import { CreditCard, Lock, CheckCircle2, Smartphone, Building2, Wallet } from "l
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
+
+const paymentSearchSchema = z.object({
+  medId: fallback(z.string().optional(), undefined),
+  name: fallback(z.string(), "Amoxicillin 500mg").default("Amoxicillin 500mg"),
+  price: fallback(z.number(), 120).default(120),
+  pharmacyId: fallback(z.string().optional(), undefined),
+  qty: fallback(z.number().int().min(1).max(50), 1).default(1),
+});
 
 export const Route = createFileRoute("/payment")({
   head: () => ({
@@ -15,6 +25,7 @@ export const Route = createFileRoute("/payment")({
       { name: "description", content: "Secure payment for your medication order." },
     ],
   }),
+  validateSearch: zodValidator(paymentSearchSchema),
   component: PaymentPage,
 });
 
@@ -27,24 +38,26 @@ const methods: { id: Method; label: string; icon: typeof CreditCard; desc: strin
   { id: "paypal", label: "PayPal", icon: Wallet, desc: "Pay with PayPal balance" },
 ];
 
+const DELIVERY_FEE = 25.0;
+
 function PaymentPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { medId, name: medicationName, price, pharmacyId, qty } = Route.useSearch();
+
   const [method, setMethod] = useState<Method>("card");
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
-  const [name, setName] = useState("");
+  const [cardName, setCardName] = useState("");
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [txnRef, setTxnRef] = useState<string>("");
 
-  const amountNum = 145.0;
-  const amount = `R ${amountNum.toFixed(2)}`;
-  const medicationName = "Amoxicillin 500mg";
-  const quantity = 1;
-  const deliveryFee = 25.0;
+  const subtotal = price * qty;
+  const totalNum = subtotal + DELIVERY_FEE;
+  const amount = `R ${totalNum.toFixed(2)}`;
 
   const handlePay = async (e: FormEvent) => {
     e.preventDefault();
@@ -56,53 +69,47 @@ function PaymentPage() {
     setProcessing(true);
 
     try {
-      // 1. Find any pharmacy to fulfill the order (first approved pharmacy)
-      const { data: pharmacyRole } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "pharmacy")
-        .limit(1)
-        .maybeSingle();
+      // Resolve pharmacy: param → first pharmacy user → self (demo fallback)
+      let resolvedPharmacy = pharmacyId;
+      if (!resolvedPharmacy) {
+        const { data: pharmacyRole } = await supabase
+          .from("user_roles").select("user_id").eq("role", "pharmacy").limit(1).maybeSingle();
+        resolvedPharmacy = pharmacyRole?.user_id ?? user.id;
+      }
 
-      // Fallback: use the patient's own id if no pharmacy exists yet (demo mode)
-      const pharmacyId = pharmacyRole?.user_id ?? user.id;
-
-      // 2. Create the order
       const { data: order, error: orderErr } = await supabase
         .from("orders")
         .insert({
           patient_id: user.id,
-          pharmacy_id: pharmacyId,
+          pharmacy_id: resolvedPharmacy,
+          medication_id: medId ?? null,
           medication_name: medicationName,
-          quantity,
-          delivery_fee: deliveryFee,
-          total_amount: amountNum,
-          status: "accepted",
+          quantity: qty,
+          delivery_fee: DELIVERY_FEE,
+          total_amount: totalNum,
+          status: "pending",
           delivery_address: "123 Patient St, Johannesburg",
           notes: `Paid via ${method}`,
         })
         .select()
         .single();
-
       if (orderErr || !order) throw orderErr ?? new Error("Failed to create order");
 
-      // 3. Create the payment row
       const reference = `TXN-${Date.now().toString().slice(-8)}`;
       const { error: payErr } = await supabase.from("payments").insert({
         order_id: order.id,
         patient_id: user.id,
-        amount: amountNum,
+        amount: totalNum,
         payment_method: method,
         status: "completed",
         transaction_ref: reference,
       });
       if (payErr) throw payErr;
 
-      // 4. Auto-create the delivery so realtime tracking has data
       const { error: delErr } = await supabase.from("deliveries").insert({
         order_id: order.id,
         status: "assigned",
-        pickup_address: "City Pharmacy, Sandton",
+        pickup_address: "Pharmacy pickup point",
         delivery_address: "123 Patient St, Johannesburg",
         estimated_time: "30-45 minutes",
       });
@@ -152,7 +159,6 @@ function PaymentPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {/* Payment methods */}
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold mb-4">Payment Method</h2>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -175,13 +181,12 @@ function PaymentPage() {
             </div>
           </div>
 
-          {/* Card form */}
           {method === "card" && (
             <form onSubmit={handlePay} className="healthcare-card p-6 space-y-4">
               <h2 className="text-lg font-semibold">Card Details</h2>
               <div className="space-y-2">
                 <Label htmlFor="cardName">Cardholder Name</Label>
-                <Input id="cardName" value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" required />
+                <Input id="cardName" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="John Doe" required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cardNumber">Card Number</Label>
@@ -218,12 +223,11 @@ function PaymentPage() {
           )}
         </div>
 
-        {/* Order summary */}
         <div className="healthcare-card p-6 h-fit">
           <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
           <div className="space-y-2 text-sm border-b border-border pb-4">
-            <div className="flex justify-between"><span className="text-muted-foreground">{medicationName} × {quantity}</span><span>R 120.00</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Delivery fee</span><span>R {deliveryFee.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{medicationName} × {qty}</span><span>R {subtotal.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Delivery fee</span><span>R {DELIVERY_FEE.toFixed(2)}</span></div>
           </div>
           <div className="flex justify-between pt-4 text-base font-semibold">
             <span>Total</span><span>{amount}</span>
