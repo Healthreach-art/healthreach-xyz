@@ -59,6 +59,11 @@ function PharmacyDashboard() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", price: "", stock: "", category: "" });
 
+  // Driver assignment
+  const [drivers, setDrivers] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [assignOrder, setAssignOrder] = useState<Order | null>(null);
+  const [assigning, setAssigning] = useState(false);
+
   async function loadData() {
     if (!user) return;
     setLoading(true);
@@ -71,8 +76,21 @@ function PharmacyDashboard() {
     setLoading(false);
   }
 
+  async function loadDrivers() {
+    const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "driver");
+    const ids = (roleRows ?? []).map((r) => r.user_id);
+    if (ids.length === 0) { setDrivers([]); return; }
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("user_id, full_name, approval_status")
+      .in("user_id", ids)
+      .eq("approval_status", "approved");
+    setDrivers((profs ?? []).map((p) => ({ user_id: p.user_id, full_name: p.full_name || "Driver" })));
+  }
+
   useEffect(() => {
     loadData();
+    loadDrivers();
 
     if (!user) return;
     const channel = supabase
