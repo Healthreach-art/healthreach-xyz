@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient")({
   head: () => ({ meta: [{ title: "Patient Dashboard — HEALTHREACH" }] }),
@@ -65,6 +66,40 @@ function PatientDashboard() {
       setLoading(false);
     }
     load();
+
+    if (!user) return;
+    const statusLabels: Record<string, string> = {
+      picked_up: "Your order has been picked up by the driver 📦",
+      in_transit: "Your order is on the way! 🚗",
+      delivered: "Your order has been delivered ✅",
+    };
+    const channel = supabase
+      .channel(`patient-deliveries-${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "deliveries" }, async (payload) => {
+        const newRow = payload.new as { order_id: string; status: string };
+        const oldRow = payload.old as { status?: string };
+        if (newRow.status === oldRow.status) return;
+        // Verify this delivery belongs to current patient
+        const { data: order } = await supabase
+          .from("orders")
+          .select("id, patient_id, medication_name")
+          .eq("id", newRow.order_id)
+          .maybeSingle();
+        if (!order || order.patient_id !== user.id) return;
+        const msg = statusLabels[newRow.status];
+        if (msg) {
+          toast.success(msg, { description: order.medication_name });
+          // Refresh orders so dashboard reflects the new status
+          const ordersRes = await supabase
+            .from("orders")
+            .select("id, medication_name, status, total_amount, created_at")
+            .eq("patient_id", user.id)
+            .order("created_at", { ascending: false });
+          setOrders((ordersRes.data ?? []) as Order[]);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const filteredMeds = meds.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()));

@@ -4,6 +4,7 @@ import { CheckCircle2, Package, Truck, MapPin, Clock, Phone, Loader2 } from "luc
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/track")({
   head: () => ({
@@ -70,11 +71,24 @@ function TrackPage() {
     }
     load();
 
+    const statusLabels: Record<string, string> = {
+      picked_up: "Driver picked up your order 📦",
+      in_transit: "Your order is on the way! 🚗",
+      delivered: "Your order has been delivered ✅",
+    };
     const channel = supabase
       .channel("track-deliveries")
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, (payload) => {
         const next = payload.new as Delivery;
-        setDelivery((prev) => (prev && prev.id === next.id ? next : prev));
+        const prevStatus = (payload.old as { status?: string })?.status;
+        setDelivery((prev) => {
+          if (!prev || prev.id !== next.id) return prev;
+          if (next.status !== prevStatus) {
+            const msg = statusLabels[next.status];
+            if (msg) toast.success(msg);
+          }
+          return next;
+        });
         setPulse(true);
         setTimeout(() => setPulse(false), 1200);
       })
