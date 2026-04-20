@@ -13,7 +13,7 @@ import {
 import {
   Package, AlertTriangle, ShoppingCart, DollarSign,
   CheckCircle, XCircle, Clock, Pill, TrendingDown, Loader2,
-  Pencil, Trash2, Plus, Minus, Truck,
+  Pencil, Trash2, Plus, Minus, Truck, Radio,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
