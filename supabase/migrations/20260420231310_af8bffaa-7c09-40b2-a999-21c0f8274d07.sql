@@ -1,0 +1,1 @@
+ALTER TABLE public.deliveries REPLICA IDENTITY FULL;
