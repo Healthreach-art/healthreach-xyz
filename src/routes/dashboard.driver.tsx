@@ -58,10 +58,20 @@ const deliveryStatusLabels: Record<string, { label: string; color: string; nextA
   delivered: { label: "Delivered", color: "bg-healthcare-green/20 text-healthcare-green", nextAction: "" },
 };
 
+interface Offer {
+  id: string;
+  order_id: string;
+  message: string | null;
+  created_at: string;
+  declined_by: string[] | null;
+}
+
 function DriverDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
   const [liveDeliveries, setLiveDeliveries] = useState<LiveDelivery[]>([]);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -74,13 +84,59 @@ function DriverDashboard() {
         .order("created_at", { ascending: false });
       setLiveDeliveries((data ?? []) as LiveDelivery[]);
     }
+    async function loadOffers() {
+      const { data } = await supabase
+        .from("delivery_offers")
+        .select("id, order_id, message, created_at, declined_by")
+        .eq("status", "open")
+        .order("created_at", { ascending: false });
+      const filtered = (data ?? []).filter((o) => !(o.declined_by ?? []).includes(user!.id));
+      setOffers(filtered as Offer[]);
+    }
     load();
+    loadOffers();
     const channel = supabase
       .channel("driver-deliveries")
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries", filter: `driver_id=eq.${user.id}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "delivery_offers" }, () => loadOffers())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user]);
+
+  async function acceptOffer(offer: Offer) {
+    if (!user) return;
+    setRespondingId(offer.id);
+    // Race-safe: only update if still open
+    const { data: claimed, error } = await supabase
+      .from("delivery_offers")
+      .update({ status: "accepted", accepted_by: user.id })
+      .eq("id", offer.id)
+      .eq("status", "open")
+      .select()
+      .maybeSingle();
+    if (error || !claimed) {
+      setRespondingId(null);
+      toast.error("Too late — another driver took it.");
+      setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+      return;
+    }
+    // Assign delivery + flip order to ready
+    await Promise.all([
+      supabase.from("deliveries").update({ driver_id: user.id, status: "assigned" }).eq("order_id", offer.order_id),
+      supabase.from("orders").update({ status: "ready" }).eq("id", offer.order_id),
+    ]);
+    setRespondingId(null);
+    toast.success("Delivery accepted!");
+  }
+
+  async function declineOffer(offer: Offer) {
+    if (!user) return;
+    setRespondingId(offer.id);
+    const newDeclined = [...(offer.declined_by ?? []), user.id];
+    await supabase.from("delivery_offers").update({ declined_by: newDeclined }).eq("id", offer.id);
+    setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+    setRespondingId(null);
+  }
 
   async function advance(d: LiveDelivery) {
     const next = nextStatus[d.status];
