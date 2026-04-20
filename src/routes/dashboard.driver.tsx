@@ -105,8 +105,8 @@ function DriverDashboard() {
         load();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "deliveries", filter: `driver_id=eq.${user.id}` }, (payload) => {
-        const oldRow = payload.old as { driver_id: string | null };
-        const newRow = payload.new as LiveDelivery;
+        const oldRow = payload.old as { driver_id?: string | null };
+        const newRow = payload.new as LiveDelivery & { driver_id: string | null };
         if (oldRow.driver_id !== newRow.driver_id && newRow.driver_id === user!.id) {
           toast.success("New delivery assigned to you!", {
             description: newRow.pickup_address ? `Pickup: ${newRow.pickup_address}` : `Order ${newRow.order_id.slice(0, 8)}`,
