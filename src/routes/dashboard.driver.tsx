@@ -64,6 +64,21 @@ interface Offer {
   message: string | null;
   created_at: string;
   declined_by: string[] | null;
+  expires_at: string;
+  pickup_address: string | null;
+  delivery_address: string | null;
+  distance_km: number;
+  earnings: number;
+}
+
+// Deterministic pseudo-distance (1.5–8.5 km) from order_id so it doesn't jump on re-render
+function estimateDistanceKm(orderId: string): number {
+  let h = 0;
+  for (let i = 0; i < orderId.length; i++) h = (h * 31 + orderId.charCodeAt(i)) >>> 0;
+  return Math.round(((h % 700) / 100 + 1.5) * 10) / 10;
+}
+function estimateEarnings(km: number): number {
+  return Math.round(25 + km * 6); // R25 base + R6/km
 }
 
 function DriverDashboard() {
@@ -72,6 +87,18 @@ function DriverDashboard() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  // 1s tick for countdown
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Auto-remove expired offers locally
+  useEffect(() => {
+    setOffers((prev) => prev.filter((o) => new Date(o.expires_at).getTime() > now));
+  }, [now]);
 
   useEffect(() => {
     if (!user) return;
