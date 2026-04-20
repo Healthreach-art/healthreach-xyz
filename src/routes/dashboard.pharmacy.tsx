@@ -227,7 +227,26 @@ function PharmacyDashboard() {
     loadDrivers();
   }
 
-  if (approvalStatus === "pending") {
+  // Uber-style: broadcast to all approved drivers; first to accept wins
+  async function broadcastToDrivers(order: Order) {
+    if (order.id.startsWith("demo-")) { toast.info("Demo order — cannot broadcast."); return; }
+    if (!user) return;
+    // Avoid duplicate open offers for same order
+    const { data: existing } = await supabase
+      .from("delivery_offers")
+      .select("id")
+      .eq("order_id", order.id)
+      .eq("status", "open")
+      .maybeSingle();
+    if (existing) { toast.info("Request already broadcast — waiting for a driver."); return; }
+    const { error } = await supabase.from("delivery_offers").insert({
+      order_id: order.id,
+      pharmacy_id: user.id,
+      message: `${order.medication_name} × ${order.quantity}`,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Request sent to all available drivers");
+  }
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <div className="healthcare-card p-8 max-w-md text-center">
