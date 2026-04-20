@@ -272,23 +272,53 @@ function DriverDashboard() {
             <span className="ml-auto text-xs font-normal text-muted-foreground">{offers.length} available</span>
           </h2>
           <div className="space-y-3">
-            {offers.map((offer) => (
-              <div key={offer.id} className="rounded-lg bg-background border border-border p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono text-muted-foreground">Order {offer.order_id.slice(0, 8)}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(offer.created_at).toLocaleTimeString()}</span>
+            {offers.map((offer) => {
+              const msLeft = Math.max(0, new Date(offer.expires_at).getTime() - now);
+              const totalSec = Math.floor(msLeft / 1000);
+              const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+              const ss = String(totalSec % 60).padStart(2, "0");
+              const urgent = msLeft < 60_000;
+              return (
+                <div key={offer.id} className="rounded-lg bg-background border border-border p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-mono text-muted-foreground">Order {offer.order_id.slice(0, 8)}</span>
+                    <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${urgent ? "bg-destructive/10 text-destructive" : "bg-accent text-accent-foreground"}`}>
+                      ⏱ {mm}:{ss}
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium text-foreground mb-3">{offer.message || "New delivery request"}</p>
+
+                  <div className="space-y-1.5 text-xs mb-3">
+                    <div className="flex items-start gap-2">
+                      <Package className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                      <div><span className="text-muted-foreground">Pickup: </span><span className="text-foreground">{offer.pickup_address || "—"}</span></div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-healthcare-green mt-0.5 shrink-0" />
+                      <div><span className="text-muted-foreground">Dropoff: </span><span className="text-foreground">{offer.delivery_address || "—"}</span></div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-3 text-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-healthcare-sky/15 text-healthcare-sky px-2 py-0.5">
+                      <Navigation className="h-3 w-3" /> ~{offer.distance_km} km
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-healthcare-green/15 text-healthcare-green px-2 py-0.5">
+                      <DollarSign className="h-3 w-3" /> R {offer.earnings}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button size="sm" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => acceptOffer(offer)}>
+                      <CheckCircle className="h-3 w-3" /> {respondingId === offer.id ? "Accepting..." : "Accept"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => declineOffer(offer)}>
+                      <X className="h-3 w-3" /> Decline
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-foreground mb-3">{offer.message || "New delivery request"}</p>
-                <div className="flex gap-2">
-                  <Button size="sm" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => acceptOffer(offer)}>
-                    <CheckCircle className="h-3 w-3" /> {respondingId === offer.id ? "Accepting..." : "Accept"}
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => declineOffer(offer)}>
-                    <X className="h-3 w-3" /> Decline
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
