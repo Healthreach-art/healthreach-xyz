@@ -131,22 +131,30 @@ function DriverDashboard() {
           addressMap.set(d.order_id, { pickup: d.pickup_address, dropoff: d.delivery_address });
         });
       }
-      const enriched: Offer[] = visible.map((o) => {
-        const addr = addressMap.get(o.order_id);
-        const distance_km = estimateDistanceKm(o.order_id);
-        return {
-          id: o.id,
-          order_id: o.order_id,
-          message: o.message,
-          created_at: o.created_at,
-          declined_by: o.declined_by,
-          expires_at: o.expires_at,
-          pickup_address: addr?.pickup ?? null,
-          delivery_address: addr?.dropoff ?? null,
-          distance_km,
-          earnings: estimateEarnings(distance_km),
-        };
-      });
+      const enriched: Offer[] = await Promise.all(
+        visible.map(async (o) => {
+          const addr = addressMap.get(o.order_id);
+          let distance_km = estimateDistanceKm(o.order_id);
+          if (addr?.pickup && addr?.dropoff) {
+            try {
+              const result = await getMapboxDistance({ data: { pickup: addr.pickup, dropoff: addr.dropoff } });
+              if (result.distance_km != null) distance_km = result.distance_km;
+            } catch { /* keep fallback */ }
+          }
+          return {
+            id: o.id,
+            order_id: o.order_id,
+            message: o.message,
+            created_at: o.created_at,
+            declined_by: o.declined_by,
+            expires_at: o.expires_at,
+            pickup_address: addr?.pickup ?? null,
+            delivery_address: addr?.dropoff ?? null,
+            distance_km,
+            earnings: estimateEarnings(distance_km),
+          };
+        })
+      );
       setOffers(enriched);
     }
     load();
