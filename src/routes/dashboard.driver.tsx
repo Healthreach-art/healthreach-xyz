@@ -114,11 +114,39 @@ function DriverDashboard() {
     async function loadOffers() {
       const { data } = await supabase
         .from("delivery_offers")
-        .select("id, order_id, message, created_at, declined_by")
+        .select("id, order_id, message, created_at, declined_by, expires_at")
         .eq("status", "open")
+        .gt("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false });
-      const filtered = (data ?? []).filter((o) => !(o.declined_by ?? []).includes(user!.id));
-      setOffers(filtered as Offer[]);
+      const visible = (data ?? []).filter((o) => !(o.declined_by ?? []).includes(user!.id));
+      const orderIds = visible.map((o) => o.order_id);
+      let addressMap = new Map<string, { pickup: string | null; dropoff: string | null }>();
+      if (orderIds.length > 0) {
+        const { data: dels } = await supabase
+          .from("deliveries")
+          .select("order_id, pickup_address, delivery_address")
+          .in("order_id", orderIds);
+        (dels ?? []).forEach((d) => {
+          addressMap.set(d.order_id, { pickup: d.pickup_address, dropoff: d.delivery_address });
+        });
+      }
+      const enriched: Offer[] = visible.map((o) => {
+        const addr = addressMap.get(o.order_id);
+        const distance_km = estimateDistanceKm(o.order_id);
+        return {
+          id: o.id,
+          order_id: o.order_id,
+          message: o.message,
+          created_at: o.created_at,
+          declined_by: o.declined_by,
+          expires_at: o.expires_at,
+          pickup_address: addr?.pickup ?? null,
+          delivery_address: addr?.dropoff ?? null,
+          distance_km,
+          earnings: estimateEarnings(distance_km),
+        };
+      });
+      setOffers(enriched);
     }
     load();
     loadOffers();
