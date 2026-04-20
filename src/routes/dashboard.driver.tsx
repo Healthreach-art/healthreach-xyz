@@ -192,6 +192,36 @@ function DriverDashboard() {
         ))}
       </div>
 
+      {/* Incoming Requests (Uber-style broadcast) */}
+      {offers.length > 0 && (
+        <div className="mb-8 rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+            <Radio className="h-5 w-5 text-primary animate-pulse" />
+            Incoming Delivery Requests
+            <span className="ml-auto text-xs font-normal text-muted-foreground">{offers.length} available</span>
+          </h2>
+          <div className="space-y-3">
+            {offers.map((offer) => (
+              <div key={offer.id} className="rounded-lg bg-background border border-border p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-mono text-muted-foreground">Order {offer.order_id.slice(0, 8)}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(offer.created_at).toLocaleTimeString()}</span>
+                </div>
+                <p className="text-sm font-medium text-foreground mb-3">{offer.message || "New delivery request"}</p>
+                <div className="flex gap-2">
+                  <Button size="sm" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => acceptOffer(offer)}>
+                    <CheckCircle className="h-3 w-3" /> {respondingId === offer.id ? "Accepting..." : "Accept"}
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => declineOffer(offer)}>
+                    <X className="h-3 w-3" /> Decline
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3 space-y-4">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
