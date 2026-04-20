@@ -71,7 +71,7 @@ interface Offer {
   earnings: number;
 }
 
-// Deterministic pseudo-distance (1.5–8.5 km) from order_id so it doesn't jump on re-render
+// Fallback deterministic estimate (1.5–8.5 km) when Mapbox is unavailable
 function estimateDistanceKm(orderId: string): number {
   let h = 0;
   for (let i = 0; i < orderId.length; i++) h = (h * 31 + orderId.charCodeAt(i)) >>> 0;
