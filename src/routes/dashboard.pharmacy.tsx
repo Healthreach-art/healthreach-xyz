@@ -13,7 +13,7 @@ import {
 import {
   Package, AlertTriangle, ShoppingCart, DollarSign,
   CheckCircle, XCircle, Clock, Pill, TrendingDown, Loader2,
-  Pencil, Trash2, Plus, Minus, Truck,
+  Pencil, Trash2, Plus, Minus, Truck, Radio,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -227,6 +227,27 @@ function PharmacyDashboard() {
     loadDrivers();
   }
 
+  // Uber-style: broadcast to all approved drivers; first to accept wins
+  async function broadcastToDrivers(order: Order) {
+    if (order.id.startsWith("demo-")) { toast.info("Demo order — cannot broadcast."); return; }
+    if (!user) return;
+    // Avoid duplicate open offers for same order
+    const { data: existing } = await supabase
+      .from("delivery_offers")
+      .select("id")
+      .eq("order_id", order.id)
+      .eq("status", "open")
+      .maybeSingle();
+    if (existing) { toast.info("Request already broadcast — waiting for a driver."); return; }
+    const { error } = await supabase.from("delivery_offers").insert({
+      order_id: order.id,
+      pharmacy_id: user.id,
+      message: `${order.medication_name} × ${order.quantity}`,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Request sent to all available drivers");
+  }
+
   if (approvalStatus === "pending") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
@@ -324,6 +345,9 @@ function PharmacyDashboard() {
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Button size="sm" variant="default" className="gap-1" onClick={() => setAssignOrder(order)}>
                       <CheckCircle className="h-3 w-3" /> Accept & Assign
+                    </Button>
+                    <Button size="sm" variant="secondary" className="gap-1" onClick={() => broadcastToDrivers(order)}>
+                      <Radio className="h-3 w-3" /> Broadcast to Drivers
                     </Button>
                     <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectOrder(order.id)}>
                       <XCircle className="h-3 w-3" /> Reject

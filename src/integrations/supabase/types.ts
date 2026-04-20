@@ -61,6 +61,45 @@ export type Database = {
           },
         ]
       }
+      delivery_offers: {
+        Row: {
+          accepted_by: string | null
+          created_at: string
+          declined_by: string[]
+          expires_at: string
+          id: string
+          message: string | null
+          order_id: string
+          pharmacy_id: string
+          status: Database["public"]["Enums"]["offer_status"]
+          updated_at: string
+        }
+        Insert: {
+          accepted_by?: string | null
+          created_at?: string
+          declined_by?: string[]
+          expires_at?: string
+          id?: string
+          message?: string | null
+          order_id: string
+          pharmacy_id: string
+          status?: Database["public"]["Enums"]["offer_status"]
+          updated_at?: string
+        }
+        Update: {
+          accepted_by?: string | null
+          created_at?: string
+          declined_by?: string[]
+          expires_at?: string
+          id?: string
+          message?: string | null
+          order_id?: string
+          pharmacy_id?: string
+          status?: Database["public"]["Enums"]["offer_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       medications: {
         Row: {
           category: string | null
@@ -318,6 +357,7 @@ export type Database = {
       app_role: "patient" | "pharmacy" | "hospital" | "driver" | "admin"
       approval_status: "pending" | "approved" | "rejected"
       delivery_status: "assigned" | "picked_up" | "in_transit" | "delivered"
+      offer_status: "open" | "accepted" | "declined" | "cancelled" | "expired"
       order_status:
         | "pending"
         | "accepted"
@@ -457,6 +497,7 @@ export const Constants = {
       app_role: ["patient", "pharmacy", "hospital", "driver", "admin"],
       approval_status: ["pending", "approved", "rejected"],
       delivery_status: ["assigned", "picked_up", "in_transit", "delivered"],
+      offer_status: ["open", "accepted", "declined", "cancelled", "expired"],
       order_status: [
         "pending",
         "accepted",
