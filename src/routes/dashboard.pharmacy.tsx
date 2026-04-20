@@ -346,6 +346,9 @@ function PharmacyDashboard() {
                     <Button size="sm" variant="default" className="gap-1" onClick={() => setAssignOrder(order)}>
                       <CheckCircle className="h-3 w-3" /> Accept & Assign
                     </Button>
+                    <Button size="sm" variant="secondary" className="gap-1" onClick={() => broadcastToDrivers(order)}>
+                      <Radio className="h-3 w-3" /> Broadcast to Drivers
+                    </Button>
                     <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectOrder(order.id)}>
                       <XCircle className="h-3 w-3" /> Reject
                     </Button>
