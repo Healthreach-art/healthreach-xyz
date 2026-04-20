@@ -8,6 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getMapboxDistance } from "@/utils/mapbox.functions";
 
 type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered";
 interface LiveDelivery {
