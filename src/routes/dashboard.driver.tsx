@@ -64,6 +64,21 @@ interface Offer {
   message: string | null;
   created_at: string;
   declined_by: string[] | null;
+  expires_at: string;
+  pickup_address: string | null;
+  delivery_address: string | null;
+  distance_km: number;
+  earnings: number;
+}
+
+// Deterministic pseudo-distance (1.5–8.5 km) from order_id so it doesn't jump on re-render
+function estimateDistanceKm(orderId: string): number {
+  let h = 0;
+  for (let i = 0; i < orderId.length; i++) h = (h * 31 + orderId.charCodeAt(i)) >>> 0;
+  return Math.round(((h % 700) / 100 + 1.5) * 10) / 10;
+}
+function estimateEarnings(km: number): number {
+  return Math.round(25 + km * 6); // R25 base + R6/km
 }
 
 function DriverDashboard() {
@@ -72,6 +87,18 @@ function DriverDashboard() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  // 1s tick for countdown
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Auto-remove expired offers locally
+  useEffect(() => {
+    setOffers((prev) => prev.filter((o) => new Date(o.expires_at).getTime() > now));
+  }, [now]);
 
   useEffect(() => {
     if (!user) return;
@@ -87,11 +114,39 @@ function DriverDashboard() {
     async function loadOffers() {
       const { data } = await supabase
         .from("delivery_offers")
-        .select("id, order_id, message, created_at, declined_by")
+        .select("id, order_id, message, created_at, declined_by, expires_at")
         .eq("status", "open")
+        .gt("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false });
-      const filtered = (data ?? []).filter((o) => !(o.declined_by ?? []).includes(user!.id));
-      setOffers(filtered as Offer[]);
+      const visible = (data ?? []).filter((o) => !(o.declined_by ?? []).includes(user!.id));
+      const orderIds = visible.map((o) => o.order_id);
+      let addressMap = new Map<string, { pickup: string | null; dropoff: string | null }>();
+      if (orderIds.length > 0) {
+        const { data: dels } = await supabase
+          .from("deliveries")
+          .select("order_id, pickup_address, delivery_address")
+          .in("order_id", orderIds);
+        (dels ?? []).forEach((d) => {
+          addressMap.set(d.order_id, { pickup: d.pickup_address, dropoff: d.delivery_address });
+        });
+      }
+      const enriched: Offer[] = visible.map((o) => {
+        const addr = addressMap.get(o.order_id);
+        const distance_km = estimateDistanceKm(o.order_id);
+        return {
+          id: o.id,
+          order_id: o.order_id,
+          message: o.message,
+          created_at: o.created_at,
+          declined_by: o.declined_by,
+          expires_at: o.expires_at,
+          pickup_address: addr?.pickup ?? null,
+          delivery_address: addr?.dropoff ?? null,
+          distance_km,
+          earnings: estimateEarnings(distance_km),
+        };
+      });
+      setOffers(enriched);
     }
     load();
     loadOffers();
@@ -217,23 +272,53 @@ function DriverDashboard() {
             <span className="ml-auto text-xs font-normal text-muted-foreground">{offers.length} available</span>
           </h2>
           <div className="space-y-3">
-            {offers.map((offer) => (
-              <div key={offer.id} className="rounded-lg bg-background border border-border p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono text-muted-foreground">Order {offer.order_id.slice(0, 8)}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(offer.created_at).toLocaleTimeString()}</span>
+            {offers.map((offer) => {
+              const msLeft = Math.max(0, new Date(offer.expires_at).getTime() - now);
+              const totalSec = Math.floor(msLeft / 1000);
+              const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+              const ss = String(totalSec % 60).padStart(2, "0");
+              const urgent = msLeft < 60_000;
+              return (
+                <div key={offer.id} className="rounded-lg bg-background border border-border p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-mono text-muted-foreground">Order {offer.order_id.slice(0, 8)}</span>
+                    <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${urgent ? "bg-destructive/10 text-destructive" : "bg-accent text-accent-foreground"}`}>
+                      ⏱ {mm}:{ss}
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium text-foreground mb-3">{offer.message || "New delivery request"}</p>
+
+                  <div className="space-y-1.5 text-xs mb-3">
+                    <div className="flex items-start gap-2">
+                      <Package className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                      <div><span className="text-muted-foreground">Pickup: </span><span className="text-foreground">{offer.pickup_address || "—"}</span></div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-healthcare-green mt-0.5 shrink-0" />
+                      <div><span className="text-muted-foreground">Dropoff: </span><span className="text-foreground">{offer.delivery_address || "—"}</span></div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-3 text-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-healthcare-sky/15 text-healthcare-sky px-2 py-0.5">
+                      <Navigation className="h-3 w-3" /> ~{offer.distance_km} km
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-healthcare-green/15 text-healthcare-green px-2 py-0.5">
+                      <DollarSign className="h-3 w-3" /> R {offer.earnings}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button size="sm" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => acceptOffer(offer)}>
+                      <CheckCircle className="h-3 w-3" /> {respondingId === offer.id ? "Accepting..." : "Accept"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => declineOffer(offer)}>
+                      <X className="h-3 w-3" /> Decline
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-foreground mb-3">{offer.message || "New delivery request"}</p>
-                <div className="flex gap-2">
-                  <Button size="sm" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => acceptOffer(offer)}>
-                    <CheckCircle className="h-3 w-3" /> {respondingId === offer.id ? "Accepting..." : "Accept"}
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={respondingId === offer.id} onClick={() => declineOffer(offer)}>
-                    <X className="h-3 w-3" /> Decline
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
