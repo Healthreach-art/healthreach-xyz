@@ -97,7 +97,23 @@ function DriverDashboard() {
     loadOffers();
     const channel = supabase
       .channel("driver-deliveries")
-      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries", filter: `driver_id=eq.${user.id}` }, () => load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "deliveries", filter: `driver_id=eq.${user.id}` }, (payload) => {
+        const d = payload.new as LiveDelivery;
+        toast.success("New delivery assigned!", {
+          description: d.pickup_address ? `Pickup: ${d.pickup_address}` : `Order ${d.order_id.slice(0, 8)}`,
+        });
+        load();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "deliveries", filter: `driver_id=eq.${user.id}` }, (payload) => {
+        const oldRow = payload.old as { driver_id: string | null };
+        const newRow = payload.new as LiveDelivery;
+        if (oldRow.driver_id !== newRow.driver_id && newRow.driver_id === user!.id) {
+          toast.success("New delivery assigned to you!", {
+            description: newRow.pickup_address ? `Pickup: ${newRow.pickup_address}` : `Order ${newRow.order_id.slice(0, 8)}`,
+          });
+        }
+        load();
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "delivery_offers" }, () => loadOffers())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
