@@ -162,6 +162,63 @@ function AdminDashboard() {
 
   const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role));
 
+  // Real-data metrics derived from transactions
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthlyTxns = transactions.filter((t) => new Date(t.date) >= startOfMonth);
+  const monthlyRevenue = monthlyTxns
+    .filter((t) => t.status === "completed" || t.status === "delivered")
+    .reduce((s, t) => s + t.amount, 0);
+  const totalRevenue = transactions
+    .filter((t) => t.status === "completed" || t.status === "delivered")
+    .reduce((s, t) => s + t.amount, 0);
+  const activeOrdersCount = transactions.filter((t) =>
+    !["delivered", "cancelled", "completed", "refunded", "failed"].includes(t.status)
+  ).length;
+  const deliveredCount = transactions.filter((t) => t.status === "delivered").length;
+  const avgOrderValue = transactions.length > 0
+    ? transactions.reduce((s, t) => s + t.amount, 0) / transactions.length
+    : 0;
+  const newUsersThisMonth = users.filter((u) => new Date(u.created_at) >= startOfMonth).length;
+
+  function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
+    const escape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${filename} downloaded`);
+  }
+
+  function generateReport(kind: "financial" | "users" | "orders" | "inventory") {
+    if (kind === "financial") {
+      downloadCsv(
+        "financial-report.csv",
+        ["Order ID", "Patient", "Medication", "Amount (ZAR)", "Method", "Status", "Date"],
+        transactions.map((t) => [t.id, t.patient, t.medication, t.amount.toFixed(2), t.method, t.status, t.date]),
+      );
+    } else if (kind === "users") {
+      downloadCsv(
+        "user-activity-report.csv",
+        ["User ID", "Name", "Email", "Role", "Approval", "Joined"],
+        users.map((u) => [u.user_id, u.full_name, u.email, u.role ?? "", u.approval_status ?? "", u.created_at]),
+      );
+    } else if (kind === "orders") {
+      downloadCsv(
+        "order-report.csv",
+        ["Order ID", "Patient", "Medication", "Amount (ZAR)", "Status", "Date"],
+        transactions.map((t) => [t.id, t.patient, t.medication, t.amount.toFixed(2), t.status, t.date]),
+      );
+    } else {
+      toast("Inventory report", { description: "Coming soon — pharmacy inventory aggregation." });
+    }
+  }
+
   const tabs: { id: TabId; label: string; icon: typeof Users }[] = [
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "approvals", label: "Approvals", icon: CheckCircle },
