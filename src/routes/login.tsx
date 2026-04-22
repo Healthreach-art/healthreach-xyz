@@ -1,13 +1,21 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
-import { LogIn, AlertCircle } from "lucide-react";
+import { LogIn, AlertCircle, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
+
+type LoginSearch = { mode?: "admin"; denied?: "admin"; redirect?: string };
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>): LoginSearch => ({
+    mode: search.mode === "admin" ? "admin" : undefined,
+    denied: search.denied === "admin" ? "admin" : undefined,
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Log In — HEALTHREACH" },
@@ -19,10 +27,20 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { mode, denied } = useSearch({ from: "/login" });
+  const isAdminMode = mode === "admin";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (denied === "admin") {
+      toast.error("Admin access required", {
+        description: "Your account does not have admin privileges.",
+      });
+    }
+  }, [denied]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,6 +65,14 @@ function LoginPage() {
         .maybeSingle();
 
       const role = roleData?.role || "patient";
+
+      if (isAdminMode && role !== "admin") {
+        await supabase.auth.signOut();
+        setError("This account is not an admin account. Please use an admin login or switch to the standard login.");
+        setLoading(false);
+        return;
+      }
+
       navigate({ to: `/dashboard/${role}` as any });
     }
     setLoading(false);
