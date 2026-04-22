@@ -494,21 +494,19 @@ function AdminDashboard() {
       {activeTab === "reports" && (
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="healthcare-card p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Monthly Summary</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Live Summary</h2>
             <div className="space-y-4">
               {[
-                { label: "Total Revenue", value: "R 156,000", change: "+12%" },
-                { label: "Orders Processed", value: "423", change: "+8%" },
-                { label: "New Users", value: "89", change: "+15%" },
-                { label: "Deliveries Completed", value: "398", change: "+10%" },
-                { label: "Average Order Value", value: "R 368", change: "+3%" },
+                { label: "Total Revenue", value: `R ${totalRevenue.toFixed(0)}` },
+                { label: "Revenue (This Month)", value: `R ${monthlyRevenue.toFixed(0)}` },
+                { label: "Orders Processed", value: String(transactions.length) },
+                { label: "New Users (This Month)", value: String(newUsersThisMonth) },
+                { label: "Deliveries Completed", value: String(deliveredCount) },
+                { label: "Average Order Value", value: `R ${avgOrderValue.toFixed(0)}` },
               ].map((metric) => (
                 <div key={metric.label} className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">{metric.label}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">{metric.value}</span>
-                    <span className="text-xs text-healthcare-green">{metric.change}</span>
-                  </div>
+                  <span className="text-sm font-semibold text-foreground">{metric.value}</span>
                 </div>
               ))}
             </div>
@@ -517,18 +515,18 @@ function AdminDashboard() {
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Generate Reports</h2>
             <div className="space-y-3">
-              {[
-                { label: "Financial Report", desc: "Revenue, payments, and refunds" },
-                { label: "User Activity Report", desc: "Signups, logins, and engagement" },
-                { label: "Order Report", desc: "Orders, fulfillment, and delivery times" },
-                { label: "Inventory Report", desc: "Stock levels across pharmacies" },
-              ].map((report) => (
+              {([
+                { kind: "financial", label: "Financial Report", desc: "Revenue, payments, and refunds" },
+                { kind: "users", label: "User Activity Report", desc: "Signups and roles" },
+                { kind: "orders", label: "Order Report", desc: "Orders, fulfillment, and status" },
+                { kind: "inventory", label: "Inventory Report", desc: "Stock levels across pharmacies" },
+              ] as const).map((report) => (
                 <div key={report.label} className="flex items-center justify-between rounded-lg border border-border p-3">
                   <div>
                     <p className="text-sm font-medium text-foreground">{report.label}</p>
                     <p className="text-xs text-muted-foreground">{report.desc}</p>
                   </div>
-                  <Button size="sm" variant="outline">Generate</Button>
+                  <Button size="sm" variant="outline" onClick={() => generateReport(report.kind)}>Generate</Button>
                 </div>
               ))}
             </div>
