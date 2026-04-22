@@ -29,13 +29,15 @@ interface UserRow {
   role: AppRole | null;
 }
 
-const mockTransactions = [
-  { id: "TXN-001", patient: "Thabo Mokoena", amount: "R 145.00", method: "Visa", status: "completed", date: "2026-04-13" },
-  { id: "TXN-002", patient: "Naledi Khumalo", amount: "R 68.50", method: "EFT", status: "completed", date: "2026-04-12" },
-  { id: "TXN-003", patient: "Sipho Dlamini", amount: "R 210.00", method: "Mastercard", status: "pending", date: "2026-04-13" },
-  { id: "TXN-004", patient: "Zanele Mthembu", amount: "R 95.00", method: "PayPal", status: "completed", date: "2026-04-11" },
-  { id: "TXN-005", patient: "Bongani Ndlovu", amount: "R 320.00", method: "Visa", status: "failed", date: "2026-04-10" },
-];
+interface TxnRow {
+  id: string;          // order id
+  patient: string;
+  medication: string;
+  amount: number;
+  method: string;      // payment method or "—"
+  status: string;      // payment status, fallback to order status
+  date: string;        // ISO order created_at
+}
 
 const roleIcons: Record<string, typeof Users> = {
   patient: Users, pharmacy: Pill, hospital: Building2, driver: Truck, admin: ShieldCheck,
@@ -59,6 +61,7 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [transactions, setTransactions] = useState<TxnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -75,7 +78,6 @@ function AdminDashboard() {
   }, [role, authLoading, navigate]);
 
   async function loadUsers() {
-    setLoading(true);
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       supabase.from("profiles").select("user_id, full_name, email, organization_name, approval_status, created_at").order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
@@ -91,15 +93,54 @@ function AdminDashboard() {
       role: roleMap.get(p.user_id) ?? null,
     }));
     setUsers(merged);
-    setLoading(false);
+  }
+
+  async function loadTransactions() {
+    const { data: orders } = await supabase
+      .from("orders")
+      .select("id, patient_id, medication_name, total_amount, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const orderRows = orders ?? [];
+    const orderIds = orderRows.map((o) => o.id);
+    const patientIds = Array.from(new Set(orderRows.map((o) => o.patient_id)));
+
+    const [{ data: payments }, { data: profs }] = await Promise.all([
+      orderIds.length > 0
+        ? supabase.from("payments").select("order_id, payment_method, status").in("order_id", orderIds)
+        : Promise.resolve({ data: [] as { order_id: string; payment_method: string; status: string }[] }),
+      patientIds.length > 0
+        ? supabase.from("profiles").select("user_id, full_name").in("user_id", patientIds)
+        : Promise.resolve({ data: [] as { user_id: string; full_name: string }[] }),
+    ]);
+
+    const paymentMap = new Map((payments ?? []).map((p) => [p.order_id, p]));
+    const nameMap = new Map((profs ?? []).map((p) => [p.user_id, p.full_name]));
+
+    const rows: TxnRow[] = orderRows.map((o) => {
+      const pay = paymentMap.get(o.id);
+      return {
+        id: o.id,
+        patient: nameMap.get(o.patient_id) || o.patient_id.slice(0, 8),
+        medication: o.medication_name,
+        amount: Number(o.total_amount),
+        method: pay?.payment_method || "—",
+        status: pay?.status || o.status,
+        date: o.created_at,
+      };
+    });
+    setTransactions(rows);
   }
 
   useEffect(() => {
-    loadUsers();
+    setLoading(true);
+    Promise.all([loadUsers(), loadTransactions()]).finally(() => setLoading(false));
     const channel = supabase
-      .channel("admin-profiles")
+      .channel("admin-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => loadUsers())
       .on("postgres_changes", { event: "*", schema: "public", table: "user_roles" }, () => loadUsers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => loadTransactions())
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => loadTransactions())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
@@ -120,6 +161,63 @@ function AdminDashboard() {
   }
 
   const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role));
+
+  // Real-data metrics derived from transactions
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthlyTxns = transactions.filter((t) => new Date(t.date) >= startOfMonth);
+  const monthlyRevenue = monthlyTxns
+    .filter((t) => t.status === "completed" || t.status === "delivered")
+    .reduce((s, t) => s + t.amount, 0);
+  const totalRevenue = transactions
+    .filter((t) => t.status === "completed" || t.status === "delivered")
+    .reduce((s, t) => s + t.amount, 0);
+  const activeOrdersCount = transactions.filter((t) =>
+    !["delivered", "cancelled", "completed", "refunded", "failed"].includes(t.status)
+  ).length;
+  const deliveredCount = transactions.filter((t) => t.status === "delivered").length;
+  const avgOrderValue = transactions.length > 0
+    ? transactions.reduce((s, t) => s + t.amount, 0) / transactions.length
+    : 0;
+  const newUsersThisMonth = users.filter((u) => new Date(u.created_at) >= startOfMonth).length;
+
+  function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
+    const escape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${filename} downloaded`);
+  }
+
+  function generateReport(kind: "financial" | "users" | "orders" | "inventory") {
+    if (kind === "financial") {
+      downloadCsv(
+        "financial-report.csv",
+        ["Order ID", "Patient", "Medication", "Amount (ZAR)", "Method", "Status", "Date"],
+        transactions.map((t) => [t.id, t.patient, t.medication, t.amount.toFixed(2), t.method, t.status, t.date]),
+      );
+    } else if (kind === "users") {
+      downloadCsv(
+        "user-activity-report.csv",
+        ["User ID", "Name", "Email", "Role", "Approval", "Joined"],
+        users.map((u) => [u.user_id, u.full_name, u.email, u.role ?? "", u.approval_status ?? "", u.created_at]),
+      );
+    } else if (kind === "orders") {
+      downloadCsv(
+        "order-report.csv",
+        ["Order ID", "Patient", "Medication", "Amount (ZAR)", "Status", "Date"],
+        transactions.map((t) => [t.id, t.patient, t.medication, t.amount.toFixed(2), t.status, t.date]),
+      );
+    } else {
+      toast("Inventory report", { description: "Coming soon — pharmacy inventory aggregation." });
+    }
+  }
 
   const tabs: { id: TabId; label: string; icon: typeof Users }[] = [
     { id: "overview", label: "Overview", icon: BarChart3 },
@@ -168,8 +266,8 @@ function AdminDashboard() {
             {[
               { icon: Users, label: "Total Users", value: String(users.length), color: "text-primary" },
               { icon: ShieldCheck, label: "Pending Approvals", value: String(pending.length), color: "text-destructive" },
-              { icon: DollarSign, label: "Revenue (Month)", value: "R 156,000", color: "text-healthcare-green" },
-              { icon: Activity, label: "Active Orders", value: "34", color: "text-healthcare-teal" },
+              { icon: DollarSign, label: "Revenue (Month)", value: `R ${monthlyRevenue.toFixed(0)}`, color: "text-healthcare-green" },
+              { icon: Activity, label: "Active Orders", value: String(activeOrdersCount), color: "text-healthcare-teal" },
             ].map((stat) => (
               <div key={stat.label} className="healthcare-card p-5">
                 <div className="flex items-center gap-3">
@@ -350,56 +448,65 @@ function AdminDashboard() {
 
       {activeTab === "transactions" && (
         <div className="healthcare-card p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Transaction History</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="pb-3 font-medium text-muted-foreground">ID</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Patient</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Amount</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Method</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Status</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockTransactions.map((txn) => (
-                  <tr key={txn.id} className="border-b border-border last:border-0">
-                    <td className="py-3 font-mono text-xs text-muted-foreground">{txn.id}</td>
-                    <td className="py-3 font-medium text-foreground">{txn.patient}</td>
-                    <td className="py-3 font-semibold text-foreground">{txn.amount}</td>
-                    <td className="py-3 text-muted-foreground">{txn.method}</td>
-                    <td className="py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${txnStatusColors[txn.status]}`}>{txn.status}</span>
-                    </td>
-                    <td className="py-3 text-muted-foreground">{txn.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Transaction History ({transactions.length})</h2>
+            <Button size="sm" variant="outline" onClick={() => generateReport("financial")}>Export CSV</Button>
           </div>
+          {loading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : transactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No transactions yet. Patient orders will appear here.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left">
+                    <th className="pb-3 font-medium text-muted-foreground">Order</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Patient</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Medication</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Amount</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Method</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Status</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((txn) => (
+                    <tr key={txn.id} className="border-b border-border last:border-0">
+                      <td className="py-3 font-mono text-xs text-muted-foreground">{txn.id.slice(0, 8)}</td>
+                      <td className="py-3 font-medium text-foreground">{txn.patient}</td>
+                      <td className="py-3 text-foreground">{txn.medication}</td>
+                      <td className="py-3 font-semibold text-foreground">R {txn.amount.toFixed(2)}</td>
+                      <td className="py-3 text-muted-foreground capitalize">{txn.method}</td>
+                      <td className="py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${txnStatusColors[txn.status] ?? "bg-accent text-accent-foreground"}`}>{txn.status.replace(/_/g, " ")}</span>
+                      </td>
+                      <td className="py-3 text-muted-foreground">{new Date(txn.date).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
       {activeTab === "reports" && (
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="healthcare-card p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Monthly Summary</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Live Summary</h2>
             <div className="space-y-4">
               {[
-                { label: "Total Revenue", value: "R 156,000", change: "+12%" },
-                { label: "Orders Processed", value: "423", change: "+8%" },
-                { label: "New Users", value: "89", change: "+15%" },
-                { label: "Deliveries Completed", value: "398", change: "+10%" },
-                { label: "Average Order Value", value: "R 368", change: "+3%" },
+                { label: "Total Revenue", value: `R ${totalRevenue.toFixed(0)}` },
+                { label: "Revenue (This Month)", value: `R ${monthlyRevenue.toFixed(0)}` },
+                { label: "Orders Processed", value: String(transactions.length) },
+                { label: "New Users (This Month)", value: String(newUsersThisMonth) },
+                { label: "Deliveries Completed", value: String(deliveredCount) },
+                { label: "Average Order Value", value: `R ${avgOrderValue.toFixed(0)}` },
               ].map((metric) => (
                 <div key={metric.label} className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">{metric.label}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">{metric.value}</span>
-                    <span className="text-xs text-healthcare-green">{metric.change}</span>
-                  </div>
+                  <span className="text-sm font-semibold text-foreground">{metric.value}</span>
                 </div>
               ))}
             </div>
@@ -408,18 +515,18 @@ function AdminDashboard() {
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Generate Reports</h2>
             <div className="space-y-3">
-              {[
-                { label: "Financial Report", desc: "Revenue, payments, and refunds" },
-                { label: "User Activity Report", desc: "Signups, logins, and engagement" },
-                { label: "Order Report", desc: "Orders, fulfillment, and delivery times" },
-                { label: "Inventory Report", desc: "Stock levels across pharmacies" },
-              ].map((report) => (
+              {([
+                { kind: "financial", label: "Financial Report", desc: "Revenue, payments, and refunds" },
+                { kind: "users", label: "User Activity Report", desc: "Signups and roles" },
+                { kind: "orders", label: "Order Report", desc: "Orders, fulfillment, and status" },
+                { kind: "inventory", label: "Inventory Report", desc: "Stock levels across pharmacies" },
+              ] as const).map((report) => (
                 <div key={report.label} className="flex items-center justify-between rounded-lg border border-border p-3">
                   <div>
                     <p className="text-sm font-medium text-foreground">{report.label}</p>
                     <p className="text-xs text-muted-foreground">{report.desc}</p>
                   </div>
-                  <Button size="sm" variant="outline">Generate</Button>
+                  <Button size="sm" variant="outline" onClick={() => generateReport(report.kind)}>Generate</Button>
                 </div>
               ))}
             </div>
