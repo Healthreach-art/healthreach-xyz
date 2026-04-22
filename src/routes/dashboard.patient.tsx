@@ -58,27 +58,33 @@ function PatientDashboard() {
   useEffect(() => {
     async function load() {
       const tasks: Promise<unknown>[] = [
-        supabase
-          .from("medications")
-          .select("id, pharmacy_id, name, price, stock_quantity")
-          .gt("stock_quantity", 0)
-          .order("name")
-          .then(({ data }) => setMeds((data ?? []) as Med[])),
+        (async () => {
+          const { data } = await supabase
+            .from("medications")
+            .select("id, pharmacy_id, name, price, stock_quantity")
+            .gt("stock_quantity", 0)
+            .order("name");
+          setMeds((data ?? []) as Med[]);
+        })(),
       ];
       if (user) {
         tasks.push(
-          supabase
-            .from("orders")
-            .select("id, medication_name, status, total_amount, created_at")
-            .eq("patient_id", user.id)
-            .order("created_at", { ascending: false })
-            .then(({ data }) => setOrders((data ?? []) as Order[])),
-          supabase
-            .from("prescriptions")
-            .select("id, medication_name, dosage, doctor_name, is_active, created_at")
-            .eq("patient_id", user.id)
-            .order("created_at", { ascending: false })
-            .then(({ data }) => setPrescriptions((data ?? []) as Prescription[]))
+          (async () => {
+            const { data } = await supabase
+              .from("orders")
+              .select("id, medication_name, status, total_amount, created_at")
+              .eq("patient_id", user.id)
+              .order("created_at", { ascending: false });
+            setOrders((data ?? []) as Order[]);
+          })(),
+          (async () => {
+            const { data } = await supabase
+              .from("prescriptions")
+              .select("id, medication_name, dosage, doctor_name, is_active, created_at")
+              .eq("patient_id", user.id)
+              .order("created_at", { ascending: false });
+            setPrescriptions((data ?? []) as Prescription[]);
+          })()
         );
       }
       await Promise.all(tasks);
