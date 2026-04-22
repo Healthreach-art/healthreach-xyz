@@ -262,18 +262,15 @@ function DriverDashboard() {
     const next = nextStatus[d.status];
     if (!next) return;
     setUpdating(d.id);
-    const updates = [
-      supabase.from("deliveries").update({ status: next }).eq("id", d.id),
-    ];
+    const { error } = await supabase.from("deliveries").update({ status: next }).eq("id", d.id);
     // Sync the order status so patient sees progress
-    const orderStatusMap: Record<DStatus, string | null> = {
+    const orderStatusMap: Record<DStatus, "out_for_delivery" | "delivered" | null> = {
       assigned: null, picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered",
     };
     const orderStatus = orderStatusMap[next];
     if (orderStatus) {
-      updates.push(supabase.from("orders").update({ status: orderStatus as any }).eq("id", d.order_id));
+      await supabase.from("orders").update({ status: orderStatus }).eq("id", d.order_id);
     }
-    const [{ error }] = await Promise.all(updates);
     setUpdating(null);
     if (error) toast.error(error.message);
     else toast.success(`Marked ${next.replace(/_/g, " ")}`);
