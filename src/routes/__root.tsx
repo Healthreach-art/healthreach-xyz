@@ -39,6 +39,12 @@ export const Route = createRootRoute({
       { name: "author", content: "HEALTHREACH" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:title", content: "HEALTHREACH — Integrated Healthcare Management" },
+      { name: "twitter:title", content: "HEALTHREACH — Integrated Healthcare Management" },
+      { property: "og:description", content: "Your central hub for integrated healthcare management connecting patients, pharmacies, hospitals, and delivery services." },
+      { name: "twitter:description", content: "Your central hub for integrated healthcare management connecting patients, pharmacies, hospitals, and delivery services." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6de31345-24a7-4c2c-8465-25d7c705c8de/id-preview-8ba30e54--2e5d99c7-52f1-4a97-ba21-799533cca0bc.lovable.app-1776727367211.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6de31345-24a7-4c2c-8465-25d7c705c8de/id-preview-8ba30e54--2e5d99c7-52f1-4a97-ba21-799533cca0bc.lovable.app-1776727367211.png" },
     ],
     links: [
       {
