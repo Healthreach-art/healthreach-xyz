@@ -83,24 +83,34 @@ function LoginPage() {
       <div className="w-full max-w-md">
         <div className="healthcare-card p-8">
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full healthcare-gradient">
-              <LogIn className="h-5 w-5 text-primary-foreground" />
+            <div className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ${isAdminMode ? "bg-foreground" : "healthcare-gradient"}`}>
+              {isAdminMode ? (
+                <ShieldCheck className="h-5 w-5 text-background" />
+              ) : (
+                <LogIn className="h-5 w-5 text-primary-foreground" />
+              )}
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Sign in to your HEALTHREACH account</p>
+            <h1 className="text-2xl font-bold text-foreground">
+              {isAdminMode ? "Admin Sign In" : "Welcome Back"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isAdminMode
+                ? "Restricted area — admin accounts only"
+                : "Sign in to your HEALTHREACH account"}
+            </p>
           </div>
 
           {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
+            <div className="mb-4 flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isAdminMode ? "admin@healthreach.co.za" : "you@example.com"} required />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -112,21 +122,43 @@ function LoginPage() {
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "Signing in..." : isAdminMode ? "Sign in as Admin" : "Sign In"}
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link to="/signup" className="text-primary font-medium hover:underline">
-              Sign up
-            </Link>
-          </p>
+          {!isAdminMode && (
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <Link to="/signup" className="text-primary font-medium hover:underline">
+                Sign up
+              </Link>
+            </p>
+          )}
 
-          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Demo: Create an admin account</p>
-            <p>Sign up with role <span className="font-medium">Admin</span> — admins are auto-approved and unlimited admins are allowed.</p>
+          <div className="mt-4 text-center text-xs">
+            {isAdminMode ? (
+              <Link to="/login" className="text-muted-foreground hover:text-foreground hover:underline">
+                ← Back to standard login
+              </Link>
+            ) : (
+              <Link to="/login" search={{ mode: "admin" }} className="text-muted-foreground hover:text-foreground hover:underline inline-flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3" /> Admin sign in
+              </Link>
+            )}
           </div>
+
+          {isAdminMode ? (
+            <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Seeded admin accounts</p>
+              <p>admin1@healthreach.co.za / Admin1Pass!2025</p>
+              <p>admin2@healthreach.co.za / Admin2Pass!2025</p>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Demo: Create an admin account</p>
+              <p>Sign up with role <span className="font-medium">Admin</span> — admins are auto-approved and unlimited admins are allowed.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
