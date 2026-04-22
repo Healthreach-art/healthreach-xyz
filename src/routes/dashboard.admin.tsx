@@ -55,11 +55,24 @@ const txnStatusColors: Record<string, string> = {
 };
 
 function AdminDashboard() {
-  const { profile, signOut } = useAuth();
+  const { profile, role, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (role && role !== "admin") {
+      toast.error("Admin access required", {
+        description: `Your account role is "${role}". Redirecting to your dashboard.`,
+      });
+      navigate({ to: `/dashboard/${role}` as any });
+    } else if (!role) {
+      navigate({ to: "/login", search: { denied: "admin" } as any });
+    }
+  }, [role, authLoading, navigate]);
 
   async function loadUsers() {
     setLoading(true);
