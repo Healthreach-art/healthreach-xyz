@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
-  CalendarDays, FileText, MapPin, Loader2,
+  CalendarDays, FileText, MapPin, Loader2, Stethoscope,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,14 @@ interface Order {
   total_amount: number;
   created_at: string;
 }
+interface Prescription {
+  id: string;
+  medication_name: string;
+  dosage: string | null;
+  doctor_name: string;
+  is_active: boolean | null;
+  created_at: string;
+}
 
 const statusColors: Record<string, string> = {
   pending: "bg-accent text-accent-foreground",
@@ -44,42 +52,66 @@ function PatientDashboard() {
   const [search, setSearch] = useState("");
   const [meds, setMeds] = useState<Med[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const medsRes = await supabase
-        .from("medications")
-        .select("id, pharmacy_id, name, price, stock_quantity")
-        .gt("stock_quantity", 0)
-        .order("name");
-      setMeds((medsRes.data ?? []) as Med[]);
-
+      const tasks: Promise<unknown>[] = [
+        supabase
+          .from("medications")
+          .select("id, pharmacy_id, name, price, stock_quantity")
+          .gt("stock_quantity", 0)
+          .order("name")
+          .then(({ data }) => setMeds((data ?? []) as Med[])),
+      ];
       if (user) {
-        const ordersRes = await supabase
-          .from("orders")
-          .select("id, medication_name, status, total_amount, created_at")
-          .eq("patient_id", user.id)
-          .order("created_at", { ascending: false });
-        setOrders((ordersRes.data ?? []) as Order[]);
+        tasks.push(
+          supabase
+            .from("orders")
+            .select("id, medication_name, status, total_amount, created_at")
+            .eq("patient_id", user.id)
+            .order("created_at", { ascending: false })
+            .then(({ data }) => setOrders((data ?? []) as Order[])),
+          supabase
+            .from("prescriptions")
+            .select("id, medication_name, dosage, doctor_name, is_active, created_at")
+            .eq("patient_id", user.id)
+            .order("created_at", { ascending: false })
+            .then(({ data }) => setPrescriptions((data ?? []) as Prescription[]))
+        );
       }
+      await Promise.all(tasks);
       setLoading(false);
     }
     load();
 
     if (!user) return;
+
+    async function refreshOrders() {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, medication_name, status, total_amount, created_at")
+        .eq("patient_id", user!.id)
+        .order("created_at", { ascending: false });
+      setOrders((data ?? []) as Order[]);
+    }
+
     const statusLabels: Record<string, string> = {
       picked_up: "Your order has been picked up by the driver 📦",
       in_transit: "Your order is on the way! 🚗",
       delivered: "Your order has been delivered ✅",
     };
+
     const channel = supabase
-      .channel(`patient-deliveries-${user.id}`)
+      .channel(`patient-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` }, () => {
+        refreshOrders();
+      })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "deliveries" }, async (payload) => {
         const newRow = payload.new as { order_id: string; status: string };
         const oldRow = payload.old as { status?: string };
         if (newRow.status === oldRow.status) return;
-        // Verify this delivery belongs to current patient
         const { data: order } = await supabase
           .from("orders")
           .select("id, patient_id, medication_name")
@@ -89,14 +121,16 @@ function PatientDashboard() {
         const msg = statusLabels[newRow.status];
         if (msg) {
           toast.success(msg, { description: order.medication_name });
-          // Refresh orders so dashboard reflects the new status
-          const ordersRes = await supabase
-            .from("orders")
-            .select("id, medication_name, status, total_amount, created_at")
-            .eq("patient_id", user.id)
-            .order("created_at", { ascending: false });
-          setOrders((ordersRes.data ?? []) as Order[]);
+          refreshOrders();
         }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "prescriptions", filter: `patient_id=eq.${user.id}` }, async () => {
+        const { data } = await supabase
+          .from("prescriptions")
+          .select("id, medication_name, dosage, doctor_name, is_active, created_at")
+          .eq("patient_id", user!.id)
+          .order("created_at", { ascending: false });
+        setPrescriptions((data ?? []) as Prescription[]);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -108,6 +142,7 @@ function PatientDashboard() {
   const activeOrders = orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length;
   const pendingDelivery = orders.filter((o) => ["accepted", "preparing", "ready", "out_for_delivery"].includes(o.status)).length;
   const totalSpent = orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + Number(o.total_amount || 0), 0);
+  const activePrescriptions = prescriptions.filter((p) => p.is_active !== false);
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
@@ -143,7 +178,7 @@ function PatientDashboard() {
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Search Medications */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-6">
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <Search className="h-5 w-5 text-primary" /> Search Medications
@@ -186,6 +221,36 @@ function PatientDashboard() {
               ))}
             </div>
           </div>
+
+          {/* Active Prescriptions */}
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Stethoscope className="h-5 w-5 text-primary" /> My Prescriptions
+              {activePrescriptions.length > 0 && (
+                <span className="ml-auto text-xs font-normal text-muted-foreground">{activePrescriptions.length} active</span>
+              )}
+            </h2>
+            {loading && <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
+            {!loading && prescriptions.length === 0 && (
+              <p className="text-sm text-muted-foreground">No prescriptions on file. A hospital can issue one for you.</p>
+            )}
+            <div className="space-y-3">
+              {prescriptions.slice(0, 5).map((p) => (
+                <div key={p.id} className="rounded-lg border border-border p-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{p.medication_name}</p>
+                      {p.dosage && <p className="text-xs text-muted-foreground">{p.dosage}</p>}
+                      <p className="text-xs text-muted-foreground mt-0.5">Dr. {p.doctor_name || "—"} • {new Date(p.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${p.is_active === false ? "bg-muted text-muted-foreground" : "bg-healthcare-green/20 text-healthcare-green"}`}>
+                      {p.is_active === false ? "inactive" : "active"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Sidebar */}
@@ -223,7 +288,7 @@ function PatientDashboard() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { icon: MapPin, label: "Track Delivery", to: "/track" },
-                { icon: CalendarDays, label: "Prescriptions", to: "/dashboard/patient" },
+                { icon: CalendarDays, label: "Contact Us", to: "/contact" },
               ].map((action) => (
                 <Link key={action.label} to={action.to} className="flex flex-col items-center gap-2 rounded-lg border border-border p-4 transition-colors hover:bg-accent">
                   <action.icon className="h-5 w-5 text-primary" />

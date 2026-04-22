@@ -3,61 +3,33 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   Truck, MapPin, Clock, CheckCircle, Package,
-  DollarSign, Navigation, Radio, X,
+  DollarSign, Navigation, Radio, X, Loader2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getMapboxDistance } from "@/utils/mapbox.functions";
 
 type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered";
+
 interface LiveDelivery {
-  id: string; order_id: string; status: DStatus;
-  pickup_address: string | null; delivery_address: string | null;
+  id: string;
+  order_id: string;
+  status: DStatus;
+  pickup_address: string | null;
+  delivery_address: string | null;
   estimated_time: string | null;
+  created_at: string;
+  updated_at: string;
 }
-const nextStatus: Record<DStatus, DStatus | null> = {
-  assigned: "picked_up", picked_up: "in_transit", in_transit: "delivered", delivered: null,
-};
-const nextLabel: Record<DStatus, string> = {
-  assigned: "Mark Picked Up", picked_up: "Start Delivery", in_transit: "Complete Delivery", delivered: "",
-};
 
-export const Route = createFileRoute("/dashboard/driver")({
-  head: () => ({ meta: [{ title: "Driver Dashboard — HEALTHREACH" }] }),
-  component: DriverDashboard,
-});
-
-const mockDeliveries = [
-  {
-    id: "DEL-001", orderId: "ORD-101", medication: "Amoxicillin 500mg",
-    pickup: "City Pharmacy, 45 Main Rd, Sandton", dropoff: "12 Oak Ave, Bryanston",
-    status: "assigned", eta: "25 min", patient: "Thabo Mokoena"
-  },
-  {
-    id: "DEL-002", orderId: "ORD-098", medication: "Metformin 850mg",
-    pickup: "MedPlus Pharmacy, 22 Rivonia Rd", dropoff: "78 Elm St, Fourways",
-    status: "picked_up", eta: "15 min", patient: "Naledi Khumalo"
-  },
-  {
-    id: "DEL-003", orderId: "ORD-095", medication: "Paracetamol 500mg",
-    pickup: "Health Hub, Rosebank Mall", dropoff: "34 Pine Cres, Randburg",
-    status: "in_transit", eta: "8 min", patient: "Sipho Dlamini"
-  },
-];
-
-const completedDeliveries = [
-  { id: "DEL-098", patient: "Zanele Mthembu", date: "2026-04-12", earnings: "R 45.00" },
-  { id: "DEL-097", patient: "Bongani Ndlovu", date: "2026-04-12", earnings: "R 55.00" },
-  { id: "DEL-096", patient: "Lindiwe Nkosi", date: "2026-04-11", earnings: "R 38.00" },
-];
-
-const deliveryStatusLabels: Record<string, { label: string; color: string; nextAction: string }> = {
-  assigned: { label: "Assigned", color: "bg-accent text-accent-foreground", nextAction: "Accept Delivery" },
-  picked_up: { label: "Picked Up", color: "bg-primary/10 text-primary", nextAction: "Start Delivery" },
-  in_transit: { label: "In Transit", color: "bg-healthcare-sky/20 text-healthcare-sky", nextAction: "Complete Delivery" },
-  delivered: { label: "Delivered", color: "bg-healthcare-green/20 text-healthcare-green", nextAction: "" },
-};
+interface CompletedDelivery {
+  id: string;
+  order_id: string;
+  updated_at: string;
+  patient_name: string;
+  earnings: number;
+}
 
 interface Offer {
   id: string;
@@ -72,6 +44,24 @@ interface Offer {
   earnings: number;
 }
 
+const nextStatus: Record<DStatus, DStatus | null> = {
+  assigned: "picked_up", picked_up: "in_transit", in_transit: "delivered", delivered: null,
+};
+const nextLabel: Record<DStatus, string> = {
+  assigned: "Mark Picked Up", picked_up: "Start Delivery", in_transit: "Complete Delivery", delivered: "",
+};
+const deliveryStatusLabels: Record<DStatus, { label: string; color: string }> = {
+  assigned: { label: "Assigned", color: "bg-accent text-accent-foreground" },
+  picked_up: { label: "Picked Up", color: "bg-primary/10 text-primary" },
+  in_transit: { label: "In Transit", color: "bg-healthcare-sky/20 text-healthcare-sky" },
+  delivered: { label: "Delivered", color: "bg-healthcare-green/20 text-healthcare-green" },
+};
+
+export const Route = createFileRoute("/dashboard/driver")({
+  head: () => ({ meta: [{ title: "Driver Dashboard — HEALTHREACH" }] }),
+  component: DriverDashboard,
+});
+
 // Fallback deterministic estimate (1.5–8.5 km) when Mapbox is unavailable
 function estimateDistanceKm(orderId: string): number {
   let h = 0;
@@ -85,10 +75,12 @@ function estimateEarnings(km: number): number {
 function DriverDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
   const [liveDeliveries, setLiveDeliveries] = useState<LiveDelivery[]>([]);
+  const [completed, setCompleted] = useState<CompletedDelivery[]>([]);
   const [updating, setUpdating] = useState<string | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [loading, setLoading] = useState(true);
 
   // 1s tick for countdown
   useEffect(() => {
@@ -103,15 +95,46 @@ function DriverDashboard() {
 
   useEffect(() => {
     if (!user) return;
-    async function load() {
+
+    async function loadDeliveries() {
       const { data } = await supabase
         .from("deliveries")
-        .select("*")
+        .select("id, order_id, status, pickup_address, delivery_address, estimated_time, created_at, updated_at")
         .eq("driver_id", user!.id)
-        .neq("status", "delivered")
-        .order("created_at", { ascending: false });
-      setLiveDeliveries((data ?? []) as LiveDelivery[]);
+        .order("updated_at", { ascending: false });
+      const all = (data ?? []) as LiveDelivery[];
+      setLiveDeliveries(all.filter((d) => d.status !== "delivered"));
+
+      const done = all.filter((d) => d.status === "delivered");
+      // Hydrate patient names and earnings from orders
+      if (done.length > 0) {
+        const orderIds = done.map((d) => d.order_id);
+        const { data: orders } = await supabase
+          .from("orders")
+          .select("id, patient_id, delivery_fee")
+          .in("id", orderIds);
+        const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
+        const patientIds = Array.from(new Set((orders ?? []).map((o) => o.patient_id)));
+        const { data: profiles } = patientIds.length > 0
+          ? await supabase.from("profiles").select("user_id, full_name").in("user_id", patientIds)
+          : { data: [] as { user_id: string; full_name: string }[] };
+        const nameMap = new Map((profiles ?? []).map((p) => [p.user_id, p.full_name]));
+        setCompleted(done.map((d) => {
+          const order = orderMap.get(d.order_id);
+          const fee = Number(order?.delivery_fee ?? 0);
+          return {
+            id: d.id,
+            order_id: d.order_id,
+            updated_at: d.updated_at,
+            patient_name: order ? (nameMap.get(order.patient_id) || "Patient") : "Patient",
+            earnings: fee > 0 ? fee : estimateEarnings(estimateDistanceKm(d.order_id)),
+          };
+        }));
+      } else {
+        setCompleted([]);
+      }
     }
+
     async function loadOffers() {
       const { data } = await supabase
         .from("delivery_offers")
@@ -121,14 +144,20 @@ function DriverDashboard() {
         .order("created_at", { ascending: false });
       const visible = (data ?? []).filter((o) => !(o.declined_by ?? []).includes(user!.id));
       const orderIds = visible.map((o) => o.order_id);
-      let addressMap = new Map<string, { pickup: string | null; dropoff: string | null }>();
+      const addressMap = new Map<string, { pickup: string | null; dropoff: string | null }>();
       if (orderIds.length > 0) {
-        const { data: dels } = await supabase
-          .from("deliveries")
-          .select("order_id, pickup_address, delivery_address")
-          .in("order_id", orderIds);
+        const [{ data: dels }, { data: ords }] = await Promise.all([
+          supabase.from("deliveries").select("order_id, pickup_address, delivery_address").in("order_id", orderIds),
+          supabase.from("orders").select("id, delivery_address").in("id", orderIds),
+        ]);
         (dels ?? []).forEach((d) => {
           addressMap.set(d.order_id, { pickup: d.pickup_address, dropoff: d.delivery_address });
+        });
+        (ords ?? []).forEach((o) => {
+          const existing = addressMap.get(o.id);
+          if (!existing?.dropoff) {
+            addressMap.set(o.id, { pickup: existing?.pickup ?? null, dropoff: o.delivery_address });
+          }
         });
       }
       const enriched: Offer[] = await Promise.all(
@@ -157,26 +186,19 @@ function DriverDashboard() {
       );
       setOffers(enriched);
     }
-    load();
-    loadOffers();
+
+    Promise.all([loadDeliveries(), loadOffers()]).finally(() => setLoading(false));
+
     const channel = supabase
-      .channel("driver-deliveries")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "deliveries", filter: `driver_id=eq.${user.id}` }, (payload) => {
-        const d = payload.new as LiveDelivery;
-        toast.success("New delivery assigned!", {
-          description: d.pickup_address ? `Pickup: ${d.pickup_address}` : `Order ${d.order_id.slice(0, 8)}`,
-        });
-        load();
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "deliveries", filter: `driver_id=eq.${user.id}` }, (payload) => {
-        const oldRow = payload.old as { driver_id?: string | null };
-        const newRow = payload.new as LiveDelivery & { driver_id: string | null };
-        if (oldRow.driver_id !== newRow.driver_id && newRow.driver_id === user!.id) {
-          toast.success("New delivery assigned to you!", {
-            description: newRow.pickup_address ? `Pickup: ${newRow.pickup_address}` : `Order ${newRow.order_id.slice(0, 8)}`,
+      .channel(`driver-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries", filter: `driver_id=eq.${user.id}` }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          const d = payload.new as LiveDelivery;
+          toast.success("New delivery assigned!", {
+            description: d.pickup_address ? `Pickup: ${d.pickup_address}` : `Order ${d.order_id.slice(0, 8)}`,
           });
         }
-        load();
+        loadDeliveries();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "delivery_offers" }, () => loadOffers())
       .subscribe();
@@ -200,12 +222,30 @@ function DriverDashboard() {
       setOffers((prev) => prev.filter((o) => o.id !== offer.id));
       return;
     }
-    // Assign delivery + flip order to ready
-    await Promise.all([
-      supabase.from("deliveries").update({ driver_id: user.id, status: "assigned" }).eq("order_id", offer.order_id),
+
+    // Auto-create delivery row if not present, otherwise assign existing
+    const { data: existing } = await supabase
+      .from("deliveries")
+      .select("id")
+      .eq("order_id", offer.order_id)
+      .maybeSingle();
+
+    const opts = [
+      existing
+        ? supabase.from("deliveries").update({ driver_id: user.id, status: "assigned" }).eq("order_id", offer.order_id)
+        : supabase.from("deliveries").insert({
+            order_id: offer.order_id,
+            driver_id: user.id,
+            status: "assigned",
+            pickup_address: offer.pickup_address ?? "",
+            delivery_address: offer.delivery_address ?? "",
+          }),
       supabase.from("orders").update({ status: "ready" }).eq("id", offer.order_id),
-    ]);
+    ];
+    await Promise.all(opts);
+
     setRespondingId(null);
+    setOffers((prev) => prev.filter((o) => o.id !== offer.id));
     toast.success("Delivery accepted!");
   }
 
@@ -222,11 +262,35 @@ function DriverDashboard() {
     const next = nextStatus[d.status];
     if (!next) return;
     setUpdating(d.id);
-    const { error } = await supabase.from("deliveries").update({ status: next }).eq("id", d.id);
+    const updates = [
+      supabase.from("deliveries").update({ status: next }).eq("id", d.id),
+    ];
+    // Sync the order status so patient sees progress
+    const orderStatusMap: Record<DStatus, string | null> = {
+      assigned: null, picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered",
+    };
+    const orderStatus = orderStatusMap[next];
+    if (orderStatus) {
+      updates.push(supabase.from("orders").update({ status: orderStatus as any }).eq("id", d.order_id));
+    }
+    const [{ error }] = await Promise.all(updates);
     setUpdating(null);
     if (error) toast.error(error.message);
     else toast.success(`Marked ${next.replace(/_/g, " ")}`);
   }
+
+  // Today's earnings & count from real completed deliveries
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const completedToday = completed.filter((c) => new Date(c.updated_at) >= today);
+  const todayEarnings = completedToday.reduce((s, c) => s + c.earnings, 0);
+  const totalEarnings = completed.reduce((s, c) => s + c.earnings, 0);
+
+  const stats = useMemo(() => [
+    { icon: Truck, label: "Active Deliveries", value: String(liveDeliveries.length), color: "text-primary" },
+    { icon: CheckCircle, label: "Completed Today", value: String(completedToday.length), color: "text-healthcare-green" },
+    { icon: DollarSign, label: "Today's Earnings", value: `R ${todayEarnings.toFixed(0)}`, color: "text-healthcare-teal" },
+    { icon: Navigation, label: "Total Earnings", value: `R ${totalEarnings.toFixed(0)}`, color: "text-healthcare-sky" },
+  ], [liveDeliveries.length, completedToday.length, todayEarnings, totalEarnings]);
 
   if (approvalStatus === "pending") {
     return (
@@ -252,12 +316,7 @@ function DriverDashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        {[
-          { icon: Truck, label: "Active Deliveries", value: String(liveDeliveries.length || mockDeliveries.length), color: "text-primary" },
-          { icon: CheckCircle, label: "Completed Today", value: "5", color: "text-healthcare-green" },
-          { icon: DollarSign, label: "Today's Earnings", value: "R 280", color: "text-healthcare-teal" },
-          { icon: Navigation, label: "Total Distance", value: "42 km", color: "text-healthcare-sky" },
-        ].map((stat) => (
+        {stats.map((stat) => (
           <div key={stat.label} className="healthcare-card p-5">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -340,7 +399,18 @@ function DriverDashboard() {
             <span className="text-xs font-normal text-muted-foreground">Live</span>
           </h2>
 
-          {/* Live deliveries from DB */}
+          {loading && (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          )}
+
+          {!loading && liveDeliveries.length === 0 && offers.length === 0 && (
+            <div className="healthcare-card p-8 text-center">
+              <Truck className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-sm text-foreground font-medium">No active deliveries</p>
+              <p className="text-xs text-muted-foreground mt-1">New requests from pharmacies will appear above when broadcast.</p>
+            </div>
+          )}
+
           {liveDeliveries.map((delivery) => {
             const statusInfo = deliveryStatusLabels[delivery.status];
             return (
@@ -372,54 +442,26 @@ function DriverDashboard() {
               </div>
             );
           })}
-
-          {/* Demo deliveries (read-only mock) */}
-          {liveDeliveries.length === 0 && mockDeliveries.map((delivery) => {
-            const statusInfo = deliveryStatusLabels[delivery.status];
-            return (
-              <div key={delivery.id} className="healthcare-card p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-mono text-muted-foreground">{delivery.id} <span className="ml-1 text-[10px] text-muted-foreground">(demo)</span></span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
-                </div>
-                <p className="text-sm font-semibold text-foreground mb-3">{delivery.medication}</p>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-start gap-2">
-                    <Package className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                    <div><span className="text-muted-foreground">Pickup:</span><p className="text-foreground">{delivery.pickup}</p></div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-3.5 w-3.5 text-healthcare-green mt-0.5 shrink-0" />
-                    <div><span className="text-muted-foreground">Dropoff:</span><p className="text-foreground">{delivery.dropoff}</p></div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> ETA: {delivery.eta}
-                  </span>
-                  {statusInfo.nextAction && (
-                    <Button size="sm" variant="outline" disabled>{statusInfo.nextAction}</Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
         </div>
 
         <div className="lg:col-span-2">
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Completed Deliveries</h2>
-            <div className="space-y-3">
-              {completedDeliveries.map((d) => (
-                <div key={d.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{d.patient}</p>
-                    <p className="text-xs text-muted-foreground">{d.date}</p>
+            {completed.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No completed deliveries yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {completed.slice(0, 8).map((d) => (
+                  <div key={d.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{d.patient_name}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(d.updated_at).toLocaleDateString()}</p>
+                    </div>
+                    <span className="text-sm font-semibold text-healthcare-green">R {d.earnings.toFixed(0)}</span>
                   </div>
-                  <span className="text-sm font-semibold text-healthcare-green">{d.earnings}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
