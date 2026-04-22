@@ -61,6 +61,7 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [transactions, setTransactions] = useState<TxnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -77,7 +78,6 @@ function AdminDashboard() {
   }, [role, authLoading, navigate]);
 
   async function loadUsers() {
-    setLoading(true);
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       supabase.from("profiles").select("user_id, full_name, email, organization_name, approval_status, created_at").order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
@@ -93,15 +93,54 @@ function AdminDashboard() {
       role: roleMap.get(p.user_id) ?? null,
     }));
     setUsers(merged);
-    setLoading(false);
+  }
+
+  async function loadTransactions() {
+    const { data: orders } = await supabase
+      .from("orders")
+      .select("id, patient_id, medication_name, total_amount, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const orderRows = orders ?? [];
+    const orderIds = orderRows.map((o) => o.id);
+    const patientIds = Array.from(new Set(orderRows.map((o) => o.patient_id)));
+
+    const [{ data: payments }, { data: profs }] = await Promise.all([
+      orderIds.length > 0
+        ? supabase.from("payments").select("order_id, payment_method, status").in("order_id", orderIds)
+        : Promise.resolve({ data: [] as { order_id: string; payment_method: string; status: string }[] }),
+      patientIds.length > 0
+        ? supabase.from("profiles").select("user_id, full_name").in("user_id", patientIds)
+        : Promise.resolve({ data: [] as { user_id: string; full_name: string }[] }),
+    ]);
+
+    const paymentMap = new Map((payments ?? []).map((p) => [p.order_id, p]));
+    const nameMap = new Map((profs ?? []).map((p) => [p.user_id, p.full_name]));
+
+    const rows: TxnRow[] = orderRows.map((o) => {
+      const pay = paymentMap.get(o.id);
+      return {
+        id: o.id,
+        patient: nameMap.get(o.patient_id) || o.patient_id.slice(0, 8),
+        medication: o.medication_name,
+        amount: Number(o.total_amount),
+        method: pay?.payment_method || "—",
+        status: pay?.status || o.status,
+        date: o.created_at,
+      };
+    });
+    setTransactions(rows);
   }
 
   useEffect(() => {
-    loadUsers();
+    setLoading(true);
+    Promise.all([loadUsers(), loadTransactions()]).finally(() => setLoading(false));
     const channel = supabase
-      .channel("admin-profiles")
+      .channel("admin-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => loadUsers())
       .on("postgres_changes", { event: "*", schema: "public", table: "user_roles" }, () => loadUsers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => loadTransactions())
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => loadTransactions())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
