@@ -448,35 +448,46 @@ function AdminDashboard() {
 
       {activeTab === "transactions" && (
         <div className="healthcare-card p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Transaction History</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="pb-3 font-medium text-muted-foreground">ID</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Patient</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Amount</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Method</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Status</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockTransactions.map((txn) => (
-                  <tr key={txn.id} className="border-b border-border last:border-0">
-                    <td className="py-3 font-mono text-xs text-muted-foreground">{txn.id}</td>
-                    <td className="py-3 font-medium text-foreground">{txn.patient}</td>
-                    <td className="py-3 font-semibold text-foreground">{txn.amount}</td>
-                    <td className="py-3 text-muted-foreground">{txn.method}</td>
-                    <td className="py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${txnStatusColors[txn.status]}`}>{txn.status}</span>
-                    </td>
-                    <td className="py-3 text-muted-foreground">{txn.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Transaction History ({transactions.length})</h2>
+            <Button size="sm" variant="outline" onClick={() => generateReport("financial")}>Export CSV</Button>
           </div>
+          {loading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : transactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No transactions yet. Patient orders will appear here.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left">
+                    <th className="pb-3 font-medium text-muted-foreground">Order</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Patient</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Medication</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Amount</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Method</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Status</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((txn) => (
+                    <tr key={txn.id} className="border-b border-border last:border-0">
+                      <td className="py-3 font-mono text-xs text-muted-foreground">{txn.id.slice(0, 8)}</td>
+                      <td className="py-3 font-medium text-foreground">{txn.patient}</td>
+                      <td className="py-3 text-foreground">{txn.medication}</td>
+                      <td className="py-3 font-semibold text-foreground">R {txn.amount.toFixed(2)}</td>
+                      <td className="py-3 text-muted-foreground capitalize">{txn.method}</td>
+                      <td className="py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${txnStatusColors[txn.status] ?? "bg-accent text-accent-foreground"}`}>{txn.status.replace(/_/g, " ")}</span>
+                      </td>
+                      <td className="py-3 text-muted-foreground">{new Date(txn.date).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
