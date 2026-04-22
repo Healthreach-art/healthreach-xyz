@@ -29,13 +29,15 @@ interface UserRow {
   role: AppRole | null;
 }
 
-const mockTransactions = [
-  { id: "TXN-001", patient: "Thabo Mokoena", amount: "R 145.00", method: "Visa", status: "completed", date: "2026-04-13" },
-  { id: "TXN-002", patient: "Naledi Khumalo", amount: "R 68.50", method: "EFT", status: "completed", date: "2026-04-12" },
-  { id: "TXN-003", patient: "Sipho Dlamini", amount: "R 210.00", method: "Mastercard", status: "pending", date: "2026-04-13" },
-  { id: "TXN-004", patient: "Zanele Mthembu", amount: "R 95.00", method: "PayPal", status: "completed", date: "2026-04-11" },
-  { id: "TXN-005", patient: "Bongani Ndlovu", amount: "R 320.00", method: "Visa", status: "failed", date: "2026-04-10" },
-];
+interface TxnRow {
+  id: string;          // order id
+  patient: string;
+  medication: string;
+  amount: number;
+  method: string;      // payment method or "—"
+  status: string;      // payment status, fallback to order status
+  date: string;        // ISO order created_at
+}
 
 const roleIcons: Record<string, typeof Users> = {
   patient: Users, pharmacy: Pill, hospital: Building2, driver: Truck, admin: ShieldCheck,
