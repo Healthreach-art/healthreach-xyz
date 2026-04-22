@@ -266,8 +266,8 @@ function AdminDashboard() {
             {[
               { icon: Users, label: "Total Users", value: String(users.length), color: "text-primary" },
               { icon: ShieldCheck, label: "Pending Approvals", value: String(pending.length), color: "text-destructive" },
-              { icon: DollarSign, label: "Revenue (Month)", value: "R 156,000", color: "text-healthcare-green" },
-              { icon: Activity, label: "Active Orders", value: "34", color: "text-healthcare-teal" },
+              { icon: DollarSign, label: "Revenue (Month)", value: `R ${monthlyRevenue.toFixed(0)}`, color: "text-healthcare-green" },
+              { icon: Activity, label: "Active Orders", value: String(activeOrdersCount), color: "text-healthcare-teal" },
             ].map((stat) => (
               <div key={stat.label} className="healthcare-card p-5">
                 <div className="flex items-center gap-3">
