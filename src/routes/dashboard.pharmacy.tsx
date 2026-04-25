@@ -291,15 +291,10 @@ function PharmacyDashboard() {
     );
   }
 
-  const displayInventory = inventory.length > 0 ? inventory : mockInventory;
-  const displayOrders = orders.length > 0 ? orders : mockOrders;
-  const usingMockInventory = inventory.length === 0;
-  const usingMockOrders = orders.length === 0;
-
-  const lowStockItems = displayInventory.filter((i) => i.stock_quantity <= LOW_STOCK_THRESHOLD);
-  const pendingCount = displayOrders.filter((o) => o.status === "pending").length;
-  const monthRevenue = displayOrders
-    .filter((o) => o.status !== "cancelled" && !o.id.startsWith("demo-"))
+  const lowStockItems = inventory.filter((i) => i.stock_quantity <= LOW_STOCK_THRESHOLD);
+  const pendingCount = orders.filter((o) => o.status === "pending").length;
+  const monthRevenue = orders
+    .filter((o) => o.status !== "cancelled")
     .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
   return (
