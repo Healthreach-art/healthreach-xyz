@@ -75,6 +75,10 @@ function PaymentPage() {
       navigate({ to: "/login" });
       return;
     }
+    if (!deliveryAddress.trim()) {
+      toast.error("Please enter a delivery address.");
+      return;
+    }
     setProcessing(true);
 
     try {
@@ -85,6 +89,17 @@ function PaymentPage() {
           .from("user_roles").select("user_id").eq("role", "pharmacy").limit(1).maybeSingle();
         resolvedPharmacy = pharmacyRole?.user_id ?? user.id;
       }
+
+      // Pull pharmacy address for pickup point
+      const { data: pharmacyProfile } = await supabase
+        .from("profiles")
+        .select("address, organization_name")
+        .eq("user_id", resolvedPharmacy)
+        .maybeSingle();
+      const pickupAddress =
+        pharmacyProfile?.address?.trim() ||
+        pharmacyProfile?.organization_name ||
+        "Pharmacy pickup point";
 
       const { data: order, error: orderErr } = await supabase
         .from("orders")
@@ -97,7 +112,7 @@ function PaymentPage() {
           delivery_fee: DELIVERY_FEE,
           total_amount: totalNum,
           status: "pending",
-          delivery_address: "123 Patient St, Johannesburg",
+          delivery_address: deliveryAddress,
           notes: `Paid via ${method}`,
         })
         .select()
@@ -118,11 +133,23 @@ function PaymentPage() {
       const { error: delErr } = await supabase.from("deliveries").insert({
         order_id: order.id,
         status: "assigned",
-        pickup_address: "Pharmacy pickup point",
-        delivery_address: "123 Patient St, Johannesburg",
+        pickup_address: pickupAddress,
+        delivery_address: deliveryAddress,
         estimated_time: "30-45 minutes",
       });
       if (delErr) throw delErr;
+
+      // Decrement stock if a real medication was ordered
+      if (medId) {
+        const { data: med } = await supabase
+          .from("medications").select("stock_quantity").eq("id", medId).maybeSingle();
+        if (med && typeof med.stock_quantity === "number") {
+          await supabase
+            .from("medications")
+            .update({ stock_quantity: Math.max(0, med.stock_quantity - qty) })
+            .eq("id", medId);
+        }
+      }
 
       setCreatedOrderId(order.id);
       setTxnRef(reference);
