@@ -311,3 +311,45 @@ function PatientDashboard() {
     </div>
   );
 }
+
+function SavedAddressCard() {
+  const { user } = useAuth();
+  const [address, setAddress] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("address").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => { setAddress(data?.address ?? ""); setLoaded(true); });
+  }, [user]);
+
+  async function save() {
+    if (!user) return;
+    setSaving(true);
+    const { error } = await supabase.from("profiles").update({ address }).eq("user_id", user.id);
+    setSaving(false);
+    if (error) toast.error(error.message);
+    else toast.success("Delivery address saved");
+  }
+
+  return (
+    <div className="healthcare-card p-6">
+      <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+        <MapPin className="h-5 w-5 text-primary" /> Delivery Address
+      </h2>
+      <textarea
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        placeholder="Street, suburb, city, postcode"
+        rows={2}
+        disabled={!loaded}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+      />
+      <Button size="sm" className="mt-3 w-full" disabled={!loaded || saving} onClick={save}>
+        {saving ? "Saving..." : "Save Address"}
+      </Button>
+      <p className="mt-2 text-xs text-muted-foreground">Used as the default delivery address at checkout.</p>
+    </div>
+  );
+}
