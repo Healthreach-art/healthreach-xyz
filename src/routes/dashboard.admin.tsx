@@ -213,6 +213,8 @@ function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoApprove, users.length]);
 
+  const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role));
+
   // Real-data metrics derived from transactions
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
