@@ -311,7 +311,7 @@ function PharmacyDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
           { icon: ShoppingCart, label: "Pending Orders", value: String(pendingCount), color: "text-primary" },
-          { icon: Package, label: "Total Products", value: String(displayInventory.length), color: "text-healthcare-teal" },
+          { icon: Package, label: "Total Products", value: String(inventory.length), color: "text-healthcare-teal" },
           { icon: AlertTriangle, label: "Low Stock", value: String(lowStockItems.length), color: "text-destructive" },
           { icon: DollarSign, label: "Revenue (Total)", value: `R ${monthRevenue.toFixed(0)}`, color: "text-healthcare-green" },
         ].map((stat) => (
