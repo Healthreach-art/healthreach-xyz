@@ -676,6 +676,80 @@ function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Admin Settings</DialogTitle>
+            <DialogDescription>Configure platform-wide preferences.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoApprove}
+                onChange={(e) => toggleAutoApprove(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-input accent-primary"
+              />
+              <div>
+                <p className="text-sm font-medium text-foreground">Auto-approve new partners</p>
+                <p className="text-xs text-muted-foreground">Automatically approve new pharmacy, hospital, and driver signups. Use with care.</p>
+              </div>
+            </label>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-sm font-medium text-foreground mb-2">Quick stats</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex justify-between"><span className="text-muted-foreground">Admins</span><span className="font-medium">{users.filter((u) => u.role === "admin").length}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Pending</span><span className="font-medium">{pending.length}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Total users</span><span className="font-medium">{users.length}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Orders</span><span className="font-medium">{transactions.length}</span></div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Role change confirmation */}
+      <AlertDialog open={!!confirmRole} onOpenChange={(o) => !o && setConfirmRole(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmRole?.action === "promote" ? "Promote to admin?" : "Revoke admin access?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmRole?.action === "promote"
+                ? `${confirmRole?.user.full_name || confirmRole?.user.email} will gain full admin privileges.`
+                : `${confirmRole?.user.full_name || confirmRole?.user.email} will lose admin privileges.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={confirmRole?.action === "demote" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!confirmRole) return;
+                if (confirmRole.action === "promote") await promoteToAdmin(confirmRole.user.user_id);
+                else await demoteFromAdmin(confirmRole.user.user_id);
+                setConfirmRole(null);
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Inventory loading indicator */}
+      {generatingInventory && (
+        <div className="fixed bottom-4 right-4 rounded-lg bg-background border border-border shadow-lg p-3 flex items-center gap-2 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" /> Generating inventory report…
+        </div>
+      )}
     </div>
   );
 }
