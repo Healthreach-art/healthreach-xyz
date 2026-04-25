@@ -55,6 +55,14 @@ function PaymentPage() {
   const [cardName, setCardName] = useState("");
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [txnRef, setTxnRef] = useState<string>("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+
+  // Pre-fill delivery address from patient profile
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("address").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => { if (data?.address) setDeliveryAddress(data.address); });
+  }, [user]);
 
   const subtotal = price * qty;
   const totalNum = subtotal + DELIVERY_FEE;
