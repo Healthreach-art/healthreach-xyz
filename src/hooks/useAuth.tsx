@@ -14,6 +14,7 @@ interface AuthContextType {
     email: string;
     organization_name: string;
     phone: string;
+    address: string;
   } | null;
   loading: boolean;
   signOut: () => Promise<void>;
