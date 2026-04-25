@@ -196,6 +196,20 @@ function PaymentPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" /> Delivery Address
+            </h2>
+            <Textarea
+              value={deliveryAddress}
+              onChange={(e) => setDeliveryAddress(e.target.value)}
+              placeholder="Street, suburb, city, postcode"
+              required
+              rows={2}
+            />
+            <p className="mt-2 text-xs text-muted-foreground">Driver will deliver here. Update your saved address in your profile to pre-fill next time.</p>
+          </div>
+
+          <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold mb-4">Payment Method</h2>
             <div className="grid gap-2 sm:grid-cols-2">
               {methods.map((m) => (
