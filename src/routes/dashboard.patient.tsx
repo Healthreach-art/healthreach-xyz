@@ -288,6 +288,9 @@ function PatientDashboard() {
             </div>
           </div>
 
+          {/* Saved delivery address */}
+          <SavedAddressCard />
+
           {/* Quick Actions */}
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
