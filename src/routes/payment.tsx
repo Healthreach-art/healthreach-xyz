@@ -2,8 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState, type FormEvent } from "react";
-import { CreditCard, Lock, CheckCircle2, Smartphone, Building2, Wallet } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { CreditCard, Lock, CheckCircle2, Smartphone, Building2, Wallet, MapPin } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -54,6 +55,14 @@ function PaymentPage() {
   const [cardName, setCardName] = useState("");
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [txnRef, setTxnRef] = useState<string>("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+
+  // Pre-fill delivery address from patient profile
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("address").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => { if (data?.address) setDeliveryAddress(data.address); });
+  }, [user]);
 
   const subtotal = price * qty;
   const totalNum = subtotal + DELIVERY_FEE;
@@ -64,6 +73,10 @@ function PaymentPage() {
     if (!user) {
       toast.error("Please sign in to place an order.");
       navigate({ to: "/login" });
+      return;
+    }
+    if (!deliveryAddress.trim()) {
+      toast.error("Please enter a delivery address.");
       return;
     }
     setProcessing(true);
@@ -77,6 +90,17 @@ function PaymentPage() {
         resolvedPharmacy = pharmacyRole?.user_id ?? user.id;
       }
 
+      // Pull pharmacy address for pickup point
+      const { data: pharmacyProfile } = await supabase
+        .from("profiles")
+        .select("address, organization_name")
+        .eq("user_id", resolvedPharmacy)
+        .maybeSingle();
+      const pickupAddress =
+        pharmacyProfile?.address?.trim() ||
+        pharmacyProfile?.organization_name ||
+        "Pharmacy pickup point";
+
       const { data: order, error: orderErr } = await supabase
         .from("orders")
         .insert({
@@ -88,7 +112,7 @@ function PaymentPage() {
           delivery_fee: DELIVERY_FEE,
           total_amount: totalNum,
           status: "pending",
-          delivery_address: "123 Patient St, Johannesburg",
+          delivery_address: deliveryAddress,
           notes: `Paid via ${method}`,
         })
         .select()
@@ -109,11 +133,23 @@ function PaymentPage() {
       const { error: delErr } = await supabase.from("deliveries").insert({
         order_id: order.id,
         status: "assigned",
-        pickup_address: "Pharmacy pickup point",
-        delivery_address: "123 Patient St, Johannesburg",
+        pickup_address: pickupAddress,
+        delivery_address: deliveryAddress,
         estimated_time: "30-45 minutes",
       });
       if (delErr) throw delErr;
+
+      // Decrement stock if a real medication was ordered
+      if (medId) {
+        const { data: med } = await supabase
+          .from("medications").select("stock_quantity").eq("id", medId).maybeSingle();
+        if (med && typeof med.stock_quantity === "number") {
+          await supabase
+            .from("medications")
+            .update({ stock_quantity: Math.max(0, med.stock_quantity - qty) })
+            .eq("id", medId);
+        }
+      }
 
       setCreatedOrderId(order.id);
       setTxnRef(reference);
@@ -159,6 +195,20 @@ function PaymentPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" /> Delivery Address
+            </h2>
+            <Textarea
+              value={deliveryAddress}
+              onChange={(e) => setDeliveryAddress(e.target.value)}
+              placeholder="Street, suburb, city, postcode"
+              required
+              rows={2}
+            />
+            <p className="mt-2 text-xs text-muted-foreground">Driver will deliver here. Update your saved address in your profile to pre-fill next time.</p>
+          </div>
+
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold mb-4">Payment Method</h2>
             <div className="grid gap-2 sm:grid-cols-2">

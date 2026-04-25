@@ -44,20 +44,21 @@ interface Order {
 
 const LOW_STOCK_THRESHOLD = 10;
 
-const mockInventory: Medication[] = [
-  { id: "m1", name: "Amoxicillin 500mg", stock_quantity: 45, price: 120, category: "Antibiotics" },
-  { id: "m2", name: "Ibuprofen 400mg", stock_quantity: 8, price: 55, category: "Pain Relief" },
-  { id: "m3", name: "Paracetamol 500mg", stock_quantity: 3, price: 35, category: "Pain Relief" },
-];
-const mockOrders: Order[] = [
-  { id: "demo-1", patient_id: "x", medication_name: "Amoxicillin 500mg", quantity: 2, status: "pending", total_amount: 240, created_at: new Date().toISOString() },
-  { id: "demo-2", patient_id: "y", medication_name: "Metformin 850mg", quantity: 1, status: "pending", total_amount: 180, created_at: new Date().toISOString() },
-];
+interface LiveDelivery {
+  id: string;
+  order_id: string;
+  status: string;
+  driver_name: string | null;
+  medication_name: string;
+  delivery_address: string | null;
+  updated_at: string;
+}
 
 function PharmacyDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [liveDeliveries, setLiveDeliveries] = useState<LiveDelivery[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Add / Edit medication
@@ -84,6 +85,34 @@ function PharmacyDashboard() {
     ]);
     setInventory((medsRes.data ?? []) as Medication[]);
     setOrders((ordersRes.data ?? []) as Order[]);
+
+    // Load live deliveries (in-progress) for this pharmacy's orders
+    const myOrderIds = (ordersRes.data ?? []).map((o) => o.id);
+    if (myOrderIds.length > 0) {
+      const { data: dels } = await supabase
+        .from("deliveries")
+        .select("id, order_id, status, driver_id, delivery_address, updated_at")
+        .in("order_id", myOrderIds)
+        .in("status", ["assigned", "picked_up", "in_transit"])
+        .order("updated_at", { ascending: false });
+      const driverIds = Array.from(new Set((dels ?? []).map((d) => d.driver_id).filter(Boolean) as string[]));
+      const { data: driverProfs } = driverIds.length > 0
+        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", driverIds)
+        : { data: [] as { user_id: string; full_name: string }[] };
+      const nameMap = new Map((driverProfs ?? []).map((p) => [p.user_id, p.full_name]));
+      const orderNameMap = new Map((ordersRes.data ?? []).map((o) => [o.id, o.medication_name]));
+      setLiveDeliveries((dels ?? []).map((d) => ({
+        id: d.id,
+        order_id: d.order_id,
+        status: d.status,
+        driver_name: d.driver_id ? (nameMap.get(d.driver_id) || "Driver") : null,
+        medication_name: orderNameMap.get(d.order_id) || "Order",
+        delivery_address: d.delivery_address,
+        updated_at: d.updated_at,
+      })));
+    } else {
+      setLiveDeliveries([]);
+    }
     setLoading(false);
   }
 
@@ -111,8 +140,9 @@ function PharmacyDashboard() {
     loadDrivers();
     if (!user) return;
     const channel = supabase
-      .channel("pharmacy-orders")
+      .channel(`pharmacy-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => loadData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,7 +155,7 @@ function PharmacyDashboard() {
   }
 
   function openEditMedication(med: Medication) {
-    if (med.id.startsWith("m")) { toast.info("Demo item — add a real one to edit."); return; }
+    // (no demo guards — all items are real)
     setEditingMed(med);
     setForm({
       name: med.name,
@@ -159,7 +189,7 @@ function PharmacyDashboard() {
   }
 
   async function adjustStock(med: Medication, delta: number) {
-    if (med.id.startsWith("m")) { toast.info("Demo item — cannot adjust."); return; }
+
     const next = Math.max(0, med.stock_quantity + delta);
     const { error } = await supabase.from("medications").update({ stock_quantity: next }).eq("id", med.id);
     if (error) { toast.error(error.message); return; }
@@ -178,7 +208,7 @@ function PharmacyDashboard() {
   }
 
   async function rejectOrder(orderId: string) {
-    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+
     const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
     if (error) { toast.error(error.message); return; }
     toast.success("Order rejected");
@@ -186,28 +216,55 @@ function PharmacyDashboard() {
   }
 
   async function markPreparing(orderId: string) {
-    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+
     const { error } = await supabase.from("orders").update({ status: "preparing" }).eq("id", orderId);
     if (error) { toast.error(error.message); return; }
     toast.success("Order marked preparing");
     loadData();
   }
 
+  // Ensure a deliveries row exists for the order; returns true on success.
+  async function ensureDeliveryRow(orderId: string, driverId: string | null): Promise<boolean> {
+    const { data: existing } = await supabase
+      .from("deliveries").select("id").eq("order_id", orderId).maybeSingle();
+    if (existing) {
+      const update: { driver_id?: string; status: "assigned" } = { status: "assigned" };
+      if (driverId) update.driver_id = driverId;
+      const { error } = await supabase.from("deliveries").update(update).eq("order_id", orderId);
+      if (error) { toast.error(error.message); return false; }
+      return true;
+    }
+    // Look up addresses from order + pharmacy profile
+    const { data: order } = await supabase
+      .from("orders").select("delivery_address").eq("id", orderId).maybeSingle();
+    const { data: pharm } = user
+      ? await supabase.from("profiles").select("address, organization_name").eq("user_id", user.id).maybeSingle()
+      : { data: null };
+    const pickup = pharm?.address?.trim() || pharm?.organization_name || "Pharmacy pickup point";
+    const { error } = await supabase.from("deliveries").insert({
+      order_id: orderId,
+      driver_id: driverId,
+      status: "assigned",
+      pickup_address: pickup,
+      delivery_address: order?.delivery_address || "",
+      estimated_time: "30-45 minutes",
+    });
+    if (error) { toast.error(error.message); return false; }
+    return true;
+  }
+
   // Auto-assigns the least-busy approved driver, then sets order → ready and delivery → assigned
   async function markReadyAndAutoAssign(orderId: string) {
-    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
     await loadDrivers();
     if (drivers.length === 0) {
       toast.error("No approved drivers available. Ask the admin to approve a driver.");
       return;
     }
     const best = [...drivers].sort((a, b) => a.active - b.active)[0];
+    const ok = await ensureDeliveryRow(orderId, best.user_id);
+    if (!ok) return;
     const { error: orderErr } = await supabase.from("orders").update({ status: "ready" }).eq("id", orderId);
-    const { error: delErr } = await supabase
-      .from("deliveries")
-      .update({ driver_id: best.user_id, status: "assigned" })
-      .eq("order_id", orderId);
-    if (orderErr || delErr) { toast.error((orderErr ?? delErr)!.message); return; }
+    if (orderErr) { toast.error(orderErr.message); return; }
     toast.success(`Order ready — assigned to ${best.full_name}`);
     loadData();
     loadDrivers();
@@ -215,12 +272,12 @@ function PharmacyDashboard() {
 
   async function assignDriver(driverId: string) {
     if (!assignOrder) return;
-    if (assignOrder.id.startsWith("demo-")) { toast.info("Demo order — cannot assign."); setAssignOrder(null); return; }
     setAssigning(true);
+    const ok = await ensureDeliveryRow(assignOrder.id, driverId);
+    if (!ok) { setAssigning(false); return; }
     const { error: orderErr } = await supabase.from("orders").update({ status: "accepted" }).eq("id", assignOrder.id);
-    const { error: delErr } = await supabase.from("deliveries").update({ driver_id: driverId }).eq("order_id", assignOrder.id);
     setAssigning(false);
-    if (orderErr || delErr) { toast.error((orderErr ?? delErr)!.message); return; }
+    if (orderErr) { toast.error(orderErr.message); return; }
     toast.success("Order accepted and driver assigned");
     setAssignOrder(null);
     loadData();
@@ -229,7 +286,7 @@ function PharmacyDashboard() {
 
   // Uber-style: broadcast to all approved drivers; first to accept wins
   async function broadcastToDrivers(order: Order) {
-    if (order.id.startsWith("demo-")) { toast.info("Demo order — cannot broadcast."); return; }
+
     if (!user) return;
     // Avoid duplicate open offers for same order
     const { data: existing } = await supabase
@@ -261,15 +318,10 @@ function PharmacyDashboard() {
     );
   }
 
-  const displayInventory = inventory.length > 0 ? inventory : mockInventory;
-  const displayOrders = orders.length > 0 ? orders : mockOrders;
-  const usingMockInventory = inventory.length === 0;
-  const usingMockOrders = orders.length === 0;
-
-  const lowStockItems = displayInventory.filter((i) => i.stock_quantity <= LOW_STOCK_THRESHOLD);
-  const pendingCount = displayOrders.filter((o) => o.status === "pending").length;
-  const monthRevenue = displayOrders
-    .filter((o) => o.status !== "cancelled" && !o.id.startsWith("demo-"))
+  const lowStockItems = inventory.filter((i) => i.stock_quantity <= LOW_STOCK_THRESHOLD);
+  const pendingCount = orders.filter((o) => o.status === "pending").length;
+  const monthRevenue = orders
+    .filter((o) => o.status !== "cancelled")
     .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
   return (
@@ -286,7 +338,7 @@ function PharmacyDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
           { icon: ShoppingCart, label: "Pending Orders", value: String(pendingCount), color: "text-primary" },
-          { icon: Package, label: "Total Products", value: String(displayInventory.length), color: "text-healthcare-teal" },
+          { icon: Package, label: "Total Products", value: String(inventory.length), color: "text-healthcare-teal" },
           { icon: AlertTriangle, label: "Low Stock", value: String(lowStockItems.length), color: "text-destructive" },
           { icon: DollarSign, label: "Revenue (Total)", value: `R ${monthRevenue.toFixed(0)}`, color: "text-healthcare-green" },
         ].map((stat) => (
@@ -324,15 +376,42 @@ function PharmacyDashboard() {
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       )}
 
+      {/* Live Deliveries (in progress) */}
+      {liveDeliveries.length > 0 && (
+        <div className="mb-6 healthcare-card p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Truck className="h-5 w-5 text-primary" /> Active Deliveries
+            <span className="ml-auto text-xs font-normal text-muted-foreground">{liveDeliveries.length} in progress</span>
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {liveDeliveries.map((d) => (
+              <div key={d.id} className="rounded-lg border border-border p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-mono text-muted-foreground">{d.order_id.slice(0, 8)}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
+                    {d.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-foreground">{d.medication_name}</p>
+                <p className="text-xs text-muted-foreground mt-1">Driver: {d.driver_name || "Unassigned"}</p>
+                {d.delivery_address && <p className="text-xs text-muted-foreground truncate">→ {d.delivery_address}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Incoming Orders */}
         <div className="healthcare-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Incoming Orders</h2>
-            {usingMockOrders && <span className="text-xs text-muted-foreground">Demo data</span>}
           </div>
+          {!loading && orders.length === 0 && (
+            <p className="text-sm text-muted-foreground py-6 text-center">No orders yet. Add medications to your inventory so patients can order.</p>
+          )}
           <div className="space-y-3">
-            {displayOrders.map((order) => (
+            {orders.map((order) => (
               <div key={order.id} className="rounded-lg border border-border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-mono text-muted-foreground">{order.id.slice(0, 8)}</span>
@@ -378,15 +457,16 @@ function PharmacyDashboard() {
         {/* Inventory */}
         <div className="healthcare-card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">
-              Inventory {usingMockInventory && <span className="ml-2 text-xs font-normal text-muted-foreground">(Demo)</span>}
-            </h2>
+            <h2 className="text-lg font-semibold text-foreground">Inventory</h2>
             <Button size="sm" variant="outline" onClick={openAddMedication}>+ Add Item</Button>
           </div>
+          {!loading && inventory.length === 0 && (
+            <p className="text-sm text-muted-foreground py-6 text-center">Your inventory is empty. Click "+ Add Item" to add medications.</p>
+          )}
           <div className="space-y-2">
-            {displayInventory.map((item) => {
+            {inventory.map((item) => {
               const low = item.stock_quantity <= LOW_STOCK_THRESHOLD;
-              const isDemo = item.id.startsWith("m");
+
               return (
                 <div key={item.id} className="rounded-lg border border-border p-3">
                   <div className="flex items-start justify-between gap-2">
@@ -402,18 +482,18 @@ function PharmacyDashboard() {
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1">
-                      <Button size="icon" variant="outline" className="h-7 w-7" disabled={isDemo} onClick={() => adjustStock(item, -1)}>
+                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <Button size="icon" variant="outline" className="h-7 w-7" disabled={isDemo} onClick={() => adjustStock(item, +1)}>
+                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, +1)}>
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button size="sm" variant="ghost" className="h-7 gap-1" disabled={isDemo} onClick={() => openEditMedication(item)}>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => openEditMedication(item)}>
                         <Pencil className="h-3 w-3" /> Edit
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" disabled={isDemo} onClick={() => setDeleteTarget(item)}>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
                         <Trash2 className="h-3 w-3" /> Delete
                       </Button>
                     </div>
