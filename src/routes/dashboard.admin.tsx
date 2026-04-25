@@ -557,16 +557,28 @@ function AdminDashboard() {
                       </td>
                       <td className="py-3 text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
                       <td className="py-3">
-                        {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status !== "approved" && (
-                          <Button size="sm" variant="outline" className="h-7" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "approved")}>
-                            Approve
-                          </Button>
-                        )}
-                        {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status === "approved" && (
-                          <Button size="sm" variant="outline" className="h-7 text-destructive" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "rejected")}>
-                            Revoke
-                          </Button>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status !== "approved" && (
+                            <Button size="sm" variant="outline" className="h-7" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "approved")}>
+                              Approve
+                            </Button>
+                          )}
+                          {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status === "approved" && (
+                            <Button size="sm" variant="outline" className="h-7 text-destructive" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "rejected")}>
+                              Revoke
+                            </Button>
+                          )}
+                          {u.role !== "admin" && (
+                            <Button size="sm" variant="outline" className="h-7 gap-1" disabled={updatingId === u.user_id} onClick={() => setConfirmRole({ user: u, action: "promote" })}>
+                              <Crown className="h-3 w-3" /> Make Admin
+                            </Button>
+                          )}
+                          {u.role === "admin" && (
+                            <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" disabled={updatingId === u.user_id} onClick={() => setConfirmRole({ user: u, action: "demote" })}>
+                              <ShieldOff className="h-3 w-3" /> Demote
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
