@@ -223,21 +223,48 @@ function PharmacyDashboard() {
     loadData();
   }
 
+  // Ensure a deliveries row exists for the order; returns true on success.
+  async function ensureDeliveryRow(orderId: string, driverId: string | null): Promise<boolean> {
+    const { data: existing } = await supabase
+      .from("deliveries").select("id").eq("order_id", orderId).maybeSingle();
+    if (existing) {
+      const update: { driver_id?: string; status: "assigned" } = { status: "assigned" };
+      if (driverId) update.driver_id = driverId;
+      const { error } = await supabase.from("deliveries").update(update).eq("order_id", orderId);
+      if (error) { toast.error(error.message); return false; }
+      return true;
+    }
+    // Look up addresses from order + pharmacy profile
+    const { data: order } = await supabase
+      .from("orders").select("delivery_address").eq("id", orderId).maybeSingle();
+    const { data: pharm } = user
+      ? await supabase.from("profiles").select("address, organization_name").eq("user_id", user.id).maybeSingle()
+      : { data: null };
+    const pickup = pharm?.address?.trim() || pharm?.organization_name || "Pharmacy pickup point";
+    const { error } = await supabase.from("deliveries").insert({
+      order_id: orderId,
+      driver_id: driverId,
+      status: "assigned",
+      pickup_address: pickup,
+      delivery_address: order?.delivery_address || "",
+      estimated_time: "30-45 minutes",
+    });
+    if (error) { toast.error(error.message); return false; }
+    return true;
+  }
+
   // Auto-assigns the least-busy approved driver, then sets order → ready and delivery → assigned
   async function markReadyAndAutoAssign(orderId: string) {
-
     await loadDrivers();
     if (drivers.length === 0) {
       toast.error("No approved drivers available. Ask the admin to approve a driver.");
       return;
     }
     const best = [...drivers].sort((a, b) => a.active - b.active)[0];
+    const ok = await ensureDeliveryRow(orderId, best.user_id);
+    if (!ok) return;
     const { error: orderErr } = await supabase.from("orders").update({ status: "ready" }).eq("id", orderId);
-    const { error: delErr } = await supabase
-      .from("deliveries")
-      .update({ driver_id: best.user_id, status: "assigned" })
-      .eq("order_id", orderId);
-    if (orderErr || delErr) { toast.error((orderErr ?? delErr)!.message); return; }
+    if (orderErr) { toast.error(orderErr.message); return; }
     toast.success(`Order ready — assigned to ${best.full_name}`);
     loadData();
     loadDrivers();
@@ -245,12 +272,12 @@ function PharmacyDashboard() {
 
   async function assignDriver(driverId: string) {
     if (!assignOrder) return;
-
     setAssigning(true);
+    const ok = await ensureDeliveryRow(assignOrder.id, driverId);
+    if (!ok) { setAssigning(false); return; }
     const { error: orderErr } = await supabase.from("orders").update({ status: "accepted" }).eq("id", assignOrder.id);
-    const { error: delErr } = await supabase.from("deliveries").update({ driver_id: driverId }).eq("order_id", assignOrder.id);
     setAssigning(false);
-    if (orderErr || delErr) { toast.error((orderErr ?? delErr)!.message); return; }
+    if (orderErr) { toast.error(orderErr.message); return; }
     toast.success("Order accepted and driver assigned");
     setAssignOrder(null);
     loadData();
