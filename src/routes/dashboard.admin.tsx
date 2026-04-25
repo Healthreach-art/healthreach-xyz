@@ -2,11 +2,19 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Users, ShieldCheck, DollarSign, Activity,
   CheckCircle, XCircle, Clock, Building2, Truck, Pill,
-  BarChart3, FileText, AlertTriangle, Settings, Loader2
+  BarChart3, FileText, AlertTriangle, Settings, Loader2,
+  Crown, ShieldOff, TrendingUp,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -64,6 +72,13 @@ function AdminDashboard() {
   const [transactions, setTransactions] = useState<TxnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [autoApprove, setAutoApprove] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("admin:autoApprove") === "1";
+  });
+  const [confirmRole, setConfirmRole] = useState<{ user: UserRow; action: "promote" | "demote" } | null>(null);
+  const [generatingInventory, setGeneratingInventory] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -160,6 +175,44 @@ function AdminDashboard() {
     setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, approval_status: status } : u));
   }
 
+  // Promote a user to admin (insert user_roles row)
+  async function promoteToAdmin(userId: string) {
+    setUpdatingId(userId);
+    const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "admin" });
+    setUpdatingId(null);
+    if (error) { toast.error(`Failed: ${error.message}`); return; }
+    toast.success("User promoted to admin");
+    loadUsers();
+  }
+
+  // Demote: delete the admin role row for this user
+  async function demoteFromAdmin(userId: string) {
+    setUpdatingId(userId);
+    const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+    setUpdatingId(null);
+    if (error) { toast.error(`Failed: ${error.message}`); return; }
+    toast.success("Admin privileges revoked");
+    loadUsers();
+  }
+
+  function toggleAutoApprove(next: boolean) {
+    setAutoApprove(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("admin:autoApprove", next ? "1" : "0");
+    }
+    toast.success(next ? "Auto-approve enabled" : "Auto-approve disabled");
+  }
+
+  // Auto-approve newly pending partners when the toggle is on
+  useEffect(() => {
+    if (!autoApprove) return;
+    const toApprove = users.filter(
+      (u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role)
+    );
+    toApprove.forEach((u) => updateApproval(u.user_id, "approved"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoApprove, users.length]);
+
   const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role));
 
   // Real-data metrics derived from transactions
@@ -181,6 +234,27 @@ function AdminDashboard() {
     : 0;
   const newUsersThisMonth = users.filter((u) => new Date(u.created_at) >= startOfMonth).length;
 
+  // Last-7-days revenue series for sparkline
+  const revenueSeries = useMemo(() => {
+    const days: { label: string; revenue: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      const next = new Date(d);
+      next.setDate(d.getDate() + 1);
+      const total = transactions
+        .filter((t) => {
+          const td = new Date(t.date);
+          return td >= d && td < next && (t.status === "completed" || t.status === "delivered");
+        })
+        .reduce((s, t) => s + t.amount, 0);
+      days.push({ label: d.toLocaleDateString(undefined, { weekday: "short" }), revenue: total });
+    }
+    return days;
+  }, [transactions]);
+  const maxRevenue = Math.max(1, ...revenueSeries.map((d) => d.revenue));
+
   function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
     const escape = (v: string | number) => {
       const s = String(v ?? "");
@@ -195,7 +269,7 @@ function AdminDashboard() {
     toast.success(`${filename} downloaded`);
   }
 
-  function generateReport(kind: "financial" | "users" | "orders" | "inventory") {
+  async function generateReport(kind: "financial" | "users" | "orders" | "inventory") {
     if (kind === "financial") {
       downloadCsv(
         "financial-report.csv",
@@ -215,7 +289,36 @@ function AdminDashboard() {
         transactions.map((t) => [t.id, t.patient, t.medication, t.amount.toFixed(2), t.status, t.date]),
       );
     } else {
-      toast("Inventory report", { description: "Coming soon — pharmacy inventory aggregation." });
+      // Real inventory report: join medications with their pharmacy profile
+      setGeneratingInventory(true);
+      const { data: meds, error } = await supabase
+        .from("medications")
+        .select("id, pharmacy_id, name, category, price, stock_quantity, requires_prescription, created_at")
+        .order("name");
+      if (error || !meds) {
+        setGeneratingInventory(false);
+        toast.error(error?.message || "Failed to load inventory");
+        return;
+      }
+      const pharmacyIds = Array.from(new Set(meds.map((m) => m.pharmacy_id)));
+      const { data: profs } = pharmacyIds.length > 0
+        ? await supabase.from("profiles").select("user_id, organization_name, full_name").in("user_id", pharmacyIds)
+        : { data: [] as { user_id: string; organization_name: string | null; full_name: string }[] };
+      const pharmMap = new Map((profs ?? []).map((p) => [p.user_id, p.organization_name || p.full_name || "Pharmacy"]));
+      downloadCsv(
+        "inventory-report.csv",
+        ["Pharmacy", "Medication", "Category", "Price (ZAR)", "Stock", "Prescription Required", "Added"],
+        meds.map((m) => [
+          pharmMap.get(m.pharmacy_id) || m.pharmacy_id.slice(0, 8),
+          m.name,
+          m.category || "",
+          Number(m.price).toFixed(2),
+          m.stock_quantity,
+          m.requires_prescription ? "Yes" : "No",
+          m.created_at,
+        ]),
+      );
+      setGeneratingInventory(false);
     }
   }
 
@@ -235,7 +338,7 @@ function AdminDashboard() {
           <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Administrator"}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-1" /> Settings</Button>
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4 mr-1" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
       </div>
@@ -341,6 +444,34 @@ function AdminDashboard() {
               </div>
             </div>
           </div>
+
+          {/* 7-day revenue trend */}
+          <div className="healthcare-card p-6 mt-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" /> Revenue — Last 7 Days
+              <span className="ml-auto text-xs font-normal text-muted-foreground">
+                Total: R {revenueSeries.reduce((s, d) => s + d.revenue, 0).toFixed(0)}
+              </span>
+            </h2>
+            <div className="flex items-end gap-2 h-40">
+              {revenueSeries.map((d, idx) => {
+                const heightPct = Math.max(2, (d.revenue / maxRevenue) * 100);
+                return (
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex items-end" style={{ height: "100%" }}>
+                      <div
+                        className="w-full rounded-t-md bg-gradient-to-t from-primary/40 to-primary transition-all"
+                        style={{ height: `${heightPct}%` }}
+                        title={`R ${d.revenue.toFixed(2)}`}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{d.label}</span>
+                    <span className="text-[10px] font-medium text-foreground">R{Math.round(d.revenue)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </>
       )}
 
@@ -426,16 +557,28 @@ function AdminDashboard() {
                       </td>
                       <td className="py-3 text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
                       <td className="py-3">
-                        {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status !== "approved" && (
-                          <Button size="sm" variant="outline" className="h-7" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "approved")}>
-                            Approve
-                          </Button>
-                        )}
-                        {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status === "approved" && (
-                          <Button size="sm" variant="outline" className="h-7 text-destructive" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "rejected")}>
-                            Revoke
-                          </Button>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status !== "approved" && (
+                            <Button size="sm" variant="outline" className="h-7" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "approved")}>
+                              Approve
+                            </Button>
+                          )}
+                          {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status === "approved" && (
+                            <Button size="sm" variant="outline" className="h-7 text-destructive" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "rejected")}>
+                              Revoke
+                            </Button>
+                          )}
+                          {u.role !== "admin" && (
+                            <Button size="sm" variant="outline" className="h-7 gap-1" disabled={updatingId === u.user_id} onClick={() => setConfirmRole({ user: u, action: "promote" })}>
+                              <Crown className="h-3 w-3" /> Make Admin
+                            </Button>
+                          )}
+                          {u.role === "admin" && (
+                            <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" disabled={updatingId === u.user_id} onClick={() => setConfirmRole({ user: u, action: "demote" })}>
+                              <ShieldOff className="h-3 w-3" /> Demote
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -531,6 +674,80 @@ function AdminDashboard() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Admin Settings</DialogTitle>
+            <DialogDescription>Configure platform-wide preferences.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoApprove}
+                onChange={(e) => toggleAutoApprove(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-input accent-primary"
+              />
+              <div>
+                <p className="text-sm font-medium text-foreground">Auto-approve new partners</p>
+                <p className="text-xs text-muted-foreground">Automatically approve new pharmacy, hospital, and driver signups. Use with care.</p>
+              </div>
+            </label>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-sm font-medium text-foreground mb-2">Quick stats</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex justify-between"><span className="text-muted-foreground">Admins</span><span className="font-medium">{users.filter((u) => u.role === "admin").length}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Pending</span><span className="font-medium">{pending.length}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Total users</span><span className="font-medium">{users.length}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Orders</span><span className="font-medium">{transactions.length}</span></div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Role change confirmation */}
+      <AlertDialog open={!!confirmRole} onOpenChange={(o) => !o && setConfirmRole(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmRole?.action === "promote" ? "Promote to admin?" : "Revoke admin access?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmRole?.action === "promote"
+                ? `${confirmRole?.user.full_name || confirmRole?.user.email} will gain full admin privileges.`
+                : `${confirmRole?.user.full_name || confirmRole?.user.email} will lose admin privileges.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={confirmRole?.action === "demote" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!confirmRole) return;
+                if (confirmRole.action === "promote") await promoteToAdmin(confirmRole.user.user_id);
+                else await demoteFromAdmin(confirmRole.user.user_id);
+                setConfirmRole(null);
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Inventory loading indicator */}
+      {generatingInventory && (
+        <div className="fixed bottom-4 right-4 rounded-lg bg-background border border-border shadow-lg p-3 flex items-center gap-2 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" /> Generating inventory report…
         </div>
       )}
     </div>
