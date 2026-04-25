@@ -349,15 +349,42 @@ function PharmacyDashboard() {
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       )}
 
+      {/* Live Deliveries (in progress) */}
+      {liveDeliveries.length > 0 && (
+        <div className="mb-6 healthcare-card p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Truck className="h-5 w-5 text-primary" /> Active Deliveries
+            <span className="ml-auto text-xs font-normal text-muted-foreground">{liveDeliveries.length} in progress</span>
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {liveDeliveries.map((d) => (
+              <div key={d.id} className="rounded-lg border border-border p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-mono text-muted-foreground">{d.order_id.slice(0, 8)}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
+                    {d.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-foreground">{d.medication_name}</p>
+                <p className="text-xs text-muted-foreground mt-1">Driver: {d.driver_name || "Unassigned"}</p>
+                {d.delivery_address && <p className="text-xs text-muted-foreground truncate">→ {d.delivery_address}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Incoming Orders */}
         <div className="healthcare-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Incoming Orders</h2>
-            {usingMockOrders && <span className="text-xs text-muted-foreground">Demo data</span>}
           </div>
+          {!loading && orders.length === 0 && (
+            <p className="text-sm text-muted-foreground py-6 text-center">No orders yet. Add medications to your inventory so patients can order.</p>
+          )}
           <div className="space-y-3">
-            {displayOrders.map((order) => (
+            {orders.map((order) => (
               <div key={order.id} className="rounded-lg border border-border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-mono text-muted-foreground">{order.id.slice(0, 8)}</span>
@@ -403,15 +430,16 @@ function PharmacyDashboard() {
         {/* Inventory */}
         <div className="healthcare-card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">
-              Inventory {usingMockInventory && <span className="ml-2 text-xs font-normal text-muted-foreground">(Demo)</span>}
-            </h2>
+            <h2 className="text-lg font-semibold text-foreground">Inventory</h2>
             <Button size="sm" variant="outline" onClick={openAddMedication}>+ Add Item</Button>
           </div>
+          {!loading && inventory.length === 0 && (
+            <p className="text-sm text-muted-foreground py-6 text-center">Your inventory is empty. Click "+ Add Item" to add medications.</p>
+          )}
           <div className="space-y-2">
-            {displayInventory.map((item) => {
+            {inventory.map((item) => {
               const low = item.stock_quantity <= LOW_STOCK_THRESHOLD;
-              const isDemo = item.id.startsWith("m");
+              const isDemo = false;
               return (
                 <div key={item.id} className="rounded-lg border border-border p-3">
                   <div className="flex items-start justify-between gap-2">
