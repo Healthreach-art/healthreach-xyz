@@ -338,7 +338,7 @@ function AdminDashboard() {
           <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Administrator"}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-1" /> Settings</Button>
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4 mr-1" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
       </div>
