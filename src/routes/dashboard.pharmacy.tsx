@@ -439,7 +439,7 @@ function PharmacyDashboard() {
           <div className="space-y-2">
             {inventory.map((item) => {
               const low = item.stock_quantity <= LOW_STOCK_THRESHOLD;
-              const isDemo = false;
+
               return (
                 <div key={item.id} className="rounded-lg border border-border p-3">
                   <div className="flex items-start justify-between gap-2">
@@ -455,18 +455,18 @@ function PharmacyDashboard() {
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1">
-                      <Button size="icon" variant="outline" className="h-7 w-7" disabled={isDemo} onClick={() => adjustStock(item, -1)}>
+                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <Button size="icon" variant="outline" className="h-7 w-7" disabled={isDemo} onClick={() => adjustStock(item, +1)}>
+                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, +1)}>
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button size="sm" variant="ghost" className="h-7 gap-1" disabled={isDemo} onClick={() => openEditMedication(item)}>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => openEditMedication(item)}>
                         <Pencil className="h-3 w-3" /> Edit
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" disabled={isDemo} onClick={() => setDeleteTarget(item)}>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
                         <Trash2 className="h-3 w-3" /> Delete
                       </Button>
                     </div>
