@@ -234,6 +234,27 @@ function AdminDashboard() {
     : 0;
   const newUsersThisMonth = users.filter((u) => new Date(u.created_at) >= startOfMonth).length;
 
+  // Last-7-days revenue series for sparkline
+  const revenueSeries = useMemo(() => {
+    const days: { label: string; revenue: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      const next = new Date(d);
+      next.setDate(d.getDate() + 1);
+      const total = transactions
+        .filter((t) => {
+          const td = new Date(t.date);
+          return td >= d && td < next && (t.status === "completed" || t.status === "delivered");
+        })
+        .reduce((s, t) => s + t.amount, 0);
+      days.push({ label: d.toLocaleDateString(undefined, { weekday: "short" }), revenue: total });
+    }
+    return days;
+  }, [transactions]);
+  const maxRevenue = Math.max(1, ...revenueSeries.map((d) => d.revenue));
+
   function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
     const escape = (v: string | number) => {
       const s = String(v ?? "");
