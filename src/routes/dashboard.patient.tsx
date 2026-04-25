@@ -229,7 +229,7 @@ function PatientDashboard() {
           </div>
 
           {/* Active Prescriptions */}
-          <div className="healthcare-card p-6">
+          <div id="prescriptions" className="healthcare-card p-6 scroll-mt-24">
             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <Stethoscope className="h-5 w-5 text-primary" /> My Prescriptions
               {activePrescriptions.length > 0 && (
