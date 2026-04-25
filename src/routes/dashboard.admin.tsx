@@ -444,6 +444,34 @@ function AdminDashboard() {
               </div>
             </div>
           </div>
+
+          {/* 7-day revenue trend */}
+          <div className="healthcare-card p-6 mt-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" /> Revenue — Last 7 Days
+              <span className="ml-auto text-xs font-normal text-muted-foreground">
+                Total: R {revenueSeries.reduce((s, d) => s + d.revenue, 0).toFixed(0)}
+              </span>
+            </h2>
+            <div className="flex items-end gap-2 h-40">
+              {revenueSeries.map((d, idx) => {
+                const heightPct = Math.max(2, (d.revenue / maxRevenue) * 100);
+                return (
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex items-end" style={{ height: "100%" }}>
+                      <div
+                        className="w-full rounded-t-md bg-gradient-to-t from-primary/40 to-primary transition-all"
+                        style={{ height: `${heightPct}%` }}
+                        title={`R ${d.revenue.toFixed(2)}`}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{d.label}</span>
+                    <span className="text-[10px] font-medium text-foreground">R{Math.round(d.revenue)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </>
       )}
 
