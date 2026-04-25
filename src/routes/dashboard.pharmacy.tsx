@@ -44,15 +44,15 @@ interface Order {
 
 const LOW_STOCK_THRESHOLD = 10;
 
-const mockInventory: Medication[] = [
-  { id: "m1", name: "Amoxicillin 500mg", stock_quantity: 45, price: 120, category: "Antibiotics" },
-  { id: "m2", name: "Ibuprofen 400mg", stock_quantity: 8, price: 55, category: "Pain Relief" },
-  { id: "m3", name: "Paracetamol 500mg", stock_quantity: 3, price: 35, category: "Pain Relief" },
-];
-const mockOrders: Order[] = [
-  { id: "demo-1", patient_id: "x", medication_name: "Amoxicillin 500mg", quantity: 2, status: "pending", total_amount: 240, created_at: new Date().toISOString() },
-  { id: "demo-2", patient_id: "y", medication_name: "Metformin 850mg", quantity: 1, status: "pending", total_amount: 180, created_at: new Date().toISOString() },
-];
+interface LiveDelivery {
+  id: string;
+  order_id: string;
+  status: string;
+  driver_name: string | null;
+  medication_name: string;
+  delivery_address: string | null;
+  updated_at: string;
+}
 
 function PharmacyDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
