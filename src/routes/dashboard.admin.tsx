@@ -175,7 +175,43 @@ function AdminDashboard() {
     setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, approval_status: status } : u));
   }
 
-  const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role));
+  // Promote a user to admin (insert user_roles row)
+  async function promoteToAdmin(userId: string) {
+    setUpdatingId(userId);
+    const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "admin" });
+    setUpdatingId(null);
+    if (error) { toast.error(`Failed: ${error.message}`); return; }
+    toast.success("User promoted to admin");
+    loadUsers();
+  }
+
+  // Demote: delete the admin role row for this user
+  async function demoteFromAdmin(userId: string) {
+    setUpdatingId(userId);
+    const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+    setUpdatingId(null);
+    if (error) { toast.error(`Failed: ${error.message}`); return; }
+    toast.success("Admin privileges revoked");
+    loadUsers();
+  }
+
+  function toggleAutoApprove(next: boolean) {
+    setAutoApprove(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("admin:autoApprove", next ? "1" : "0");
+    }
+    toast.success(next ? "Auto-approve enabled" : "Auto-approve disabled");
+  }
+
+  // Auto-approve newly pending partners when the toggle is on
+  useEffect(() => {
+    if (!autoApprove) return;
+    const toApprove = users.filter(
+      (u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role)
+    );
+    toApprove.forEach((u) => updateApproval(u.user_id, "approved"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoApprove, users.length]);
 
   // Real-data metrics derived from transactions
   const now = new Date();
