@@ -295,15 +295,22 @@ function PatientDashboard() {
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: MapPin, label: "Track Delivery", to: "/track" },
-                { icon: CalendarDays, label: "Contact Us", to: "/contact" },
-              ].map((action) => (
-                <Link key={action.label} to={action.to} className="flex flex-col items-center gap-2 rounded-lg border border-border p-4 transition-colors hover:bg-accent">
-                  <action.icon className="h-5 w-5 text-primary" />
-                  <span className="text-xs font-medium text-foreground">{action.label}</span>
-                </Link>
-              ))}
+              <Link
+                to="/dashboard/patient"
+                hash="prescriptions"
+                className="flex flex-col items-center gap-2 rounded-lg border border-border p-4 transition-colors hover:bg-accent"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById("prescriptions")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                <Stethoscope className="h-5 w-5 text-primary" />
+                <span className="text-xs font-medium text-foreground">Prescriptions</span>
+              </Link>
+              <Link to="/track" className="flex flex-col items-center gap-2 rounded-lg border border-border p-4 transition-colors hover:bg-accent">
+                <MapPin className="h-5 w-5 text-primary" />
+                <span className="text-xs font-medium text-foreground">Track Delivery</span>
+              </Link>
             </div>
           </div>
         </div>
