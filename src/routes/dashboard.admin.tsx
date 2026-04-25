@@ -72,6 +72,13 @@ function AdminDashboard() {
   const [transactions, setTransactions] = useState<TxnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [autoApprove, setAutoApprove] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("admin:autoApprove") === "1";
+  });
+  const [confirmRole, setConfirmRole] = useState<{ user: UserRow; action: "promote" | "demote" } | null>(null);
+  const [generatingInventory, setGeneratingInventory] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
