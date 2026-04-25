@@ -155,7 +155,7 @@ function PharmacyDashboard() {
   }
 
   function openEditMedication(med: Medication) {
-    if (med.id.startsWith("m")) { toast.info("Demo item — add a real one to edit."); return; }
+    // (no demo guards — all items are real)
     setEditingMed(med);
     setForm({
       name: med.name,
@@ -189,7 +189,7 @@ function PharmacyDashboard() {
   }
 
   async function adjustStock(med: Medication, delta: number) {
-    if (med.id.startsWith("m")) { toast.info("Demo item — cannot adjust."); return; }
+
     const next = Math.max(0, med.stock_quantity + delta);
     const { error } = await supabase.from("medications").update({ stock_quantity: next }).eq("id", med.id);
     if (error) { toast.error(error.message); return; }
@@ -208,7 +208,7 @@ function PharmacyDashboard() {
   }
 
   async function rejectOrder(orderId: string) {
-    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+
     const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
     if (error) { toast.error(error.message); return; }
     toast.success("Order rejected");
@@ -216,7 +216,7 @@ function PharmacyDashboard() {
   }
 
   async function markPreparing(orderId: string) {
-    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+
     const { error } = await supabase.from("orders").update({ status: "preparing" }).eq("id", orderId);
     if (error) { toast.error(error.message); return; }
     toast.success("Order marked preparing");
@@ -225,7 +225,7 @@ function PharmacyDashboard() {
 
   // Auto-assigns the least-busy approved driver, then sets order → ready and delivery → assigned
   async function markReadyAndAutoAssign(orderId: string) {
-    if (orderId.startsWith("demo-")) { toast.info("Demo order — cannot persist."); return; }
+
     await loadDrivers();
     if (drivers.length === 0) {
       toast.error("No approved drivers available. Ask the admin to approve a driver.");
@@ -245,7 +245,7 @@ function PharmacyDashboard() {
 
   async function assignDriver(driverId: string) {
     if (!assignOrder) return;
-    if (assignOrder.id.startsWith("demo-")) { toast.info("Demo order — cannot assign."); setAssignOrder(null); return; }
+
     setAssigning(true);
     const { error: orderErr } = await supabase.from("orders").update({ status: "accepted" }).eq("id", assignOrder.id);
     const { error: delErr } = await supabase.from("deliveries").update({ driver_id: driverId }).eq("order_id", assignOrder.id);
@@ -259,7 +259,7 @@ function PharmacyDashboard() {
 
   // Uber-style: broadcast to all approved drivers; first to accept wins
   async function broadcastToDrivers(order: Order) {
-    if (order.id.startsWith("demo-")) { toast.info("Demo order — cannot broadcast."); return; }
+
     if (!user) return;
     // Avoid duplicate open offers for same order
     const { data: existing } = await supabase
