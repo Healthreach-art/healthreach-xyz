@@ -58,6 +58,7 @@ function PharmacyDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [liveDeliveries, setLiveDeliveries] = useState<LiveDelivery[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Add / Edit medication
@@ -84,6 +85,34 @@ function PharmacyDashboard() {
     ]);
     setInventory((medsRes.data ?? []) as Medication[]);
     setOrders((ordersRes.data ?? []) as Order[]);
+
+    // Load live deliveries (in-progress) for this pharmacy's orders
+    const myOrderIds = (ordersRes.data ?? []).map((o) => o.id);
+    if (myOrderIds.length > 0) {
+      const { data: dels } = await supabase
+        .from("deliveries")
+        .select("id, order_id, status, driver_id, delivery_address, updated_at")
+        .in("order_id", myOrderIds)
+        .in("status", ["assigned", "picked_up", "in_transit"])
+        .order("updated_at", { ascending: false });
+      const driverIds = Array.from(new Set((dels ?? []).map((d) => d.driver_id).filter(Boolean) as string[]));
+      const { data: driverProfs } = driverIds.length > 0
+        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", driverIds)
+        : { data: [] as { user_id: string; full_name: string }[] };
+      const nameMap = new Map((driverProfs ?? []).map((p) => [p.user_id, p.full_name]));
+      const orderNameMap = new Map((ordersRes.data ?? []).map((o) => [o.id, o.medication_name]));
+      setLiveDeliveries((dels ?? []).map((d) => ({
+        id: d.id,
+        order_id: d.order_id,
+        status: d.status,
+        driver_name: d.driver_id ? (nameMap.get(d.driver_id) || "Driver") : null,
+        medication_name: orderNameMap.get(d.order_id) || "Order",
+        delivery_address: d.delivery_address,
+        updated_at: d.updated_at,
+      })));
+    } else {
+      setLiveDeliveries([]);
+    }
     setLoading(false);
   }
 
@@ -111,8 +140,9 @@ function PharmacyDashboard() {
     loadDrivers();
     if (!user) return;
     const channel = supabase
-      .channel("pharmacy-orders")
+      .channel(`pharmacy-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => loadData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
