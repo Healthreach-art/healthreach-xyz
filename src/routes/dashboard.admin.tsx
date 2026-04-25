@@ -269,7 +269,7 @@ function AdminDashboard() {
     toast.success(`${filename} downloaded`);
   }
 
-  function generateReport(kind: "financial" | "users" | "orders" | "inventory") {
+  async function generateReport(kind: "financial" | "users" | "orders" | "inventory") {
     if (kind === "financial") {
       downloadCsv(
         "financial-report.csv",
@@ -289,7 +289,36 @@ function AdminDashboard() {
         transactions.map((t) => [t.id, t.patient, t.medication, t.amount.toFixed(2), t.status, t.date]),
       );
     } else {
-      toast("Inventory report", { description: "Coming soon — pharmacy inventory aggregation." });
+      // Real inventory report: join medications with their pharmacy profile
+      setGeneratingInventory(true);
+      const { data: meds, error } = await supabase
+        .from("medications")
+        .select("id, pharmacy_id, name, category, price, stock_quantity, requires_prescription, created_at")
+        .order("name");
+      if (error || !meds) {
+        setGeneratingInventory(false);
+        toast.error(error?.message || "Failed to load inventory");
+        return;
+      }
+      const pharmacyIds = Array.from(new Set(meds.map((m) => m.pharmacy_id)));
+      const { data: profs } = pharmacyIds.length > 0
+        ? await supabase.from("profiles").select("user_id, organization_name, full_name").in("user_id", pharmacyIds)
+        : { data: [] as { user_id: string; organization_name: string | null; full_name: string }[] };
+      const pharmMap = new Map((profs ?? []).map((p) => [p.user_id, p.organization_name || p.full_name || "Pharmacy"]));
+      downloadCsv(
+        "inventory-report.csv",
+        ["Pharmacy", "Medication", "Category", "Price (ZAR)", "Stock", "Prescription Required", "Added"],
+        meds.map((m) => [
+          pharmMap.get(m.pharmacy_id) || m.pharmacy_id.slice(0, 8),
+          m.name,
+          m.category || "",
+          Number(m.price).toFixed(2),
+          m.stock_quantity,
+          m.requires_prescription ? "Yes" : "No",
+          m.created_at,
+        ]),
+      );
+      setGeneratingInventory(false);
     }
   }
 
