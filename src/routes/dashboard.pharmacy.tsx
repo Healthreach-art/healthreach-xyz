@@ -376,26 +376,19 @@ function PharmacyDashboard() {
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       )}
 
-      {/* Live Deliveries (in progress) */}
+      {/* Live Deliveries (in progress) with real-time stage timeline */}
       {liveDeliveries.length > 0 && (
         <div className="mb-6 healthcare-card p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <Truck className="h-5 w-5 text-primary" /> Active Deliveries
+            <span className="inline-flex items-center gap-1 text-xs font-normal text-healthcare-green">
+              <Radio className="h-3 w-3 animate-pulse" /> Live
+            </span>
             <span className="ml-auto text-xs font-normal text-muted-foreground">{liveDeliveries.length} in progress</span>
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {liveDeliveries.map((d) => (
-              <div key={d.id} className="rounded-lg border border-border p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono text-muted-foreground">{d.order_id.slice(0, 8)}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
-                    {d.status.replace(/_/g, " ")}
-                  </span>
-                </div>
-                <p className="text-sm font-medium text-foreground">{d.medication_name}</p>
-                <p className="text-xs text-muted-foreground mt-1">Driver: {d.driver_name || "Unassigned"}</p>
-                {d.delivery_address && <p className="text-xs text-muted-foreground truncate">→ {d.delivery_address}</p>}
-              </div>
+              <DeliveryTimelineCard key={d.id} delivery={d} />
             ))}
           </div>
         </div>
