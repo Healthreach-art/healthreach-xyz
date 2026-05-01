@@ -376,26 +376,19 @@ function PharmacyDashboard() {
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       )}
 
-      {/* Live Deliveries (in progress) */}
+      {/* Live Deliveries (in progress) with real-time stage timeline */}
       {liveDeliveries.length > 0 && (
         <div className="mb-6 healthcare-card p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <Truck className="h-5 w-5 text-primary" /> Active Deliveries
+            <span className="inline-flex items-center gap-1 text-xs font-normal text-healthcare-green">
+              <Radio className="h-3 w-3 animate-pulse" /> Live
+            </span>
             <span className="ml-auto text-xs font-normal text-muted-foreground">{liveDeliveries.length} in progress</span>
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {liveDeliveries.map((d) => (
-              <div key={d.id} className="rounded-lg border border-border p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono text-muted-foreground">{d.order_id.slice(0, 8)}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
-                    {d.status.replace(/_/g, " ")}
-                  </span>
-                </div>
-                <p className="text-sm font-medium text-foreground">{d.medication_name}</p>
-                <p className="text-xs text-muted-foreground mt-1">Driver: {d.driver_name || "Unassigned"}</p>
-                {d.delivery_address && <p className="text-xs text-muted-foreground truncate">→ {d.delivery_address}</p>}
-              </div>
+              <DeliveryTimelineCard key={d.id} delivery={d} />
             ))}
           </div>
         </div>
@@ -595,6 +588,78 @@ function PharmacyDashboard() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+const DELIVERY_STAGES: { key: string; label: string }[] = [
+  { key: "assigned", label: "Assigned" },
+  { key: "picked_up", label: "Picked Up" },
+  { key: "in_transit", label: "In Transit" },
+  { key: "delivered", label: "Delivered" },
+];
+
+function DeliveryTimelineCard({ delivery }: { delivery: LiveDelivery }) {
+  const currentIndex = DELIVERY_STAGES.findIndex((s) => s.key === delivery.status);
+  const activeIndex = currentIndex === -1 ? 0 : currentIndex;
+  const updated = new Date(delivery.updated_at);
+  const minsAgo = Math.max(0, Math.round((Date.now() - updated.getTime()) / 60000));
+
+  return (
+    <div className="rounded-lg border border-border p-4 bg-card">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-mono text-muted-foreground">#{delivery.order_id.slice(0, 8)}</span>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
+          {delivery.status.replace(/_/g, " ")}
+        </span>
+      </div>
+      <p className="text-sm font-medium text-foreground">{delivery.medication_name}</p>
+      <p className="text-xs text-muted-foreground">Driver: {delivery.driver_name || "Unassigned"}</p>
+      {delivery.delivery_address && (
+        <p className="text-xs text-muted-foreground truncate mt-0.5">→ {delivery.delivery_address}</p>
+      )}
+
+      {/* Stage Timeline */}
+      <div className="mt-4">
+        <div className="flex items-center">
+          {DELIVERY_STAGES.map((stage, idx) => {
+            const reached = idx <= activeIndex;
+            const isCurrent = idx === activeIndex;
+            return (
+              <div key={stage.key} className="flex-1 flex items-center last:flex-none">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${
+                      reached
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    } ${isCurrent ? "ring-2 ring-primary/30 ring-offset-1 ring-offset-card animate-pulse" : ""}`}
+                  >
+                    {reached ? "✓" : idx + 1}
+                  </div>
+                  <span
+                    className={`mt-1 text-[10px] text-center leading-tight ${
+                      reached ? "text-foreground font-medium" : "text-muted-foreground"
+                    }`}
+                  >
+                    {stage.label}
+                  </span>
+                </div>
+                {idx < DELIVERY_STAGES.length - 1 && (
+                  <div
+                    className={`flex-1 h-0.5 mx-1 mb-4 transition-colors ${
+                      idx < activeIndex ? "bg-primary" : "bg-muted"
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-2 text-right">
+          Updated {minsAgo === 0 ? "just now" : `${minsAgo}m ago`}
+        </p>
+      </div>
     </div>
   );
 }
