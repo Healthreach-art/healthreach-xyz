@@ -44,11 +44,18 @@ interface Offer {
   earnings: number;
 }
 
+const STAGE_ORDER: DStatus[] = ["assigned", "picked_up", "in_transit", "delivered"];
 const nextStatus: Record<DStatus, DStatus | null> = {
   assigned: "picked_up", picked_up: "in_transit", in_transit: "delivered", delivered: null,
 };
+const prevStatus: Record<DStatus, DStatus | null> = {
+  assigned: null, picked_up: "assigned", in_transit: "picked_up", delivered: "in_transit",
+};
 const nextLabel: Record<DStatus, string> = {
   assigned: "Mark Picked Up", picked_up: "Start Delivery", in_transit: "Complete Delivery", delivered: "",
+};
+const stageLabel: Record<DStatus, string> = {
+  assigned: "Assigned", picked_up: "Picked Up", in_transit: "In Transit", delivered: "Delivered",
 };
 const deliveryStatusLabels: Record<DStatus, { label: string; color: string }> = {
   assigned: { label: "Assigned", color: "bg-accent text-accent-foreground" },
@@ -258,22 +265,29 @@ function DriverDashboard() {
     setRespondingId(null);
   }
 
-  async function advance(d: LiveDelivery) {
-    const next = nextStatus[d.status];
-    if (!next) return;
+  async function setDeliveryStatus(d: LiveDelivery, target: DStatus) {
     setUpdating(d.id);
-    const { error } = await supabase.from("deliveries").update({ status: next }).eq("id", d.id);
-    // Sync the order status so patient sees progress
-    const orderStatusMap: Record<DStatus, "out_for_delivery" | "delivered" | null> = {
-      assigned: null, picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered",
+    const { error } = await supabase.from("deliveries").update({ status: target }).eq("id", d.id);
+    const orderStatusMap: Record<DStatus, "ready" | "out_for_delivery" | "delivered" | null> = {
+      assigned: "ready", picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered",
     };
-    const orderStatus = orderStatusMap[next];
+    const orderStatus = orderStatusMap[target];
     if (orderStatus) {
       await supabase.from("orders").update({ status: orderStatus }).eq("id", d.order_id);
     }
     setUpdating(null);
     if (error) toast.error(error.message);
-    else toast.success(`Marked ${next.replace(/_/g, " ")}`);
+    else toast.success(`Marked ${stageLabel[target]}`);
+  }
+
+  async function advance(d: LiveDelivery) {
+    const next = nextStatus[d.status];
+    if (next) await setDeliveryStatus(d, next);
+  }
+
+  async function revert(d: LiveDelivery) {
+    const prev = prevStatus[d.status];
+    if (prev) await setDeliveryStatus(d, prev);
   }
 
   // Today's earnings & count from real completed deliveries
@@ -410,6 +424,8 @@ function DriverDashboard() {
 
           {liveDeliveries.map((delivery) => {
             const statusInfo = deliveryStatusLabels[delivery.status];
+            const activeIndex = STAGE_ORDER.indexOf(delivery.status);
+            const isUpdating = updating === delivery.id;
             return (
               <div key={delivery.id} className="healthcare-card p-5 ring-1 ring-primary/20">
                 <div className="flex items-center justify-between mb-3">
@@ -426,15 +442,56 @@ function DriverDashboard() {
                     <div><span className="text-muted-foreground">Dropoff:</span><p className="text-foreground">{delivery.delivery_address || "—"}</p></div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between mt-4">
+
+                {/* Stage Timeline */}
+                <div className="mt-4 flex items-center">
+                  {STAGE_ORDER.map((stage, idx) => {
+                    const reached = idx <= activeIndex;
+                    const isCurrent = idx === activeIndex;
+                    return (
+                      <div key={stage} className="flex-1 flex items-center last:flex-none">
+                        <button
+                          type="button"
+                          onClick={() => !isUpdating && stage !== delivery.status && setDeliveryStatus(delivery, stage)}
+                          disabled={isUpdating || stage === delivery.status}
+                          title={`Set ${stageLabel[stage]}`}
+                          className="flex flex-col items-center disabled:cursor-default group"
+                        >
+                          <div
+                            className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${
+                              reached ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-primary/20"
+                            } ${isCurrent ? "ring-2 ring-primary/40 ring-offset-1 ring-offset-card animate-pulse" : ""}`}
+                          >
+                            {reached ? "✓" : idx + 1}
+                          </div>
+                          <span className={`mt-1 text-[10px] text-center leading-tight ${reached ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                            {stageLabel[stage]}
+                          </span>
+                        </button>
+                        {idx < STAGE_ORDER.length - 1 && (
+                          <div className={`flex-1 h-0.5 mx-1 mb-4 transition-colors ${idx < activeIndex ? "bg-primary" : "bg-muted"}`} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between gap-2 mt-4 flex-wrap">
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" /> ETA: {delivery.estimated_time || "—"}
                   </span>
-                  {nextStatus[delivery.status] && (
-                    <Button size="sm" variant="default" disabled={updating === delivery.id} onClick={() => advance(delivery)}>
-                      {updating === delivery.id ? "Updating..." : nextLabel[delivery.status]}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {prevStatus[delivery.status] && (
+                      <Button size="sm" variant="outline" disabled={isUpdating} onClick={() => revert(delivery)}>
+                        Undo
+                      </Button>
+                    )}
+                    {nextStatus[delivery.status] && (
+                      <Button size="sm" variant="default" disabled={isUpdating} onClick={() => advance(delivery)}>
+                        {isUpdating ? "Updating..." : nextLabel[delivery.status]}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
