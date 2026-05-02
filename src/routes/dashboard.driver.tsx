@@ -44,11 +44,18 @@ interface Offer {
   earnings: number;
 }
 
+const STAGE_ORDER: DStatus[] = ["assigned", "picked_up", "in_transit", "delivered"];
 const nextStatus: Record<DStatus, DStatus | null> = {
   assigned: "picked_up", picked_up: "in_transit", in_transit: "delivered", delivered: null,
 };
+const prevStatus: Record<DStatus, DStatus | null> = {
+  assigned: null, picked_up: "assigned", in_transit: "picked_up", delivered: "in_transit",
+};
 const nextLabel: Record<DStatus, string> = {
   assigned: "Mark Picked Up", picked_up: "Start Delivery", in_transit: "Complete Delivery", delivered: "",
+};
+const stageLabel: Record<DStatus, string> = {
+  assigned: "Assigned", picked_up: "Picked Up", in_transit: "In Transit", delivered: "Delivered",
 };
 const deliveryStatusLabels: Record<DStatus, { label: string; color: string }> = {
   assigned: { label: "Assigned", color: "bg-accent text-accent-foreground" },
