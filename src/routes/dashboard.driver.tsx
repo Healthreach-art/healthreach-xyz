@@ -265,22 +265,29 @@ function DriverDashboard() {
     setRespondingId(null);
   }
 
-  async function advance(d: LiveDelivery) {
-    const next = nextStatus[d.status];
-    if (!next) return;
+  async function setDeliveryStatus(d: LiveDelivery, target: DStatus) {
     setUpdating(d.id);
-    const { error } = await supabase.from("deliveries").update({ status: next }).eq("id", d.id);
-    // Sync the order status so patient sees progress
-    const orderStatusMap: Record<DStatus, "out_for_delivery" | "delivered" | null> = {
-      assigned: null, picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered",
+    const { error } = await supabase.from("deliveries").update({ status: target }).eq("id", d.id);
+    const orderStatusMap: Record<DStatus, "ready" | "out_for_delivery" | "delivered" | null> = {
+      assigned: "ready", picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered",
     };
-    const orderStatus = orderStatusMap[next];
+    const orderStatus = orderStatusMap[target];
     if (orderStatus) {
       await supabase.from("orders").update({ status: orderStatus }).eq("id", d.order_id);
     }
     setUpdating(null);
     if (error) toast.error(error.message);
-    else toast.success(`Marked ${next.replace(/_/g, " ")}`);
+    else toast.success(`Marked ${stageLabel[target]}`);
+  }
+
+  async function advance(d: LiveDelivery) {
+    const next = nextStatus[d.status];
+    if (next) await setDeliveryStatus(d, next);
+  }
+
+  async function revert(d: LiveDelivery) {
+    const prev = prevStatus[d.status];
+    if (prev) await setDeliveryStatus(d, prev);
   }
 
   // Today's earnings & count from real completed deliveries
