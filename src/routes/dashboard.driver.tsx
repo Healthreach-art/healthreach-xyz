@@ -526,6 +526,7 @@ function DriverDashboard() {
           </div>
         </div>
       </div>
+      <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
     </div>
   );
 }
