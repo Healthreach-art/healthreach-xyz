@@ -318,9 +318,7 @@ function PatientDashboard() {
                 return (
                   <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                        <Pill className="h-4 w-4 text-primary" />
-                      </div>
+                      <img src={medGeneric} alt="" loading="lazy" className="h-12 w-12 rounded-lg object-cover" />
                       <div>
                         <p className="text-sm font-medium text-foreground">{med.name}</p>
                         <p className="text-xs text-muted-foreground">
