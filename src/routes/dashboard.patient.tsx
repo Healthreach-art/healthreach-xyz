@@ -2,8 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
-  CalendarDays, FileText, MapPin, Loader2, Stethoscope,
+  FileText, MapPin, Loader2, Stethoscope, Store, Star,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +16,13 @@ export const Route = createFileRoute("/dashboard/patient")({
   head: () => ({ meta: [{ title: "Patient Dashboard — HEALTHREACH" }] }),
   component: PatientDashboard,
 });
+
+interface Pharmacy {
+  user_id: string;
+  organization_name: string | null;
+  full_name: string;
+  address: string | null;
+}
 
 interface Med {
   id: string;
@@ -50,10 +60,13 @@ const statusColors: Record<string, string> = {
 function PatientDashboard() {
   const { user, profile, signOut } = useAuth();
   const [search, setSearch] = useState("");
+  const [pharmacySearch, setPharmacySearch] = useState("");
   const [meds, setMeds] = useState<Med[]>([]);
+  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -65,6 +78,17 @@ function PatientDashboard() {
             .gt("stock_quantity", 0)
             .order("name");
           setMeds((data ?? []) as Med[]);
+        })(),
+        (async () => {
+          const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "pharmacy");
+          const ids = (roles ?? []).map((r) => r.user_id);
+          if (ids.length === 0) { setPharmacies([]); return; }
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("user_id, organization_name, full_name, address, approval_status")
+            .in("user_id", ids)
+            .eq("approval_status", "approved");
+          setPharmacies((profs ?? []) as Pharmacy[]);
         })(),
       ];
       if (user) {
@@ -185,46 +209,106 @@ function PatientDashboard() {
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Search Medications */}
         <div className="lg:col-span-3 space-y-6">
+          {/* Browse Pharmacies (Uber Eats style) */}
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Search className="h-5 w-5 text-primary" /> Search Medications
+              <Store className="h-5 w-5 text-primary" /> Browse Pharmacies
+              <span className="ml-auto text-xs font-normal text-muted-foreground">{pharmacies.length} nearby</span>
             </h2>
             <input
               type="text"
-              placeholder="Search medications..."
+              placeholder="Search pharmacies by name or area..."
+              value={pharmacySearch}
+              onChange={(e) => setPharmacySearch(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring mb-4"
+            />
+            {loading && <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
+            {!loading && pharmacies.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-6">No pharmacies onboarded yet.</p>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {pharmacies
+                .filter((p) => {
+                  const q = pharmacySearch.toLowerCase();
+                  return !q || (p.organization_name || p.full_name).toLowerCase().includes(q) || (p.address ?? "").toLowerCase().includes(q);
+                })
+                .map((p) => {
+                  const count = meds.filter((m) => m.pharmacy_id === p.user_id).length;
+                  const name = p.organization_name || p.full_name;
+                  return (
+                    <button
+                      key={p.user_id}
+                      onClick={() => setOpenPharmacy(p)}
+                      className="group text-left rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                      <div className="h-24 bg-gradient-to-br from-primary/20 via-healthcare-sky/30 to-healthcare-mint/40 flex items-center justify-center">
+                        <Store className="h-10 w-10 text-primary/70" />
+                      </div>
+                      <div className="p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1">{name}</p>
+                          <span className="flex items-center gap-0.5 text-xs text-healthcare-green shrink-0">
+                            <Star className="h-3 w-3 fill-current" /> 4.8
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{p.address || "Johannesburg"}</p>
+                        <div className="mt-2 flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">{count} item{count === 1 ? "" : "s"}</span>
+                          <span className="text-primary font-medium group-hover:underline">View shop →</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Search Medications across all pharmacies */}
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Search className="h-5 w-5 text-primary" /> Search All Medications
+            </h2>
+            <input
+              type="text"
+              placeholder="Search across every pharmacy..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring mb-4"
             />
             {loading && <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
             {!loading && filteredMeds.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-6">No medications available yet. Pharmacies need to add inventory.</p>
+              <p className="text-center text-sm text-muted-foreground py-6">No medications match. Try a different search.</p>
             )}
             <div className="space-y-3">
-              {filteredMeds.map((med) => (
-                <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                      <Pill className="h-4 w-4 text-primary" />
+              {filteredMeds.slice(0, 20).map((med) => {
+                const ph = pharmacies.find((p) => p.user_id === med.pharmacy_id);
+                return (
+                  <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                        <Pill className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{med.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {ph?.organization_name || ph?.full_name || "Pharmacy"} · {med.stock_quantity} in stock
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{med.name}</p>
-                      <p className="text-xs text-muted-foreground">{med.stock_quantity} in stock</p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-foreground">R {Number(med.price).toFixed(2)}</span>
+                      <Button size="sm" variant="default" asChild>
+                        <Link
+                          to="/payment"
+                          search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}
+                        >
+                          Order
+                        </Link>
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-foreground">R {Number(med.price).toFixed(2)}</span>
-                    <Button size="sm" variant="default" asChild>
-                      <Link
-                        to="/payment"
-                        search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}
-                      >
-                        Order
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -315,6 +399,45 @@ function PatientDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Pharmacy detail dialog */}
+      <Dialog open={!!openPharmacy} onOpenChange={(o) => !o && setOpenPharmacy(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Store className="h-5 w-5 text-primary" />
+              {openPharmacy?.organization_name || openPharmacy?.full_name}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">{openPharmacy?.address || "Johannesburg"}</p>
+          </DialogHeader>
+          <div className="space-y-2 mt-2">
+            {openPharmacy && meds.filter((m) => m.pharmacy_id === openPharmacy.user_id).length === 0 && (
+              <p className="text-sm text-muted-foreground py-6 text-center">No medications in stock at this pharmacy.</p>
+            )}
+            {openPharmacy && meds.filter((m) => m.pharmacy_id === openPharmacy.user_id).map((med) => (
+              <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Pill className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{med.name}</p>
+                    <p className="text-xs text-muted-foreground">{med.stock_quantity} in stock</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold">R {Number(med.price).toFixed(2)}</span>
+                  <Button size="sm" asChild>
+                    <Link to="/payment" search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}>
+                      Order
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
