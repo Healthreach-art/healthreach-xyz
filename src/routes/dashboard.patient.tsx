@@ -365,9 +365,14 @@ function PatientDashboard() {
                     </span>
                   </div>
                   <p className="text-sm font-medium text-foreground">{order.medication_name}</p>
-                  <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                    <span>{new Date(order.created_at).toLocaleDateString()}</span>
-                    <span>R {Number(order.total_amount).toFixed(2)}</span>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <div className="flex gap-3 text-xs text-muted-foreground">
+                      <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                      <span>R {Number(order.total_amount).toFixed(2)}</span>
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
+                      <MessageCircle className="h-3 w-3" /> Chat
+                    </Button>
                   </div>
                 </div>
               ))}
