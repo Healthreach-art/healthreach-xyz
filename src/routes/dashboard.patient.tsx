@@ -459,9 +459,7 @@ function PatientDashboard() {
             {openPharmacy && meds.filter((m) => m.pharmacy_id === openPharmacy.user_id).map((med) => (
               <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Pill className="h-5 w-5 text-primary" />
-                  </div>
+                  <img src={medGeneric} alt="" loading="lazy" className="h-12 w-12 rounded-lg object-cover" />
                   <div>
                     <p className="text-sm font-medium text-foreground">{med.name}</p>
                     <p className="text-xs text-muted-foreground">{med.stock_quantity} in stock</p>
