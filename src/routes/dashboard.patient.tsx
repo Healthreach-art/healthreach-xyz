@@ -2,10 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
-  CalendarDays, FileText, MapPin, Loader2, Stethoscope,
+  FileText, MapPin, Loader2, Stethoscope, Store, Star,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -13,6 +16,13 @@ export const Route = createFileRoute("/dashboard/patient")({
   head: () => ({ meta: [{ title: "Patient Dashboard — HEALTHREACH" }] }),
   component: PatientDashboard,
 });
+
+interface Pharmacy {
+  user_id: string;
+  organization_name: string | null;
+  full_name: string;
+  address: string | null;
+}
 
 interface Med {
   id: string;
