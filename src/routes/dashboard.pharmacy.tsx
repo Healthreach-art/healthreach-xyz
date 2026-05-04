@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import pharmacyHero from "@/assets/pharmacy-1.jpg";
+import medGeneric from "@/assets/med-generic.jpg";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -336,6 +338,17 @@ function PharmacyDashboard() {
         <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
       </div>
 
+      {/* Hero banner */}
+      <div className="relative overflow-hidden rounded-2xl mb-6 h-40 sm:h-52">
+        <img src={pharmacyHero} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-healthcare-teal/85 via-primary/60 to-transparent" />
+        <div className="relative z-10 h-full flex flex-col justify-center px-6 sm:px-10 text-primary-foreground">
+          <p className="text-xs uppercase tracking-wider opacity-90">Your storefront</p>
+          <h2 className="text-2xl sm:text-3xl font-bold mt-1">{profile?.organization_name || "My Pharmacy"}</h2>
+          <p className="text-sm opacity-90 mt-1">{pendingCount} pending order{pendingCount === 1 ? "" : "s"} · {inventory.length} item{inventory.length === 1 ? "" : "s"} listed</p>
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
@@ -463,39 +476,40 @@ function PharmacyDashboard() {
           {!loading && inventory.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center">Your inventory is empty. Click "+ Add Item" to add medications.</p>
           )}
-          <div className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {inventory.map((item) => {
               const low = item.stock_quantity <= LOW_STOCK_THRESHOLD;
 
               return (
-                <div key={item.id} className="rounded-lg border border-border p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.category || "—"} • R {Number(item.price).toFixed(2)}</p>
-                    </div>
-                    <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
-                      low ? "bg-destructive/10 text-destructive" : "bg-healthcare-green/20 text-healthcare-green"
+                <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="relative h-24 overflow-hidden">
+                    <img src={medGeneric} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+                    <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                      low ? "bg-destructive text-destructive-foreground" : "bg-healthcare-green text-primary-foreground"
                     }`}>
                       {item.stock_quantity} units
                     </span>
                   </div>
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, +1)}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => openEditMedication(item)}>
-                        <Pencil className="h-3 w-3" /> Edit
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
-                        <Trash2 className="h-3 w-3" /> Delete
-                      </Button>
+                  <div className="p-3">
+                    <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.category || "—"} · R {Number(item.price).toFixed(2)}</p>
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1">
+                        <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, +1)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => openEditMedication(item)}>
+                          <Pencil className="h-3 w-3" /> Edit
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

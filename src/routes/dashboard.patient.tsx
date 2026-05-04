@@ -12,6 +12,19 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
+import pharmacy1 from "@/assets/pharmacy-1.jpg";
+import pharmacy2 from "@/assets/pharmacy-2.jpg";
+import pharmacy3 from "@/assets/pharmacy-3.jpg";
+import pharmacy4 from "@/assets/pharmacy-4.jpg";
+import patientHero from "@/assets/patient-hero.jpg";
+import medGeneric from "@/assets/med-generic.jpg";
+
+const PHARMACY_IMAGES = [pharmacy1, pharmacy2, pharmacy3, pharmacy4];
+function pharmacyImage(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return PHARMACY_IMAGES[h % PHARMACY_IMAGES.length];
+}
 
 export const Route = createFileRoute("/dashboard/patient")({
   head: () => ({ meta: [{ title: "Patient Dashboard — HEALTHREACH" }] }),
@@ -187,6 +200,18 @@ function PatientDashboard() {
       </div>
 
       {/* Stats */}
+      {/* Hero banner */}
+      <div className="relative overflow-hidden rounded-2xl mb-6 h-44 sm:h-56">
+        <img src={patientHero} alt="Medicine delivered to your door" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/80 via-primary/50 to-transparent" />
+        <div className="relative z-10 h-full flex flex-col justify-center px-6 sm:px-10 text-primary-foreground">
+          <p className="text-xs uppercase tracking-wider opacity-90">Delivered in 30 min</p>
+          <h2 className="text-2xl sm:text-3xl font-bold mt-1">Order medicine, get it fast.</h2>
+          <p className="text-sm opacity-90 mt-1">Browse pharmacies near {profile?.address?.split(",")[0] || "you"} and chat with your driver in real time.</p>
+        </div>
+      </div>
+
+      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
           { icon: ShoppingCart, label: "Total Orders", value: String(totalOrders), color: "text-primary" },
@@ -243,8 +268,14 @@ function PatientDashboard() {
                       onClick={() => setOpenPharmacy(p)}
                       className="group text-left rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5"
                     >
-                      <div className="h-24 bg-gradient-to-br from-primary/20 via-healthcare-sky/30 to-healthcare-mint/40 flex items-center justify-center">
-                        <Store className="h-10 w-10 text-primary/70" />
+                      <div className="relative h-32 overflow-hidden">
+                        <img src={pharmacyImage(p.user_id)} alt={name} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                        <div className="absolute top-2 left-2 rounded-full bg-background/90 backdrop-blur px-2 py-0.5 text-[10px] font-semibold text-healthcare-green flex items-center gap-1">
+                          <Star className="h-2.5 w-2.5 fill-current" /> 4.8
+                        </div>
+                        <div className="absolute bottom-2 right-2 rounded-full bg-background/90 backdrop-blur px-2 py-0.5 text-[10px] font-medium text-foreground">
+                          25–35 min
+                        </div>
                       </div>
                       <div className="p-3">
                         <div className="flex items-start justify-between gap-2">
@@ -287,9 +318,7 @@ function PatientDashboard() {
                 return (
                   <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                        <Pill className="h-4 w-4 text-primary" />
-                      </div>
+                      <img src={medGeneric} alt="" loading="lazy" className="h-12 w-12 rounded-lg object-cover" />
                       <div>
                         <p className="text-sm font-medium text-foreground">{med.name}</p>
                         <p className="text-xs text-muted-foreground">
@@ -417,6 +446,12 @@ function PatientDashboard() {
             </DialogTitle>
             <p className="text-xs text-muted-foreground">{openPharmacy?.address || "Johannesburg"}</p>
           </DialogHeader>
+          {openPharmacy && (
+            <div className="relative -mx-6 -mt-2 h-36 overflow-hidden">
+              <img src={pharmacyImage(openPharmacy.user_id)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/95 to-transparent" />
+            </div>
+          )}
           <div className="space-y-2 mt-2">
             {openPharmacy && meds.filter((m) => m.pharmacy_id === openPharmacy.user_id).length === 0 && (
               <p className="text-sm text-muted-foreground py-6 text-center">No medications in stock at this pharmacy.</p>
@@ -424,9 +459,7 @@ function PatientDashboard() {
             {openPharmacy && meds.filter((m) => m.pharmacy_id === openPharmacy.user_id).map((med) => (
               <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Pill className="h-5 w-5 text-primary" />
-                  </div>
+                  <img src={medGeneric} alt="" loading="lazy" className="h-12 w-12 rounded-lg object-cover" />
                   <div>
                     <p className="text-sm font-medium text-foreground">{med.name}</p>
                     <p className="text-xs text-muted-foreground">{med.stock_quantity} in stock</p>
