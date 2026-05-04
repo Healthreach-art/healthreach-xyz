@@ -60,10 +60,13 @@ const statusColors: Record<string, string> = {
 function PatientDashboard() {
   const { user, profile, signOut } = useAuth();
   const [search, setSearch] = useState("");
+  const [pharmacySearch, setPharmacySearch] = useState("");
   const [meds, setMeds] = useState<Med[]>([]);
+  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
 
   useEffect(() => {
     async function load() {
