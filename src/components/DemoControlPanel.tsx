@@ -112,7 +112,7 @@ export function DemoControlPanel() {
   }
 
   // ===== PHARMACY actions =====
-  async function advanceOrder(o: Order, next: string) {
+  async function advanceOrder(o: Order, next: "pending" | "accepted" | "preparing" | "ready" | "out_for_delivery" | "delivered" | "cancelled") {
     if (busy) return;
     setBusy(true);
     const { error } = await supabase.from("orders").update({ status: next }).eq("id", o.id);
@@ -163,7 +163,7 @@ export function DemoControlPanel() {
     finally { setBusy(false); }
   }
 
-  async function advanceDelivery(d: Delivery, next: string) {
+  async function advanceDelivery(d: Delivery, next: "assigned" | "picked_up" | "in_transit" | "delivered") {
     if (busy) return;
     setBusy(true);
     const { error } = await supabase.from("deliveries").update({ status: next }).eq("id", d.id);
@@ -176,7 +176,7 @@ export function DemoControlPanel() {
     if (error) toast.error(error.message); else toast.success(`Delivery → ${next.replace(/_/g, " ")}`);
   }
 
-  function nextDeliveryStage(s: string): string | null {
+  function nextDeliveryStage(s: string): "picked_up" | "in_transit" | "delivered" | null {
     if (s === "assigned") return "picked_up";
     if (s === "picked_up") return "in_transit";
     if (s === "in_transit") return "delivered";
