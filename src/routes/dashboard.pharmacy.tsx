@@ -18,6 +18,7 @@ import {
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { OrderChatDialog } from "@/components/OrderChatDialog";
 
 export const Route = createFileRoute("/dashboard/pharmacy")({
   head: () => ({ meta: [{ title: "Pharmacy Dashboard — HEALTHREACH" }] }),
