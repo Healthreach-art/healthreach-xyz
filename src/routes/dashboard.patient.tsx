@@ -12,6 +12,19 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
+import pharmacy1 from "@/assets/pharmacy-1.jpg";
+import pharmacy2 from "@/assets/pharmacy-2.jpg";
+import pharmacy3 from "@/assets/pharmacy-3.jpg";
+import pharmacy4 from "@/assets/pharmacy-4.jpg";
+import patientHero from "@/assets/patient-hero.jpg";
+import medGeneric from "@/assets/med-generic.jpg";
+
+const PHARMACY_IMAGES = [pharmacy1, pharmacy2, pharmacy3, pharmacy4];
+function pharmacyImage(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return PHARMACY_IMAGES[h % PHARMACY_IMAGES.length];
+}
 
 export const Route = createFileRoute("/dashboard/patient")({
   head: () => ({ meta: [{ title: "Patient Dashboard — HEALTHREACH" }] }),
