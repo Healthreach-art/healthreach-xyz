@@ -200,6 +200,18 @@ function PatientDashboard() {
       </div>
 
       {/* Stats */}
+      {/* Hero banner */}
+      <div className="relative overflow-hidden rounded-2xl mb-6 h-44 sm:h-56">
+        <img src={patientHero} alt="Medicine delivered to your door" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/80 via-primary/50 to-transparent" />
+        <div className="relative z-10 h-full flex flex-col justify-center px-6 sm:px-10 text-primary-foreground">
+          <p className="text-xs uppercase tracking-wider opacity-90">Delivered in 30 min</p>
+          <h2 className="text-2xl sm:text-3xl font-bold mt-1">Order medicine, get it fast.</h2>
+          <p className="text-sm opacity-90 mt-1">Browse pharmacies near {profile?.address?.split(",")[0] || "you"} and chat with your driver in real time.</p>
+        </div>
+      </div>
+
+      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
           { icon: ShoppingCart, label: "Total Orders", value: String(totalOrders), color: "text-primary" },
