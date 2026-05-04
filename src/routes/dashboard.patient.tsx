@@ -445,6 +445,8 @@ function PatientDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
     </div>
   );
 }
