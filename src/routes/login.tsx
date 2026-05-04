@@ -154,9 +154,20 @@ function LoginPage() {
               <p>admin2@healthreach.co.za / Admin2Pass!2025</p>
             </div>
           ) : (
-            <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Demo: Create an admin account</p>
-              <p>Sign up with role <span className="font-medium">Admin</span> — admins are auto-approved and unlimited admins are allowed.</p>
+            <div className="mt-6 space-y-3">
+              <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3 text-xs">
+                <p className="font-medium text-foreground mb-2">🎭 Mockup demo accounts</p>
+                <p className="text-muted-foreground mb-2">Use these to walk through the full Patient → Pharmacy → Driver flow yourself:</p>
+                <div className="space-y-1 text-foreground">
+                  <p><span className="font-medium">Patient:</span> patient.demo@healthreach.co.za / DemoPatient!2025</p>
+                  <p><span className="font-medium">Pharmacy:</span> pharmacy.demo@healthreach.co.za / DemoPharmacy!2025</p>
+                  <p><span className="font-medium">Driver:</span> driver.demo@healthreach.co.za / DemoDriver!2025</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground mb-1">All other signups are real</p>
+                <p>New patient/admin signups are auto-approved. Pharmacy, hospital, and driver signups still require admin approval.</p>
+              </div>
             </div>
           )}
         </div>
