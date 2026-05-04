@@ -399,6 +399,45 @@ function PatientDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Pharmacy detail dialog */}
+      <Dialog open={!!openPharmacy} onOpenChange={(o) => !o && setOpenPharmacy(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Store className="h-5 w-5 text-primary" />
+              {openPharmacy?.organization_name || openPharmacy?.full_name}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">{openPharmacy?.address || "Johannesburg"}</p>
+          </DialogHeader>
+          <div className="space-y-2 mt-2">
+            {openPharmacy && meds.filter((m) => m.pharmacy_id === openPharmacy.user_id).length === 0 && (
+              <p className="text-sm text-muted-foreground py-6 text-center">No medications in stock at this pharmacy.</p>
+            )}
+            {openPharmacy && meds.filter((m) => m.pharmacy_id === openPharmacy.user_id).map((med) => (
+              <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Pill className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{med.name}</p>
+                    <p className="text-xs text-muted-foreground">{med.stock_quantity} in stock</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold">R {Number(med.price).toFixed(2)}</span>
+                  <Button size="sm" asChild>
+                    <Link to="/payment" search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}>
+                      Order
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
