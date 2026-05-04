@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
-  FileText, MapPin, Loader2, Stethoscope, Store, Star,
+  FileText, MapPin, Loader2, Stethoscope, Store, Star, MessageCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
