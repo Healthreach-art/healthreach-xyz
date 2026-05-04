@@ -446,6 +446,12 @@ function PatientDashboard() {
             </DialogTitle>
             <p className="text-xs text-muted-foreground">{openPharmacy?.address || "Johannesburg"}</p>
           </DialogHeader>
+          {openPharmacy && (
+            <div className="relative -mx-6 -mt-2 h-36 overflow-hidden">
+              <img src={pharmacyImage(openPharmacy.user_id)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/95 to-transparent" />
+            </div>
+          )}
           <div className="space-y-2 mt-2">
             {openPharmacy && meds.filter((m) => m.pharmacy_id === openPharmacy.user_id).length === 0 && (
               <p className="text-sm text-muted-foreground py-6 text-center">No medications in stock at this pharmacy.</p>
