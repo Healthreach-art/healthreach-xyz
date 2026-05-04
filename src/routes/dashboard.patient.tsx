@@ -6,11 +6,12 @@ import {
 } from "@/components/ui/dialog";
 import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
-  FileText, MapPin, Loader2, Stethoscope, Store, Star,
+  FileText, MapPin, Loader2, Stethoscope, Store, Star, MessageCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { OrderChatDialog } from "@/components/OrderChatDialog";
 
 export const Route = createFileRoute("/dashboard/patient")({
   head: () => ({ meta: [{ title: "Patient Dashboard — HEALTHREACH" }] }),
@@ -67,6 +68,7 @@ function PatientDashboard() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
+  const [chatOrderId, setChatOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -363,9 +365,14 @@ function PatientDashboard() {
                     </span>
                   </div>
                   <p className="text-sm font-medium text-foreground">{order.medication_name}</p>
-                  <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                    <span>{new Date(order.created_at).toLocaleDateString()}</span>
-                    <span>R {Number(order.total_amount).toFixed(2)}</span>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <div className="flex gap-3 text-xs text-muted-foreground">
+                      <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                      <span>R {Number(order.total_amount).toFixed(2)}</span>
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
+                      <MessageCircle className="h-3 w-3" /> Chat
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -438,6 +445,8 @@ function PatientDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
     </div>
   );
 }

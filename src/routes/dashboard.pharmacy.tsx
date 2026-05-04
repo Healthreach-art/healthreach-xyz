@@ -13,11 +13,12 @@ import {
 import {
   Package, AlertTriangle, ShoppingCart, DollarSign,
   CheckCircle, XCircle, Clock, Pill, TrendingDown, Loader2,
-  Pencil, Trash2, Plus, Minus, Truck, Radio,
+  Pencil, Trash2, Plus, Minus, Truck, Radio, MessageCircle,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { OrderChatDialog } from "@/components/OrderChatDialog";
 
 export const Route = createFileRoute("/dashboard/pharmacy")({
   head: () => ({ meta: [{ title: "Pharmacy Dashboard — HEALTHREACH" }] }),
@@ -75,6 +76,7 @@ function PharmacyDashboard() {
   const [drivers, setDrivers] = useState<{ user_id: string; full_name: string; active: number }[]>([]);
   const [assignOrder, setAssignOrder] = useState<Order | null>(null);
   const [assigning, setAssigning] = useState(false);
+  const [chatOrderId, setChatOrderId] = useState<string | null>(null);
 
   async function loadData() {
     if (!user) return;
@@ -388,7 +390,7 @@ function PharmacyDashboard() {
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             {liveDeliveries.map((d) => (
-              <DeliveryTimelineCard key={d.id} delivery={d} />
+              <DeliveryTimelineCard key={d.id} delivery={d} onChat={setChatOrderId} />
             ))}
           </div>
         </div>
@@ -408,7 +410,12 @@ function PharmacyDashboard() {
               <div key={order.id} className="rounded-lg border border-border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-mono text-muted-foreground">{order.id.slice(0, 8)}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                    <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
+                      <MessageCircle className="h-3 w-3" /> Chat
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-sm font-medium text-foreground">{order.medication_name} × {order.quantity}</p>
                 <p className="text-xs text-muted-foreground mt-1">Total: R {Number(order.total_amount).toFixed(2)}</p>
@@ -588,6 +595,8 @@ function PharmacyDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
     </div>
   );
 }
@@ -599,7 +608,7 @@ const DELIVERY_STAGES: { key: string; label: string }[] = [
   { key: "delivered", label: "Delivered" },
 ];
 
-function DeliveryTimelineCard({ delivery }: { delivery: LiveDelivery }) {
+function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; onChat?: (orderId: string) => void }) {
   const currentIndex = DELIVERY_STAGES.findIndex((s) => s.key === delivery.status);
   const activeIndex = currentIndex === -1 ? 0 : currentIndex;
   const updated = new Date(delivery.updated_at);
@@ -609,9 +618,16 @@ function DeliveryTimelineCard({ delivery }: { delivery: LiveDelivery }) {
     <div className="rounded-lg border border-border p-4 bg-card">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-mono text-muted-foreground">#{delivery.order_id.slice(0, 8)}</span>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
-          {delivery.status.replace(/_/g, " ")}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
+            {delivery.status.replace(/_/g, " ")}
+          </span>
+          {onChat && (
+            <Button size="sm" variant="ghost" className="h-6 gap-1 text-xs px-2" onClick={() => onChat(delivery.order_id)}>
+              <MessageCircle className="h-3 w-3" /> Chat
+            </Button>
+          )}
+        </div>
       </div>
       <p className="text-sm font-medium text-foreground">{delivery.medication_name}</p>
       <p className="text-xs text-muted-foreground">Driver: {delivery.driver_name || "Unassigned"}</p>
