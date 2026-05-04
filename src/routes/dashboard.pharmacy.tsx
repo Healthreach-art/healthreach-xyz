@@ -410,7 +410,12 @@ function PharmacyDashboard() {
               <div key={order.id} className="rounded-lg border border-border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-mono text-muted-foreground">{order.id.slice(0, 8)}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                    <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
+                      <MessageCircle className="h-3 w-3" /> Chat
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-sm font-medium text-foreground">{order.medication_name} × {order.quantity}</p>
                 <p className="text-xs text-muted-foreground mt-1">Total: R {Number(order.total_amount).toFixed(2)}</p>
