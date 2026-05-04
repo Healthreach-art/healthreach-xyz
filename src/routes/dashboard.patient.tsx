@@ -79,6 +79,17 @@ function PatientDashboard() {
             .order("name");
           setMeds((data ?? []) as Med[]);
         })(),
+        (async () => {
+          const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "pharmacy");
+          const ids = (roles ?? []).map((r) => r.user_id);
+          if (ids.length === 0) { setPharmacies([]); return; }
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("user_id, organization_name, full_name, address, approval_status")
+            .in("user_id", ids)
+            .eq("approval_status", "approved");
+          setPharmacies((profs ?? []) as Pharmacy[]);
+        })(),
       ];
       if (user) {
         tasks.push(
