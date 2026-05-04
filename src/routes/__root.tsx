@@ -83,7 +83,6 @@ function RootComponent() {
         <Footer />
       </div>
       <Toaster />
-      <DemoControlPanel />
     </AuthProvider>
   );
 }
