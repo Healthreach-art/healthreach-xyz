@@ -76,6 +76,7 @@ function PharmacyDashboard() {
   const [drivers, setDrivers] = useState<{ user_id: string; full_name: string; active: number }[]>([]);
   const [assignOrder, setAssignOrder] = useState<Order | null>(null);
   const [assigning, setAssigning] = useState(false);
+  const [chatOrderId, setChatOrderId] = useState<string | null>(null);
 
   async function loadData() {
     if (!user) return;
