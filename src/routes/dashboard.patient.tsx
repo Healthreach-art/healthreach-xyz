@@ -268,8 +268,14 @@ function PatientDashboard() {
                       onClick={() => setOpenPharmacy(p)}
                       className="group text-left rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5"
                     >
-                      <div className="h-24 bg-gradient-to-br from-primary/20 via-healthcare-sky/30 to-healthcare-mint/40 flex items-center justify-center">
-                        <Store className="h-10 w-10 text-primary/70" />
+                      <div className="relative h-32 overflow-hidden">
+                        <img src={pharmacyImage(p.user_id)} alt={name} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                        <div className="absolute top-2 left-2 rounded-full bg-background/90 backdrop-blur px-2 py-0.5 text-[10px] font-semibold text-healthcare-green flex items-center gap-1">
+                          <Star className="h-2.5 w-2.5 fill-current" /> 4.8
+                        </div>
+                        <div className="absolute bottom-2 right-2 rounded-full bg-background/90 backdrop-blur px-2 py-0.5 text-[10px] font-medium text-foreground">
+                          25–35 min
+                        </div>
                       </div>
                       <div className="p-3">
                         <div className="flex items-start justify-between gap-2">
