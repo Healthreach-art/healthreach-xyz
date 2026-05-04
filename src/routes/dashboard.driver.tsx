@@ -87,6 +87,7 @@ function DriverDashboard() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
 
@@ -431,7 +432,12 @@ function DriverDashboard() {
               <div key={delivery.id} className="healthcare-card p-5 ring-1 ring-primary/20">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-mono text-muted-foreground">{delivery.id.slice(0, 8)}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
+                    <Button size="sm" variant="ghost" className="h-6 gap-1 text-xs px-2" onClick={() => setChatOrderId(delivery.order_id)}>
+                      <MessageCircle className="h-3 w-3" /> Chat
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-start gap-2">
