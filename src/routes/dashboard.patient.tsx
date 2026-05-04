@@ -209,46 +209,106 @@ function PatientDashboard() {
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Search Medications */}
         <div className="lg:col-span-3 space-y-6">
+          {/* Browse Pharmacies (Uber Eats style) */}
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Search className="h-5 w-5 text-primary" /> Search Medications
+              <Store className="h-5 w-5 text-primary" /> Browse Pharmacies
+              <span className="ml-auto text-xs font-normal text-muted-foreground">{pharmacies.length} nearby</span>
             </h2>
             <input
               type="text"
-              placeholder="Search medications..."
+              placeholder="Search pharmacies by name or area..."
+              value={pharmacySearch}
+              onChange={(e) => setPharmacySearch(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring mb-4"
+            />
+            {loading && <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
+            {!loading && pharmacies.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-6">No pharmacies onboarded yet.</p>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {pharmacies
+                .filter((p) => {
+                  const q = pharmacySearch.toLowerCase();
+                  return !q || (p.organization_name || p.full_name).toLowerCase().includes(q) || (p.address ?? "").toLowerCase().includes(q);
+                })
+                .map((p) => {
+                  const count = meds.filter((m) => m.pharmacy_id === p.user_id).length;
+                  const name = p.organization_name || p.full_name;
+                  return (
+                    <button
+                      key={p.user_id}
+                      onClick={() => setOpenPharmacy(p)}
+                      className="group text-left rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                      <div className="h-24 bg-gradient-to-br from-primary/20 via-healthcare-sky/30 to-healthcare-mint/40 flex items-center justify-center">
+                        <Store className="h-10 w-10 text-primary/70" />
+                      </div>
+                      <div className="p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground line-clamp-1">{name}</p>
+                          <span className="flex items-center gap-0.5 text-xs text-healthcare-green shrink-0">
+                            <Star className="h-3 w-3 fill-current" /> 4.8
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{p.address || "Johannesburg"}</p>
+                        <div className="mt-2 flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">{count} item{count === 1 ? "" : "s"}</span>
+                          <span className="text-primary font-medium group-hover:underline">View shop →</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Search Medications across all pharmacies */}
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Search className="h-5 w-5 text-primary" /> Search All Medications
+            </h2>
+            <input
+              type="text"
+              placeholder="Search across every pharmacy..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring mb-4"
             />
             {loading && <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
             {!loading && filteredMeds.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-6">No medications available yet. Pharmacies need to add inventory.</p>
+              <p className="text-center text-sm text-muted-foreground py-6">No medications match. Try a different search.</p>
             )}
             <div className="space-y-3">
-              {filteredMeds.map((med) => (
-                <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                      <Pill className="h-4 w-4 text-primary" />
+              {filteredMeds.slice(0, 20).map((med) => {
+                const ph = pharmacies.find((p) => p.user_id === med.pharmacy_id);
+                return (
+                  <div key={med.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                        <Pill className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{med.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {ph?.organization_name || ph?.full_name || "Pharmacy"} · {med.stock_quantity} in stock
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{med.name}</p>
-                      <p className="text-xs text-muted-foreground">{med.stock_quantity} in stock</p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-foreground">R {Number(med.price).toFixed(2)}</span>
+                      <Button size="sm" variant="default" asChild>
+                        <Link
+                          to="/payment"
+                          search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}
+                        >
+                          Order
+                        </Link>
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-foreground">R {Number(med.price).toFixed(2)}</span>
-                    <Button size="sm" variant="default" asChild>
-                      <Link
-                        to="/payment"
-                        search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}
-                      >
-                        Order
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
