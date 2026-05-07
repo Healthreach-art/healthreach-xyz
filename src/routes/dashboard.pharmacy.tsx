@@ -147,6 +147,16 @@ function PharmacyDashboard() {
     })));
   }
 
+  async function loadPxQueue() {
+    if (!user) return;
+    const { data } = await supabase
+      .from("prescription_uploads")
+      .select("*")
+      .eq("pharmacy_id", user.id)
+      .order("created_at", { ascending: false });
+    setPxQueue((data ?? []) as PrescriptionUpload[]);
+  }
+
   // Restore scroll to URL hash on load / refresh
   useEffect(() => {
     if (typeof window === "undefined") return;
