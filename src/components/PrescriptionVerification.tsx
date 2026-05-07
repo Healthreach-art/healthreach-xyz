@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileCheck2, FileX2, Clock, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { Upload, FileCheck2, FileX2, Clock, AlertCircle, RefreshCw, Loader2, ZoomIn, ZoomOut, Flag, History } from "lucide-react";
 import { toast } from "sonner";
 
 export type PrescriptionStatus = "pending" | "approved" | "rejected" | "expired" | "reupload_requested";
@@ -20,7 +20,10 @@ export interface PrescriptionUpload {
   pharmacist_notes: string | null;
   expires_at: string | null;
   created_at: string;
+  flagged?: boolean | null;
 }
+
+interface AuditEntry { id: string; action: string; notes: string; created_at: string; actor_id: string; }
 
 const STATUS_META: Record<PrescriptionStatus, { label: string; icon: any; cls: string }> = {
   pending: { label: "Pending review", icon: Clock, cls: "bg-accent text-accent-foreground" },
@@ -190,12 +193,37 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [notes, setNotes] = useState(row.pharmacist_notes ?? "");
   const [url, setUrl] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [showAudit, setShowAudit] = useState(false);
   const { user } = useAuth();
+
+  async function logAction(action: string, extra?: string) {
+    if (!user) return;
+    await supabase.from("prescription_audit_log").insert({
+      prescription_upload_id: row.id,
+      actor_id: user.id,
+      action,
+      notes: extra ?? notes ?? "",
+    });
+  }
+
+  async function loadAudit() {
+    const { data } = await supabase
+      .from("prescription_audit_log")
+      .select("*")
+      .eq("prescription_upload_id", row.id)
+      .order("created_at", { ascending: false });
+    setAudit((data ?? []) as AuditEntry[]);
+  }
 
   useEffect(() => {
     let mounted = true;
-    getPrescriptionFileUrl(row.file_path).then((u) => { if (mounted) setUrl(u); }).catch(() => {});
+    getPrescriptionFileUrl(row.file_path).then((u) => {
+      if (mounted) { setUrl(u); logAction("viewed", "opened secure preview"); }
+    }).catch(() => {});
     return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row.file_path]);
 
   async function setStatus(status: PrescriptionStatus) {
@@ -207,23 +235,54 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
     }).eq("id", row.id);
     setBusy(null);
     if (error) { toast.error(error.message); return; }
+    await logAction(status, notes);
     toast.success(`Marked as ${status.replace("_", " ")}`);
+    onChanged?.();
+  }
+
+  async function toggleFlag() {
+    setBusy("flag");
+    const next = !row.flagged;
+    const { error } = await supabase.from("prescription_uploads").update({ flagged: next }).eq("id", row.id);
+    setBusy(null);
+    if (error) { toast.error(error.message); return; }
+    await logAction(next ? "flagged" : "unflagged", notes);
+    toast.success(next ? "Flagged as suspicious" : "Flag removed");
     onChanged?.();
   }
 
   const isPdf = row.mime_type === "application/pdf";
   return (
     <div className="space-y-3">
-      <div className="rounded-lg overflow-hidden border border-border bg-muted/30">
+      {row.flagged && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <Flag className="h-3 w-3" /> This prescription is flagged as suspicious.
+        </div>
+      )}
+      <div className="rounded-lg overflow-hidden border border-border bg-muted/30 relative">
         {url ? (
           isPdf ? (
             <iframe src={url} className="w-full h-72" title="Prescription PDF" />
           ) : (
-            <img src={url} alt="Prescription" className="max-h-72 w-full object-contain bg-background" />
+            <div className="overflow-auto max-h-96 bg-background">
+              <img
+                src={url}
+                alt="Prescription"
+                className="block mx-auto transition-transform origin-top"
+                style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
+              />
+            </div>
           )
         ) : (
           <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading secure preview…
+          </div>
+        )}
+        {!isPdf && url && (
+          <div className="absolute bottom-2 right-2 flex gap-1 bg-background/90 backdrop-blur rounded-md border border-border p-1">
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}><ZoomOut className="h-3 w-3" /></Button>
+            <span className="text-[10px] self-center px-1 tabular-nums">{Math.round(zoom * 100)}%</span>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setZoom(z => Math.min(3, z + 0.25))}><ZoomIn className="h-3 w-3" /></Button>
           </div>
         )}
       </div>
@@ -244,7 +303,25 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
         <Button size="sm" variant="outline" onClick={() => setStatus("reupload_requested")} disabled={!!busy}>
           <RefreshCw className="h-4 w-4" /> Request re-upload
         </Button>
+        <Button size="sm" variant={row.flagged ? "secondary" : "outline"} onClick={toggleFlag} disabled={!!busy}>
+          <Flag className="h-4 w-4" /> {row.flagged ? "Unflag" : "Flag suspicious"}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => { setShowAudit(s => !s); if (!showAudit) loadAudit(); }}>
+          <History className="h-4 w-4" /> Audit log
+        </Button>
       </div>
+      {showAudit && (
+        <div className="rounded-md border border-border bg-muted/30 p-3 text-xs space-y-1 max-h-40 overflow-y-auto">
+          {audit.length === 0 ? <p className="text-muted-foreground">No actions recorded yet.</p> :
+            audit.map(a => (
+              <div key={a.id} className="flex items-start justify-between gap-2 border-b border-border last:border-0 pb-1">
+                <span><span className="font-medium capitalize">{a.action.replace(/_/g, " ")}</span>{a.notes ? ` — ${a.notes}` : ""}</span>
+                <span className="text-muted-foreground whitespace-nowrap">{new Date(a.created_at).toLocaleString()}</span>
+              </div>
+            ))
+          }
+        </div>
+      )}
     </div>
   );
 }
