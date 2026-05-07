@@ -467,7 +467,7 @@ function PatientDashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold">R {Number(med.price).toFixed(2)}</span>
+                  <span className="text-sm font-semibold">R {customerPrice(med.price).toFixed(2)}</span>
                   <Button size="sm" asChild>
                     <Link to="/payment" search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}>
                       Order
