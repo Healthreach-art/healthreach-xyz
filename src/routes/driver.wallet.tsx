@@ -42,10 +42,13 @@ function Wallet_() {
   const [loading, setLoading] = useState(true);
   const [completed, setCompleted] = useState<{ id: string; order_id: string; updated_at: string; earnings: number }[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [banks, setBanks] = useState<BankAccount[]>([]);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("bank_transfer");
   const [reference, setReference] = useState("");
   const [requesting, setRequesting] = useState(false);
+  const [newBank, setNewBank] = useState({ bank_name: "", account_holder: "", account_number: "", branch_code: "", account_type: "cheque" });
+  const [addingBank, setAddingBank] = useState(false);
 
   async function load() {
     if (!user) return;
