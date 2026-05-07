@@ -112,7 +112,7 @@ function PatientDashboard() {
         (async () => {
           const { data } = await supabase
             .from("medications")
-            .select("id, pharmacy_id, name, price, stock_quantity")
+            .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription")
             .gt("stock_quantity", 0)
             .order("name");
           setMeds((data ?? []) as Med[]);
