@@ -352,6 +352,54 @@ export type Database = {
         }
         Relationships: []
       }
+      medication_reminders: {
+        Row: {
+          active: boolean
+          created_at: string
+          days_supply: number | null
+          dosage: string | null
+          frequency: string
+          id: string
+          is_chronic: boolean
+          medication_name: string
+          next_refill_date: string | null
+          notes: string | null
+          time_of_day: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          days_supply?: number | null
+          dosage?: string | null
+          frequency?: string
+          id?: string
+          is_chronic?: boolean
+          medication_name: string
+          next_refill_date?: string | null
+          notes?: string | null
+          time_of_day?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          days_supply?: number | null
+          dosage?: string | null
+          frequency?: string
+          id?: string
+          is_chronic?: boolean
+          medication_name?: string
+          next_refill_date?: string | null
+          notes?: string | null
+          time_of_day?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       medications: {
         Row: {
           batch_number: string | null
@@ -867,6 +915,9 @@ export type Database = {
           id: string
           is_default: boolean
           label: string
+          lat: number | null
+          lng: number | null
+          notes: string | null
           street: string
           user_id: string
         }
@@ -875,6 +926,9 @@ export type Database = {
           id?: string
           is_default?: boolean
           label?: string
+          lat?: number | null
+          lng?: number | null
+          notes?: string | null
           street: string
           user_id: string
         }
@@ -883,6 +937,9 @@ export type Database = {
           id?: string
           is_default?: boolean
           label?: string
+          lat?: number | null
+          lng?: number | null
+          notes?: string | null
           street?: string
           user_id?: string
         }
