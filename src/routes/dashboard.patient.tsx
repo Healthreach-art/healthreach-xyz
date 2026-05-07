@@ -84,6 +84,19 @@ function PatientDashboard() {
   const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
 
+  // Restore scroll to URL hash on load / refresh
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const tryScroll = () => {
+      const el = document.getElementById(hash);
+      if (el) el.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "start" });
+    };
+    const t = setTimeout(tryScroll, 300);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     async function load() {
       const tasks: Promise<unknown>[] = [
