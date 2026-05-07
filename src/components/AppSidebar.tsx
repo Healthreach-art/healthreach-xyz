@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Home, LogIn, UserPlus, LayoutDashboard, MapPin, ShoppingBag, Pill,
+  Home, LogIn, UserPlus, MapPin, ShoppingBag, Pill,
   Stethoscope, Truck, ShieldCheck, LogOut, Info, Phone, FileText,
 } from "lucide-react";
 
@@ -21,11 +21,11 @@ export function AppSidebar() {
 
   const dashboardPath = role ? `/dashboard/${role}` : "/login";
 
-  const main: Item[] = [{ title: "Home", url: "/", icon: Home }];
+  // Authed users: "Home" goes to their dashboard. Guests: "Home" goes to landing page.
+  const homeItem: Item = { title: "Home", url: user ? dashboardPath : "/", icon: Home };
 
-  const authedMain: Item[] = user
+  const authedExtra: Item[] = user
     ? [
-        { title: "Dashboard", url: dashboardPath, icon: LayoutDashboard },
         ...(role === "patient"
           ? [
               { title: "Track Order", url: "/track", icon: MapPin },
@@ -93,9 +93,9 @@ export function AppSidebar() {
     ) : null;
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="offcanvas">
       <SidebarHeader>
-        <Link to="/" className="flex items-center gap-2 px-2 py-1.5">
+        <Link to={user ? dashboardPath : "/"} className="flex items-center gap-2 px-2 py-1.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg healthcare-gradient">
             <span className="text-sm font-bold text-primary-foreground">H</span>
           </div>
@@ -108,8 +108,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {renderGroup("Navigate", main)}
-        {renderGroup("Workspace", authedMain)}
+        {renderGroup("Navigate", [homeItem, ...authedExtra])}
         {renderGroup("Account", guest)}
         {renderGroup("Support", support)}
       </SidebarContent>
