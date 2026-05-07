@@ -360,8 +360,8 @@ function DriverDashboard() {
   async function setDeliveryStatus(d: LiveDelivery, target: DStatus) {
     setUpdating(d.id);
     const { error } = await supabase.from("deliveries").update({ status: target }).eq("id", d.id);
-    const orderStatusMap: Record<DStatus, "ready" | "out_for_delivery" | "delivered" | null> = {
-      assigned: "ready", picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered",
+    const orderStatusMap: Record<DStatus, "ready" | "out_for_delivery" | "delivered" | "cancelled" | null> = {
+      assigned: "ready", picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered", failed: "cancelled",
     };
     const orderStatus = orderStatusMap[target];
     if (orderStatus) {
