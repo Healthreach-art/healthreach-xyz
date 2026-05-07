@@ -41,7 +41,8 @@ const methods: { id: Method; label: string; icon: typeof CreditCard; desc: strin
   { id: "paypal", label: "PayPal", icon: Wallet, desc: "Pay with PayPal balance" },
 ];
 
-const DELIVERY_FEE = 25.0;
+// Base delivery fee shared with the driver (kept whole — the +7% markup is platform fee).
+const BASE_DELIVERY = BASE_DELIVERY_FEE;
 
 function PaymentPage() {
   const navigate = useNavigate();
@@ -66,8 +67,11 @@ function PaymentPage() {
       .then(({ data }) => { if (data?.address) setDeliveryAddress(data.address); });
   }, [user]);
 
-  const subtotal = price * qty;
-  const totalNum = subtotal + DELIVERY_FEE;
+  // Customer-facing pricing — pharmacy base price + 15%, delivery base + 7%.
+  const unitPrice = customerPrice(price);
+  const subtotal = Math.round(unitPrice * qty * 100) / 100;
+  const deliveryFee = customerDeliveryFee(BASE_DELIVERY);
+  const totalNum = Math.round((subtotal + deliveryFee) * 100) / 100;
   const amount = `R ${totalNum.toFixed(2)}`;
 
   const handlePay = async (e: FormEvent) => {
