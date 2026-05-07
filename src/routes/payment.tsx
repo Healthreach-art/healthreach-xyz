@@ -236,6 +236,22 @@ function PaymentPage() {
       setCreatedOrderId(order.id);
       setTxnRef(payment?.invoice_number || reference);
       setSuccess(true);
+
+      // Persist new card if requested
+      if (method === "card" && selectedCardId === "new" && saveCard && cardNumber.replace(/\s/g, "").length >= 12) {
+        const digits = cardNumber.replace(/\D/g, "");
+        const last4 = digits.slice(-4);
+        const brand = digits.startsWith("4") ? "Visa" : digits.startsWith("5") ? "Mastercard" : digits.startsWith("3") ? "Amex" : "Card";
+        const [mm, yy] = expiry.split("/").map((s) => parseInt(s.trim(), 10));
+        if (last4 && mm && yy) {
+          await supabase.from("saved_payment_methods").insert({
+            user_id: user.id,
+            brand, last4, exp_month: mm, exp_year: 2000 + yy,
+            is_default: savedCards.length === 0,
+          });
+        }
+      }
+
       toast.success("Payment successful — your order is on the way!");
     } catch (err: any) {
       console.error(err);
