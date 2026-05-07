@@ -77,6 +77,7 @@ function Wallet_() {
     const ch = supabase
       .channel(`wallet-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "driver_payouts", filter: `driver_id=eq.${user.id}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "driver_bank_accounts", filter: `driver_id=eq.${user.id}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
