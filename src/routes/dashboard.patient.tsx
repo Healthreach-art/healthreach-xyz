@@ -219,6 +219,14 @@ function PatientDashboard() {
           .order("created_at", { ascending: false });
         setPrescriptions((data ?? []) as Prescription[]);
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "prescription_uploads", filter: `patient_id=eq.${user.id}` }, async () => {
+        const { data } = await supabase
+          .from("prescription_uploads")
+          .select("*")
+          .eq("patient_id", user!.id)
+          .order("created_at", { ascending: false });
+        setPxUploads((data ?? []) as PrescriptionUpload[]);
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user]);
