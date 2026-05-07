@@ -355,6 +355,11 @@ function PaymentPage() {
           <div className="flex justify-between pt-4 text-base font-semibold">
             <span>Total</span><span>{amount}</span>
           </div>
+          {rxRequired && !rxApproved && (
+            <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+              This medication requires a verified prescription. Please upload one from your patient dashboard and wait for pharmacy approval before checking out.
+            </div>
+          )}
           <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
             <Lock className="h-3 w-3" /> Secured with 256-bit encryption
           </p>
