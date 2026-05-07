@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wallet, Loader2, ArrowDownToLine, Clock, CheckCircle2, XCircle, TrendingUp } from "lucide-react";
+import { Wallet, Loader2, ArrowDownToLine, Clock, CheckCircle2, XCircle, TrendingUp, Building2, Plus, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/driver/wallet")({
