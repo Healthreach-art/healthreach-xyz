@@ -22,16 +22,17 @@ export const Route = createFileRoute("/api/public/payment-webhook")({
       POST: async ({ request }) => {
         const body = await request.text();
         const secret = process.env.PAYMENT_WEBHOOK_SECRET;
+        if (!secret) {
+          return new Response("Webhook secret not configured", { status: 500 });
+        }
 
-        // Signature verification (skip only if no secret configured — dev/sandbox)
-        if (secret) {
-          const sig = request.headers.get("x-webhook-signature") || "";
-          const expected = createHmac("sha256", secret).update(body).digest("hex");
-          const a = Buffer.from(sig);
-          const b = Buffer.from(expected);
-          if (a.length !== b.length || !timingSafeEqual(a, b)) {
-            return new Response("Invalid signature", { status: 401 });
-          }
+        // Mandatory HMAC signature verification
+        const sig = request.headers.get("x-webhook-signature") || "";
+        const expected = createHmac("sha256", secret).update(body).digest("hex");
+        const a = Buffer.from(sig);
+        const b = Buffer.from(expected);
+        if (a.length !== b.length || !timingSafeEqual(a, b)) {
+          return new Response("Invalid signature", { status: 401 });
         }
 
         let parsed;
