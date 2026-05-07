@@ -95,6 +95,10 @@ function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // Broadcast live GPS to driver_locations for the most recent active delivery
+  const activeOrderId = liveDeliveries[0]?.order_id ?? null;
+  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId });
+
   // 1s tick for countdown
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
