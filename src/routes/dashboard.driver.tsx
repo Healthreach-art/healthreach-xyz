@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
+  Phone, Power, ShieldCheck, Bike, Car, BadgeCheck,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
