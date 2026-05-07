@@ -723,8 +723,6 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
           Updated {minsAgo === 0 ? "just now" : `${minsAgo}m ago`}
         </p>
       </div>
-      <div className="mt-6"><TransactionHistory role="pharmacy" /></div>
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
