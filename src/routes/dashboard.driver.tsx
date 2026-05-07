@@ -388,16 +388,45 @@ function DriverDashboard() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Driver Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Driver"}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Driver" className="h-14 w-14 rounded-full object-cover ring-2 ring-primary/30" />
+            ) : (
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-lg font-semibold text-primary ring-2 ring-primary/30">
+                {(profile?.full_name || "D").slice(0, 1)}
+              </div>
+            )}
+            <span className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ring-2 ring-background ${online ? "bg-healthcare-green animate-pulse" : "bg-muted-foreground"}`} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{profile?.full_name || "Driver"}</h1>
+            <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+              {vehicleType.toLowerCase().includes("car") ? <Car className="h-3 w-3" /> : <Bike className="h-3 w-3" />}
+              {vehicleType}
+              <span className="inline-flex items-center gap-1 text-healthcare-green">
+                <BadgeCheck className="h-3 w-3" /> {approvalStatus === "approved" ? "Verified" : "Pending"}
+              </span>
+            </p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
+        <div className="flex items-center gap-3">
+          <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 border ${online ? "bg-healthcare-green/10 border-healthcare-green/40" : "bg-muted border-border"}`}>
+            <Power className={`h-4 w-4 ${online ? "text-healthcare-green" : "text-muted-foreground"}`} />
+            <span className="text-xs font-medium">{online ? "Online" : "Offline"}</span>
+            <Switch checked={online} onCheckedChange={setOnline} />
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
       </div>
+
+      {!online && (
+        <div className="mb-6 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground flex items-center gap-2">
+          <Power className="h-4 w-4" /> You're offline. Toggle online to receive new delivery requests.
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => (
