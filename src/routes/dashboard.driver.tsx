@@ -805,6 +805,20 @@ function DriverDashboard() {
         onVerified={() => { /* realtime will refresh */ }}
       />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <FailedDeliveryDialog delivery={failForDelivery} onClose={() => setFailForDelivery(null)} />
     </div>
   );
 }
+
+function PerfCard({ label, value, sub, tone, icon: Icon }: { label: string; value: string; sub: string; tone: string; icon: typeof TrendingUp }) {
+  return (
+    <div className="healthcare-card p-4">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Icon className={`h-4 w-4 ${tone}`} /> {label}
+      </div>
+      <p className={`text-2xl font-bold mt-1 ${tone}`}>{value}</p>
+      <p className="text-[11px] text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+
