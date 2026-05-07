@@ -707,7 +707,60 @@ function PatientDashboard() {
           <TransactionHistory role="patient" />
 
           {/* Saved delivery address */}
-          <SavedAddressCard />
+          <div id="address" className="scroll-mt-24"><SavedAddressCard /></div>
+
+          {/* Refill reminders */}
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+              <Repeat className="h-5 w-5 text-primary" /> Refill Reminders
+            </h2>
+            {activePrescriptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No active prescriptions to refill.</p>
+            ) : (
+              <div className="space-y-2">
+                {activePrescriptions.slice(0, 3).map((p) => (
+                  <div key={p.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{p.medication_name}</p>
+                      <p className="text-xs text-muted-foreground">{p.dosage || "As prescribed"}</p>
+                    </div>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to="/payment" search={{ medId: undefined, pharmacyId: undefined, name: p.medication_name, price: 120, qty: 1 }}>
+                        Refill
+                      </Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Payment methods */}
+          <div id="payments" className="healthcare-card p-6 scroll-mt-24">
+            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" /> Payment Methods
+            </h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              {savedCards > 0
+                ? `You have ${savedCards} saved payment method${savedCards === 1 ? "" : "s"}.`
+                : "No saved cards yet. Add one at checkout for faster orders."}
+            </p>
+            <Button size="sm" variant="outline" className="w-full" onClick={() => setSettingsOpen(true)}>
+              Manage payment methods
+            </Button>
+          </div>
+
+          {/* Customer support */}
+          <div id="support" className="healthcare-card p-6 scroll-mt-24">
+            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+              <LifeBuoy className="h-5 w-5 text-primary" /> Customer Support
+            </h2>
+            <p className="text-sm text-muted-foreground mb-3">Need help with an order or prescription? Our team is here 7 days a week.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" asChild><a href="tel:+27800123456">Call us</a></Button>
+              <Button size="sm" variant="default" asChild><Link to="/contact">Contact</Link></Button>
+            </div>
+          </div>
 
           {/* Quick Actions */}
           <div className="healthcare-card p-6">
