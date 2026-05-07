@@ -149,7 +149,38 @@ function DriverDashboard() {
         .eq("driver_id", user!.id)
         .order("updated_at", { ascending: false });
       const all = (data ?? []) as LiveDelivery[];
-      setLiveDeliveries(all.filter((d) => d.status !== "delivered"));
+      const active = all.filter((d) => d.status !== "delivered");
+
+      // Hydrate active deliveries with patient + pharmacy contact info
+      if (active.length > 0) {
+        const orderIds = active.map((d) => d.order_id);
+        const { data: orders } = await supabase
+          .from("orders")
+          .select("id, patient_id, pharmacy_id, delivery_fee")
+          .in("id", orderIds);
+        const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
+        const userIds = Array.from(new Set((orders ?? []).flatMap((o) => [o.patient_id, o.pharmacy_id])));
+        const { data: profs } = userIds.length > 0
+          ? await supabase.from("profiles").select("user_id, full_name, phone, organization_name").in("user_id", userIds)
+          : { data: [] as { user_id: string; full_name: string; phone: string; organization_name: string }[] };
+        const profMap = new Map((profs ?? []).map((p) => [p.user_id, p]));
+        setLiveDeliveries(active.map((d) => {
+          const o = orderMap.get(d.order_id);
+          const pat = o ? profMap.get(o.patient_id) : null;
+          const phar = o ? profMap.get(o.pharmacy_id) : null;
+          const fee = Number(o?.delivery_fee ?? 0);
+          return {
+            ...d,
+            patient_name: pat?.full_name || "Customer",
+            patient_phone: pat?.phone || "",
+            pharmacy_name: phar?.organization_name || phar?.full_name || "Pharmacy",
+            pharmacy_phone: phar?.phone || "",
+            earnings: fee > 0 ? fee : estimateEarnings(estimateDistanceKm(d.order_id)),
+          };
+        }));
+      } else {
+        setLiveDeliveries([]);
+      }
 
       const done = all.filter((d) => d.status === "delivered");
       // Hydrate patient names and earnings from orders
