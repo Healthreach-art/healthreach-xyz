@@ -15,6 +15,7 @@ import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { TransactionHistory } from "@/components/TransactionHistory";
+import { PrescriptionStatusBadge, PrescriptionUploader, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import pharmacy1 from "@/assets/pharmacy-1.jpg";
 import pharmacy2 from "@/assets/pharmacy-2.jpg";
 import pharmacy3 from "@/assets/pharmacy-3.jpg";
