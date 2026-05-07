@@ -207,8 +207,35 @@ function Wallet_() {
         </div>
       </div>
 
-      <div className="healthcare-card p-5">
-        <h2 className="font-semibold mb-3">Payout History</h2>
+      <div className="healthcare-card p-5 mb-6">
+        <h2 className="font-semibold mb-3 flex items-center gap-2"><Building2 className="h-4 w-4" /> Bank Accounts</h2>
+        {banks.length === 0 ? (
+          <p className="text-sm text-muted-foreground mb-3">No bank accounts yet. Add one to receive payouts.</p>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {banks.map((b) => (
+              <div key={b.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+                <div>
+                  <p className="font-semibold flex items-center gap-2">{b.bank_name} {b.is_default && <span className="inline-flex items-center gap-1 text-[10px] text-healthcare-green"><Star className="h-3 w-3 fill-healthcare-green" /> Default</span>}</p>
+                  <p className="text-xs text-muted-foreground">{b.account_holder} • •••{b.account_number.slice(-4)} • {b.account_type}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  {!b.is_default && <Button size="sm" variant="ghost" onClick={() => setDefaultBank(b.id)}>Set default</Button>}
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeBank(b.id)}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Input placeholder="Bank name (e.g. FNB)" value={newBank.bank_name} onChange={(e) => setNewBank({ ...newBank, bank_name: e.target.value })} />
+          <Input placeholder="Account holder" value={newBank.account_holder} onChange={(e) => setNewBank({ ...newBank, account_holder: e.target.value })} />
+          <Input placeholder="Account number" value={newBank.account_number} onChange={(e) => setNewBank({ ...newBank, account_number: e.target.value })} />
+          <Input placeholder="Branch code" value={newBank.branch_code} onChange={(e) => setNewBank({ ...newBank, branch_code: e.target.value })} />
+        </div>
+        <Button onClick={addBank} disabled={addingBank} size="sm" className="mt-2 gap-1"><Plus className="h-3 w-3" /> Add Account</Button>
+      </div>
+
         {payouts.length === 0 ? (
           <p className="text-sm text-muted-foreground">No payout requests yet.</p>
         ) : (
