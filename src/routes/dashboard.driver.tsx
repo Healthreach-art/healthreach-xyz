@@ -429,6 +429,11 @@ function DriverDashboard() {
               <span className="inline-flex items-center gap-1 text-healthcare-green">
                 <BadgeCheck className="h-3 w-3" /> {approvalStatus === "approved" ? "Verified" : "Pending"}
               </span>
+              {ratings.count > 0 && (
+                <span className="inline-flex items-center gap-1 text-amber-500">
+                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> {ratings.avg.toFixed(1)} <span className="text-muted-foreground">({ratings.count})</span>
+                </span>
+              )}
             </p>
           </div>
         </div>
