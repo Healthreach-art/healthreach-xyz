@@ -32,6 +32,7 @@ import pharmacy4 from "@/assets/pharmacy-4.jpg";
 import patientHero from "@/assets/patient-hero.jpg";
 import medGeneric from "@/assets/med-generic.jpg";
 import { customerPrice } from "@/lib/pricing";
+import { downloadReceiptPdf } from "@/lib/receipt";
 
 const PHARMACY_IMAGES = [pharmacy1, pharmacy2, pharmacy3, pharmacy4];
 function pharmacyImage(id: string) {
