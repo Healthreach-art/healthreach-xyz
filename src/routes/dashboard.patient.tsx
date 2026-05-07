@@ -146,6 +146,14 @@ function PatientDashboard() {
               .eq("patient_id", user.id)
               .order("created_at", { ascending: false });
             setPrescriptions((data ?? []) as Prescription[]);
+          })(),
+          (async () => {
+            const { data } = await supabase
+              .from("prescription_uploads")
+              .select("*")
+              .eq("patient_id", user.id)
+              .order("created_at", { ascending: false });
+            setPxUploads((data ?? []) as PrescriptionUpload[]);
           })()
         );
       }
