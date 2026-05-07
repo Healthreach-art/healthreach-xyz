@@ -299,10 +299,10 @@ function DriverDashboard() {
   const totalEarnings = completed.reduce((s, c) => s + c.earnings, 0);
 
   const stats = useMemo(() => [
-    { icon: Truck, label: "Active Deliveries", value: String(liveDeliveries.length), color: "text-primary" },
-    { icon: CheckCircle, label: "Completed Today", value: String(completedToday.length), color: "text-healthcare-green" },
-    { icon: DollarSign, label: "Today's Earnings", value: `R ${todayEarnings.toFixed(0)}`, color: "text-healthcare-teal" },
-    { icon: Navigation, label: "Total Earnings", value: `R ${totalEarnings.toFixed(0)}`, color: "text-healthcare-sky" },
+    { icon: Truck, label: "Active Deliveries", value: String(liveDeliveries.length), color: "text-primary", target: "active" },
+    { icon: CheckCircle, label: "Completed Today", value: String(completedToday.length), color: "text-healthcare-green", target: "completed" },
+    { icon: DollarSign, label: "Today's Earnings", value: `R ${todayEarnings.toFixed(0)}`, color: "text-healthcare-teal", target: "completed" },
+    { icon: Navigation, label: "Total Earnings", value: `R ${totalEarnings.toFixed(0)}`, color: "text-healthcare-sky", target: "completed" },
   ], [liveDeliveries.length, completedToday.length, todayEarnings, totalEarnings]);
 
   if (approvalStatus === "pending") {
