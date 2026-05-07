@@ -237,20 +237,19 @@ function PatientDashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` }, () => {
         refreshOrders();
       })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "deliveries" }, async (payload) => {
-        const newRow = payload.new as { order_id: string; status: string };
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, async (payload) => {
+        const newRow = payload.new as { order_id: string; status: string; pickup_address?: string; delivery_address?: string };
         const oldRow = payload.old as { status?: string };
-        if (newRow.status === oldRow.status) return;
         const { data: order } = await supabase
           .from("orders")
           .select("id, patient_id, medication_name")
           .eq("id", newRow.order_id)
           .maybeSingle();
         if (!order || order.patient_id !== user.id) return;
-        const msg = statusLabels[newRow.status];
-        if (msg) {
-          toast.success(msg, { description: order.medication_name });
-          refreshOrders();
+        setActiveDelivery({ orderId: newRow.order_id, pickup: newRow.pickup_address ?? null, dropoff: newRow.delivery_address ?? null, status: newRow.status });
+        if (newRow.status !== oldRow.status) {
+          const msg = statusLabels[newRow.status];
+          if (msg) { toast.success(msg, { description: order.medication_name }); refreshOrders(); }
         }
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "prescriptions", filter: `patient_id=eq.${user.id}` }, async () => {
