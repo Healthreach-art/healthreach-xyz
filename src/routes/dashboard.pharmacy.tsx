@@ -517,6 +517,7 @@ function PharmacyDashboard() {
                   <div className="p-3">
                     <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{item.category || "—"} · R {Number(item.price).toFixed(2)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Customer sees <span className="font-semibold text-foreground">R {customerPrice(item.price).toFixed(2)}</span></p>
                     <div className="mt-3 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1">
                         <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>
