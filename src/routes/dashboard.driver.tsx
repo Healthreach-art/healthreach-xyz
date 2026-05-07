@@ -97,6 +97,17 @@ function DriverDashboard() {
     return () => clearInterval(t);
   }, []);
 
+  // Restore scroll to URL hash on load / refresh
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const t = setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "start" });
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
+
   // Auto-remove expired offers locally
   useEffect(() => {
     setOffers((prev) => prev.filter((o) => new Date(o.expires_at).getTime() > now));
