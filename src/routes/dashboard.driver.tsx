@@ -62,22 +62,24 @@ interface Offer {
 
 const STAGE_ORDER: DStatus[] = ["assigned", "picked_up", "in_transit", "delivered"];
 const nextStatus: Record<DStatus, DStatus | null> = {
-  assigned: "picked_up", picked_up: "in_transit", in_transit: "delivered", delivered: null,
+  assigned: "picked_up", picked_up: "in_transit", in_transit: "delivered", delivered: null, failed: null,
 };
 const prevStatus: Record<DStatus, DStatus | null> = {
-  assigned: null, picked_up: "assigned", in_transit: "picked_up", delivered: "in_transit",
+  assigned: null, picked_up: "assigned", in_transit: "picked_up", delivered: "in_transit", failed: null,
 };
 const nextLabel: Record<DStatus, string> = {
-  assigned: "Mark Picked Up", picked_up: "Start Delivery", in_transit: "Complete Delivery", delivered: "",
+  assigned: "Mark Picked Up", picked_up: "Start Delivery", in_transit: "Complete Delivery", delivered: "", failed: "",
 };
 const stageLabel: Record<DStatus, string> = {
-  assigned: "Assigned", picked_up: "Picked Up", in_transit: "In Transit", delivered: "Delivered",
+  assigned: "Assigned", picked_up: "Picked Up", in_transit: "In Transit", delivered: "Delivered", failed: "Failed",
 };
 const deliveryStatusLabels: Record<DStatus, { label: string; color: string }> = {
   assigned: { label: "Assigned", color: "bg-accent text-accent-foreground" },
   picked_up: { label: "Picked Up", color: "bg-primary/10 text-primary" },
   in_transit: { label: "In Transit", color: "bg-healthcare-sky/20 text-healthcare-sky" },
   delivered: { label: "Delivered", color: "bg-healthcare-green/20 text-healthcare-green" },
+  failed: { label: "Failed", color: "bg-destructive/10 text-destructive" },
+
 };
 
 import { RoleGuard } from "@/components/RoleGuard";
