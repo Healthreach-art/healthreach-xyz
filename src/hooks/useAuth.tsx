@@ -97,6 +97,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
     setApprovalStatus(null);
     setProfile(null);
+    if (typeof document !== "undefined") {
+      // Reset persisted sidebar state so the next login starts fresh.
+      document.cookie = "sidebar_state=; path=/; max-age=0";
+    }
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   };
 
   return (
