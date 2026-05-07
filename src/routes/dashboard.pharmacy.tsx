@@ -653,8 +653,10 @@ function PharmacyDashboard() {
                         {u.medication_id ? ` · Med ${u.medication_id.slice(0, 8)}` : ""}
                       </p>
                     </div>
-                    <PrescriptionStatusBadge status={u.status} />
-                  </div>
+                    <div className="flex items-center gap-2">
+                      {u.flagged && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-destructive/15 text-destructive font-semibold">⚑ Flagged</span>}
+                      <PrescriptionStatusBadge status={u.status} />
+                    </div>
                   {(u.status === "pending" || u.status === "reupload_requested") ? (
                     <PharmacyReviewActions row={u} onChanged={loadPxQueue} />
                   ) : (
