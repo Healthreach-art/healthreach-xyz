@@ -467,6 +467,44 @@ function PatientDashboard() {
               ))}
             </div>
           </div>
+
+          {/* Prescription Uploads (verification status) */}
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" /> Prescription Uploads
+              {pxUploads.length > 0 && (
+                <span className="ml-auto text-xs font-normal text-muted-foreground">{pxUploads.length} total</span>
+              )}
+            </h2>
+            {pxUploads.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No prescription uploads yet. When you order an Rx-required medicine you'll be prompted to upload one here.
+              </p>
+            )}
+            <div className="space-y-3">
+              {pxUploads.slice(0, 6).map((u) => {
+                const ph = pharmacies.find((p) => p.user_id === u.pharmacy_id);
+                return (
+                  <div key={u.id} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {ph?.organization_name || ph?.full_name || "Pharmacy"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Uploaded {new Date(u.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <PrescriptionStatusBadge status={u.status} />
+                    </div>
+                    {(u.status === "rejected" || u.status === "reupload_requested") && u.pharmacist_notes && (
+                      <p className="mt-2 text-xs text-destructive">Pharmacist: {u.pharmacist_notes}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Sidebar */}
