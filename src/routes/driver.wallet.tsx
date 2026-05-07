@@ -16,7 +16,8 @@ export const Route = createFileRoute("/driver/wallet")({
 
 interface Payout { id: string; amount: number; status: string; method: string; reference: string; requested_at: string; paid_at: string | null; notes: string }
 
-const MIN_PAYOUT = 100;
+import { PLATFORM_RULES } from "@/lib/platform-rules";
+const MIN_PAYOUT = PLATFORM_RULES.MIN_PAYOUT_ZAR;
 
 function statusBadge(s: string) {
   const map: Record<string, { c: string; i: typeof Clock }> = {
