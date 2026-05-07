@@ -483,8 +483,31 @@ function PatientDashboard() {
               placeholder="Search pharmacies by name or area..."
               value={pharmacySearch}
               onChange={(e) => setPharmacySearch(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring mb-4"
+              className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring mb-3"
             />
+            <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
+              <span className="text-muted-foreground">Sort:</span>
+              {([
+                { k: "rating", l: "Top rated" },
+                { k: "delivery", l: "Fastest" },
+                { k: "name", l: "A–Z" },
+              ] as const).map((o) => (
+                <button
+                  key={o.k}
+                  onClick={() => setPharmacySort(o.k)}
+                  className={`px-2.5 py-1 rounded-full border ${pharmacySort === o.k ? "border-primary bg-primary/10 text-primary" : "border-border bg-card hover:bg-accent"}`}
+                >{o.l}</button>
+              ))}
+              <span className="mx-1 h-4 w-px bg-border" />
+              <button
+                onClick={() => setOpenNowOnly((v) => !v)}
+                className={`px-2.5 py-1 rounded-full border ${openNowOnly ? "border-healthcare-green bg-healthcare-green/10 text-healthcare-green" : "border-border bg-card hover:bg-accent"}`}
+              >Open now</button>
+              <button
+                onClick={() => setMinRating((r) => (r >= 4.5 ? 0 : r + 0.5))}
+                className={`px-2.5 py-1 rounded-full border ${minRating > 0 ? "border-primary bg-primary/10 text-primary" : "border-border bg-card hover:bg-accent"}`}
+              >★ {minRating > 0 ? `${minRating.toFixed(1)}+` : "Any"}</button>
+            </div>
             {loading && <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
             {!loading && pharmacies.length === 0 && (
               <p className="text-center text-sm text-muted-foreground py-6">No pharmacies onboarded yet.</p>
@@ -493,11 +516,21 @@ function PatientDashboard() {
               {pharmacies
                 .filter((p) => {
                   const q = pharmacySearch.toLowerCase();
-                  return !q || (p.organization_name || p.full_name).toLowerCase().includes(q) || (p.address ?? "").toLowerCase().includes(q);
+                  const matchesText = !q || (p.organization_name || p.full_name).toLowerCase().includes(q) || (p.address ?? "").toLowerCase().includes(q);
+                  const m = pharmacyMeta(p.user_id);
+                  return matchesText && (!openNowOnly || m.isOpen) && m.rating >= minRating;
+                })
+                .sort((a, b) => {
+                  const ma = pharmacyMeta(a.user_id);
+                  const mb = pharmacyMeta(b.user_id);
+                  if (pharmacySort === "rating") return mb.rating - ma.rating;
+                  if (pharmacySort === "delivery") return ma.deliveryMin - mb.deliveryMin;
+                  return (a.organization_name || a.full_name).localeCompare(b.organization_name || b.full_name);
                 })
                 .map((p) => {
                   const count = meds.filter((m) => m.pharmacy_id === p.user_id).length;
                   const name = p.organization_name || p.full_name;
+                  const m = pharmacyMeta(p.user_id);
                   return (
                     <button
                       key={p.user_id}
@@ -507,17 +540,23 @@ function PatientDashboard() {
                       <div className="relative h-32 overflow-hidden">
                         <img src={pharmacyImage(p.user_id)} alt={name} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                         <div className="absolute top-2 left-2 rounded-full bg-background/90 backdrop-blur px-2 py-0.5 text-[10px] font-semibold text-healthcare-green flex items-center gap-1">
-                          <Star className="h-2.5 w-2.5 fill-current" /> 4.8
+                          <Star className="h-2.5 w-2.5 fill-current" /> {m.rating.toFixed(1)}
+                        </div>
+                        <div className="absolute top-2 right-2 rounded-full backdrop-blur px-2 py-0.5 text-[10px] font-semibold ${} flex items-center gap-1"
+                          style={{}}>
+                          <span className={`px-2 py-0.5 rounded-full ${m.isOpen ? "bg-healthcare-green/90 text-white" : "bg-muted text-muted-foreground"}`}>
+                            {m.isOpen ? "Open" : "Closed"}
+                          </span>
                         </div>
                         <div className="absolute bottom-2 right-2 rounded-full bg-background/90 backdrop-blur px-2 py-0.5 text-[10px] font-medium text-foreground">
-                          25–35 min
+                          {m.deliveryLabel}
                         </div>
                       </div>
                       <div className="p-3">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-semibold text-foreground line-clamp-1">{name}</p>
                           <span className="flex items-center gap-0.5 text-xs text-healthcare-green shrink-0">
-                            <Star className="h-3 w-3 fill-current" /> 4.8
+                            <Star className="h-3 w-3 fill-current" /> {m.rating.toFixed(1)}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{p.address || "Johannesburg"}</p>
