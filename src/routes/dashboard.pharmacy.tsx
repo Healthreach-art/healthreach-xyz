@@ -563,21 +563,35 @@ function PharmacyDashboard() {
           <div className="grid gap-3 sm:grid-cols-2">
             {inventory.map((item) => {
               const low = item.stock_quantity <= LOW_STOCK_THRESHOLD;
-
+              const out = item.stock_quantity === 0;
+              const expSoon = item.expiry_date && (new Date(item.expiry_date).getTime() - Date.now()) < 1000 * 60 * 60 * 24 * 30;
+              const expired = item.expiry_date && new Date(item.expiry_date).getTime() < Date.now();
               return (
                 <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow">
                   <div className="relative h-24 overflow-hidden">
-                    <img src={medGeneric} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+                    <img src={item.image_url || medGeneric} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
                     <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                      low ? "bg-destructive text-destructive-foreground" : "bg-healthcare-green text-primary-foreground"
+                      out ? "bg-muted text-muted-foreground" : low ? "bg-destructive text-destructive-foreground" : "bg-healthcare-green text-primary-foreground"
                     }`}>
-                      {item.stock_quantity} units
+                      {out ? "Hidden — out of stock" : `${item.stock_quantity} units`}
                     </span>
+                    {(expired || expSoon) && (
+                      <span className={`absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${expired ? "bg-destructive text-destructive-foreground" : "bg-healthcare-sky/90 text-primary-foreground"}`}>
+                        {expired ? "Expired" : "Expires soon"}
+                      </span>
+                    )}
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{item.category || "—"} · R {Number(item.price).toFixed(2)}</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">Customer sees <span className="font-semibold text-foreground">R {customerPrice(item.price).toFixed(2)}</span></p>
+                    {(item.batch_number || item.expiry_date) && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {item.batch_number ? `Batch ${item.batch_number}` : ""}
+                        {item.batch_number && item.expiry_date ? " · " : ""}
+                        {item.expiry_date ? `Exp ${new Date(item.expiry_date).toLocaleDateString()}` : ""}
+                      </p>
+                    )}
                     <div className="mt-3 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1">
                         <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>
