@@ -139,6 +139,17 @@ function PharmacyDashboard() {
     })));
   }
 
+  // Restore scroll to URL hash on load / refresh
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const t = setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "start" });
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     loadData();
     loadDrivers();
