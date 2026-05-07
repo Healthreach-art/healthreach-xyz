@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
+  Phone, Power, ShieldCheck, Bike, Car, BadgeCheck,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -25,6 +27,11 @@ interface LiveDelivery {
   estimated_time: string | null;
   created_at: string;
   updated_at: string;
+  patient_name?: string;
+  patient_phone?: string;
+  pharmacy_name?: string;
+  pharmacy_phone?: string;
+  earnings?: number;
 }
 
 interface CompletedDelivery {
@@ -96,10 +103,19 @@ function DriverDashboard() {
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [online, setOnline] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("driver:online") !== "false";
+  });
+  const vehicleType = (typeof window !== "undefined" && localStorage.getItem("driver:vehicle")) || "Motorbike";
+
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("driver:online", String(online));
+  }, [online]);
 
   // Broadcast live GPS to driver_locations for the most recent active delivery
   const activeOrderId = liveDeliveries[0]?.order_id ?? null;
-  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId });
+  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId && online });
 
   // 1s tick for countdown
   useEffect(() => {
@@ -133,7 +149,38 @@ function DriverDashboard() {
         .eq("driver_id", user!.id)
         .order("updated_at", { ascending: false });
       const all = (data ?? []) as LiveDelivery[];
-      setLiveDeliveries(all.filter((d) => d.status !== "delivered"));
+      const active = all.filter((d) => d.status !== "delivered");
+
+      // Hydrate active deliveries with patient + pharmacy contact info
+      if (active.length > 0) {
+        const orderIds = active.map((d) => d.order_id);
+        const { data: orders } = await supabase
+          .from("orders")
+          .select("id, patient_id, pharmacy_id, delivery_fee")
+          .in("id", orderIds);
+        const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
+        const userIds = Array.from(new Set((orders ?? []).flatMap((o) => [o.patient_id, o.pharmacy_id])));
+        const { data: profs } = userIds.length > 0
+          ? await supabase.from("profiles").select("user_id, full_name, phone, organization_name").in("user_id", userIds)
+          : { data: [] as { user_id: string; full_name: string; phone: string; organization_name: string }[] };
+        const profMap = new Map((profs ?? []).map((p) => [p.user_id, p]));
+        setLiveDeliveries(active.map((d) => {
+          const o = orderMap.get(d.order_id);
+          const pat = o ? profMap.get(o.patient_id) : null;
+          const phar = o ? profMap.get(o.pharmacy_id) : null;
+          const fee = Number(o?.delivery_fee ?? 0);
+          return {
+            ...d,
+            patient_name: pat?.full_name || "Customer",
+            patient_phone: pat?.phone || "",
+            pharmacy_name: phar?.organization_name || phar?.full_name || "Pharmacy",
+            pharmacy_phone: phar?.phone || "",
+            earnings: fee > 0 ? fee : estimateEarnings(estimateDistanceKm(d.order_id)),
+          };
+        }));
+      } else {
+        setLiveDeliveries([]);
+      }
 
       const done = all.filter((d) => d.status === "delivered");
       // Hydrate patient names and earnings from orders
@@ -341,16 +388,45 @@ function DriverDashboard() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Driver Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Driver"}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            {(profile as { avatar_url?: string } | null)?.avatar_url ? (
+              <img src={(profile as { avatar_url?: string }).avatar_url} alt="Driver" className="h-14 w-14 rounded-full object-cover ring-2 ring-primary/30" />
+            ) : (
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-lg font-semibold text-primary ring-2 ring-primary/30">
+                {(profile?.full_name || "D").slice(0, 1)}
+              </div>
+            )}
+            <span className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ring-2 ring-background ${online ? "bg-healthcare-green animate-pulse" : "bg-muted-foreground"}`} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{profile?.full_name || "Driver"}</h1>
+            <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+              {vehicleType.toLowerCase().includes("car") ? <Car className="h-3 w-3" /> : <Bike className="h-3 w-3" />}
+              {vehicleType}
+              <span className="inline-flex items-center gap-1 text-healthcare-green">
+                <BadgeCheck className="h-3 w-3" /> {approvalStatus === "approved" ? "Verified" : "Pending"}
+              </span>
+            </p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
+        <div className="flex items-center gap-3">
+          <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 border ${online ? "bg-healthcare-green/10 border-healthcare-green/40" : "bg-muted border-border"}`}>
+            <Power className={`h-4 w-4 ${online ? "text-healthcare-green" : "text-muted-foreground"}`} />
+            <span className="text-xs font-medium">{online ? "Online" : "Offline"}</span>
+            <Switch checked={online} onCheckedChange={setOnline} />
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
       </div>
+
+      {!online && (
+        <div className="mb-6 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground flex items-center gap-2">
+          <Power className="h-4 w-4" /> You're offline. Toggle online to receive new delivery requests.
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => (
@@ -381,7 +457,7 @@ function DriverDashboard() {
       </div>
 
       {/* Incoming Requests (Uber-style broadcast) */}
-      {offers.length > 0 && (
+      {online && offers.length > 0 && (
         <div className="mb-8 rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
             <Radio className="h-5 w-5 text-primary animate-pulse" />
@@ -478,12 +554,35 @@ function DriverDashboard() {
                 <div className="space-y-2 text-xs">
                   <div className="flex items-start gap-2">
                     <Package className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                    <div><span className="text-muted-foreground">Pickup:</span><p className="text-foreground">{delivery.pickup_address || "—"}</p></div>
+                    <div className="flex-1">
+                      <span className="text-muted-foreground">Pickup — {delivery.pharmacy_name || "Pharmacy"}:</span>
+                      <p className="text-foreground">{delivery.pickup_address || "—"}</p>
+                    </div>
+                    {delivery.pharmacy_phone && (
+                      <a href={`tel:${delivery.pharmacy_phone}`} className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary/10 text-primary hover:bg-primary/20" title={`Call ${delivery.pharmacy_name}`}>
+                        <Phone className="h-3.5 w-3.5" />
+                      </a>
+                    )}
                   </div>
                   <div className="flex items-start gap-2">
                     <MapPin className="h-3.5 w-3.5 text-healthcare-green mt-0.5 shrink-0" />
-                    <div><span className="text-muted-foreground">Dropoff:</span><p className="text-foreground">{delivery.delivery_address || "—"}</p></div>
+                    <div className="flex-1">
+                      <span className="text-muted-foreground">Dropoff — {delivery.patient_name || "Customer"}:</span>
+                      <p className="text-foreground">{delivery.delivery_address || "—"}</p>
+                    </div>
+                    {delivery.patient_phone && (
+                      <a href={`tel:${delivery.patient_phone}`} className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-healthcare-green/15 text-healthcare-green hover:bg-healthcare-green/25" title={`Call ${delivery.patient_name}`}>
+                        <Phone className="h-3.5 w-3.5" />
+                      </a>
+                    )}
                   </div>
+                  {delivery.earnings != null && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <ShieldCheck className="h-3.5 w-3.5 text-healthcare-teal" />
+                      <span className="text-muted-foreground">Estimated earnings:</span>
+                      <span className="font-semibold text-healthcare-teal">R {delivery.earnings.toFixed(0)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Mini route map */}
@@ -528,7 +627,20 @@ function DriverDashboard() {
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" /> ETA: {delivery.estimated_time || "—"}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const navTarget = delivery.status === "assigned" ? delivery.pickup_address : delivery.delivery_address;
+                      const navLabel = delivery.status === "assigned" ? "Navigate to Pharmacy" : "Navigate";
+                      return navTarget ? (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navTarget)}&travelmode=driving`}
+                          target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                        >
+                          <Navigation className="h-3 w-3" /> {navLabel}
+                        </a>
+                      ) : null;
+                    })()}
                     {prevStatus[delivery.status] && (
                       <Button size="sm" variant="outline" disabled={isUpdating} onClick={() => revert(delivery)}>
                         Undo
