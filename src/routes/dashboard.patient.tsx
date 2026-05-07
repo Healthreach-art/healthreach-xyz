@@ -215,7 +215,10 @@ function PatientDashboard() {
           <h1 className="text-2xl font-bold text-foreground">Patient Dashboard</h1>
           <p className="text-sm text-muted-foreground">Welcome back, {profile?.full_name || "Patient"}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
+          <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        </div>
       </div>
 
       {/* Stats */}
