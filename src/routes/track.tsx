@@ -155,7 +155,14 @@ function TrackPage() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Your Driver</p>
-                    <p className="text-xs text-muted-foreground">ETA: {delivery.estimated_time || "calculating..."}</p>
+                    <p className="text-xs text-muted-foreground">
+                      ETA: {driverLoc
+                        ? `${Math.max(1, Math.round(((driverLoc.speed ?? 0) > 1 ? 30 : 25) ))}–${Math.max(2, Math.round(((driverLoc.speed ?? 0) > 1 ? 30 : 25) + 10))} min`
+                        : (delivery.estimated_time || "calculating...")}
+                      {driverLoc && (
+                        <span className="ml-2 text-healthcare-green">● Live · updated {new Date(driverLoc.updated_at).toLocaleTimeString()}</span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <Button size="sm" variant="outline"><Phone className="h-4 w-4" /> Call</Button>
