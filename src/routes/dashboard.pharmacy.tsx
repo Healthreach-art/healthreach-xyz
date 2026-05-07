@@ -567,6 +567,56 @@ function PharmacyDashboard() {
         </div>
       </div>
 
+      {/* Prescription Verification Queue */}
+      <div id="prescription-queue" className="container-narrow px-4 sm:px-6 mt-6">
+        <div className="healthcare-card p-6 scroll-mt-24">
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Pill className="h-5 w-5 text-primary" /> Prescription Verification Queue
+              <span className="text-xs font-normal text-muted-foreground">({pxQueue.filter(p => p.status === "pending").length} pending)</span>
+            </h2>
+            <div className="flex gap-1 text-xs">
+              {(["pending", "approved", "rejected", "all"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setPxFilter(f)}
+                  className={`px-2 py-1 rounded-md capitalize ${pxFilter === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}
+                >{f}</button>
+              ))}
+            </div>
+          </div>
+          {pxQueue.length === 0 && (
+            <p className="text-sm text-muted-foreground py-4 text-center">No prescription uploads yet.</p>
+          )}
+          <div className="space-y-3">
+            {pxQueue
+              .filter((u) => pxFilter === "all" || u.status === pxFilter)
+              .slice(0, 10)
+              .map((u) => (
+                <div key={u.id} className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between mb-3 gap-2">
+                    <div>
+                      <p className="text-sm font-medium">Patient {u.patient_id.slice(0, 8)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(u.created_at).toLocaleString()}
+                        {u.medication_id ? ` · Med ${u.medication_id.slice(0, 8)}` : ""}
+                      </p>
+                    </div>
+                    <PrescriptionStatusBadge status={u.status} />
+                  </div>
+                  {(u.status === "pending" || u.status === "reupload_requested") ? (
+                    <PharmacyReviewActions row={u} onChanged={loadPxQueue} />
+                  ) : (
+                    u.pharmacist_notes && (
+                      <p className="text-xs text-muted-foreground">Notes: {u.pharmacist_notes}</p>
+                    )
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      </div>
+
       {/* Add / Edit Medication Dialog */}
       <Dialog open={medDialogOpen} onOpenChange={(o) => { setMedDialogOpen(o); if (!o) setEditingMed(null); }}>
         <DialogContent>
