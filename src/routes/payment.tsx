@@ -108,6 +108,9 @@ function PaymentPage() {
         pharmacyProfile?.organization_name ||
         "Pharmacy pickup point";
 
+      const breakdown = paymentBreakdown(price, qty, BASE_DELIVERY);
+
+      // Order is created in 'pending' — pharmacy preparation only starts after payment completes (DB trigger flips to 'preparing').
       const { data: order, error: orderErr } = await supabase
         .from("orders")
         .insert({
@@ -117,7 +120,7 @@ function PaymentPage() {
           medication_name: medicationName,
           quantity: qty,
           delivery_fee: BASE_DELIVERY,
-          total_amount: totalNum,
+          total_amount: breakdown.total_paid,
           status: "pending",
           delivery_address: deliveryAddress,
           notes: `Paid via ${method}`,
@@ -126,16 +129,39 @@ function PaymentPage() {
         .single();
       if (orderErr || !order) throw orderErr ?? new Error("Failed to create order");
 
+      // Duplicate-payment guard: if a completed payment already exists for this order, bail.
+      const { data: existing } = await supabase
+        .from("payments").select("id").eq("order_id", order.id).eq("status", "completed").maybeSingle();
+      if (existing) { throw new Error("This order has already been paid."); }
+
+      // Mock gateway: simulate ~95% success rate. On failure record a 'failed' payment for retry tracking.
+      const gatewayOk = Math.random() > 0.05;
       const reference = `TXN-${Date.now().toString().slice(-8)}`;
-      const { error: payErr } = await supabase.from("payments").insert({
+
+      const { data: payment, error: payErr } = await supabase.from("payments").insert({
         order_id: order.id,
         patient_id: user.id,
-        amount: totalNum,
+        pharmacy_id: resolvedPharmacy,
+        amount: breakdown.total_paid,
+        subtotal: breakdown.subtotal,
+        delivery_fee: breakdown.delivery_fee,
+        platform_fee: breakdown.platform_fee,
+        total_paid: breakdown.total_paid,
+        pharmacy_amount: breakdown.pharmacy_amount,
+        driver_amount: breakdown.driver_amount,
         payment_method: method,
-        status: "completed",
+        provider: "mock",
+        status: gatewayOk ? "completed" : "failed",
+        failure_reason: gatewayOk ? null : "Gateway declined card",
         transaction_ref: reference,
-      });
+      }).select().single();
       if (payErr) throw payErr;
+
+      if (!gatewayOk) {
+        toast.error("Payment was declined by the gateway. Please retry.");
+        setProcessing(false);
+        return;
+      }
 
       const { error: delErr } = await supabase.from("deliveries").insert({
         order_id: order.id,
@@ -159,7 +185,7 @@ function PaymentPage() {
       }
 
       setCreatedOrderId(order.id);
-      setTxnRef(reference);
+      setTxnRef(payment?.invoice_number || reference);
       setSuccess(true);
       toast.success("Payment successful — your order is on the way!");
     } catch (err: any) {
