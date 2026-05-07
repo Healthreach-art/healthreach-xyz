@@ -541,7 +541,7 @@ function DriverDashboard() {
       </div>
 
       {/* Incoming Requests (Uber-style broadcast) */}
-      {online && offers.length > 0 && (
+      {available && offers.length > 0 && (
         <div className="mb-8 rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
             <Radio className="h-5 w-5 text-primary animate-pulse" />
