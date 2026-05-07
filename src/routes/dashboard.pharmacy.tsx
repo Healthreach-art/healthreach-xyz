@@ -473,7 +473,7 @@ function PharmacyDashboard() {
         </div>
 
         {/* Inventory */}
-        <div className="healthcare-card p-6">
+        <div id="inventory-section" className="healthcare-card p-6 scroll-mt-20">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Inventory</h2>
             <Button size="sm" variant="outline" onClick={openAddMedication}>+ Add Item</Button>
