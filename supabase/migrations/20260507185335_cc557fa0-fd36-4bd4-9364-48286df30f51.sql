@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Avatar public read" ON storage.objects;
