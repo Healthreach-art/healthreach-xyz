@@ -687,7 +687,7 @@ function DriverDashboard() {
           })}
         </div>
 
-        <div id="completed" className="lg:col-span-2 scroll-mt-24">
+        <div id="completed" className="lg:col-span-2 scroll-mt-24 space-y-4">
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Completed Deliveries</h2>
             {completed.length === 0 ? (
@@ -701,6 +701,34 @@ function DriverDashboard() {
                       <p className="text-xs text-muted-foreground">{new Date(d.updated_at).toLocaleDateString()}</p>
                     </div>
                     <span className="text-sm font-semibold text-healthcare-green">R {d.earnings.toFixed(0)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="healthcare-card p-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Star className="h-5 w-5 text-amber-400 fill-amber-400" /> Reviews
+              </h2>
+              {ratings.count > 0 && (
+                <span className="text-sm font-semibold">{ratings.avg.toFixed(1)} <span className="text-xs text-muted-foreground">({ratings.count})</span></span>
+              )}
+            </div>
+            {ratings.count === 0 ? (
+              <p className="text-sm text-muted-foreground">No ratings yet. Complete deliveries to receive feedback.</p>
+            ) : (
+              <div className="space-y-3">
+                {ratings.recent.map((r, i) => (
+                  <div key={i} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center gap-1 mb-1">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <Star key={j} className={`h-3.5 w-3.5 ${j < r.stars ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`} />
+                      ))}
+                      <span className="ml-auto text-[11px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
+                    </div>
+                    {r.comment && <p className="text-xs text-foreground">{r.comment}</p>}
                   </div>
                 ))}
               </div>
