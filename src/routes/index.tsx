@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Pill,
   Building2,
@@ -100,6 +101,10 @@ const steps = [
 ];
 
 function HomePage() {
+  const { user, role, loading } = useAuth();
+  if (!loading && user && role) {
+    return <Navigate to={`/dashboard/${role}` as any} />;
+  }
   return (
     <div>
       {/* Hero Section */}
