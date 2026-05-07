@@ -679,7 +679,7 @@ function PatientDashboard() {
                         <MessageCircle className="h-3 w-3" /> Chat
                       </Button>
                       <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" asChild>
-                        <Link to="/payment" search={{ name: order.medication_name, price: Number(order.total_amount), pharmacyId: "", qty: 1 }}>
+                        <Link to="/payment" search={{ name: order.medication_name, price: Number(order.total_amount), qty: 1 }}>
                           <Repeat className="h-3 w-3" /> Reorder
                         </Link>
                       </Button>
