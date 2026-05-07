@@ -6,12 +6,15 @@ import {
 } from "@/components/ui/dialog";
 import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
-  FileText, MapPin, Loader2, Stethoscope, Store, Star, MessageCircle,
+  FileText, MapPin, Loader2, Stethoscope, Store, Star, MessageCircle, Settings,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
+import { DeliveryMap } from "@/components/DeliveryMap";
+import { SettingsDialog } from "@/components/SettingsDialog";
+import { TransactionHistory } from "@/components/TransactionHistory";
 import pharmacy1 from "@/assets/pharmacy-1.jpg";
 import pharmacy2 from "@/assets/pharmacy-2.jpg";
 import pharmacy3 from "@/assets/pharmacy-3.jpg";
