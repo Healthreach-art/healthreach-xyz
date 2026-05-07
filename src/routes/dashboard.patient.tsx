@@ -146,6 +146,17 @@ function PatientDashboard() {
         );
       }
       await Promise.all(tasks);
+
+      // Active delivery (most recent non-delivered)
+      if (user) {
+        const { data: act } = await supabase
+          .from("orders").select("id").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(1);
+        if (act?.[0]) {
+          const { data: del } = await supabase
+            .from("deliveries").select("pickup_address, delivery_address, status").eq("order_id", act[0].id).maybeSingle();
+          if (del) setActiveDelivery({ pickup: del.pickup_address, dropoff: del.delivery_address, status: del.status });
+        }
+      }
       setLoading(false);
     }
     load();
