@@ -25,6 +25,7 @@ import { Route as DashboardPatientRouteImport } from './routes/dashboard.patient
 import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
 import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
+import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
 import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
 
 const TrackRoute = TrackRouteImport.update({
@@ -107,6 +108,11 @@ const DashboardAdminRoute = DashboardAdminRouteImport.update({
   path: '/dashboard/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMockPayRoute = ApiMockPayRouteImport.update({
+  id: '/api/mock-pay',
+  path: '/api/mock-pay',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
   id: '/api/public/payment-webhook',
   path: '/api/public/payment-webhook',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/track': typeof TrackRoute
+  '/api/mock-pay': typeof ApiMockPayRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/track': typeof TrackRoute
+  '/api/mock-pay': typeof ApiMockPayRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/track': typeof TrackRoute
+  '/api/mock-pay': typeof ApiMockPayRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/track'
+    | '/api/mock-pay'
     | '/dashboard/admin'
     | '/dashboard/driver'
     | '/dashboard/hospital'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/track'
+    | '/api/mock-pay'
     | '/dashboard/admin'
     | '/dashboard/driver'
     | '/dashboard/hospital'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/track'
+    | '/api/mock-pay'
     | '/dashboard/admin'
     | '/dashboard/driver'
     | '/dashboard/hospital'
@@ -241,6 +253,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   TrackRoute: typeof TrackRoute
+  ApiMockPayRoute: typeof ApiMockPayRoute
   DashboardAdminRoute: typeof DashboardAdminRoute
   DashboardDriverRoute: typeof DashboardDriverRoute
   DashboardHospitalRoute: typeof DashboardHospitalRoute
@@ -365,6 +378,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mock-pay': {
+      id: '/api/mock-pay'
+      path: '/api/mock-pay'
+      fullPath: '/api/mock-pay'
+      preLoaderRoute: typeof ApiMockPayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payment-webhook': {
       id: '/api/public/payment-webhook'
       path: '/api/public/payment-webhook'
@@ -385,6 +405,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   TrackRoute: TrackRoute,
+  ApiMockPayRoute: ApiMockPayRoute,
   DashboardAdminRoute: DashboardAdminRoute,
   DashboardDriverRoute: DashboardDriverRoute,
   DashboardHospitalRoute: DashboardHospitalRoute,
