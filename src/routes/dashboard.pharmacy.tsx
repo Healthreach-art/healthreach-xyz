@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { TransactionHistory } from "@/components/TransactionHistory";
+import { PharmacyReviewActions, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { customerPrice } from "@/lib/pricing";
 
 export const Route = createFileRoute("/dashboard/pharmacy")({
