@@ -52,9 +52,10 @@ function Wallet_() {
 
   async function load() {
     if (!user) return;
-    const [{ data: dels }, { data: po }] = await Promise.all([
+    const [{ data: dels }, { data: po }, { data: ba }] = await Promise.all([
       supabase.from("deliveries").select("id, order_id, updated_at, status").eq("driver_id", user.id).eq("status", "delivered"),
       supabase.from("driver_payouts").select("*").eq("driver_id", user.id).order("requested_at", { ascending: false }),
+      supabase.from("driver_bank_accounts").select("*").eq("driver_id", user.id).order("created_at", { ascending: false }),
     ]);
     const orderIds = (dels ?? []).map((d) => d.order_id);
     const { data: orders } = orderIds.length > 0
@@ -66,6 +67,7 @@ function Wallet_() {
       return { id: d.id, order_id: d.order_id, updated_at: d.updated_at, earnings: fee > 0 ? fee : estimateEarnings(estimateDistanceKm(d.order_id)) };
     }));
     setPayouts((po ?? []) as Payout[]);
+    setBanks((ba ?? []) as BankAccount[]);
     setLoading(false);
   }
 
