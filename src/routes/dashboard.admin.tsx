@@ -19,9 +19,11 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+import { RoleGuard } from "@/components/RoleGuard";
+
 export const Route = createFileRoute("/dashboard/admin")({
   head: () => ({ meta: [{ title: "Admin Dashboard — HEALTHREACH" }] }),
-  component: AdminDashboard,
+  component: () => <RoleGuard allow="admin"><AdminDashboard /></RoleGuard>,
 });
 
 type TabId =

@@ -26,9 +26,11 @@ import { TransactionHistory } from "@/components/TransactionHistory";
 import { PharmacyReviewActions, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { customerPrice } from "@/lib/pricing";
 
+import { RoleGuard } from "@/components/RoleGuard";
+
 export const Route = createFileRoute("/dashboard/pharmacy")({
   head: () => ({ meta: [{ title: "Pharmacy Dashboard — HEALTHREACH" }] }),
-  component: PharmacyDashboard,
+  component: () => <RoleGuard allow="pharmacy"><PharmacyDashboard /></RoleGuard>,
 });
 
 interface Medication {

@@ -31,9 +31,11 @@ function pharmacyImage(id: string) {
   return PHARMACY_IMAGES[h % PHARMACY_IMAGES.length];
 }
 
+import { RoleGuard } from "@/components/RoleGuard";
+
 export const Route = createFileRoute("/dashboard/patient")({
   head: () => ({ meta: [{ title: "Patient Dashboard — HEALTHREACH" }] }),
-  component: PatientDashboard,
+  component: () => <RoleGuard allow="patient"><PatientDashboard /></RoleGuard>,
 });
 
 interface Pharmacy {
