@@ -296,7 +296,25 @@ function DriverDashboard() {
       setOffers(enriched);
     }
 
-    Promise.all([loadDeliveries(), loadOffers(), loadRatings()]).finally(() => setLoading(false));
+    Promise.all([loadDeliveries(), loadOffers(), loadRatings(), loadStats()]).finally(() => setLoading(false));
+
+    async function loadStats() {
+      const since = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+      const [{ data: offersAll }, { data: dels }] = await Promise.all([
+        supabase.from("delivery_offers").select("id, accepted_by, declined_by, status").gte("created_at", since),
+        supabase.from("deliveries").select("status, created_at, updated_at").eq("driver_id", user!.id).gte("created_at", since),
+      ]);
+      const offered = (offersAll ?? []).filter((o) => o.accepted_by === user!.id || (o.declined_by ?? []).includes(user!.id)).length;
+      const accepted = (offersAll ?? []).filter((o) => o.accepted_by === user!.id).length;
+      const delsArr = (dels ?? []) as { status: string; created_at: string; updated_at: string }[];
+      const cancelled = delsArr.filter((d) => d.status === "failed").length;
+      const late = delsArr.filter((d) => {
+        if (d.status !== "delivered") return false;
+        const mins = (new Date(d.updated_at).getTime() - new Date(d.created_at).getTime()) / 60000;
+        return mins > PLATFORM_RULES.ETA_MAX;
+      }).length;
+      setAcceptance({ accepted, offered: Math.max(offered, accepted), cancelled, late });
+    }
 
     async function loadRatings() {
       const { data } = await supabase
