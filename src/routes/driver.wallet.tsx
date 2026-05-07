@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wallet, Loader2, ArrowDownToLine, Clock, CheckCircle2, XCircle, TrendingUp } from "lucide-react";
+import { Wallet, Loader2, ArrowDownToLine, Clock, CheckCircle2, XCircle, TrendingUp, Building2, Plus, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/driver/wallet")({
@@ -15,8 +15,10 @@ export const Route = createFileRoute("/driver/wallet")({
 });
 
 interface Payout { id: string; amount: number; status: string; method: string; reference: string; requested_at: string; paid_at: string | null; notes: string }
+interface BankAccount { id: string; bank_name: string; account_holder: string; account_number: string; branch_code: string; account_type: string; is_default: boolean }
 
-const MIN_PAYOUT = 100;
+import { PLATFORM_RULES } from "@/lib/platform-rules";
+const MIN_PAYOUT = PLATFORM_RULES.MIN_PAYOUT_ZAR;
 
 function statusBadge(s: string) {
   const map: Record<string, { c: string; i: typeof Clock }> = {
@@ -40,16 +42,20 @@ function Wallet_() {
   const [loading, setLoading] = useState(true);
   const [completed, setCompleted] = useState<{ id: string; order_id: string; updated_at: string; earnings: number }[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [banks, setBanks] = useState<BankAccount[]>([]);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("bank_transfer");
   const [reference, setReference] = useState("");
   const [requesting, setRequesting] = useState(false);
+  const [newBank, setNewBank] = useState({ bank_name: "", account_holder: "", account_number: "", branch_code: "", account_type: "cheque" });
+  const [addingBank, setAddingBank] = useState(false);
 
   async function load() {
     if (!user) return;
-    const [{ data: dels }, { data: po }] = await Promise.all([
+    const [{ data: dels }, { data: po }, { data: ba }] = await Promise.all([
       supabase.from("deliveries").select("id, order_id, updated_at, status").eq("driver_id", user.id).eq("status", "delivered"),
       supabase.from("driver_payouts").select("*").eq("driver_id", user.id).order("requested_at", { ascending: false }),
+      supabase.from("driver_bank_accounts").select("*").eq("driver_id", user.id).order("created_at", { ascending: false }),
     ]);
     const orderIds = (dels ?? []).map((d) => d.order_id);
     const { data: orders } = orderIds.length > 0
@@ -61,6 +67,7 @@ function Wallet_() {
       return { id: d.id, order_id: d.order_id, updated_at: d.updated_at, earnings: fee > 0 ? fee : estimateEarnings(estimateDistanceKm(d.order_id)) };
     }));
     setPayouts((po ?? []) as Payout[]);
+    setBanks((ba ?? []) as BankAccount[]);
     setLoading(false);
   }
 
@@ -70,6 +77,7 @@ function Wallet_() {
     const ch = supabase
       .channel(`wallet-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "driver_payouts", filter: `driver_id=eq.${user.id}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "driver_bank_accounts", filter: `driver_id=eq.${user.id}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,7 +117,28 @@ function Wallet_() {
     setAmount(""); setReference("");
   }
 
-  if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  async function addBank() {
+    if (!user) return;
+    if (!newBank.bank_name || !newBank.account_holder || !newBank.account_number) {
+      toast.error("Bank, holder name and account number are required");
+      return;
+    }
+    setAddingBank(true);
+    const { error } = await supabase.from("driver_bank_accounts").insert({
+      driver_id: user.id, ...newBank, is_default: banks.length === 0,
+    } as never);
+    setAddingBank(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Bank account added");
+    setNewBank({ bank_name: "", account_holder: "", account_number: "", branch_code: "", account_type: "cheque" });
+  }
+
+  async function setDefaultBank(id: string) {
+    await supabase.from("driver_bank_accounts").update({ is_default: true } as never).eq("id", id);
+  }
+  async function removeBank(id: string) {
+    await supabase.from("driver_bank_accounts").delete().eq("id", id);
+  }
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 max-w-4xl mx-auto">
@@ -176,6 +205,35 @@ function Wallet_() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="healthcare-card p-5 mb-6">
+        <h2 className="font-semibold mb-3 flex items-center gap-2"><Building2 className="h-4 w-4" /> Bank Accounts</h2>
+        {banks.length === 0 ? (
+          <p className="text-sm text-muted-foreground mb-3">No bank accounts yet. Add one to receive payouts.</p>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {banks.map((b) => (
+              <div key={b.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+                <div>
+                  <p className="font-semibold flex items-center gap-2">{b.bank_name} {b.is_default && <span className="inline-flex items-center gap-1 text-[10px] text-healthcare-green"><Star className="h-3 w-3 fill-healthcare-green" /> Default</span>}</p>
+                  <p className="text-xs text-muted-foreground">{b.account_holder} • •••{b.account_number.slice(-4)} • {b.account_type}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  {!b.is_default && <Button size="sm" variant="ghost" onClick={() => setDefaultBank(b.id)}>Set default</Button>}
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeBank(b.id)}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Input placeholder="Bank name (e.g. FNB)" value={newBank.bank_name} onChange={(e) => setNewBank({ ...newBank, bank_name: e.target.value })} />
+          <Input placeholder="Account holder" value={newBank.account_holder} onChange={(e) => setNewBank({ ...newBank, account_holder: e.target.value })} />
+          <Input placeholder="Account number" value={newBank.account_number} onChange={(e) => setNewBank({ ...newBank, account_number: e.target.value })} />
+          <Input placeholder="Branch code" value={newBank.branch_code} onChange={(e) => setNewBank({ ...newBank, branch_code: e.target.value })} />
+        </div>
+        <Button onClick={addBank} disabled={addingBank} size="sm" className="mt-2 gap-1"><Plus className="h-3 w-3" /> Add Account</Button>
       </div>
 
       <div className="healthcare-card p-5">

@@ -55,45 +55,69 @@ export type Database = {
       }
       deliveries: {
         Row: {
+          base_pay: number | null
           created_at: string
           delivery_address: string | null
+          distance_pay: number | null
           driver_id: string | null
           estimated_time: string | null
+          failed_at: string | null
+          failure_notes: string | null
+          failure_photo_path: string | null
+          failure_reason: string | null
           id: string
           order_id: string
+          peak_bonus: number | null
           pickup_address: string | null
           pickup_code: string | null
           pickup_verified_at: string | null
           proof_of_delivery: string | null
           status: Database["public"]["Enums"]["delivery_status"]
+          tip: number | null
           updated_at: string
         }
         Insert: {
+          base_pay?: number | null
           created_at?: string
           delivery_address?: string | null
+          distance_pay?: number | null
           driver_id?: string | null
           estimated_time?: string | null
+          failed_at?: string | null
+          failure_notes?: string | null
+          failure_photo_path?: string | null
+          failure_reason?: string | null
           id?: string
           order_id: string
+          peak_bonus?: number | null
           pickup_address?: string | null
           pickup_code?: string | null
           pickup_verified_at?: string | null
           proof_of_delivery?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
+          tip?: number | null
           updated_at?: string
         }
         Update: {
+          base_pay?: number | null
           created_at?: string
           delivery_address?: string | null
+          distance_pay?: number | null
           driver_id?: string | null
           estimated_time?: string | null
+          failed_at?: string | null
+          failure_notes?: string | null
+          failure_photo_path?: string | null
+          failure_reason?: string | null
           id?: string
           order_id?: string
+          peak_bonus?: number | null
           pickup_address?: string | null
           pickup_code?: string | null
           pickup_verified_at?: string | null
           proof_of_delivery?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
+          tip?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -142,6 +166,42 @@ export type Database = {
           pharmacy_id?: string
           status?: Database["public"]["Enums"]["offer_status"]
           updated_at?: string
+        }
+        Relationships: []
+      }
+      driver_bank_accounts: {
+        Row: {
+          account_holder: string
+          account_number: string
+          account_type: string | null
+          bank_name: string
+          branch_code: string | null
+          created_at: string
+          driver_id: string
+          id: string
+          is_default: boolean
+        }
+        Insert: {
+          account_holder: string
+          account_number: string
+          account_type?: string | null
+          bank_name: string
+          branch_code?: string | null
+          created_at?: string
+          driver_id: string
+          id?: string
+          is_default?: boolean
+        }
+        Update: {
+          account_holder?: string
+          account_number?: string
+          account_type?: string | null
+          bank_name?: string
+          branch_code?: string | null
+          created_at?: string
+          driver_id?: string
+          id?: string
+          is_default?: boolean
         }
         Relationships: []
       }
@@ -263,6 +323,30 @@ export type Database = {
           paid_at?: string | null
           reference?: string | null
           requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      driver_status: {
+        Row: {
+          break_reason: string | null
+          driver_id: string
+          last_ping_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          break_reason?: string | null
+          driver_id: string
+          last_ping_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          break_reason?: string | null
+          driver_id?: string
+          last_ping_at?: string
           status?: string
           updated_at?: string
         }
@@ -788,6 +872,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      expire_stale_offers: { Args: never; Returns: undefined }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -807,7 +892,12 @@ export type Database = {
     Enums: {
       app_role: "patient" | "pharmacy" | "hospital" | "driver" | "admin"
       approval_status: "pending" | "approved" | "rejected"
-      delivery_status: "assigned" | "picked_up" | "in_transit" | "delivered"
+      delivery_status:
+        | "assigned"
+        | "picked_up"
+        | "in_transit"
+        | "delivered"
+        | "failed"
       offer_status: "open" | "accepted" | "declined" | "cancelled" | "expired"
       order_status:
         | "pending"
@@ -953,7 +1043,13 @@ export const Constants = {
     Enums: {
       app_role: ["patient", "pharmacy", "hospital", "driver", "admin"],
       approval_status: ["pending", "approved", "rejected"],
-      delivery_status: ["assigned", "picked_up", "in_transit", "delivered"],
+      delivery_status: [
+        "assigned",
+        "picked_up",
+        "in_transit",
+        "delivered",
+        "failed",
+      ],
       offer_status: ["open", "accepted", "declined", "cancelled", "expired"],
       order_status: [
         "pending",

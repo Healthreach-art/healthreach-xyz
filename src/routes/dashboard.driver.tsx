@@ -5,8 +5,12 @@ import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
   Phone, Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
+  Coffee, AlertTriangle, TrendingUp, WifiOff,
 } from "lucide-react";
 import { PickupCodeDialog } from "@/components/PickupCodeDialog";
+import { FailedDeliveryDialog } from "@/components/FailedDeliveryDialog";
+import { useDriverPresence } from "@/hooks/useDriverPresence";
+import { PLATFORM_RULES } from "@/lib/platform-rules";
 import { Switch } from "@/components/ui/switch";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +21,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useDriverLocationBroadcaster } from "@/hooks/useDriverLocationBroadcaster";
 
-type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered";
+type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered" | "failed";
 
 interface LiveDelivery {
   id: string;
@@ -58,22 +62,24 @@ interface Offer {
 
 const STAGE_ORDER: DStatus[] = ["assigned", "picked_up", "in_transit", "delivered"];
 const nextStatus: Record<DStatus, DStatus | null> = {
-  assigned: "picked_up", picked_up: "in_transit", in_transit: "delivered", delivered: null,
+  assigned: "picked_up", picked_up: "in_transit", in_transit: "delivered", delivered: null, failed: null,
 };
 const prevStatus: Record<DStatus, DStatus | null> = {
-  assigned: null, picked_up: "assigned", in_transit: "picked_up", delivered: "in_transit",
+  assigned: null, picked_up: "assigned", in_transit: "picked_up", delivered: "in_transit", failed: null,
 };
 const nextLabel: Record<DStatus, string> = {
-  assigned: "Mark Picked Up", picked_up: "Start Delivery", in_transit: "Complete Delivery", delivered: "",
+  assigned: "Mark Picked Up", picked_up: "Start Delivery", in_transit: "Complete Delivery", delivered: "", failed: "",
 };
 const stageLabel: Record<DStatus, string> = {
-  assigned: "Assigned", picked_up: "Picked Up", in_transit: "In Transit", delivered: "Delivered",
+  assigned: "Assigned", picked_up: "Picked Up", in_transit: "In Transit", delivered: "Delivered", failed: "Failed",
 };
 const deliveryStatusLabels: Record<DStatus, { label: string; color: string }> = {
   assigned: { label: "Assigned", color: "bg-accent text-accent-foreground" },
   picked_up: { label: "Picked Up", color: "bg-primary/10 text-primary" },
   in_transit: { label: "In Transit", color: "bg-healthcare-sky/20 text-healthcare-sky" },
   delivered: { label: "Delivered", color: "bg-healthcare-green/20 text-healthcare-green" },
+  failed: { label: "Failed", color: "bg-destructive/10 text-destructive" },
+
 };
 
 import { RoleGuard } from "@/components/RoleGuard";
@@ -102,6 +108,7 @@ function DriverDashboard() {
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [pickupForDelivery, setPickupForDelivery] = useState<LiveDelivery | null>(null);
+  const [failForDelivery, setFailForDelivery] = useState<LiveDelivery | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -110,15 +117,37 @@ function DriverDashboard() {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("driver:online") !== "false";
   });
+  const [onBreak, setOnBreak] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("driver:break") === "true";
+  });
+  const [netOnline, setNetOnline] = useState<boolean>(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [acceptance, setAcceptance] = useState<{ accepted: number; offered: number; cancelled: number; late: number }>({ accepted: 0, offered: 0, cancelled: 0, late: 0 });
   const vehicleType = (typeof window !== "undefined" && localStorage.getItem("driver:vehicle")) || "Motorbike";
+
+  const presenceStatus: "online" | "offline" | "break" = !netOnline || !online ? "offline" : onBreak ? "break" : "online";
+  useDriverPresence(user?.id ?? null, presenceStatus);
 
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem("driver:online", String(online));
   }, [online]);
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("driver:break", String(onBreak));
+  }, [onBreak]);
+  useEffect(() => {
+    function on() { setNetOnline(true); }
+    function off() { setNetOnline(false); toast.warning("You're offline — pausing new requests"); }
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
+  // Effective availability for receiving requests
+  const available = online && !onBreak && netOnline;
+
 
   // Broadcast live GPS to driver_locations for the most recent active delivery
   const activeOrderId = liveDeliveries[0]?.order_id ?? null;
-  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId && online });
+  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId && available });
 
   // 1s tick for countdown
   useEffect(() => {
@@ -267,7 +296,25 @@ function DriverDashboard() {
       setOffers(enriched);
     }
 
-    Promise.all([loadDeliveries(), loadOffers(), loadRatings()]).finally(() => setLoading(false));
+    Promise.all([loadDeliveries(), loadOffers(), loadRatings(), loadStats()]).finally(() => setLoading(false));
+
+    async function loadStats() {
+      const since = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+      const [{ data: offersAll }, { data: dels }] = await Promise.all([
+        supabase.from("delivery_offers").select("id, accepted_by, declined_by, status").gte("created_at", since),
+        supabase.from("deliveries").select("status, created_at, updated_at").eq("driver_id", user!.id).gte("created_at", since),
+      ]);
+      const offered = (offersAll ?? []).filter((o) => o.accepted_by === user!.id || (o.declined_by ?? []).includes(user!.id)).length;
+      const accepted = (offersAll ?? []).filter((o) => o.accepted_by === user!.id).length;
+      const delsArr = (dels ?? []) as { status: string; created_at: string; updated_at: string }[];
+      const cancelled = delsArr.filter((d) => d.status === "failed").length;
+      const late = delsArr.filter((d) => {
+        if (d.status !== "delivered") return false;
+        const mins = (new Date(d.updated_at).getTime() - new Date(d.created_at).getTime()) / 60000;
+        return mins > PLATFORM_RULES.ETA_MAX;
+      }).length;
+      setAcceptance({ accepted, offered: Math.max(offered, accepted), cancelled, late });
+    }
 
     async function loadRatings() {
       const { data } = await supabase
@@ -354,8 +401,8 @@ function DriverDashboard() {
   async function setDeliveryStatus(d: LiveDelivery, target: DStatus) {
     setUpdating(d.id);
     const { error } = await supabase.from("deliveries").update({ status: target }).eq("id", d.id);
-    const orderStatusMap: Record<DStatus, "ready" | "out_for_delivery" | "delivered" | null> = {
-      assigned: "ready", picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered",
+    const orderStatusMap: Record<DStatus, "ready" | "out_for_delivery" | "delivered" | "cancelled" | null> = {
+      assigned: "ready", picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered", failed: "cancelled",
     };
     const orderStatus = orderStatusMap[target];
     if (orderStatus) {
@@ -441,8 +488,16 @@ function DriverDashboard() {
           <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 border ${online ? "bg-healthcare-green/10 border-healthcare-green/40" : "bg-muted border-border"}`}>
             <Power className={`h-4 w-4 ${online ? "text-healthcare-green" : "text-muted-foreground"}`} />
             <span className="text-xs font-medium">{online ? "Online" : "Offline"}</span>
-            <Switch checked={online} onCheckedChange={setOnline} />
+            <Switch checked={online} onCheckedChange={(v) => { setOnline(v); if (v) setOnBreak(false); }} />
           </div>
+          <button
+            type="button"
+            onClick={() => setOnBreak((b) => !b)}
+            disabled={!online}
+            className={`flex items-center gap-2 rounded-full px-3 py-1.5 border text-xs font-medium transition-colors ${onBreak ? "bg-amber-500/10 border-amber-500/40 text-amber-600" : "bg-muted border-border text-muted-foreground hover:bg-accent"} disabled:opacity-50`}
+          >
+            <Coffee className="h-4 w-4" /> {onBreak ? "On Break" : "Take Break"}
+          </button>
           <Button variant="outline" size="sm" asChild><Link to="/driver/wallet" className="gap-1"><Wallet className="h-4 w-4" /> Wallet</Link></Button>
           <Button variant="outline" size="sm" asChild><Link to="/driver/onboarding" className="gap-1"><IdCard className="h-4 w-4" /> Verify</Link></Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /></Button>
@@ -450,11 +505,30 @@ function DriverDashboard() {
         </div>
       </div>
 
-      {!online && (
+      {!netOnline && (
+        <div className="mb-6 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive flex items-center gap-2">
+          <WifiOff className="h-4 w-4" /> No internet connection. You'll automatically resume when reconnected.
+        </div>
+      )}
+      {netOnline && !online && (
         <div className="mb-6 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground flex items-center gap-2">
           <Power className="h-4 w-4" /> You're offline. Toggle online to receive new delivery requests.
         </div>
       )}
+      {netOnline && online && onBreak && (
+        <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-700 flex items-center gap-2">
+          <Coffee className="h-4 w-4" /> Break mode — you stay logged in but won't receive new requests.
+        </div>
+      )}
+
+      {/* Performance summary */}
+      <div className="grid gap-3 sm:grid-cols-4 mb-6">
+        <PerfCard label="Acceptance" value={`${acceptance.offered ? Math.round((acceptance.accepted / acceptance.offered) * 100) : 100}%`} sub={`${acceptance.accepted}/${acceptance.offered} offers`} tone="text-healthcare-green" icon={CheckCircle} />
+        <PerfCard label="Cancellations" value={String(acceptance.cancelled)} sub="last 30 days" tone="text-destructive" icon={X} />
+        <PerfCard label="Late deliveries" value={String(acceptance.late)} sub={`> ${PLATFORM_RULES.ETA_MAX} min`} tone="text-amber-500" icon={Clock} />
+        <PerfCard label="Rating" value={ratings.count > 0 ? ratings.avg.toFixed(1) : "—"} sub={`${ratings.count} reviews`} tone="text-amber-500" icon={Star} />
+      </div>
+
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => (
@@ -485,7 +559,7 @@ function DriverDashboard() {
       </div>
 
       {/* Incoming Requests (Uber-style broadcast) */}
-      {online && offers.length > 0 && (
+      {available && offers.length > 0 && (
         <div className="mb-8 rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
             <Radio className="h-5 w-5 text-primary animate-pulse" />
@@ -680,6 +754,11 @@ function DriverDashboard() {
                         {isUpdating ? "Updating..." : nextLabel[delivery.status]}
                       </Button>
                     )}
+                    {delivery.status !== "delivered" && delivery.status !== "failed" && (
+                      <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 gap-1" onClick={() => setFailForDelivery(delivery)}>
+                        <AlertTriangle className="h-3 w-3" /> Report Issue
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -744,6 +823,20 @@ function DriverDashboard() {
         onVerified={() => { /* realtime will refresh */ }}
       />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <FailedDeliveryDialog delivery={failForDelivery} onClose={() => setFailForDelivery(null)} />
     </div>
   );
 }
+
+function PerfCard({ label, value, sub, tone, icon: Icon }: { label: string; value: string; sub: string; tone: string; icon: typeof TrendingUp }) {
+  return (
+    <div className="healthcare-card p-4">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Icon className={`h-4 w-4 ${tone}`} /> {label}
+      </div>
+      <p className={`text-2xl font-bold mt-1 ${tone}`}>{value}</p>
+      <p className="text-[11px] text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+
