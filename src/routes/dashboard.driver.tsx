@@ -21,7 +21,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useDriverLocationBroadcaster } from "@/hooks/useDriverLocationBroadcaster";
 
-type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered";
+type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered" | "failed";
 
 interface LiveDelivery {
   id: string;
