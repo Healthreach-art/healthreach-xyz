@@ -115,7 +115,7 @@ function PaymentPage() {
           medication_id: medId ?? null,
           medication_name: medicationName,
           quantity: qty,
-          delivery_fee: DELIVERY_FEE,
+          delivery_fee: BASE_DELIVERY,
           total_amount: totalNum,
           status: "pending",
           delivery_address: deliveryAddress,
