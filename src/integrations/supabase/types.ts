@@ -595,6 +595,13 @@ export type Database = {
             referencedRelation: "medications"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orders_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payments: {
@@ -965,7 +972,48 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      medications_public: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string | null
+          image_url: string | null
+          in_stock: boolean | null
+          name: string | null
+          pharmacy_id: string | null
+          price: number | null
+          requires_prescription: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          image_url?: string | null
+          in_stock?: never
+          name?: string | null
+          pharmacy_id?: string | null
+          price?: number | null
+          requires_prescription?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          image_url?: string | null
+          in_stock?: never
+          name?: string | null
+          pharmacy_id?: string | null
+          price?: number | null
+          requires_prescription?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       expire_stale_offers: { Args: never; Returns: undefined }
