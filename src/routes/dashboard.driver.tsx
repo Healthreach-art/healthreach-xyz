@@ -708,6 +708,12 @@ function DriverDashboard() {
         </div>
       </div>
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
+      <PickupCodeDialog
+        deliveryId={pickupForDelivery?.id ?? null}
+        pharmacyName={pickupForDelivery?.pharmacy_name}
+        onClose={() => setPickupForDelivery(null)}
+        onVerified={() => { /* realtime will refresh */ }}
+      />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
