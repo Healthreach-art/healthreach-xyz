@@ -62,6 +62,7 @@ interface LiveDelivery {
   medication_name: string;
   delivery_address: string | null;
   updated_at: string;
+  pickup_code: string | null;
 }
 
 function PharmacyDashboard() {
@@ -105,7 +106,7 @@ function PharmacyDashboard() {
     if (myOrderIds.length > 0) {
       const { data: dels } = await supabase
         .from("deliveries")
-        .select("id, order_id, status, driver_id, delivery_address, updated_at")
+        .select("id, order_id, status, driver_id, delivery_address, updated_at, pickup_code")
         .in("order_id", myOrderIds)
         .in("status", ["assigned", "picked_up", "in_transit"])
         .order("updated_at", { ascending: false });
@@ -123,6 +124,7 @@ function PharmacyDashboard() {
         medication_name: orderNameMap.get(d.order_id) || "Order",
         delivery_address: d.delivery_address,
         updated_at: d.updated_at,
+        pickup_code: (d as { pickup_code?: string | null }).pickup_code ?? null,
       })));
     } else {
       setLiveDeliveries([]);
@@ -758,6 +760,15 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
       <p className="text-xs text-muted-foreground">Driver: {delivery.driver_name || "Unassigned"}</p>
       {delivery.delivery_address && (
         <p className="text-xs text-muted-foreground truncate mt-0.5">→ {delivery.delivery_address}</p>
+      )}
+      {delivery.status === "assigned" && delivery.pickup_code && (
+        <div className="mt-3 rounded-lg bg-primary/5 border border-primary/30 p-3 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pickup code</p>
+            <p className="text-2xl font-bold font-mono text-primary tracking-[0.4em]">{delivery.pickup_code}</p>
+          </div>
+          <p className="text-[10px] text-muted-foreground max-w-[120px] text-right leading-tight">Share with the driver to confirm pickup</p>
+        </div>
       )}
 
       {/* Stage Timeline */}

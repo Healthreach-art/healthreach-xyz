@@ -18,6 +18,8 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
+import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding'
 import { Route as DashboardPharmacyRouteImport } from './routes/dashboard.pharmacy'
 import { Route as DashboardPatientRouteImport } from './routes/dashboard.patient'
 import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
@@ -70,6 +72,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DriverWalletRoute = DriverWalletRouteImport.update({
+  id: '/driver/wallet',
+  path: '/driver/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DriverOnboardingRoute = DriverOnboardingRouteImport.update({
+  id: '/driver/onboarding',
+  path: '/driver/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardPharmacyRoute = DashboardPharmacyRouteImport.update({
   id: '/dashboard/pharmacy',
   path: '/dashboard/pharmacy',
@@ -116,6 +128,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/patient': typeof DashboardPatientRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
+  '/driver/onboarding': typeof DriverOnboardingRoute
+  '/driver/wallet': typeof DriverWalletRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -133,6 +147,8 @@ export interface FileRoutesByTo {
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/patient': typeof DashboardPatientRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
+  '/driver/onboarding': typeof DriverOnboardingRoute
+  '/driver/wallet': typeof DriverWalletRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
 }
 export interface FileRoutesById {
@@ -151,6 +167,8 @@ export interface FileRoutesById {
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/patient': typeof DashboardPatientRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
+  '/driver/onboarding': typeof DriverOnboardingRoute
+  '/driver/wallet': typeof DriverWalletRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
 }
 export interface FileRouteTypes {
@@ -170,6 +188,8 @@ export interface FileRouteTypes {
     | '/dashboard/hospital'
     | '/dashboard/patient'
     | '/dashboard/pharmacy'
+    | '/driver/onboarding'
+    | '/driver/wallet'
     | '/api/public/payment-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -187,6 +207,8 @@ export interface FileRouteTypes {
     | '/dashboard/hospital'
     | '/dashboard/patient'
     | '/dashboard/pharmacy'
+    | '/driver/onboarding'
+    | '/driver/wallet'
     | '/api/public/payment-webhook'
   id:
     | '__root__'
@@ -204,6 +226,8 @@ export interface FileRouteTypes {
     | '/dashboard/hospital'
     | '/dashboard/patient'
     | '/dashboard/pharmacy'
+    | '/driver/onboarding'
+    | '/driver/wallet'
     | '/api/public/payment-webhook'
   fileRoutesById: FileRoutesById
 }
@@ -222,6 +246,8 @@ export interface RootRouteChildren {
   DashboardHospitalRoute: typeof DashboardHospitalRoute
   DashboardPatientRoute: typeof DashboardPatientRoute
   DashboardPharmacyRoute: typeof DashboardPharmacyRoute
+  DriverOnboardingRoute: typeof DriverOnboardingRoute
+  DriverWalletRoute: typeof DriverWalletRoute
   ApiPublicPaymentWebhookRoute: typeof ApiPublicPaymentWebhookRoute
 }
 
@@ -290,6 +316,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/driver/wallet': {
+      id: '/driver/wallet'
+      path: '/driver/wallet'
+      fullPath: '/driver/wallet'
+      preLoaderRoute: typeof DriverWalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/driver/onboarding': {
+      id: '/driver/onboarding'
+      path: '/driver/onboarding'
+      fullPath: '/driver/onboarding'
+      preLoaderRoute: typeof DriverOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/pharmacy': {
       id: '/dashboard/pharmacy'
       path: '/dashboard/pharmacy'
@@ -350,6 +390,8 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardHospitalRoute: DashboardHospitalRoute,
   DashboardPatientRoute: DashboardPatientRoute,
   DashboardPharmacyRoute: DashboardPharmacyRoute,
+  DriverOnboardingRoute: DriverOnboardingRoute,
+  DriverWalletRoute: DriverWalletRoute,
   ApiPublicPaymentWebhookRoute: ApiPublicPaymentWebhookRoute,
 }
 export const routeTree = rootRouteImport

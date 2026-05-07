@@ -1,11 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
-  Phone, Power, ShieldCheck, Bike, Car, BadgeCheck,
+  Phone, Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
 } from "lucide-react";
+import { PickupCodeDialog } from "@/components/PickupCodeDialog";
 import { Switch } from "@/components/ui/switch";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -100,9 +101,11 @@ function DriverDashboard() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
+  const [pickupForDelivery, setPickupForDelivery] = useState<LiveDelivery | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [ratings, setRatings] = useState<{ avg: number; count: number; recent: { stars: number; comment: string; created_at: string }[] }>({ avg: 0, count: 0, recent: [] });
   const [online, setOnline] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("driver:online") !== "false";
@@ -264,7 +267,19 @@ function DriverDashboard() {
       setOffers(enriched);
     }
 
-    Promise.all([loadDeliveries(), loadOffers()]).finally(() => setLoading(false));
+    Promise.all([loadDeliveries(), loadOffers(), loadRatings()]).finally(() => setLoading(false));
+
+    async function loadRatings() {
+      const { data } = await supabase
+        .from("ratings")
+        .select("stars, comment, created_at")
+        .eq("target_type", "driver")
+        .eq("target_id", user!.id)
+        .order("created_at", { ascending: false });
+      const rows = (data ?? []) as { stars: number; comment: string; created_at: string }[];
+      const avg = rows.length ? rows.reduce((s, r) => s + r.stars, 0) / rows.length : 0;
+      setRatings({ avg, count: rows.length, recent: rows.slice(0, 3) });
+    }
 
     const channel = supabase
       .channel(`driver-${user.id}`)
@@ -278,6 +293,7 @@ function DriverDashboard() {
         loadDeliveries();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "delivery_offers" }, () => loadOffers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "ratings", filter: `target_id=eq.${user.id}` }, () => loadRatings())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user]);
@@ -352,7 +368,12 @@ function DriverDashboard() {
 
   async function advance(d: LiveDelivery) {
     const next = nextStatus[d.status];
-    if (next) await setDeliveryStatus(d, next);
+    if (!next) return;
+    if (d.status === "assigned" && next === "picked_up") {
+      setPickupForDelivery(d);
+      return;
+    }
+    await setDeliveryStatus(d, next);
   }
 
   async function revert(d: LiveDelivery) {
@@ -408,15 +429,22 @@ function DriverDashboard() {
               <span className="inline-flex items-center gap-1 text-healthcare-green">
                 <BadgeCheck className="h-3 w-3" /> {approvalStatus === "approved" ? "Verified" : "Pending"}
               </span>
+              {ratings.count > 0 && (
+                <span className="inline-flex items-center gap-1 text-amber-500">
+                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> {ratings.avg.toFixed(1)} <span className="text-muted-foreground">({ratings.count})</span>
+                </span>
+              )}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 border ${online ? "bg-healthcare-green/10 border-healthcare-green/40" : "bg-muted border-border"}`}>
             <Power className={`h-4 w-4 ${online ? "text-healthcare-green" : "text-muted-foreground"}`} />
             <span className="text-xs font-medium">{online ? "Online" : "Offline"}</span>
             <Switch checked={online} onCheckedChange={setOnline} />
           </div>
+          <Button variant="outline" size="sm" asChild><Link to="/driver/wallet" className="gap-1"><Wallet className="h-4 w-4" /> Wallet</Link></Button>
+          <Button variant="outline" size="sm" asChild><Link to="/driver/onboarding" className="gap-1"><IdCard className="h-4 w-4" /> Verify</Link></Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
@@ -647,7 +675,8 @@ function DriverDashboard() {
                       </Button>
                     )}
                     {nextStatus[delivery.status] && (
-                      <Button size="sm" variant="default" disabled={isUpdating} onClick={() => advance(delivery)}>
+                      <Button size="sm" variant="default" disabled={isUpdating} onClick={() => advance(delivery)} className="gap-1">
+                        {delivery.status === "assigned" && <KeyRound className="h-3 w-3" />}
                         {isUpdating ? "Updating..." : nextLabel[delivery.status]}
                       </Button>
                     )}
@@ -658,7 +687,7 @@ function DriverDashboard() {
           })}
         </div>
 
-        <div id="completed" className="lg:col-span-2 scroll-mt-24">
+        <div id="completed" className="lg:col-span-2 scroll-mt-24 space-y-4">
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Completed Deliveries</h2>
             {completed.length === 0 ? (
@@ -677,9 +706,43 @@ function DriverDashboard() {
               </div>
             )}
           </div>
+
+          <div className="healthcare-card p-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Star className="h-5 w-5 text-amber-400 fill-amber-400" /> Reviews
+              </h2>
+              {ratings.count > 0 && (
+                <span className="text-sm font-semibold">{ratings.avg.toFixed(1)} <span className="text-xs text-muted-foreground">({ratings.count})</span></span>
+              )}
+            </div>
+            {ratings.count === 0 ? (
+              <p className="text-sm text-muted-foreground">No ratings yet. Complete deliveries to receive feedback.</p>
+            ) : (
+              <div className="space-y-3">
+                {ratings.recent.map((r, i) => (
+                  <div key={i} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center gap-1 mb-1">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <Star key={j} className={`h-3.5 w-3.5 ${j < r.stars ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`} />
+                      ))}
+                      <span className="ml-auto text-[11px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
+                    </div>
+                    {r.comment && <p className="text-xs text-foreground">{r.comment}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
+      <PickupCodeDialog
+        deliveryId={pickupForDelivery?.id ?? null}
+        pharmacyName={pickupForDelivery?.pharmacy_name}
+        onClose={() => setPickupForDelivery(null)}
+        onVerified={() => { /* realtime will refresh */ }}
+      />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
