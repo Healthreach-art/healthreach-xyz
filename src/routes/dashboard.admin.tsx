@@ -8,11 +8,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Users, ShieldCheck, DollarSign, Activity,
-  CheckCircle, XCircle, Clock, Building2, Truck, Pill,
-  BarChart3, FileText, AlertTriangle, Settings, Loader2,
-  Crown, ShieldOff, TrendingUp,
+  Users, ShieldCheck, DollarSign, Activity, CheckCircle, XCircle,
+  Building2, Truck, Pill, BarChart3, FileText, AlertTriangle, Settings,
+  Loader2, Crown, ShieldOff, TrendingUp, MessageSquare, Star, RotateCcw,
+  PackageX, Stethoscope, ShoppingCart, CreditCard,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +24,9 @@ export const Route = createFileRoute("/dashboard/admin")({
   component: AdminDashboard,
 });
 
-type TabId = "overview" | "approvals" | "users" | "transactions" | "reports";
+type TabId =
+  | "overview" | "analytics" | "approvals" | "pharmacies" | "drivers"
+  | "orders" | "payments" | "refunds" | "prescriptions" | "complaints" | "users" | "reports";
 type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin";
 type ApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -35,21 +38,77 @@ interface UserRow {
   approval_status: ApprovalStatus | null;
   created_at: string;
   role: AppRole | null;
+  phone?: string | null;
 }
 
-interface TxnRow {
-  id: string;          // order id
-  patient: string;
-  medication: string;
+interface OrderRow {
+  id: string;
+  patient_id: string;
+  pharmacy_id: string;
+  medication_name: string;
+  quantity: number;
+  total_amount: number;
+  delivery_fee: number;
+  status: string;
+  created_at: string;
+}
+
+interface PaymentRow {
+  id: string;
+  order_id: string;
+  patient_id: string;
   amount: number;
-  method: string;      // payment method or "—"
-  status: string;      // payment status, fallback to order status
-  date: string;        // ISO order created_at
+  total_paid: number | null;
+  platform_fee: number | null;
+  pharmacy_amount: number | null;
+  status: string;
+  refund_status: string | null;
+  refund_amount: number | null;
+  invoice_number: string | null;
+  payment_method: string;
+  created_at: string;
 }
 
-const roleIcons: Record<string, typeof Users> = {
-  patient: Users, pharmacy: Pill, hospital: Building2, driver: Truck, admin: ShieldCheck,
-};
+interface DeliveryRow {
+  id: string;
+  order_id: string;
+  driver_id: string | null;
+  status: string;
+  created_at: string;
+}
+
+interface ComplaintRow {
+  id: string;
+  user_id: string;
+  order_id: string | null;
+  subject: string;
+  description: string;
+  category: string;
+  status: string;
+  admin_response: string;
+  created_at: string;
+}
+
+interface RatingRow {
+  id: string;
+  target_id: string;
+  target_type: "pharmacy" | "driver";
+  stars: number;
+  comment: string;
+  created_at: string;
+}
+
+interface PrescriptionRow {
+  id: string;
+  patient_id: string;
+  hospital_id: string;
+  medication_name: string;
+  doctor_name: string;
+  dosage: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 const roleColors: Record<string, string> = {
   patient: "bg-primary/10 text-primary",
   pharmacy: "bg-healthcare-teal/20 text-healthcare-teal",
@@ -57,11 +116,12 @@ const roleColors: Record<string, string> = {
   driver: "bg-healthcare-sky/20 text-healthcare-sky",
   admin: "bg-accent text-accent-foreground",
 };
-const txnStatusColors: Record<string, string> = {
-  completed: "bg-healthcare-green/20 text-healthcare-green",
-  pending: "bg-accent text-primary",
-  failed: "bg-destructive/10 text-destructive",
-  refunded: "bg-muted text-muted-foreground",
+
+const statusColor = (s: string) => {
+  if (["completed", "delivered", "approved", "resolved"].includes(s)) return "bg-healthcare-green/20 text-healthcare-green";
+  if (["failed", "rejected", "cancelled"].includes(s)) return "bg-destructive/10 text-destructive";
+  if (["refunded", "closed"].includes(s)) return "bg-muted text-muted-foreground";
+  return "bg-accent text-primary";
 };
 
 function AdminDashboard() {
@@ -69,7 +129,12 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [transactions, setTransactions] = useState<TxnRow[]>([]);
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryRow[]>([]);
+  const [complaints, setComplaints] = useState<ComplaintRow[]>([]);
+  const [ratings, setRatings] = useState<RatingRow[]>([]);
+  const [prescriptions, setPrescriptions] = useState<PrescriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -78,678 +143,654 @@ function AdminDashboard() {
     return localStorage.getItem("admin:autoApprove") === "1";
   });
   const [confirmRole, setConfirmRole] = useState<{ user: UserRow; action: "promote" | "demote" } | null>(null);
-  const [generatingInventory, setGeneratingInventory] = useState(false);
+  const [refundConfirm, setRefundConfirm] = useState<PaymentRow | null>(null);
+  const [complaintReply, setComplaintReply] = useState<ComplaintRow | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   useEffect(() => {
     if (authLoading) return;
     if (role && role !== "admin") {
-      toast.error("Admin access required", {
-        description: `Your account role is "${role}". Redirecting to your dashboard.`,
-      });
+      toast.error("Admin access required");
       navigate({ to: `/dashboard/${role}` as any });
     } else if (!role) {
       navigate({ to: "/login", search: { denied: "admin" } as any });
     }
   }, [role, authLoading, navigate]);
 
-  async function loadUsers() {
-    const [{ data: profiles }, { data: roles }] = await Promise.all([
-      supabase.from("profiles").select("user_id, full_name, email, organization_name, approval_status, created_at").order("created_at", { ascending: false }),
+  async function loadAll() {
+    const [
+      { data: profs }, { data: roleRows }, { data: ords }, { data: pays },
+      { data: dels }, { data: comps }, { data: rates }, { data: pres },
+    ] = await Promise.all([
+      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
+      supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("payments").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("deliveries").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("complaints").select("*").order("created_at", { ascending: false }),
+      supabase.from("ratings").select("*").order("created_at", { ascending: false }),
+      supabase.from("prescriptions").select("*").order("created_at", { ascending: false }).limit(500),
     ]);
-    const roleMap = new Map((roles ?? []).map((r) => [r.user_id, r.role as AppRole]));
-    const merged: UserRow[] = (profiles ?? []).map((p) => ({
-      user_id: p.user_id,
-      full_name: p.full_name,
-      email: p.email,
-      organization_name: p.organization_name,
-      approval_status: p.approval_status as ApprovalStatus | null,
-      created_at: p.created_at,
-      role: roleMap.get(p.user_id) ?? null,
-    }));
-    setUsers(merged);
-  }
-
-  async function loadTransactions() {
-    const { data: orders } = await supabase
-      .from("orders")
-      .select("id, patient_id, medication_name, total_amount, status, created_at")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    const orderRows = orders ?? [];
-    const orderIds = orderRows.map((o) => o.id);
-    const patientIds = Array.from(new Set(orderRows.map((o) => o.patient_id)));
-
-    const [{ data: payments }, { data: profs }] = await Promise.all([
-      orderIds.length > 0
-        ? supabase.from("payments").select("order_id, payment_method, status").in("order_id", orderIds)
-        : Promise.resolve({ data: [] as { order_id: string; payment_method: string; status: string }[] }),
-      patientIds.length > 0
-        ? supabase.from("profiles").select("user_id, full_name").in("user_id", patientIds)
-        : Promise.resolve({ data: [] as { user_id: string; full_name: string }[] }),
-    ]);
-
-    const paymentMap = new Map((payments ?? []).map((p) => [p.order_id, p]));
-    const nameMap = new Map((profs ?? []).map((p) => [p.user_id, p.full_name]));
-
-    const rows: TxnRow[] = orderRows.map((o) => {
-      const pay = paymentMap.get(o.id);
-      return {
-        id: o.id,
-        patient: nameMap.get(o.patient_id) || o.patient_id.slice(0, 8),
-        medication: o.medication_name,
-        amount: Number(o.total_amount),
-        method: pay?.payment_method || "—",
-        status: pay?.status || o.status,
-        date: o.created_at,
-      };
-    });
-    setTransactions(rows);
+    const roleMap = new Map((roleRows ?? []).map((r) => [r.user_id, r.role as AppRole]));
+    setUsers((profs ?? []).map((p: any) => ({
+      user_id: p.user_id, full_name: p.full_name, email: p.email,
+      organization_name: p.organization_name, approval_status: p.approval_status,
+      created_at: p.created_at, role: roleMap.get(p.user_id) ?? null, phone: p.phone,
+    })));
+    setOrders((ords ?? []) as any);
+    setPayments((pays ?? []) as any);
+    setDeliveries((dels ?? []) as any);
+    setComplaints((comps ?? []) as any);
+    setRatings((rates ?? []) as any);
+    setPrescriptions((pres ?? []) as any);
   }
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadUsers(), loadTransactions()]).finally(() => setLoading(false));
+    loadAll().finally(() => setLoading(false));
     const channel = supabase
       .channel("admin-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => loadUsers())
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles" }, () => loadUsers())
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => loadTransactions())
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => loadTransactions())
+      .on("postgres_changes", { event: "*", schema: "public" }, () => loadAll())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const userMap = useMemo(() => new Map(users.map((u) => [u.user_id, u])), [users]);
+  const nameOf = (id: string) => userMap.get(id)?.full_name || userMap.get(id)?.organization_name || id.slice(0, 8);
+
   async function updateApproval(userId: string, status: ApprovalStatus) {
     setUpdatingId(userId);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ approval_status: status })
-      .eq("user_id", userId);
+    const { error } = await supabase.from("profiles").update({ approval_status: status }).eq("user_id", userId);
     setUpdatingId(null);
-    if (error) {
-      toast.error(`Failed: ${error.message}`);
-      return;
-    }
+    if (error) return toast.error(error.message);
     toast.success(`User ${status}`);
-    setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, approval_status: status } : u));
   }
 
-  // Promote a user to admin (insert user_roles row)
   async function promoteToAdmin(userId: string) {
     setUpdatingId(userId);
     const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "admin" });
     setUpdatingId(null);
-    if (error) { toast.error(`Failed: ${error.message}`); return; }
-    toast.success("User promoted to admin");
-    loadUsers();
+    if (error) return toast.error(error.message);
+    toast.success("Promoted to admin");
   }
 
-  // Demote: delete the admin role row for this user
   async function demoteFromAdmin(userId: string) {
     setUpdatingId(userId);
     const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
     setUpdatingId(null);
-    if (error) { toast.error(`Failed: ${error.message}`); return; }
-    toast.success("Admin privileges revoked");
-    loadUsers();
+    if (error) return toast.error(error.message);
+    toast.success("Admin revoked");
+  }
+
+  async function processRefund(p: PaymentRow) {
+    const { error } = await supabase.from("payments")
+      .update({ refund_status: "refunded", refund_amount: p.total_paid ?? p.amount, status: "refunded" } as any)
+      .eq("id", p.id);
+    if (error) return toast.error(error.message);
+    await supabase.from("orders").update({ status: "cancelled" } as any).eq("id", p.order_id);
+    toast.success("Refund processed");
+    setRefundConfirm(null);
+  }
+
+  async function updateComplaintStatus(id: string, status: string, response?: string) {
+    const patch: any = { status };
+    if (response !== undefined) patch.admin_response = response;
+    const { error } = await supabase.from("complaints").update(patch).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success(`Complaint ${status}`);
+    setComplaintReply(null);
+    setReplyText("");
   }
 
   function toggleAutoApprove(next: boolean) {
     setAutoApprove(next);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("admin:autoApprove", next ? "1" : "0");
-    }
-    toast.success(next ? "Auto-approve enabled" : "Auto-approve disabled");
+    localStorage.setItem("admin:autoApprove", next ? "1" : "0");
+    toast.success(next ? "Auto-approve on" : "Auto-approve off");
   }
 
-  // Auto-approve newly pending partners when the toggle is on
   useEffect(() => {
     if (!autoApprove) return;
-    const toApprove = users.filter(
-      (u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role)
-    );
-    toApprove.forEach((u) => updateApproval(u.user_id, "approved"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role))
+      .forEach((u) => updateApproval(u.user_id, "approved"));
   }, [autoApprove, users.length]);
 
+  // ===== Derived analytics =====
+  const pharmacies = users.filter((u) => u.role === "pharmacy");
+  const drivers = users.filter((u) => u.role === "driver");
+  const patients = users.filter((u) => u.role === "patient");
   const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role));
 
-  // Real-data metrics derived from transactions
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlyTxns = transactions.filter((t) => new Date(t.date) >= startOfMonth);
-  const monthlyRevenue = monthlyTxns
-    .filter((t) => t.status === "completed" || t.status === "delivered")
-    .reduce((s, t) => s + t.amount, 0);
-  const totalRevenue = transactions
-    .filter((t) => t.status === "completed" || t.status === "delivered")
-    .reduce((s, t) => s + t.amount, 0);
-  const activeOrdersCount = transactions.filter((t) =>
-    !["delivered", "cancelled", "completed", "refunded", "failed"].includes(t.status)
-  ).length;
-  const deliveredCount = transactions.filter((t) => t.status === "delivered").length;
-  const avgOrderValue = transactions.length > 0
-    ? transactions.reduce((s, t) => s + t.amount, 0) / transactions.length
-    : 0;
-  const newUsersThisMonth = users.filter((u) => new Date(u.created_at) >= startOfMonth).length;
+  const completedPays = payments.filter((p) => p.status === "completed");
+  const gmv = completedPays.reduce((s, p) => s + Number(p.total_paid ?? p.amount), 0);
+  const platformRevenue = completedPays.reduce((s, p) => s + Number(p.platform_fee ?? 0), 0);
+  const refunds = payments.filter((p) => p.refund_status === "refunded");
+  const refundTotal = refunds.reduce((s, p) => s + Number(p.refund_amount ?? 0), 0);
+  const failedDeliveries = deliveries.filter((d) => ["failed", "cancelled"].includes(d.status)).length;
+  const activeOrders = orders.filter((o) => !["delivered", "cancelled", "completed", "refunded"].includes(o.status)).length;
 
-  // Last-7-days revenue series for sparkline
-  const revenueSeries = useMemo(() => {
-    const days: { label: string; revenue: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const next = new Date(d);
-      next.setDate(d.getDate() + 1);
-      const total = transactions
-        .filter((t) => {
-          const td = new Date(t.date);
-          return td >= d && td < next && (t.status === "completed" || t.status === "delivered");
-        })
-        .reduce((s, t) => s + t.amount, 0);
-      days.push({ label: d.toLocaleDateString(undefined, { weekday: "short" }), revenue: total });
-    }
-    return days;
-  }, [transactions]);
-  const maxRevenue = Math.max(1, ...revenueSeries.map((d) => d.revenue));
+  const since = Date.now() - 7 * 86400000;
+  const activeUsers = new Set(orders.filter((o) => new Date(o.created_at).getTime() > since).map((o) => o.patient_id)).size;
+
+  // Driver performance
+  const driverStats = drivers.map((d) => {
+    const myDels = deliveries.filter((x) => x.driver_id === d.user_id);
+    const completed = myDels.filter((x) => x.status === "delivered").length;
+    const failed = myDels.filter((x) => ["failed", "cancelled"].includes(x.status)).length;
+    const dRatings = ratings.filter((r) => r.target_type === "driver" && r.target_id === d.user_id);
+    const avg = dRatings.length ? dRatings.reduce((s, r) => s + r.stars, 0) / dRatings.length : 0;
+    return { driver: d, total: myDels.length, completed, failed, avgRating: avg, ratingCount: dRatings.length };
+  });
+
+  // Pharmacy ratings
+  const pharmacyStats = pharmacies.map((p) => {
+    const pRatings = ratings.filter((r) => r.target_type === "pharmacy" && r.target_id === p.user_id);
+    const avg = pRatings.length ? pRatings.reduce((s, r) => s + r.stars, 0) / pRatings.length : 0;
+    const ordersFulfilled = orders.filter((o) => o.pharmacy_id === p.user_id && o.status === "delivered").length;
+    return { pharmacy: p, avgRating: avg, ratingCount: pRatings.length, ordersFulfilled };
+  });
+
+  const tabs: { id: TabId; label: string; icon: typeof Users; badge?: number }[] = [
+    { id: "overview", label: "Overview", icon: BarChart3 },
+    { id: "analytics", label: "Analytics", icon: TrendingUp },
+    { id: "approvals", label: "Approvals", icon: CheckCircle, badge: pending.length },
+    { id: "pharmacies", label: "Pharmacies", icon: Pill },
+    { id: "drivers", label: "Drivers", icon: Truck },
+    { id: "orders", label: "Orders", icon: ShoppingCart },
+    { id: "payments", label: "Payments", icon: CreditCard },
+    { id: "refunds", label: "Refunds", icon: RotateCcw, badge: refunds.length },
+    { id: "prescriptions", label: "Prescriptions", icon: Stethoscope },
+    { id: "complaints", label: "Complaints", icon: MessageSquare, badge: complaints.filter((c) => c.status === "open").length },
+    { id: "users", label: "Users", icon: Users },
+    { id: "reports", label: "Reports", icon: FileText },
+  ];
 
   function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
-    const escape = (v: string | number) => {
-      const s = String(v ?? "");
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = filename; a.click();
+    const esc = (v: string | number) => /[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? "");
+    const csv = [headers, ...rows].map((r) => r.map(esc).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
     toast.success(`${filename} downloaded`);
   }
 
-  async function generateReport(kind: "financial" | "users" | "orders" | "inventory") {
-    if (kind === "financial") {
-      downloadCsv(
-        "financial-report.csv",
-        ["Order ID", "Patient", "Medication", "Amount (ZAR)", "Method", "Status", "Date"],
-        transactions.map((t) => [t.id, t.patient, t.medication, t.amount.toFixed(2), t.method, t.status, t.date]),
-      );
-    } else if (kind === "users") {
-      downloadCsv(
-        "user-activity-report.csv",
-        ["User ID", "Name", "Email", "Role", "Approval", "Joined"],
-        users.map((u) => [u.user_id, u.full_name, u.email, u.role ?? "", u.approval_status ?? "", u.created_at]),
-      );
-    } else if (kind === "orders") {
-      downloadCsv(
-        "order-report.csv",
-        ["Order ID", "Patient", "Medication", "Amount (ZAR)", "Status", "Date"],
-        transactions.map((t) => [t.id, t.patient, t.medication, t.amount.toFixed(2), t.status, t.date]),
-      );
-    } else {
-      // Real inventory report: join medications with their pharmacy profile
-      setGeneratingInventory(true);
-      const { data: meds, error } = await supabase
-        .from("medications")
-        .select("id, pharmacy_id, name, category, price, stock_quantity, requires_prescription, created_at")
-        .order("name");
-      if (error || !meds) {
-        setGeneratingInventory(false);
-        toast.error(error?.message || "Failed to load inventory");
-        return;
-      }
-      const pharmacyIds = Array.from(new Set(meds.map((m) => m.pharmacy_id)));
-      const { data: profs } = pharmacyIds.length > 0
-        ? await supabase.from("profiles").select("user_id, organization_name, full_name").in("user_id", pharmacyIds)
-        : { data: [] as { user_id: string; organization_name: string | null; full_name: string }[] };
-      const pharmMap = new Map((profs ?? []).map((p) => [p.user_id, p.organization_name || p.full_name || "Pharmacy"]));
-      downloadCsv(
-        "inventory-report.csv",
-        ["Pharmacy", "Medication", "Category", "Price (ZAR)", "Stock", "Prescription Required", "Added"],
-        meds.map((m) => [
-          pharmMap.get(m.pharmacy_id) || m.pharmacy_id.slice(0, 8),
-          m.name,
-          m.category || "",
-          Number(m.price).toFixed(2),
-          m.stock_quantity,
-          m.requires_prescription ? "Yes" : "No",
-          m.created_at,
-        ]),
-      );
-      setGeneratingInventory(false);
-    }
+  if (authLoading || loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
-
-  const tabs: { id: TabId; label: string; icon: typeof Users }[] = [
-    { id: "overview", label: "Overview", icon: BarChart3 },
-    { id: "approvals", label: "Approvals", icon: CheckCircle },
-    { id: "users", label: "Users", icon: Users },
-    { id: "transactions", label: "Transactions", icon: DollarSign },
-    { id: "reports", label: "Reports", icon: FileText },
-  ];
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Admin Master Control</h1>
           <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Administrator"}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4 mr-1" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
       </div>
 
-      <div className="mb-8 flex gap-1 overflow-x-auto rounded-lg bg-muted p-1">
+      <div className="mb-6 flex gap-1 overflow-x-auto rounded-lg bg-muted p-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <tab.icon className="h-4 w-4" />
             {tab.label}
-            {tab.id === "approvals" && pending.length > 0 && (
-              <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
-                {pending.length}
+            {tab.badge ? (
+              <span className="ml-1 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
+                {tab.badge}
               </span>
-            )}
+            ) : null}
           </button>
         ))}
       </div>
 
+      {/* OVERVIEW */}
       {activeTab === "overview" && (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-            {[
-              { icon: Users, label: "Total Users", value: String(users.length), color: "text-primary" },
-              { icon: ShieldCheck, label: "Pending Approvals", value: String(pending.length), color: "text-destructive" },
-              { icon: DollarSign, label: "Revenue (Month)", value: `R ${monthlyRevenue.toFixed(0)}`, color: "text-healthcare-green" },
-              { icon: Activity, label: "Active Orders", value: String(activeOrdersCount), color: "text-healthcare-teal" },
-            ].map((stat) => (
-              <div key={stat.label} className="healthcare-card p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { icon: DollarSign, label: "Total GMV", value: `R ${gmv.toFixed(0)}`, color: "text-healthcare-green" },
+            { icon: TrendingUp, label: "Platform Revenue", value: `R ${platformRevenue.toFixed(0)}`, color: "text-primary" },
+            { icon: Activity, label: "Active Orders", value: activeOrders, color: "text-healthcare-teal" },
+            { icon: Users, label: "Active Users (7d)", value: activeUsers, color: "text-primary" },
+            { icon: Pill, label: "Pharmacies", value: pharmacies.length, color: "text-healthcare-teal" },
+            { icon: Truck, label: "Drivers", value: drivers.length, color: "text-healthcare-sky" },
+            { icon: PackageX, label: "Failed Deliveries", value: failedDeliveries, color: "text-destructive" },
+            { icon: RotateCcw, label: "Refunds", value: `R ${refundTotal.toFixed(0)}`, color: "text-destructive" },
+          ].map((s) => (
+            <div key={s.label} className="healthcare-card p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <s.icon className={`h-5 w-5 ${s.color}`} />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-xl font-bold text-foreground">{s.value}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ANALYTICS */}
+      {activeTab === "analytics" && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Truck className="h-5 w-5" /> Driver Performance</h2>
+            <div className="space-y-3">
+              {driverStats.length === 0 && <p className="text-sm text-muted-foreground">No drivers yet.</p>}
+              {driverStats.map((d) => (
+                <div key={d.driver.user_id} className="rounded-lg border border-border p-3">
+                  <div className="flex justify-between items-start">
+                    <p className="font-medium text-foreground">{d.driver.full_name || d.driver.email}</p>
+                    <span className="flex items-center gap-1 text-sm">
+                      <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                      {d.avgRating.toFixed(1)} ({d.ratingCount})
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
-                    <p className="text-xl font-bold text-foreground">{stat.value}</p>
+                  <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                    <div><span className="text-muted-foreground">Total: </span>{d.total}</div>
+                    <div className="text-healthcare-green">Done: {d.completed}</div>
+                    <div className="text-destructive">Failed: {d.failed}</div>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Pill className="h-5 w-5" /> Pharmacy Ratings</h2>
+            <div className="space-y-3">
+              {pharmacyStats.length === 0 && <p className="text-sm text-muted-foreground">No pharmacies yet.</p>}
+              {pharmacyStats.map((p) => (
+                <div key={p.pharmacy.user_id} className="rounded-lg border border-border p-3">
+                  <div className="flex justify-between items-start">
+                    <p className="font-medium text-foreground">{p.pharmacy.organization_name || p.pharmacy.full_name}</p>
+                    <span className="flex items-center gap-1 text-sm">
+                      <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                      {p.avgRating.toFixed(1)} ({p.ratingCount})
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Orders fulfilled: {p.ordersFulfilled}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* APPROVALS */}
+      {activeTab === "approvals" && (
+        <div className="healthcare-card p-6">
+          <h2 className="text-lg font-semibold mb-4">Pending Approvals ({pending.length})</h2>
+          {pending.length === 0 && <p className="text-sm text-muted-foreground">No pending approvals.</p>}
+          <div className="space-y-3">
+            {pending.map((u) => (
+              <div key={u.user_id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div>
+                  <p className="font-medium">{u.full_name || u.email}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{u.role} • {u.email}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "approved")}>
+                    <CheckCircle className="h-3 w-3" /> Approve
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-destructive" onClick={() => updateApproval(u.user_id, "rejected")}>
+                    <XCircle className="h-3 w-3" /> Reject
+                  </Button>
                 </div>
               </div>
             ))}
           </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="healthcare-card p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">User Distribution</h2>
-              <div className="space-y-3">
-                {(["patient", "pharmacy", "hospital", "driver", "admin"] as AppRole[]).map((r) => {
-                  const count = users.filter((u) => u.role === r).length;
-                  const pct = users.length ? Math.round((count / users.length) * 100) : 0;
-                  return (
-                    <div key={r} className="flex items-center gap-3">
-                      <span className="w-20 text-sm text-muted-foreground capitalize">{r}s</span>
-                      <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full healthcare-gradient" style={{ width: `${pct}%` }} />
-                      </div>
-                      <span className="text-sm font-medium text-foreground w-12 text-right">{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="healthcare-card p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive" /> Pending Approvals
-              </h2>
-              <div className="space-y-3">
-                {pending.length === 0 && <p className="text-sm text-muted-foreground">No pending approvals.</p>}
-                {pending.slice(0, 3).map((item) => {
-                  const RoleIcon = roleIcons[item.role!] || Users;
-                  return (
-                    <div key={item.user_id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${roleColors[item.role!]}`}>
-                          <RoleIcon className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{item.full_name || item.email}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{item.role}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="default" className="h-7 px-2" disabled={updatingId === item.user_id} onClick={() => updateApproval(item.user_id, "approved")}>
-                          <CheckCircle className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-destructive" disabled={updatingId === item.user_id} onClick={() => updateApproval(item.user_id, "rejected")}>
-                          <XCircle className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {pending.length > 0 && (
-                  <Button variant="ghost" size="sm" className="w-full" onClick={() => setActiveTab("approvals")}>
-                    View all approvals →
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 7-day revenue trend */}
-          <div className="healthcare-card p-6 mt-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" /> Revenue — Last 7 Days
-              <span className="ml-auto text-xs font-normal text-muted-foreground">
-                Total: R {revenueSeries.reduce((s, d) => s + d.revenue, 0).toFixed(0)}
-              </span>
-            </h2>
-            <div className="flex items-end gap-2 h-40">
-              {revenueSeries.map((d, idx) => {
-                const heightPct = Math.max(2, (d.revenue / maxRevenue) * 100);
-                return (
-                  <div key={idx} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full flex items-end" style={{ height: "100%" }}>
-                      <div
-                        className="w-full rounded-t-md bg-gradient-to-t from-primary/40 to-primary transition-all"
-                        style={{ height: `${heightPct}%` }}
-                        title={`R ${d.revenue.toFixed(2)}`}
-                      />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{d.label}</span>
-                    <span className="text-[10px] font-medium text-foreground">R{Math.round(d.revenue)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </>
+        </div>
       )}
 
-      {activeTab === "approvals" && (
+      {/* PHARMACIES */}
+      {activeTab === "pharmacies" && (
         <div className="healthcare-card p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Pending Approvals ({pending.length})</h2>
-          {loading && <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
-          {!loading && pending.length === 0 && <p className="text-sm text-muted-foreground">No accounts awaiting approval.</p>}
-          <div className="space-y-4">
-            {pending.map((item) => {
-              const RoleIcon = roleIcons[item.role!] || Users;
-              return (
-                <div key={item.user_id} className="rounded-lg border border-border p-4">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="flex items-start gap-3">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${roleColors[item.role!]}`}>
-                        <RoleIcon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{item.full_name || "Unnamed"}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{item.role} • {item.email}</p>
-                        {item.organization_name && <p className="text-xs text-muted-foreground">Organization: {item.organization_name}</p>}
-                        <p className="text-xs text-muted-foreground mt-1">Applied: {new Date(item.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="default" className="gap-1" disabled={updatingId === item.user_id} onClick={() => updateApproval(item.user_id, "approved")}>
-                        {updatingId === item.user_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />} Approve
-                      </Button>
-                      <Button size="sm" variant="outline" className="gap-1 text-destructive" disabled={updatingId === item.user_id} onClick={() => updateApproval(item.user_id, "rejected")}>
-                        <XCircle className="h-3 w-3" /> Reject
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <h2 className="text-lg font-semibold mb-4">Pharmacies ({pharmacies.length})</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground">
+                <th className="pb-2">Pharmacy</th><th className="pb-2">Email</th><th className="pb-2">Status</th>
+                <th className="pb-2">Rating</th><th className="pb-2">Orders</th><th className="pb-2">Actions</th>
+              </tr></thead>
+              <tbody>
+                {pharmacies.map((p) => {
+                  const stats = pharmacyStats.find((s) => s.pharmacy.user_id === p.user_id);
+                  return (
+                    <tr key={p.user_id} className="border-b last:border-0">
+                      <td className="py-2 font-medium">{p.organization_name || p.full_name}</td>
+                      <td className="py-2 text-muted-foreground">{p.email}</td>
+                      <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(p.approval_status || "")}`}>{p.approval_status}</span></td>
+                      <td className="py-2">{stats?.avgRating.toFixed(1)} ({stats?.ratingCount})</td>
+                      <td className="py-2">{stats?.ordersFulfilled}</td>
+                      <td className="py-2 flex gap-1">
+                        {p.approval_status !== "approved" && <Button size="sm" variant="outline" className="h-7" onClick={() => updateApproval(p.user_id, "approved")}>Approve</Button>}
+                        {p.approval_status === "approved" && <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => updateApproval(p.user_id, "rejected")}>Suspend</Button>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
+      {/* DRIVERS */}
+      {activeTab === "drivers" && (
+        <div className="healthcare-card p-6">
+          <h2 className="text-lg font-semibold mb-4">Drivers ({drivers.length})</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground">
+                <th className="pb-2">Driver</th><th className="pb-2">Status</th><th className="pb-2">Deliveries</th>
+                <th className="pb-2">Completed</th><th className="pb-2">Failed</th><th className="pb-2">Rating</th><th className="pb-2">Actions</th>
+              </tr></thead>
+              <tbody>
+                {driverStats.map((d) => (
+                  <tr key={d.driver.user_id} className="border-b last:border-0">
+                    <td className="py-2 font-medium">{d.driver.full_name || d.driver.email}</td>
+                    <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(d.driver.approval_status || "")}`}>{d.driver.approval_status}</span></td>
+                    <td className="py-2">{d.total}</td>
+                    <td className="py-2 text-healthcare-green">{d.completed}</td>
+                    <td className="py-2 text-destructive">{d.failed}</td>
+                    <td className="py-2">⭐ {d.avgRating.toFixed(1)}</td>
+                    <td className="py-2 flex gap-1">
+                      {d.driver.approval_status !== "approved" && <Button size="sm" variant="outline" className="h-7" onClick={() => updateApproval(d.driver.user_id, "approved")}>Approve</Button>}
+                      {d.driver.approval_status === "approved" && <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => updateApproval(d.driver.user_id, "rejected")}>Suspend</Button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ORDERS */}
+      {activeTab === "orders" && (
+        <div className="healthcare-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">All Orders ({orders.length})</h2>
+            <Button size="sm" variant="outline" onClick={() => downloadCsv("orders.csv",
+              ["ID","Patient","Pharmacy","Medication","Qty","Total","Status","Date"],
+              orders.map((o) => [o.id, nameOf(o.patient_id), nameOf(o.pharmacy_id), o.medication_name, o.quantity, o.total_amount, o.status, o.created_at]))}>
+              Export CSV
+            </Button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground">
+                <th className="pb-2">Order</th><th className="pb-2">Patient</th><th className="pb-2">Pharmacy</th>
+                <th className="pb-2">Medication</th><th className="pb-2">Total</th><th className="pb-2">Status</th><th className="pb-2">Date</th>
+              </tr></thead>
+              <tbody>
+                {orders.map((o) => (
+                  <tr key={o.id} className="border-b last:border-0">
+                    <td className="py-2 font-mono text-xs">{o.id.slice(0, 8)}</td>
+                    <td className="py-2">{nameOf(o.patient_id)}</td>
+                    <td className="py-2">{nameOf(o.pharmacy_id)}</td>
+                    <td className="py-2">{o.medication_name} ×{o.quantity}</td>
+                    <td className="py-2 font-semibold">R {Number(o.total_amount).toFixed(2)}</td>
+                    <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(o.status)}`}>{o.status.replace(/_/g, " ")}</span></td>
+                    <td className="py-2 text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* PAYMENTS */}
+      {activeTab === "payments" && (
+        <div className="healthcare-card p-6">
+          <h2 className="text-lg font-semibold mb-4">Payments ({payments.length})</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground">
+                <th className="pb-2">Invoice</th><th className="pb-2">Patient</th><th className="pb-2">Amount</th>
+                <th className="pb-2">Platform Fee</th><th className="pb-2">Method</th><th className="pb-2">Status</th><th className="pb-2">Actions</th>
+              </tr></thead>
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p.id} className="border-b last:border-0">
+                    <td className="py-2 font-mono text-xs">{p.invoice_number || p.id.slice(0, 8)}</td>
+                    <td className="py-2">{nameOf(p.patient_id)}</td>
+                    <td className="py-2 font-semibold">R {Number(p.total_paid ?? p.amount).toFixed(2)}</td>
+                    <td className="py-2 text-muted-foreground">R {Number(p.platform_fee ?? 0).toFixed(2)}</td>
+                    <td className="py-2 capitalize">{p.payment_method}</td>
+                    <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(p.status)}`}>{p.status}</span></td>
+                    <td className="py-2">
+                      {p.status === "completed" && p.refund_status !== "refunded" && (
+                        <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => setRefundConfirm(p)}>Refund</Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* REFUNDS */}
+      {activeTab === "refunds" && (
+        <div className="healthcare-card p-6">
+          <h2 className="text-lg font-semibold mb-4">Refunds ({refunds.length}) — Total: R {refundTotal.toFixed(2)}</h2>
+          <div className="space-y-2">
+            {refunds.length === 0 && <p className="text-sm text-muted-foreground">No refunds yet.</p>}
+            {refunds.map((p) => (
+              <div key={p.id} className="flex justify-between items-center rounded-lg border p-3">
+                <div>
+                  <p className="font-medium">{p.invoice_number || p.id.slice(0, 8)}</p>
+                  <p className="text-xs text-muted-foreground">{nameOf(p.patient_id)} • {new Date(p.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">R {Number(p.refund_amount ?? 0).toFixed(2)}</p>
+                  <span className="text-xs text-destructive">refunded</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* PRESCRIPTIONS */}
+      {activeTab === "prescriptions" && (
+        <div className="healthcare-card p-6">
+          <h2 className="text-lg font-semibold mb-4">Prescriptions ({prescriptions.length})</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground">
+                <th className="pb-2">Patient</th><th className="pb-2">Hospital</th><th className="pb-2">Medication</th>
+                <th className="pb-2">Doctor</th><th className="pb-2">Dosage</th><th className="pb-2">Active</th><th className="pb-2">Date</th>
+              </tr></thead>
+              <tbody>
+                {prescriptions.map((p) => (
+                  <tr key={p.id} className="border-b last:border-0">
+                    <td className="py-2">{nameOf(p.patient_id)}</td>
+                    <td className="py-2">{nameOf(p.hospital_id)}</td>
+                    <td className="py-2 font-medium">{p.medication_name}</td>
+                    <td className="py-2">{p.doctor_name}</td>
+                    <td className="py-2">{p.dosage}</td>
+                    <td className="py-2">{p.is_active ? "✅" : "❌"}</td>
+                    <td className="py-2 text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* COMPLAINTS */}
+      {activeTab === "complaints" && (
+        <div className="healthcare-card p-6">
+          <h2 className="text-lg font-semibold mb-4">Complaints ({complaints.length})</h2>
+          {complaints.length === 0 && <p className="text-sm text-muted-foreground">No complaints filed.</p>}
+          <div className="space-y-3">
+            {complaints.map((c) => (
+              <div key={c.id} className="rounded-lg border border-border p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold">{c.subject}</p>
+                    <p className="text-xs text-muted-foreground">From {nameOf(c.user_id)} • {c.category} • {new Date(c.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(c.status)}`}>{c.status}</span>
+                </div>
+                <p className="text-sm mt-2">{c.description}</p>
+                {c.admin_response && <p className="text-sm mt-2 p-2 bg-muted rounded">↳ {c.admin_response}</p>}
+                <div className="flex gap-2 mt-3">
+                  <Button size="sm" variant="outline" className="h-7" onClick={() => { setComplaintReply(c); setReplyText(c.admin_response || ""); }}>Reply</Button>
+                  {c.status !== "resolved" && <Button size="sm" variant="outline" className="h-7" onClick={() => updateComplaintStatus(c.id, "resolved")}>Mark Resolved</Button>}
+                  {c.status !== "closed" && <Button size="sm" variant="outline" className="h-7 text-muted-foreground" onClick={() => updateComplaintStatus(c.id, "closed")}>Close</Button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* USERS */}
       {activeTab === "users" && (
         <div className="healthcare-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">All Users ({users.length})</h2>
-          </div>
-          {loading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="pb-3 font-medium text-muted-foreground">User</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Role</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Status</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Joined</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Actions</th>
+          <h2 className="text-lg font-semibold mb-4">All Users ({users.length})</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground">
+                <th className="pb-2">User</th><th className="pb-2">Role</th><th className="pb-2">Status</th><th className="pb-2">Actions</th>
+              </tr></thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.user_id} className="border-b last:border-0">
+                    <td className="py-2"><p className="font-medium">{u.full_name || "—"}</p><p className="text-xs text-muted-foreground">{u.email}</p></td>
+                    <td className="py-2">{u.role && <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${roleColors[u.role]}`}>{u.role}</span>}</td>
+                    <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(u.approval_status || "")}`}>{u.approval_status}</span></td>
+                    <td className="py-2 flex flex-wrap gap-1">
+                      {u.role !== "admin" && <Button size="sm" variant="outline" className="h-7" onClick={() => setConfirmRole({ user: u, action: "promote" })}><Crown className="h-3 w-3" /> Make Admin</Button>}
+                      {u.role === "admin" && <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => setConfirmRole({ user: u, action: "demote" })}><ShieldOff className="h-3 w-3" /> Demote</Button>}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.user_id} className="border-b border-border last:border-0">
-                      <td className="py-3">
-                        <p className="font-medium text-foreground">{u.full_name || "—"}</p>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
-                      </td>
-                      <td className="py-3">
-                        {u.role && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${roleColors[u.role]}`}>
-                            {u.role}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
-                          u.approval_status === "approved" ? "bg-healthcare-green/20 text-healthcare-green"
-                          : u.approval_status === "rejected" ? "bg-destructive/10 text-destructive"
-                          : "bg-accent text-primary"
-                        }`}>
-                          {u.approval_status || "—"}
-                        </span>
-                      </td>
-                      <td className="py-3 text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
-                      <td className="py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status !== "approved" && (
-                            <Button size="sm" variant="outline" className="h-7" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "approved")}>
-                              Approve
-                            </Button>
-                          )}
-                          {u.role && ["pharmacy", "hospital", "driver"].includes(u.role) && u.approval_status === "approved" && (
-                            <Button size="sm" variant="outline" className="h-7 text-destructive" disabled={updatingId === u.user_id} onClick={() => updateApproval(u.user_id, "rejected")}>
-                              Revoke
-                            </Button>
-                          )}
-                          {u.role !== "admin" && (
-                            <Button size="sm" variant="outline" className="h-7 gap-1" disabled={updatingId === u.user_id} onClick={() => setConfirmRole({ user: u, action: "promote" })}>
-                              <Crown className="h-3 w-3" /> Make Admin
-                            </Button>
-                          )}
-                          {u.role === "admin" && (
-                            <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" disabled={updatingId === u.user_id} onClick={() => setConfirmRole({ user: u, action: "demote" })}>
-                              <ShieldOff className="h-3 w-3" /> Demote
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {activeTab === "transactions" && (
-        <div className="healthcare-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Transaction History ({transactions.length})</h2>
-            <Button size="sm" variant="outline" onClick={() => generateReport("financial")}>Export CSV</Button>
-          </div>
-          {loading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          ) : transactions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No transactions yet. Patient orders will appear here.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="pb-3 font-medium text-muted-foreground">Order</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Patient</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Medication</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Amount</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Method</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Status</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((txn) => (
-                    <tr key={txn.id} className="border-b border-border last:border-0">
-                      <td className="py-3 font-mono text-xs text-muted-foreground">{txn.id.slice(0, 8)}</td>
-                      <td className="py-3 font-medium text-foreground">{txn.patient}</td>
-                      <td className="py-3 text-foreground">{txn.medication}</td>
-                      <td className="py-3 font-semibold text-foreground">R {txn.amount.toFixed(2)}</td>
-                      <td className="py-3 text-muted-foreground capitalize">{txn.method}</td>
-                      <td className="py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${txnStatusColors[txn.status] ?? "bg-accent text-accent-foreground"}`}>{txn.status.replace(/_/g, " ")}</span>
-                      </td>
-                      <td className="py-3 text-muted-foreground">{new Date(txn.date).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* REPORTS */}
       {activeTab === "reports" && (
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="healthcare-card p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Live Summary</h2>
-            <div className="space-y-4">
+            <h2 className="text-lg font-semibold mb-4">Live Summary</h2>
+            <div className="space-y-3">
               {[
-                { label: "Total Revenue", value: `R ${totalRevenue.toFixed(0)}` },
-                { label: "Revenue (This Month)", value: `R ${monthlyRevenue.toFixed(0)}` },
-                { label: "Orders Processed", value: String(transactions.length) },
-                { label: "New Users (This Month)", value: String(newUsersThisMonth) },
-                { label: "Deliveries Completed", value: String(deliveredCount) },
-                { label: "Average Order Value", value: `R ${avgOrderValue.toFixed(0)}` },
-              ].map((metric) => (
-                <div key={metric.label} className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{metric.label}</span>
-                  <span className="text-sm font-semibold text-foreground">{metric.value}</span>
-                </div>
+                { label: "Total GMV", value: `R ${gmv.toFixed(0)}` },
+                { label: "Platform Revenue", value: `R ${platformRevenue.toFixed(0)}` },
+                { label: "Refund Total", value: `R ${refundTotal.toFixed(0)}` },
+                { label: "Total Orders", value: orders.length },
+                { label: "Failed Deliveries", value: failedDeliveries },
+                { label: "Open Complaints", value: complaints.filter((c) => c.status === "open").length },
+              ].map((m) => (
+                <div key={m.label} className="flex justify-between"><span className="text-muted-foreground text-sm">{m.label}</span><span className="font-semibold text-sm">{m.value}</span></div>
               ))}
             </div>
           </div>
-
           <div className="healthcare-card p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Generate Reports</h2>
-            <div className="space-y-3">
-              {([
-                { kind: "financial", label: "Financial Report", desc: "Revenue, payments, and refunds" },
-                { kind: "users", label: "User Activity Report", desc: "Signups and roles" },
-                { kind: "orders", label: "Order Report", desc: "Orders, fulfillment, and status" },
-                { kind: "inventory", label: "Inventory Report", desc: "Stock levels across pharmacies" },
-              ] as const).map((report) => (
-                <div key={report.label} className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{report.label}</p>
-                    <p className="text-xs text-muted-foreground">{report.desc}</p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => generateReport(report.kind)}>Generate</Button>
-                </div>
-              ))}
+            <h2 className="text-lg font-semibold mb-4">Export</h2>
+            <div className="space-y-2">
+              <Button variant="outline" className="w-full justify-start" onClick={() => downloadCsv("payments.csv",
+                ["Invoice","Patient","Amount","Fee","Status","Date"],
+                payments.map((p) => [p.invoice_number || p.id, nameOf(p.patient_id), p.total_paid ?? p.amount, p.platform_fee ?? 0, p.status, p.created_at]))}>
+                Financial Report
+              </Button>
+              <Button variant="outline" className="w-full justify-start" onClick={() => downloadCsv("users.csv",
+                ["Name","Email","Role","Status","Joined"],
+                users.map((u) => [u.full_name, u.email, u.role ?? "", u.approval_status ?? "", u.created_at]))}>
+                Users Report
+              </Button>
+              <Button variant="outline" className="w-full justify-start" onClick={() => downloadCsv("complaints.csv",
+                ["Subject","User","Category","Status","Date"],
+                complaints.map((c) => [c.subject, nameOf(c.user_id), c.category, c.status, c.created_at]))}>
+                Complaints Report
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Settings Dialog */}
+      {/* Settings */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Admin Settings</DialogTitle>
-            <DialogDescription>Configure platform-wide preferences.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoApprove}
-                onChange={(e) => toggleAutoApprove(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-input accent-primary"
-              />
-              <div>
-                <p className="text-sm font-medium text-foreground">Auto-approve new partners</p>
-                <p className="text-xs text-muted-foreground">Automatically approve new pharmacy, hospital, and driver signups. Use with care.</p>
-              </div>
-            </label>
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-sm font-medium text-foreground mb-2">Quick stats</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="flex justify-between"><span className="text-muted-foreground">Admins</span><span className="font-medium">{users.filter((u) => u.role === "admin").length}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Pending</span><span className="font-medium">{pending.length}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Total users</span><span className="font-medium">{users.length}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Orders</span><span className="font-medium">{transactions.length}</span></div>
-              </div>
+          <DialogHeader><DialogTitle>Admin Settings</DialogTitle><DialogDescription>Platform preferences.</DialogDescription></DialogHeader>
+          <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer">
+            <input type="checkbox" checked={autoApprove} onChange={(e) => toggleAutoApprove(e.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
+            <div>
+              <p className="text-sm font-medium">Auto-approve new partners</p>
+              <p className="text-xs text-muted-foreground">Auto-approve pharmacy/hospital/driver signups.</p>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSettingsOpen(false)}>Close</Button>
-          </DialogFooter>
+          </label>
+          <DialogFooter><Button variant="outline" onClick={() => setSettingsOpen(false)}>Close</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Role change confirmation */}
-      <AlertDialog open={!!confirmRole} onOpenChange={(o) => !o && setConfirmRole(null)}>
+      {/* Refund confirmation */}
+      <AlertDialog open={!!refundConfirm} onOpenChange={(o) => !o && setRefundConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmRole?.action === "promote" ? "Promote to admin?" : "Revoke admin access?"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Issue refund?</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmRole?.action === "promote"
-                ? `${confirmRole?.user.full_name || confirmRole?.user.email} will gain full admin privileges.`
-                : `${confirmRole?.user.full_name || confirmRole?.user.email} will lose admin privileges.`}
+              Refund R {Number(refundConfirm?.total_paid ?? refundConfirm?.amount ?? 0).toFixed(2)} for invoice {refundConfirm?.invoice_number || refundConfirm?.id.slice(0, 8)}? This cancels the order.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className={confirmRole?.action === "demote" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
-              onClick={async (e) => {
-                e.preventDefault();
-                if (!confirmRole) return;
-                if (confirmRole.action === "promote") await promoteToAdmin(confirmRole.user.user_id);
-                else await demoteFromAdmin(confirmRole.user.user_id);
-                setConfirmRole(null);
-              }}
-            >
-              Confirm
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => refundConfirm && processRefund(refundConfirm)}>Refund</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Inventory loading indicator */}
-      {generatingInventory && (
-        <div className="fixed bottom-4 right-4 rounded-lg bg-background border border-border shadow-lg p-3 flex items-center gap-2 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" /> Generating inventory report…
-        </div>
-      )}
+      {/* Complaint reply */}
+      <Dialog open={!!complaintReply} onOpenChange={(o) => !o && setComplaintReply(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reply to complaint</DialogTitle><DialogDescription>{complaintReply?.subject}</DialogDescription></DialogHeader>
+          <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={5} placeholder="Type your response..." />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setComplaintReply(null)}>Cancel</Button>
+            <Button onClick={() => complaintReply && updateComplaintStatus(complaintReply.id, "in_progress", replyText)}>Send Reply</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Role change */}
+      <AlertDialog open={!!confirmRole} onOpenChange={(o) => !o && setConfirmRole(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmRole?.action === "promote" ? "Promote to admin?" : "Demote admin?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmRole?.action === "promote"
+                ? `Grant ${confirmRole.user.full_name || confirmRole.user.email} full admin access?`
+                : `Remove admin privileges from ${confirmRole?.user.full_name || confirmRole?.user.email}?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (!confirmRole) return;
+              confirmRole.action === "promote" ? promoteToAdmin(confirmRole.user.user_id) : demoteFromAdmin(confirmRole.user.user_id);
+              setConfirmRole(null);
+            }}>Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
