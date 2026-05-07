@@ -267,7 +267,19 @@ function DriverDashboard() {
       setOffers(enriched);
     }
 
-    Promise.all([loadDeliveries(), loadOffers()]).finally(() => setLoading(false));
+    Promise.all([loadDeliveries(), loadOffers(), loadRatings()]).finally(() => setLoading(false));
+
+    async function loadRatings() {
+      const { data } = await supabase
+        .from("ratings")
+        .select("stars, comment, created_at")
+        .eq("target_type", "driver")
+        .eq("target_id", user!.id)
+        .order("created_at", { ascending: false });
+      const rows = (data ?? []) as { stars: number; comment: string; created_at: string }[];
+      const avg = rows.length ? rows.reduce((s, r) => s + r.stars, 0) / rows.length : 0;
+      setRatings({ avg, count: rows.length, recent: rows.slice(0, 3) });
+    }
 
     const channel = supabase
       .channel(`driver-${user.id}`)
@@ -281,6 +293,7 @@ function DriverDashboard() {
         loadDeliveries();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "delivery_offers" }, () => loadOffers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "ratings", filter: `target_id=eq.${user.id}` }, () => loadRatings())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user]);
