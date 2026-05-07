@@ -390,7 +390,7 @@ function PatientDashboard() {
         {/* Sidebar */}
         <div className="lg:col-span-2 space-y-6">
           {/* Recent Orders */}
-          <div className="healthcare-card p-6">
+          <div id="orders" className="healthcare-card p-6 scroll-mt-24">
             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" /> Recent Orders
             </h2>
