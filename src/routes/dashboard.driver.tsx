@@ -3,13 +3,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   Truck, MapPin, Clock, CheckCircle, Package,
-  DollarSign, Navigation, Radio, X, Loader2, MessageCircle,
+  DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getMapboxDistance } from "@/utils/mapbox.functions";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
+import { DeliveryMap } from "@/components/DeliveryMap";
+import { SettingsDialog } from "@/components/SettingsDialog";
 
 type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered";
 
