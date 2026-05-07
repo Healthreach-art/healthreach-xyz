@@ -781,34 +781,14 @@ function PatientDashboard() {
           {/* Transactions */}
           <TransactionHistory role="patient" />
 
-          {/* Saved delivery address */}
-          <div id="address" className="scroll-mt-24"><SavedAddressCard /></div>
+          {/* Full order history with reorder + invoice download */}
+          <OrderHistory />
 
-          {/* Refill reminders */}
-          <div className="healthcare-card p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-              <Repeat className="h-5 w-5 text-primary" /> Refill Reminders
-            </h2>
-            {activePrescriptions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active prescriptions to refill.</p>
-            ) : (
-              <div className="space-y-2">
-                {activePrescriptions.slice(0, 3).map((p) => (
-                  <div key={p.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{p.medication_name}</p>
-                      <p className="text-xs text-muted-foreground">{p.dosage || "As prescribed"}</p>
-                    </div>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link to="/payment" search={{ medId: undefined, pharmacyId: undefined, name: p.medication_name, price: 120, qty: 1 }}>
-                        Refill
-                      </Link>
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Saved delivery addresses (multi, with GPS pin) */}
+          <div id="address" className="scroll-mt-24"><AddressBook /></div>
+
+          {/* Medication reminders & refill alerts */}
+          <MedicationReminders />
 
           {/* Payment methods */}
           <div id="payments" className="healthcare-card p-6 scroll-mt-24">
