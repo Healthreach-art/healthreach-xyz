@@ -976,3 +976,40 @@ function SavedAddressCard() {
     </div>
   );
 }
+
+const TIMELINE_STEPS: { key: string; label: string }[] = [
+  { key: "assigned", label: "Driver assigned" },
+  { key: "picked_up", label: "Picked up from pharmacy" },
+  { key: "in_transit", label: "On the way" },
+  { key: "delivered", label: "Delivered" },
+];
+
+function ActiveOrderTimeline({ status }: { status: string }) {
+  const idx = Math.max(0, TIMELINE_STEPS.findIndex((s) => s.key === status));
+  const stepsLeft = TIMELINE_STEPS.length - 1 - idx;
+  const eta = status === "delivered" ? "Delivered" : `~${stepsLeft * 8 + 4} min`;
+  return (
+    <div className="healthcare-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold flex items-center gap-2">
+          <Package className="h-4 w-4 text-primary" /> Order Timeline
+        </h2>
+        <span className="text-xs font-medium text-primary">ETA {eta}</span>
+      </div>
+      <ol className="space-y-2">
+        {TIMELINE_STEPS.map((s, i) => {
+          const done = i <= idx;
+          const active = i === idx && status !== "delivered";
+          return (
+            <li key={s.key} className="flex items-center gap-3 text-xs">
+              <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"} ${active ? "ring-2 ring-primary/30 animate-pulse" : ""}`}>
+                {i + 1}
+              </span>
+              <span className={done ? "text-foreground font-medium" : "text-muted-foreground"}>{s.label}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
