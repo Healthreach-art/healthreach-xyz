@@ -674,9 +674,16 @@ function PatientDashboard() {
                       <span>{new Date(order.created_at).toLocaleDateString()}</span>
                       <span>R {Number(order.total_amount).toFixed(2)}</span>
                     </div>
-                    <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
-                      <MessageCircle className="h-3 w-3" /> Chat
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
+                        <MessageCircle className="h-3 w-3" /> Chat
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" asChild>
+                        <Link to="/payment" search={{ name: order.medication_name, price: Number(order.total_amount), pharmacyId: "", qty: 1 }}>
+                          <Repeat className="h-3 w-3" /> Reorder
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
