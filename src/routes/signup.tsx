@@ -20,7 +20,7 @@ export const Route = createFileRoute("/signup")({
 const roles = [
   { value: "patient", label: "Patient", description: "Order medication and track health" },
   { value: "pharmacy", label: "Pharmacy", description: "Manage inventory and fulfill orders" },
-  { value: "hospital", label: "Hospital", description: "Issue prescriptions and coordinate care" },
+  // Hospital role temporarily hidden — only Patient, Pharmacy, Driver are user-selectable.
   { value: "driver", label: "Driver", description: "Deliver medications to patients" },
 ] as const;
 
@@ -35,8 +35,8 @@ function SignupPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const needsOrg = ["pharmacy", "hospital"].includes(selectedRole);
-  const needsApproval = ["pharmacy", "hospital", "driver"].includes(selectedRole);
+  const needsOrg = ["pharmacy"].includes(selectedRole);
+  const needsApproval = ["pharmacy", "driver"].includes(selectedRole);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
