@@ -87,7 +87,7 @@ function PatientDashboard() {
   const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeDelivery, setActiveDelivery] = useState<{ pickup: string | null; dropoff: string | null; status: string } | null>(null);
+  const [activeDelivery, setActiveDelivery] = useState<{ orderId: string; pickup: string | null; dropoff: string | null; status: string } | null>(null);
 
   // Restore scroll to URL hash on load / refresh
   useEffect(() => {
