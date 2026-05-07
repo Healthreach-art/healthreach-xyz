@@ -25,6 +25,9 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { PharmacyReviewActions, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { customerPrice } from "@/lib/pricing";
+import { PharmacyAnalytics } from "@/components/PharmacyAnalytics";
+import { PharmacyFinance } from "@/components/PharmacyFinance";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { RoleGuard } from "@/components/RoleGuard";
 
@@ -40,6 +43,9 @@ interface Medication {
   price: number;
   category: string | null;
   requires_prescription?: boolean | null;
+  image_url?: string | null;
+  expiry_date?: string | null;
+  batch_number?: string | null;
 }
 
 interface Order {
@@ -77,7 +83,8 @@ function PharmacyDashboard() {
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [savingMed, setSavingMed] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false });
+  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "" });
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [pxQueue, setPxQueue] = useState<PrescriptionUpload[]>([]);
   const [pxFilter, setPxFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
 
@@ -189,7 +196,7 @@ function PharmacyDashboard() {
 
   function openAddMedication() {
     setEditingMed(null);
-    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false });
+    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "" });
     setMedDialogOpen(true);
   }
 
@@ -201,8 +208,31 @@ function PharmacyDashboard() {
       stock: String(med.stock_quantity),
       category: med.category ?? "",
       requires_prescription: !!med.requires_prescription,
+      image_url: med.image_url ?? "",
+      expiry_date: med.expiry_date ?? "",
+      batch_number: med.batch_number ?? "",
     });
     setMedDialogOpen(true);
+  }
+
+  async function handleImageUpload(file: File) {
+    if (!user) return;
+    if (!file.type.startsWith("image/")) { toast.error("Choose an image file"); return; }
+    if (file.size > 4 * 1024 * 1024) { toast.error("Max 4 MB"); return; }
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error } = await supabase.storage.from("medication-images").upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+      const { data } = supabase.storage.from("medication-images").getPublicUrl(path);
+      setForm((f) => ({ ...f, image_url: data.publicUrl }));
+      toast.success("Image uploaded");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingImage(false);
+    }
   }
 
   async function handleSaveMedication(e: FormEvent) {
@@ -216,6 +246,9 @@ function PharmacyDashboard() {
       stock_quantity: Number(form.stock) || 0,
       category: form.category || null,
       requires_prescription: form.requires_prescription,
+      image_url: form.image_url || null,
+      expiry_date: form.expiry_date || null,
+      batch_number: form.batch_number || null,
     };
     const { error } = editingMed
       ? await supabase.from("medications").update(payload).eq("id", editingMed.id)
@@ -530,21 +563,35 @@ function PharmacyDashboard() {
           <div className="grid gap-3 sm:grid-cols-2">
             {inventory.map((item) => {
               const low = item.stock_quantity <= LOW_STOCK_THRESHOLD;
-
+              const out = item.stock_quantity === 0;
+              const expSoon = item.expiry_date && (new Date(item.expiry_date).getTime() - Date.now()) < 1000 * 60 * 60 * 24 * 30;
+              const expired = item.expiry_date && new Date(item.expiry_date).getTime() < Date.now();
               return (
                 <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow">
                   <div className="relative h-24 overflow-hidden">
-                    <img src={medGeneric} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+                    <img src={item.image_url || medGeneric} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
                     <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                      low ? "bg-destructive text-destructive-foreground" : "bg-healthcare-green text-primary-foreground"
+                      out ? "bg-muted text-muted-foreground" : low ? "bg-destructive text-destructive-foreground" : "bg-healthcare-green text-primary-foreground"
                     }`}>
-                      {item.stock_quantity} units
+                      {out ? "Hidden — out of stock" : `${item.stock_quantity} units`}
                     </span>
+                    {(expired || expSoon) && (
+                      <span className={`absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${expired ? "bg-destructive text-destructive-foreground" : "bg-healthcare-sky/90 text-primary-foreground"}`}>
+                        {expired ? "Expired" : "Expires soon"}
+                      </span>
+                    )}
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{item.category || "—"} · R {Number(item.price).toFixed(2)}</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">Customer sees <span className="font-semibold text-foreground">R {customerPrice(item.price).toFixed(2)}</span></p>
+                    {(item.batch_number || item.expiry_date) && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {item.batch_number ? `Batch ${item.batch_number}` : ""}
+                        {item.batch_number && item.expiry_date ? " · " : ""}
+                        {item.expiry_date ? `Exp ${new Date(item.expiry_date).toLocaleDateString()}` : ""}
+                      </p>
+                    )}
                     <div className="mt-3 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1">
                         <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>
@@ -606,7 +653,10 @@ function PharmacyDashboard() {
                         {u.medication_id ? ` · Med ${u.medication_id.slice(0, 8)}` : ""}
                       </p>
                     </div>
-                    <PrescriptionStatusBadge status={u.status} />
+                    <div className="flex items-center gap-2">
+                      {u.flagged && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-destructive/15 text-destructive font-semibold">⚑ Flagged</span>}
+                      <PrescriptionStatusBadge status={u.status} />
+                    </div>
                   </div>
                   {(u.status === "pending" || u.status === "reupload_requested") ? (
                     <PharmacyReviewActions row={u} onChanged={loadPxQueue} />
@@ -646,6 +696,25 @@ function PharmacyDashboard() {
               <Label htmlFor="category">Category</Label>
               <Input id="category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Antibiotics" />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="batch">Batch number</Label>
+                <Input id="batch" value={form.batch_number} onChange={(e) => setForm({ ...form, batch_number: e.target.value })} placeholder="A1234" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expiry">Expiry date</Label>
+                <Input id="expiry" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="image">Medicine image</Label>
+              <div className="flex items-center gap-3">
+                {form.image_url && <img src={form.image_url} alt="" className="h-14 w-14 rounded-md object-cover border border-border" />}
+                <Input id="image" type="file" accept="image/*" disabled={uploadingImage}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.currentTarget.value = ""; }} />
+              </div>
+              {uploadingImage && <p className="text-xs text-muted-foreground">Uploading…</p>}
+            </div>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -655,6 +724,7 @@ function PharmacyDashboard() {
               />
               Requires a valid prescription (Rx)
             </label>
+            <p className="text-[11px] text-muted-foreground">Items with stock = 0 are automatically hidden from patients.</p>
             <DialogFooter>
               <Button type="submit" disabled={savingMed}>
                 {savingMed ? "Saving..." : editingMed ? "Save Changes" : "Add Medication"}
@@ -722,7 +792,19 @@ function PharmacyDashboard() {
       </Dialog>
 
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
-      <div className="mt-6"><TransactionHistory role="pharmacy" /></div>
+
+      <div className="mt-8">
+        <Tabs defaultValue="analytics" className="w-full">
+          <TabsList>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="finance">Finance</TabsTrigger>
+            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          </TabsList>
+          <TabsContent value="analytics" className="mt-4"><PharmacyAnalytics /></TabsContent>
+          <TabsContent value="finance" className="mt-4"><PharmacyFinance /></TabsContent>
+          <TabsContent value="transactions" className="mt-4"><TransactionHistory role="pharmacy" /></TabsContent>
+        </Tabs>
+      </div>
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
