@@ -62,6 +62,7 @@ interface LiveDelivery {
 
 function PharmacyDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [liveDeliveries, setLiveDeliveries] = useState<LiveDelivery[]>([]);
