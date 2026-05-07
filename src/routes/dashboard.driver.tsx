@@ -627,7 +627,20 @@ function DriverDashboard() {
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" /> ETA: {delivery.estimated_time || "—"}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const navTarget = delivery.status === "assigned" ? delivery.pickup_address : delivery.delivery_address;
+                      const navLabel = delivery.status === "assigned" ? "Navigate to Pharmacy" : "Navigate";
+                      return navTarget ? (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navTarget)}&travelmode=driving`}
+                          target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                        >
+                          <Navigation className="h-3 w-3" /> {navLabel}
+                        </a>
+                      ) : null;
+                    })()}
                     {prevStatus[delivery.status] && (
                       <Button size="sm" variant="outline" disabled={isUpdating} onClick={() => revert(delivery)}>
                         Undo
