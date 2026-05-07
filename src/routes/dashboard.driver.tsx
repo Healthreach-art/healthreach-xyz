@@ -108,6 +108,7 @@ function DriverDashboard() {
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [pickupForDelivery, setPickupForDelivery] = useState<LiveDelivery | null>(null);
+  const [failForDelivery, setFailForDelivery] = useState<LiveDelivery | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -116,11 +117,33 @@ function DriverDashboard() {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("driver:online") !== "false";
   });
+  const [onBreak, setOnBreak] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("driver:break") === "true";
+  });
+  const [netOnline, setNetOnline] = useState<boolean>(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [acceptance, setAcceptance] = useState<{ accepted: number; offered: number; cancelled: number; late: number }>({ accepted: 0, offered: 0, cancelled: 0, late: 0 });
   const vehicleType = (typeof window !== "undefined" && localStorage.getItem("driver:vehicle")) || "Motorbike";
+
+  const presenceStatus: "online" | "offline" | "break" = !netOnline || !online ? "offline" : onBreak ? "break" : "online";
+  useDriverPresence(user?.id ?? null, presenceStatus);
 
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem("driver:online", String(online));
   }, [online]);
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("driver:break", String(onBreak));
+  }, [onBreak]);
+  useEffect(() => {
+    function on() { setNetOnline(true); }
+    function off() { setNetOnline(false); toast.warning("You're offline — pausing new requests"); }
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
+  // Effective availability for receiving requests
+  const available = online && !onBreak && netOnline;
+
 
   // Broadcast live GPS to driver_locations for the most recent active delivery
   const activeOrderId = liveDeliveries[0]?.order_id ?? null;
