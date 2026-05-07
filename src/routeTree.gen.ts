@@ -23,6 +23,7 @@ import { Route as DashboardPatientRouteImport } from './routes/dashboard.patient
 import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
 import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
+import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
 
 const TrackRoute = TrackRouteImport.update({
   id: '/track',
@@ -94,6 +95,11 @@ const DashboardAdminRoute = DashboardAdminRouteImport.update({
   path: '/dashboard/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
+  id: '/api/public/payment-webhook',
+  path: '/api/public/payment-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/patient': typeof DashboardPatientRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
+  '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/patient': typeof DashboardPatientRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
+  '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/patient': typeof DashboardPatientRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
+  '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/dashboard/hospital'
     | '/dashboard/patient'
     | '/dashboard/pharmacy'
+    | '/api/public/payment-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/dashboard/hospital'
     | '/dashboard/patient'
     | '/dashboard/pharmacy'
+    | '/api/public/payment-webhook'
   id:
     | '__root__'
     | '/'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/dashboard/hospital'
     | '/dashboard/patient'
     | '/dashboard/pharmacy'
+    | '/api/public/payment-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   DashboardHospitalRoute: typeof DashboardHospitalRoute
   DashboardPatientRoute: typeof DashboardPatientRoute
   DashboardPharmacyRoute: typeof DashboardPharmacyRoute
+  ApiPublicPaymentWebhookRoute: typeof ApiPublicPaymentWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -312,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payment-webhook': {
+      id: '/api/public/payment-webhook'
+      path: '/api/public/payment-webhook'
+      fullPath: '/api/public/payment-webhook'
+      preLoaderRoute: typeof ApiPublicPaymentWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -330,6 +350,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardHospitalRoute: DashboardHospitalRoute,
   DashboardPatientRoute: DashboardPatientRoute,
   DashboardPharmacyRoute: DashboardPharmacyRoute,
+  ApiPublicPaymentWebhookRoute: ApiPublicPaymentWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
