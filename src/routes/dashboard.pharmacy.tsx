@@ -789,7 +789,19 @@ function PharmacyDashboard() {
       </Dialog>
 
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
-      <div className="mt-6"><TransactionHistory role="pharmacy" /></div>
+
+      <div className="mt-8">
+        <Tabs defaultValue="analytics" className="w-full">
+          <TabsList>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="finance">Finance</TabsTrigger>
+            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          </TabsList>
+          <TabsContent value="analytics" className="mt-4"><PharmacyAnalytics /></TabsContent>
+          <TabsContent value="finance" className="mt-4"><PharmacyFinance /></TabsContent>
+          <TabsContent value="transactions" className="mt-4"><TransactionHistory role="pharmacy" /></TabsContent>
+        </Tabs>
+      </div>
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
