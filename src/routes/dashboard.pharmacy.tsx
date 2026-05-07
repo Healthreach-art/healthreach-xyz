@@ -173,18 +173,18 @@ function PharmacyDashboard() {
 
   function openAddMedication() {
     setEditingMed(null);
-    setForm({ name: "", price: "", stock: "", category: "" });
+    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false });
     setMedDialogOpen(true);
   }
 
   function openEditMedication(med: Medication) {
-    // (no demo guards — all items are real)
     setEditingMed(med);
     setForm({
       name: med.name,
       price: String(med.price),
       stock: String(med.stock_quantity),
       category: med.category ?? "",
+      requires_prescription: !!med.requires_prescription,
     });
     setMedDialogOpen(true);
   }
@@ -199,6 +199,7 @@ function PharmacyDashboard() {
       price: Number(form.price) || 0,
       stock_quantity: Number(form.stock) || 0,
       category: form.category || null,
+      requires_prescription: form.requires_prescription,
     };
     const { error } = editingMed
       ? await supabase.from("medications").update(payload).eq("id", editingMed.id)
