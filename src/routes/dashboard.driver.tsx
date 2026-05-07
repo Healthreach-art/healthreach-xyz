@@ -675,7 +675,8 @@ function DriverDashboard() {
                       </Button>
                     )}
                     {nextStatus[delivery.status] && (
-                      <Button size="sm" variant="default" disabled={isUpdating} onClick={() => advance(delivery)}>
+                      <Button size="sm" variant="default" disabled={isUpdating} onClick={() => advance(delivery)} className="gap-1">
+                        {delivery.status === "assigned" && <KeyRound className="h-3 w-3" />}
                         {isUpdating ? "Updating..." : nextLabel[delivery.status]}
                       </Button>
                     )}
