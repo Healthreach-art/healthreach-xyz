@@ -761,6 +761,15 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
       {delivery.delivery_address && (
         <p className="text-xs text-muted-foreground truncate mt-0.5">→ {delivery.delivery_address}</p>
       )}
+      {delivery.status === "assigned" && delivery.pickup_code && (
+        <div className="mt-3 rounded-lg bg-primary/5 border border-primary/30 p-3 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pickup code</p>
+            <p className="text-2xl font-bold font-mono text-primary tracking-[0.4em]">{delivery.pickup_code}</p>
+          </div>
+          <p className="text-[10px] text-muted-foreground max-w-[120px] text-right leading-tight">Share with the driver to confirm pickup</p>
+        </div>
+      )}
 
       {/* Stage Timeline */}
       <div className="mt-4">
