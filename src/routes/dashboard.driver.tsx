@@ -368,7 +368,12 @@ function DriverDashboard() {
 
   async function advance(d: LiveDelivery) {
     const next = nextStatus[d.status];
-    if (next) await setDeliveryStatus(d, next);
+    if (!next) return;
+    if (d.status === "assigned" && next === "picked_up") {
+      setPickupForDelivery(d);
+      return;
+    }
+    await setDeliveryStatus(d, next);
   }
 
   async function revert(d: LiveDelivery) {
