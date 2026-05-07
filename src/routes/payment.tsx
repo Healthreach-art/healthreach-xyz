@@ -60,6 +60,8 @@ function PaymentPage() {
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [txnRef, setTxnRef] = useState<string>("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [rxRequired, setRxRequired] = useState(false);
+  const [rxApproved, setRxApproved] = useState(false);
 
   // Pre-fill delivery address from patient profile
   useEffect(() => {
@@ -67,6 +69,29 @@ function PaymentPage() {
     supabase.from("profiles").select("address").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => { if (data?.address) setDeliveryAddress(data.address); });
   }, [user]);
+
+  // Check if medication requires a prescription, and whether the patient has an approved upload
+  useEffect(() => {
+    if (!user || !medId) return;
+    let cancel = false;
+    (async () => {
+      const { data: med } = await supabase
+        .from("medications").select("requires_prescription, pharmacy_id").eq("id", medId).maybeSingle();
+      if (cancel || !med) return;
+      const required = !!med.requires_prescription;
+      setRxRequired(required);
+      if (!required) { setRxApproved(true); return; }
+      const { data: ups } = await supabase
+        .from("prescription_uploads")
+        .select("id, expires_at")
+        .eq("patient_id", user.id)
+        .eq("pharmacy_id", med.pharmacy_id)
+        .eq("status", "approved");
+      const ok = (ups ?? []).some((u: any) => !u.expires_at || new Date(u.expires_at) > new Date());
+      setRxApproved(ok);
+    })();
+    return () => { cancel = true; };
+  }, [user, medId]);
 
   // Customer-facing pricing — pharmacy base price + 15%, delivery base + 7%.
   const unitPrice = customerPrice(price);
