@@ -461,7 +461,7 @@ function PatientDashboard() {
                 <h2 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Live Delivery</h2>
                 <span className="text-[11px] capitalize text-muted-foreground">{activeDelivery.status.replace(/_/g, " ")}</span>
               </div>
-              <DeliveryMap pickup={activeDelivery.pickup} dropoff={activeDelivery.dropoff} status={activeDelivery.status} className="h-44 w-full rounded-lg overflow-hidden" />
+              <DeliveryMap orderId={activeDelivery.orderId} pickup={activeDelivery.pickup} dropoff={activeDelivery.dropoff} status={activeDelivery.status} className="h-44 w-full rounded-lg overflow-hidden" />
               <Button asChild size="sm" variant="outline" className="w-full mt-3"><Link to="/track">Open full tracker</Link></Button>
             </div>
           )}
