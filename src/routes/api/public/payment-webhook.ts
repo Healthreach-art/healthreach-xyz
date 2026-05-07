@@ -54,7 +54,7 @@ export const Route = createFileRoute("/api/public/payment-webhook")({
         }
         if (parsed.provider) patch.provider = parsed.provider;
 
-        const { error } = await supabaseAdmin.from("payments").update(patch).eq("id", existing.id);
+        const { error } = await supabaseAdmin.from("payments").update(patch as any).eq("id", existing.id);
         if (error) return new Response(error.message, { status: 500 });
 
         return Response.json({ ok: true });
