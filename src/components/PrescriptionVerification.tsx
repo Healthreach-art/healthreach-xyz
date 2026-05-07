@@ -53,13 +53,20 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, onUplo
   const { user } = useAuth();
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<{ file: File; url: string } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
-  async function handleFile(file: File) {
-    if (!user) { toast.error("Please sign in"); return; }
+  function pickFile(file: File) {
     const okType = ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type);
-    if (!okType) { toast.error("Use JPG, PNG, WEBP or PDF"); return; }
+    if (!okType) { toast.error("Use JPG, PNG, or PDF"); return; }
     if (file.size > 8 * 1024 * 1024) { toast.error("Max file size 8 MB"); return; }
+    if (pending) URL.revokeObjectURL(pending.url);
+    setPending({ file, url: URL.createObjectURL(file) });
+  }
 
+  async function uploadPending() {
+    if (!user || !pending) { toast.error("Please sign in"); return; }
+    const file = pending.file;
     setBusy(true);
     setProgress(15);
     try {
@@ -87,6 +94,8 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, onUplo
       if (error) throw error;
       setProgress(100);
       toast.success("Prescription uploaded — awaiting pharmacy review");
+      URL.revokeObjectURL(pending.url);
+      setPending(null);
       onUploaded?.(data as PrescriptionUpload);
     } catch (e: any) {
       toast.error(e?.message || "Upload failed");
@@ -96,25 +105,69 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, onUplo
     }
   }
 
+  const isPdf = pending?.file.type === "application/pdf";
+
   return (
-    <div className="space-y-2">
-      <label className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center cursor-pointer hover:bg-muted/50 transition-colors">
-        {busy ? (
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        ) : (
-          <Upload className="h-6 w-6 text-primary" />
-        )}
-        <span className="text-sm font-medium">{busy ? "Uploading…" : "Upload prescription"}</span>
-        <span className="text-xs text-muted-foreground">JPG, PNG, WEBP, or PDF (max 8 MB)</span>
-        <input
-          type="file"
-          accept="image/*,application/pdf"
-          className="hidden"
-          disabled={busy}
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ""; }}
-        />
-      </label>
+    <div className="space-y-3">
+      {!pending && (
+        <>
+          <label
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault(); setDragOver(false);
+              const f = e.dataTransfer.files?.[0]; if (f) pickFile(f);
+            }}
+            className={`flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center cursor-pointer transition-colors ${dragOver ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted/50"}`}
+          >
+            <Upload className="h-6 w-6 text-primary" />
+            <span className="text-sm font-medium">Drag &amp; drop, or click to upload</span>
+            <span className="text-xs text-muted-foreground">JPG, PNG, or PDF (max 8 MB)</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.currentTarget.value = ""; }}
+            />
+          </label>
+          <label className="sm:hidden flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium cursor-pointer hover:bg-accent">
+            📷 Take a photo
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.currentTarget.value = ""; }}
+            />
+          </label>
+        </>
+      )}
+
+      {pending && (
+        <div className="space-y-2">
+          <div className="rounded-lg overflow-hidden border border-border bg-muted/30">
+            {isPdf ? (
+              <iframe src={pending.url} className="w-full h-56" title="Preview" />
+            ) : (
+              <img src={pending.url} alt="Preview" className="max-h-56 w-full object-contain bg-background" />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate">{pending.file.name} · {(pending.file.size / 1024).toFixed(0)} KB</p>
+          <div className="flex gap-2">
+            <Button size="sm" className="flex-1" onClick={uploadPending} disabled={busy}>
+              {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</> : "Submit for review"}
+            </Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => { URL.revokeObjectURL(pending.url); setPending(null); }}>
+              Replace
+            </Button>
+          </div>
+        </div>
+      )}
+
       {progress > 0 && <Progress value={progress} />}
+      <p className="text-[11px] text-muted-foreground text-center">
+        ⏱ Estimated verification time: ~15 minutes during pharmacy hours
+      </p>
     </div>
   );
 }
