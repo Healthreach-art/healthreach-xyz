@@ -470,8 +470,16 @@ function DriverDashboard() {
           <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 border ${online ? "bg-healthcare-green/10 border-healthcare-green/40" : "bg-muted border-border"}`}>
             <Power className={`h-4 w-4 ${online ? "text-healthcare-green" : "text-muted-foreground"}`} />
             <span className="text-xs font-medium">{online ? "Online" : "Offline"}</span>
-            <Switch checked={online} onCheckedChange={setOnline} />
+            <Switch checked={online} onCheckedChange={(v) => { setOnline(v); if (v) setOnBreak(false); }} />
           </div>
+          <button
+            type="button"
+            onClick={() => setOnBreak((b) => !b)}
+            disabled={!online}
+            className={`flex items-center gap-2 rounded-full px-3 py-1.5 border text-xs font-medium transition-colors ${onBreak ? "bg-amber-500/10 border-amber-500/40 text-amber-600" : "bg-muted border-border text-muted-foreground hover:bg-accent"} disabled:opacity-50`}
+          >
+            <Coffee className="h-4 w-4" /> {onBreak ? "On Break" : "Take Break"}
+          </button>
           <Button variant="outline" size="sm" asChild><Link to="/driver/wallet" className="gap-1"><Wallet className="h-4 w-4" /> Wallet</Link></Button>
           <Button variant="outline" size="sm" asChild><Link to="/driver/onboarding" className="gap-1"><IdCard className="h-4 w-4" /> Verify</Link></Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /></Button>
@@ -479,11 +487,30 @@ function DriverDashboard() {
         </div>
       </div>
 
-      {!online && (
+      {!netOnline && (
+        <div className="mb-6 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive flex items-center gap-2">
+          <WifiOff className="h-4 w-4" /> No internet connection. You'll automatically resume when reconnected.
+        </div>
+      )}
+      {netOnline && !online && (
         <div className="mb-6 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground flex items-center gap-2">
           <Power className="h-4 w-4" /> You're offline. Toggle online to receive new delivery requests.
         </div>
       )}
+      {netOnline && online && onBreak && (
+        <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-700 flex items-center gap-2">
+          <Coffee className="h-4 w-4" /> Break mode — you stay logged in but won't receive new requests.
+        </div>
+      )}
+
+      {/* Performance summary */}
+      <div className="grid gap-3 sm:grid-cols-4 mb-6">
+        <PerfCard label="Acceptance" value={`${acceptance.offered ? Math.round((acceptance.accepted / acceptance.offered) * 100) : 100}%`} sub={`${acceptance.accepted}/${acceptance.offered} offers`} tone="text-healthcare-green" icon={CheckCircle} />
+        <PerfCard label="Cancellations" value={String(acceptance.cancelled)} sub="last 30 days" tone="text-destructive" icon={X} />
+        <PerfCard label="Late deliveries" value={String(acceptance.late)} sub={`> ${PLATFORM_RULES.ETA_MAX} min`} tone="text-amber-500" icon={Clock} />
+        <PerfCard label="Rating" value={ratings.count > 0 ? ratings.avg.toFixed(1) : "—"} sub={`${ratings.count} reviews`} tone="text-amber-500" icon={Star} />
+      </div>
+
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => (
