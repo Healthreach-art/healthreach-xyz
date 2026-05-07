@@ -103,10 +103,19 @@ function DriverDashboard() {
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [online, setOnline] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("driver:online") !== "false";
+  });
+  const vehicleType = (typeof window !== "undefined" && localStorage.getItem("driver:vehicle")) || "Motorbike";
+
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("driver:online", String(online));
+  }, [online]);
 
   // Broadcast live GPS to driver_locations for the most recent active delivery
   const activeOrderId = liveDeliveries[0]?.order_id ?? null;
-  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId });
+  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId && online });
 
   // 1s tick for countdown
   useEffect(() => {
