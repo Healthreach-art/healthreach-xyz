@@ -49,6 +49,7 @@ interface Med {
   name: string;
   price: number;
   stock_quantity: number;
+  requires_prescription?: boolean | null;
 }
 interface Order {
   id: string;
