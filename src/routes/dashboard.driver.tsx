@@ -92,6 +92,7 @@ function DriverDashboard() {
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // 1s tick for countdown
   useEffect(() => {
