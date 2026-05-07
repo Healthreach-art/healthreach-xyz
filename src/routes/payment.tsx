@@ -111,6 +111,10 @@ function PaymentPage() {
       toast.error("Please enter a delivery address.");
       return;
     }
+    if (rxRequired && !rxApproved) {
+      toast.error("This medication needs an approved prescription before checkout.");
+      return;
+    }
     setProcessing(true);
 
     try {
