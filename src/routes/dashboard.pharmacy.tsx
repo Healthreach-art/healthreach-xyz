@@ -693,6 +693,25 @@ function PharmacyDashboard() {
               <Label htmlFor="category">Category</Label>
               <Input id="category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Antibiotics" />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="batch">Batch number</Label>
+                <Input id="batch" value={form.batch_number} onChange={(e) => setForm({ ...form, batch_number: e.target.value })} placeholder="A1234" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expiry">Expiry date</Label>
+                <Input id="expiry" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="image">Medicine image</Label>
+              <div className="flex items-center gap-3">
+                {form.image_url && <img src={form.image_url} alt="" className="h-14 w-14 rounded-md object-cover border border-border" />}
+                <Input id="image" type="file" accept="image/*" disabled={uploadingImage}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.currentTarget.value = ""; }} />
+              </div>
+              {uploadingImage && <p className="text-xs text-muted-foreground">Uploading…</p>}
+            </div>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -702,6 +721,7 @@ function PharmacyDashboard() {
               />
               Requires a valid prescription (Rx)
             </label>
+            <p className="text-[11px] text-muted-foreground">Items with stock = 0 are automatically hidden from patients.</p>
             <DialogFooter>
               <Button type="submit" disabled={savingMed}>
                 {savingMed ? "Saving..." : editingMed ? "Save Changes" : "Add Medication"}
