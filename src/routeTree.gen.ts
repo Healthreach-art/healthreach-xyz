@@ -14,6 +14,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PaymentRouteImport } from './routes/payment'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LinkAccountRouteImport } from './routes/link-account'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AboutRouteImport } from './routes/about'
@@ -25,6 +26,7 @@ import { Route as DashboardPatientRouteImport } from './routes/dashboard.patient
 import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
 import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
 import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
 
@@ -51,6 +53,11 @@ const PaymentRoute = PaymentRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LinkAccountRoute = LinkAccountRouteImport.update({
+  id: '/link-account',
+  path: '/link-account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -108,6 +115,11 @@ const DashboardAdminRoute = DashboardAdminRouteImport.update({
   path: '/dashboard/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMockPayRoute = ApiMockPayRouteImport.update({
   id: '/api/mock-pay',
   path: '/api/mock-pay',
@@ -124,12 +136,14 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/track': typeof TrackRoute
   '/api/mock-pay': typeof ApiMockPayRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
@@ -144,12 +158,14 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/track': typeof TrackRoute
   '/api/mock-pay': typeof ApiMockPayRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
@@ -165,12 +181,14 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/track': typeof TrackRoute
   '/api/mock-pay': typeof ApiMockPayRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
@@ -187,12 +205,14 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/forgot-password'
+    | '/link-account'
     | '/login'
     | '/payment'
     | '/reset-password'
     | '/signup'
     | '/track'
     | '/api/mock-pay'
+    | '/auth/callback'
     | '/dashboard/admin'
     | '/dashboard/driver'
     | '/dashboard/hospital'
@@ -207,12 +227,14 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/forgot-password'
+    | '/link-account'
     | '/login'
     | '/payment'
     | '/reset-password'
     | '/signup'
     | '/track'
     | '/api/mock-pay'
+    | '/auth/callback'
     | '/dashboard/admin'
     | '/dashboard/driver'
     | '/dashboard/hospital'
@@ -227,12 +249,14 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/forgot-password'
+    | '/link-account'
     | '/login'
     | '/payment'
     | '/reset-password'
     | '/signup'
     | '/track'
     | '/api/mock-pay'
+    | '/auth/callback'
     | '/dashboard/admin'
     | '/dashboard/driver'
     | '/dashboard/hospital'
@@ -248,12 +272,14 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   ContactRoute: typeof ContactRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LinkAccountRoute: typeof LinkAccountRoute
   LoginRoute: typeof LoginRoute
   PaymentRoute: typeof PaymentRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   TrackRoute: typeof TrackRoute
   ApiMockPayRoute: typeof ApiMockPayRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   DashboardAdminRoute: typeof DashboardAdminRoute
   DashboardDriverRoute: typeof DashboardDriverRoute
   DashboardHospitalRoute: typeof DashboardHospitalRoute
@@ -299,6 +325,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/link-account': {
+      id: '/link-account'
+      path: '/link-account'
+      fullPath: '/link-account'
+      preLoaderRoute: typeof LinkAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -378,6 +411,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mock-pay': {
       id: '/api/mock-pay'
       path: '/api/mock-pay'
@@ -400,12 +440,14 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   ContactRoute: ContactRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  LinkAccountRoute: LinkAccountRoute,
   LoginRoute: LoginRoute,
   PaymentRoute: PaymentRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   TrackRoute: TrackRoute,
   ApiMockPayRoute: ApiMockPayRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   DashboardAdminRoute: DashboardAdminRoute,
   DashboardDriverRoute: DashboardDriverRoute,
   DashboardHospitalRoute: DashboardHospitalRoute,
