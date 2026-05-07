@@ -10,7 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE } from "@/lib/pricing";
+import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE, paymentBreakdown } from "@/lib/pricing";
+import { downloadReceiptPdf } from "@/lib/receipt";
 
 const paymentSearchSchema = z.object({
   medId: fallback(z.string().optional(), undefined),
