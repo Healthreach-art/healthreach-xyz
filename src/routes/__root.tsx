@@ -1,4 +1,5 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
@@ -6,6 +7,8 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import appCss from "../styles.css?url";
+
+const NO_SIDEBAR_ROUTES = new Set(["/", "/login", "/signup", "/about", "/contact", "/reset-password"]);
 
 function NotFoundComponent() {
   return (
@@ -83,9 +86,11 @@ function RootComponent() {
 }
 
 function AppShell() {
-  const { user } = useAuth();
+  const { user, role, loading } = useAuth();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const showSidebar = !!user && !loading && !NO_SIDEBAR_ROUTES.has(pathname);
 
-  if (!user) {
+  if (!showSidebar) {
     return (
       <div className="flex min-h-screen flex-col w-full">
         <header className="sticky top-0 z-40 h-12 flex items-center border-b border-border bg-background/95 backdrop-blur px-4">
@@ -101,8 +106,25 @@ function AppShell() {
     );
   }
 
+  const storageKey = `sidebar_state:${role ?? "default"}`;
+  const [open, setOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const v = window.localStorage.getItem(storageKey);
+    return v === null ? true : v === "true";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const v = window.localStorage.getItem(storageKey);
+      setOpen(v === null ? true : v === "true");
+    }
+  }, [storageKey]);
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (typeof window !== "undefined") window.localStorage.setItem(storageKey, String(next));
+  }
+
   return (
-    <SidebarProvider>
+    <SidebarProvider open={open} onOpenChange={handleOpenChange}>
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
