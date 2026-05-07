@@ -283,7 +283,7 @@ function PaymentPage() {
           <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
           <div className="space-y-2 text-sm border-b border-border pb-4">
             <div className="flex justify-between"><span className="text-muted-foreground">{medicationName} × {qty}</span><span>R {subtotal.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Delivery fee</span><span>R {DELIVERY_FEE.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Delivery fee</span><span>R {deliveryFee.toFixed(2)}</span></div>
           </div>
           <div className="flex justify-between pt-4 text-base font-semibold">
             <span>Total</span><span>{amount}</span>
