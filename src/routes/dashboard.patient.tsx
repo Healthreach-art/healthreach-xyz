@@ -260,7 +260,12 @@ function PatientDashboard() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  const filteredMeds = meds.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredMeds = meds.filter((m) => {
+    const q = search.toLowerCase();
+    const matchesSearch = !q || m.name.toLowerCase().includes(q);
+    const matchesCat = !activeCategory || activeCategory.terms.some((t) => m.name.toLowerCase().includes(t));
+    return matchesSearch && matchesCat;
+  });
 
   const totalOrders = orders.length;
   const activeOrders = orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length;
