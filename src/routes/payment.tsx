@@ -183,8 +183,7 @@ function PaymentPage() {
         .from("payments").select("id").eq("order_id", order.id).eq("status", "completed").maybeSingle();
       if (existing) { throw new Error("This order has already been paid."); }
 
-      // Mock gateway: simulate ~95% success rate. On failure record a 'failed' payment for retry tracking.
-      const gatewayOk = Math.random() > 0.05;
+      // Create a pending payment row — RLS forbids client-side 'completed' inserts.
       const reference = `TXN-${Date.now().toString().slice(-8)}`;
 
       const { data: payment, error: payErr } = await supabase.from("payments").insert({
@@ -200,11 +199,23 @@ function PaymentPage() {
         driver_amount: breakdown.driver_amount,
         payment_method: method,
         provider: "mock",
-        status: gatewayOk ? "completed" : "failed",
-        failure_reason: gatewayOk ? null : "Gateway declined card",
+        status: "pending",
         transaction_ref: reference,
       }).select().single();
       if (payErr) throw payErr;
+
+      // Process via server endpoint (mock gateway). Server flips status using service role.
+      const { data: { session } } = await supabase.auth.getSession();
+      const payRes = await fetch("/api/mock-pay", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ payment_id: payment.id }),
+      });
+      const payJson = await payRes.json().catch(() => ({} as { status?: string }));
+      const gatewayOk = payRes.ok && payJson.status === "completed";
 
       if (!gatewayOk) {
         toast.error("Payment was declined by the gateway. Please retry.");
