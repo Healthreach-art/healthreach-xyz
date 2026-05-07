@@ -62,6 +62,8 @@ export type Database = {
           id: string
           order_id: string
           pickup_address: string | null
+          pickup_code: string | null
+          pickup_verified_at: string | null
           proof_of_delivery: string | null
           status: Database["public"]["Enums"]["delivery_status"]
           updated_at: string
@@ -74,6 +76,8 @@ export type Database = {
           id?: string
           order_id: string
           pickup_address?: string | null
+          pickup_code?: string | null
+          pickup_verified_at?: string | null
           proof_of_delivery?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
           updated_at?: string
@@ -86,6 +90,8 @@ export type Database = {
           id?: string
           order_id?: string
           pickup_address?: string | null
+          pickup_code?: string | null
+          pickup_verified_at?: string | null
           proof_of_delivery?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
           updated_at?: string
@@ -139,6 +145,57 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_documents: {
+        Row: {
+          created_at: string
+          driver_id: string
+          id: string
+          id_document_path: string | null
+          license_path: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          selfie_path: string | null
+          submitted_at: string | null
+          updated_at: string
+          vehicle_photo_path: string | null
+          vehicle_registration: string | null
+          vehicle_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          id?: string
+          id_document_path?: string | null
+          license_path?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_path?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          vehicle_photo_path?: string | null
+          vehicle_registration?: string | null
+          vehicle_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          id?: string
+          id_document_path?: string | null
+          license_path?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_path?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          vehicle_photo_path?: string | null
+          vehicle_registration?: string | null
+          vehicle_type?: string | null
+        }
+        Relationships: []
+      }
       driver_locations: {
         Row: {
           driver_id: string
@@ -165,6 +222,48 @@ export type Database = {
           lng?: number
           order_id?: string | null
           speed?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      driver_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          driver_id: string
+          id: string
+          method: string
+          notes: string | null
+          paid_at: string | null
+          reference: string | null
+          requested_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          driver_id: string
+          id?: string
+          method?: string
+          notes?: string | null
+          paid_at?: string | null
+          reference?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          driver_id?: string
+          id?: string
+          method?: string
+          notes?: string | null
+          paid_at?: string | null
+          reference?: string | null
+          requested_at?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
