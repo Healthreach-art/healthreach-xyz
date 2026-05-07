@@ -212,15 +212,27 @@ function PatientDashboard() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats — clicking updates the URL hash and smooth-scrolls to the section */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
-          { icon: ShoppingCart, label: "Total Orders", value: String(totalOrders), color: "text-primary" },
-          { icon: Package, label: "Active Orders", value: String(activeOrders), color: "text-healthcare-teal" },
-          { icon: Clock, label: "Pending Delivery", value: String(pendingDelivery), color: "text-healthcare-sky" },
-          { icon: CreditCard, label: "Total Spent", value: `R ${totalSpent.toFixed(0)}`, color: "text-healthcare-green" },
+          { icon: ShoppingCart, label: "Total Orders", value: String(totalOrders), color: "text-primary", target: "orders" },
+          { icon: Package, label: "Active Orders", value: String(activeOrders), color: "text-healthcare-teal", target: "orders" },
+          { icon: Clock, label: "Pending Delivery", value: String(pendingDelivery), color: "text-healthcare-sky", target: "orders" },
+          { icon: CreditCard, label: "Total Spent", value: `R ${totalSpent.toFixed(0)}`, color: "text-healthcare-green", target: "orders" },
         ].map((stat) => (
-          <div key={stat.label} className="healthcare-card p-5">
+          <a
+            key={stat.label}
+            href={`#${stat.target}`}
+            onClick={(e) => {
+              e.preventDefault();
+              const el = document.getElementById(stat.target);
+              if (el) {
+                history.replaceState(null, "", `#${stat.target}`);
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
+            className="healthcare-card p-5 transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
@@ -230,7 +242,7 @@ function PatientDashboard() {
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
             </div>
-          </div>
+          </a>
         ))}
       </div>
 
