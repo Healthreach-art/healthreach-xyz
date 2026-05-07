@@ -657,6 +657,7 @@ function PharmacyDashboard() {
                       {u.flagged && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-destructive/15 text-destructive font-semibold">⚑ Flagged</span>}
                       <PrescriptionStatusBadge status={u.status} />
                     </div>
+                  </div>
                   {(u.status === "pending" || u.status === "reupload_requested") ? (
                     <PharmacyReviewActions row={u} onChanged={loadPxQueue} />
                   ) : (
