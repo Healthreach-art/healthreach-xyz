@@ -214,7 +214,18 @@ function PaymentPage() {
           </div>
           <div className="flex flex-col gap-2">
             <Button onClick={() => navigate({ to: "/track" })}>Track Order</Button>
-            <Button variant="outline" asChild><Link to="/dashboard/patient">Back to Dashboard</Link></Button>
+            <Button variant="outline" onClick={() => downloadReceiptPdf({
+              invoice_number: txnRef,
+              created_at: new Date().toISOString(),
+              medication_name: medicationName,
+              quantity: qty,
+              subtotal,
+              delivery_fee: deliveryFee,
+              total_paid: totalNum,
+              payment_method: method,
+              transaction_ref: txnRef,
+            })}>Download Receipt (PDF)</Button>
+            <Button variant="ghost" asChild><Link to="/dashboard/patient">Back to Dashboard</Link></Button>
           </div>
         </div>
       </div>
