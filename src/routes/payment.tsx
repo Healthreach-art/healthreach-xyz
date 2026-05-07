@@ -10,10 +10,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
+import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE } from "@/lib/pricing";
 
 const paymentSearchSchema = z.object({
   medId: fallback(z.string().optional(), undefined),
   name: fallback(z.string(), "Amoxicillin 500mg").default("Amoxicillin 500mg"),
+  // `price` here is the BASE pharmacy price; customer-facing markup is applied below.
   price: fallback(z.number(), 120).default(120),
   pharmacyId: fallback(z.string().optional(), undefined),
   qty: fallback(z.number().int().min(1).max(50), 1).default(1),
@@ -39,7 +41,8 @@ const methods: { id: Method; label: string; icon: typeof CreditCard; desc: strin
   { id: "paypal", label: "PayPal", icon: Wallet, desc: "Pay with PayPal balance" },
 ];
 
-const DELIVERY_FEE = 25.0;
+// Base delivery fee shared with the driver (kept whole — the +7% markup is platform fee).
+const BASE_DELIVERY = BASE_DELIVERY_FEE;
 
 function PaymentPage() {
   const navigate = useNavigate();
@@ -64,8 +67,11 @@ function PaymentPage() {
       .then(({ data }) => { if (data?.address) setDeliveryAddress(data.address); });
   }, [user]);
 
-  const subtotal = price * qty;
-  const totalNum = subtotal + DELIVERY_FEE;
+  // Customer-facing pricing — pharmacy base price + 15%, delivery base + 7%.
+  const unitPrice = customerPrice(price);
+  const subtotal = Math.round(unitPrice * qty * 100) / 100;
+  const deliveryFee = customerDeliveryFee(BASE_DELIVERY);
+  const totalNum = Math.round((subtotal + deliveryFee) * 100) / 100;
   const amount = `R ${totalNum.toFixed(2)}`;
 
   const handlePay = async (e: FormEvent) => {
@@ -109,7 +115,7 @@ function PaymentPage() {
           medication_id: medId ?? null,
           medication_name: medicationName,
           quantity: qty,
-          delivery_fee: DELIVERY_FEE,
+          delivery_fee: BASE_DELIVERY,
           total_amount: totalNum,
           status: "pending",
           delivery_address: deliveryAddress,
@@ -277,7 +283,7 @@ function PaymentPage() {
           <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
           <div className="space-y-2 text-sm border-b border-border pb-4">
             <div className="flex justify-between"><span className="text-muted-foreground">{medicationName} × {qty}</span><span>R {subtotal.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Delivery fee</span><span>R {DELIVERY_FEE.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Delivery fee</span><span>R {deliveryFee.toFixed(2)}</span></div>
           </div>
           <div className="flex justify-between pt-4 text-base font-semibold">
             <span>Total</span><span>{amount}</span>

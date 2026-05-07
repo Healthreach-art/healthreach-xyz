@@ -18,6 +18,7 @@ import pharmacy3 from "@/assets/pharmacy-3.jpg";
 import pharmacy4 from "@/assets/pharmacy-4.jpg";
 import patientHero from "@/assets/patient-hero.jpg";
 import medGeneric from "@/assets/med-generic.jpg";
+import { customerPrice } from "@/lib/pricing";
 
 const PHARMACY_IMAGES = [pharmacy1, pharmacy2, pharmacy3, pharmacy4];
 function pharmacyImage(id: string) {
@@ -82,6 +83,19 @@ function PatientDashboard() {
   const [loading, setLoading] = useState(true);
   const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
+
+  // Restore scroll to URL hash on load / refresh
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const tryScroll = () => {
+      const el = document.getElementById(hash);
+      if (el) el.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "start" });
+    };
+    const t = setTimeout(tryScroll, 300);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -211,15 +225,27 @@ function PatientDashboard() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats — clicking updates the URL hash and smooth-scrolls to the section */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
-          { icon: ShoppingCart, label: "Total Orders", value: String(totalOrders), color: "text-primary" },
-          { icon: Package, label: "Active Orders", value: String(activeOrders), color: "text-healthcare-teal" },
-          { icon: Clock, label: "Pending Delivery", value: String(pendingDelivery), color: "text-healthcare-sky" },
-          { icon: CreditCard, label: "Total Spent", value: `R ${totalSpent.toFixed(0)}`, color: "text-healthcare-green" },
+          { icon: ShoppingCart, label: "Total Orders", value: String(totalOrders), color: "text-primary", target: "orders" },
+          { icon: Package, label: "Active Orders", value: String(activeOrders), color: "text-healthcare-teal", target: "orders" },
+          { icon: Clock, label: "Pending Delivery", value: String(pendingDelivery), color: "text-healthcare-sky", target: "orders" },
+          { icon: CreditCard, label: "Total Spent", value: `R ${totalSpent.toFixed(0)}`, color: "text-healthcare-green", target: "orders" },
         ].map((stat) => (
-          <div key={stat.label} className="healthcare-card p-5">
+          <a
+            key={stat.label}
+            href={`#${stat.target}`}
+            onClick={(e) => {
+              e.preventDefault();
+              const el = document.getElementById(stat.target);
+              if (el) {
+                history.replaceState(null, "", `#${stat.target}`);
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
+            className="healthcare-card p-5 transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
@@ -229,7 +255,7 @@ function PatientDashboard() {
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
             </div>
-          </div>
+          </a>
         ))}
       </div>
 
@@ -327,7 +353,7 @@ function PatientDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-foreground">R {Number(med.price).toFixed(2)}</span>
+                      <span className="text-sm font-semibold text-foreground">R {customerPrice(med.price).toFixed(2)}</span>
                       <Button size="sm" variant="default" asChild>
                         <Link
                           to="/payment"
@@ -377,7 +403,7 @@ function PatientDashboard() {
         {/* Sidebar */}
         <div className="lg:col-span-2 space-y-6">
           {/* Recent Orders */}
-          <div className="healthcare-card p-6">
+          <div id="orders" className="healthcare-card p-6 scroll-mt-24">
             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" /> Recent Orders
             </h2>
@@ -466,7 +492,7 @@ function PatientDashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold">R {Number(med.price).toFixed(2)}</span>
+                  <span className="text-sm font-semibold">R {customerPrice(med.price).toFixed(2)}</span>
                   <Button size="sm" asChild>
                     <Link to="/payment" search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}>
                       Order

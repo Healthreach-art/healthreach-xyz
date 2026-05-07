@@ -21,6 +21,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
+import { customerPrice } from "@/lib/pricing";
 
 export const Route = createFileRoute("/dashboard/pharmacy")({
   head: () => ({ meta: [{ title: "Pharmacy Dashboard — HEALTHREACH" }] }),
@@ -138,6 +139,17 @@ function PharmacyDashboard() {
       active: counts.get(p.user_id) ?? 0,
     })));
   }
+
+  // Restore scroll to URL hash on load / refresh
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const t = setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "start" });
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -357,10 +369,17 @@ function PharmacyDashboard() {
           { icon: AlertTriangle, label: "Low Stock", value: String(lowStockItems.length), color: "text-destructive", target: "inventory-section" },
           { icon: DollarSign, label: "Revenue (Total)", value: `R ${monthRevenue.toFixed(0)}`, color: "text-healthcare-green", target: "orders-section" },
         ].map((stat) => (
-          <button
+          <a
             key={stat.label}
-            type="button"
-            onClick={() => document.getElementById(stat.target)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            href={`#${stat.target}`}
+            onClick={(e) => {
+              e.preventDefault();
+              const el = document.getElementById(stat.target);
+              if (el) {
+                history.replaceState(null, "", `#${stat.target}`);
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
             className="healthcare-card p-5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <div className="flex items-center gap-3">
@@ -372,7 +391,7 @@ function PharmacyDashboard() {
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
             </div>
-          </button>
+          </a>
         ))}
       </div>
 
@@ -498,6 +517,7 @@ function PharmacyDashboard() {
                   <div className="p-3">
                     <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{item.category || "—"} · R {Number(item.price).toFixed(2)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Customer sees <span className="font-semibold text-foreground">R {customerPrice(item.price).toFixed(2)}</span></p>
                     <div className="mt-3 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1">
                         <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>

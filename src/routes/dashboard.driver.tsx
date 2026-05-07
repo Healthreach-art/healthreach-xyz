@@ -97,6 +97,17 @@ function DriverDashboard() {
     return () => clearInterval(t);
   }, []);
 
+  // Restore scroll to URL hash on load / refresh
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const t = setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "start" });
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
+
   // Auto-remove expired offers locally
   useEffect(() => {
     setOffers((prev) => prev.filter((o) => new Date(o.expires_at).getTime() > now));
@@ -299,10 +310,10 @@ function DriverDashboard() {
   const totalEarnings = completed.reduce((s, c) => s + c.earnings, 0);
 
   const stats = useMemo(() => [
-    { icon: Truck, label: "Active Deliveries", value: String(liveDeliveries.length), color: "text-primary" },
-    { icon: CheckCircle, label: "Completed Today", value: String(completedToday.length), color: "text-healthcare-green" },
-    { icon: DollarSign, label: "Today's Earnings", value: `R ${todayEarnings.toFixed(0)}`, color: "text-healthcare-teal" },
-    { icon: Navigation, label: "Total Earnings", value: `R ${totalEarnings.toFixed(0)}`, color: "text-healthcare-sky" },
+    { icon: Truck, label: "Active Deliveries", value: String(liveDeliveries.length), color: "text-primary", target: "active" },
+    { icon: CheckCircle, label: "Completed Today", value: String(completedToday.length), color: "text-healthcare-green", target: "completed" },
+    { icon: DollarSign, label: "Today's Earnings", value: `R ${todayEarnings.toFixed(0)}`, color: "text-healthcare-teal", target: "completed" },
+    { icon: Navigation, label: "Total Earnings", value: `R ${totalEarnings.toFixed(0)}`, color: "text-healthcare-sky", target: "completed" },
   ], [liveDeliveries.length, completedToday.length, todayEarnings, totalEarnings]);
 
   if (approvalStatus === "pending") {
@@ -330,7 +341,19 @@ function DriverDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => (
-          <div key={stat.label} className="healthcare-card p-5">
+          <a
+            key={stat.label}
+            href={`#${stat.target}`}
+            onClick={(e) => {
+              e.preventDefault();
+              const el = document.getElementById(stat.target);
+              if (el) {
+                history.replaceState(null, "", `#${stat.target}`);
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
+            className="healthcare-card p-5 transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
@@ -340,7 +363,7 @@ function DriverDashboard() {
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
             </div>
-          </div>
+          </a>
         ))}
       </div>
 
@@ -405,7 +428,7 @@ function DriverDashboard() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3 space-y-4">
+        <div id="active" className="lg:col-span-3 space-y-4 scroll-mt-24">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             Active Deliveries
             <span className="inline-flex h-2 w-2 rounded-full bg-healthcare-green animate-pulse" />
@@ -505,7 +528,7 @@ function DriverDashboard() {
           })}
         </div>
 
-        <div className="lg:col-span-2">
+        <div id="completed" className="lg:col-span-2 scroll-mt-24">
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Completed Deliveries</h2>
             {completed.length === 0 ? (
