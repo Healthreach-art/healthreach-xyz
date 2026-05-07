@@ -1,11 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
-  Phone, Power, ShieldCheck, Bike, Car, BadgeCheck,
+  Phone, Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
 } from "lucide-react";
+import { PickupCodeDialog } from "@/components/PickupCodeDialog";
 import { Switch } from "@/components/ui/switch";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
