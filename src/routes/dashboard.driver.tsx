@@ -5,8 +5,12 @@ import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
   Phone, Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
+  Coffee, AlertTriangle, TrendingUp, WifiOff,
 } from "lucide-react";
 import { PickupCodeDialog } from "@/components/PickupCodeDialog";
+import { FailedDeliveryDialog } from "@/components/FailedDeliveryDialog";
+import { useDriverPresence } from "@/hooks/useDriverPresence";
+import { PLATFORM_RULES } from "@/lib/platform-rules";
 import { Switch } from "@/components/ui/switch";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
