@@ -12,6 +12,7 @@ import { getMapboxDistance } from "@/utils/mapbox.functions";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { useDriverLocationBroadcaster } from "@/hooks/useDriverLocationBroadcaster";
 
 type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered";
 
@@ -93,6 +94,10 @@ function DriverDashboard() {
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Broadcast live GPS to driver_locations for the most recent active delivery
+  const activeOrderId = liveDeliveries[0]?.order_id ?? null;
+  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId });
 
   // 1s tick for countdown
   useEffect(() => {
@@ -481,7 +486,7 @@ function DriverDashboard() {
 
                 {/* Mini route map */}
                 <div className="mt-3">
-                  <DeliveryMap pickup={delivery.pickup_address} dropoff={delivery.delivery_address} status={delivery.status} className="h-40 w-full rounded-lg overflow-hidden border border-border" />
+                  <DeliveryMap orderId={delivery.order_id} driverId={user?.id} pickup={delivery.pickup_address} dropoff={delivery.delivery_address} status={delivery.status} className="h-40 w-full rounded-lg overflow-hidden border border-border" />
                 </div>
 
                 {/* Stage Timeline */}

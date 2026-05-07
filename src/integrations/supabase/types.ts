@@ -139,6 +139,36 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_locations: {
+        Row: {
+          driver_id: string
+          heading: number | null
+          lat: number
+          lng: number
+          order_id: string | null
+          speed: number | null
+          updated_at: string
+        }
+        Insert: {
+          driver_id: string
+          heading?: number | null
+          lat: number
+          lng: number
+          order_id?: string | null
+          speed?: number | null
+          updated_at?: string
+        }
+        Update: {
+          driver_id?: string
+          heading?: number | null
+          lat?: number
+          lng?: number
+          order_id?: string | null
+          speed?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       medications: {
         Row: {
           category: string | null
@@ -201,6 +231,42 @@ export type Database = {
           push_orders?: boolean
           sms_orders?: boolean
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string
+          category: string
+          channel: string
+          created_at: string
+          id: string
+          link: string | null
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          category?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title?: string
           user_id?: string
         }
         Relationships: []

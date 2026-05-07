@@ -3,6 +3,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -81,6 +82,7 @@ function RootComponent() {
         <Footer />
       </div>
       <Toaster />
+      <NotificationCenter />
     </AuthProvider>
   );
 }
