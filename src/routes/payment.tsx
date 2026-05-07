@@ -343,24 +343,69 @@ function PaymentPage() {
           {method === "card" && (
             <form onSubmit={handlePay} className="healthcare-card p-6 space-y-4">
               <h2 className="text-lg font-semibold">Card Details</h2>
-              <div className="space-y-2">
-                <Label htmlFor="cardName">Cardholder Name</Label>
-                <Input id="cardName" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="John Doe" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cardNumber">Card Number</Label>
-                <Input id="cardNumber" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="4242 4242 4242 4242" maxLength={19} required />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              {savedCards.length > 0 && (
                 <div className="space-y-2">
-                  <Label htmlFor="expiry">Expiry</Label>
-                  <Input id="expiry" value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} required />
+                  <Label>Choose a card</Label>
+                  <div className="space-y-2">
+                    {savedCards.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedCardId(c.id)}
+                        className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                          selectedCardId === c.id ? "border-primary bg-primary/5" : "border-border hover:bg-accent"
+                        }`}
+                      >
+                        <CreditCard className="h-5 w-5 text-primary" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{c.brand} •••• {c.last4}</p>
+                          <p className="text-xs text-muted-foreground">Expires {String(c.exp_month).padStart(2, "0")}/{String(c.exp_year).slice(-2)}{c.is_default ? " · Default" : ""}</p>
+                        </div>
+                        {selectedCardId === c.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCardId("new")}
+                      className={`w-full flex items-center gap-3 rounded-lg border border-dashed p-3 text-left transition-colors ${
+                        selectedCardId === "new" ? "border-primary bg-primary/5" : "border-border hover:bg-accent"
+                      }`}
+                    >
+                      <CreditCard className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-sm font-medium">Use a new card</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cvv">CVV</Label>
-                  <Input id="cvv" value={cvv} onChange={(e) => setCvv(e.target.value)} placeholder="123" maxLength={4} required />
-                </div>
-              </div>
+              )}
+
+              {selectedCardId === "new" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="cardName">Cardholder Name</Label>
+                    <Input id="cardName" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="John Doe" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cardNumber">Card Number</Label>
+                    <Input id="cardNumber" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="4242 4242 4242 4242" maxLength={19} required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="expiry">Expiry</Label>
+                      <Input id="expiry" value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="MM/YY" maxLength={5} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cvv">CVV</Label>
+                      <Input id="cvv" value={cvv} onChange={(e) => setCvv(e.target.value)} placeholder="123" maxLength={4} required />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                    <input type="checkbox" checked={saveCard} onChange={(e) => setSaveCard(e.target.checked)} className="rounded" />
+                    Save this card for next time
+                  </label>
+                </>
+              )}
+
               <Button type="submit" className="w-full" disabled={processing || (rxRequired && !rxApproved)}>
                 <Lock className="h-4 w-4" />
                 {processing ? "Processing..." : `Pay ${amount}`}
