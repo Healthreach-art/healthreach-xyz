@@ -760,6 +760,9 @@ function PatientDashboard() {
           </div>
 
 
+          {/* Active order timeline + ETA */}
+          {activeDelivery && <ActiveOrderTimeline status={activeDelivery.status} />}
+
           {/* Live delivery mini-map */}
           {activeDelivery && (
             <div className="healthcare-card p-4">
