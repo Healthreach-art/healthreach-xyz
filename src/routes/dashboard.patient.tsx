@@ -542,9 +542,8 @@ function PatientDashboard() {
                         <div className="absolute top-2 left-2 rounded-full bg-background/90 backdrop-blur px-2 py-0.5 text-[10px] font-semibold text-healthcare-green flex items-center gap-1">
                           <Star className="h-2.5 w-2.5 fill-current" /> {m.rating.toFixed(1)}
                         </div>
-                        <div className="absolute top-2 right-2 rounded-full backdrop-blur px-2 py-0.5 text-[10px] font-semibold ${} flex items-center gap-1"
-                          style={{}}>
-                          <span className={`px-2 py-0.5 rounded-full ${m.isOpen ? "bg-healthcare-green/90 text-white" : "bg-muted text-muted-foreground"}`}>
+                        <div className="absolute top-2 right-2 flex items-center gap-1">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${m.isOpen ? "bg-healthcare-green/90 text-white" : "bg-muted text-muted-foreground"}`}>
                             {m.isOpen ? "Open" : "Closed"}
                           </span>
                         </div>
