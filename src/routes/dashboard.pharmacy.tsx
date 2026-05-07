@@ -187,7 +187,18 @@ function PharmacyDashboard() {
     const channel = supabase
       .channel(`pharmacy-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => loadData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, async (payload) => {
+        loadData();
+        const newRow = payload.new as { order_id?: string; status?: string };
+        const oldRow = payload.old as { status?: string };
+        if (newRow?.status === "delivered" && oldRow?.status !== "delivered" && newRow.order_id) {
+          const { data: ord } = await supabase.from("orders").select("pharmacy_id, medication_name").eq("id", newRow.order_id).maybeSingle();
+          if (ord?.pharmacy_id === user.id) {
+            const { data: pay } = await supabase.from("payments").select("invoice_number").eq("order_id", newRow.order_id).maybeSingle();
+            toast.success("Order delivered ✅", { description: `${ord.medication_name} — Invoice ${pay?.invoice_number || "pending"}` });
+          }
+        }
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "prescription_uploads", filter: `pharmacy_id=eq.${user.id}` }, () => loadPxQueue())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
