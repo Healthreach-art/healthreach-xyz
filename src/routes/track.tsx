@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { DeliveryMap } from "@/components/DeliveryMap";
 
 export const Route = createFileRoute("/track")({
   head: () => ({
