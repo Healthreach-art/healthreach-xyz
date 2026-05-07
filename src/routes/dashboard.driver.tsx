@@ -736,6 +736,11 @@ function DriverDashboard() {
                         {isUpdating ? "Updating..." : nextLabel[delivery.status]}
                       </Button>
                     )}
+                    {delivery.status !== "delivered" && delivery.status !== "failed" && (
+                      <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 gap-1" onClick={() => setFailForDelivery(delivery)}>
+                        <AlertTriangle className="h-3 w-3" /> Report Issue
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
