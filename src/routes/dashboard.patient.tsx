@@ -154,7 +154,7 @@ function PatientDashboard() {
         if (act?.[0]) {
           const { data: del } = await supabase
             .from("deliveries").select("pickup_address, delivery_address, status").eq("order_id", act[0].id).maybeSingle();
-          if (del) setActiveDelivery({ pickup: del.pickup_address, dropoff: del.delivery_address, status: del.status });
+          if (del) setActiveDelivery({ orderId: act[0].id, pickup: del.pickup_address, dropoff: del.delivery_address, status: del.status });
         }
       }
       setLoading(false);
