@@ -74,7 +74,9 @@ function PharmacyDashboard() {
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [savingMed, setSavingMed] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "" });
+  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false });
+  const [pxQueue, setPxQueue] = useState<PrescriptionUpload[]>([]);
+  const [pxFilter, setPxFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Medication | null>(null);
