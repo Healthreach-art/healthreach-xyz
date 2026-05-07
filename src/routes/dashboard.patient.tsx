@@ -132,6 +132,7 @@ function PatientDashboard() {
     { key: "Pain Relief", icon: Heart, terms: ["pain", "ibuprofen", "paracetamol", "panado", "aspirin"] },
     { key: "Cold & Flu", icon: Thermometer, terms: ["cold", "flu", "cough", "sinus", "med-lemon"] },
     { key: "Vitamins", icon: Sparkles, terms: ["vitamin", "supplement", "omega", "magnesium"] },
+    { key: "Chronic", icon: Repeat, terms: ["chronic", "insulin", "metformin", "blood pressure", "hypertension", "statin", "asthma"] },
     { key: "Baby Care", icon: Baby, terms: ["baby", "infant", "nappy", "calpol"] },
     { key: "First Aid", icon: Bandage, terms: ["bandage", "plaster", "antiseptic", "wound", "burn"] },
   ];
