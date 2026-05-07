@@ -117,7 +117,28 @@ function Wallet_() {
     setAmount(""); setReference("");
   }
 
-  if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  async function addBank() {
+    if (!user) return;
+    if (!newBank.bank_name || !newBank.account_holder || !newBank.account_number) {
+      toast.error("Bank, holder name and account number are required");
+      return;
+    }
+    setAddingBank(true);
+    const { error } = await supabase.from("driver_bank_accounts").insert({
+      driver_id: user.id, ...newBank, is_default: banks.length === 0,
+    } as never);
+    setAddingBank(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Bank account added");
+    setNewBank({ bank_name: "", account_holder: "", account_number: "", branch_code: "", account_type: "cheque" });
+  }
+
+  async function setDefaultBank(id: string) {
+    await supabase.from("driver_bank_accounts").update({ is_default: true } as never).eq("id", id);
+  }
+  async function removeBank(id: string) {
+    await supabase.from("driver_bank_accounts").delete().eq("id", id);
+  }
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 max-w-4xl mx-auto">
