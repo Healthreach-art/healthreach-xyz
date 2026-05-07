@@ -161,11 +161,13 @@ function PharmacyDashboard() {
   useEffect(() => {
     loadData();
     loadDrivers();
+    loadPxQueue();
     if (!user) return;
     const channel = supabase
       .channel(`pharmacy-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => loadData())
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "prescription_uploads", filter: `pharmacy_id=eq.${user.id}` }, () => loadPxQueue())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
