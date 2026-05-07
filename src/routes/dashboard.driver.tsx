@@ -486,7 +486,7 @@ function DriverDashboard() {
 
                 {/* Mini route map */}
                 <div className="mt-3">
-                  <DeliveryMap pickup={delivery.pickup_address} dropoff={delivery.delivery_address} status={delivery.status} className="h-40 w-full rounded-lg overflow-hidden border border-border" />
+                  <DeliveryMap orderId={delivery.order_id} driverId={user?.id} pickup={delivery.pickup_address} dropoff={delivery.delivery_address} status={delivery.status} className="h-40 w-full rounded-lg overflow-hidden border border-border" />
                 </div>
 
                 {/* Stage Timeline */}
