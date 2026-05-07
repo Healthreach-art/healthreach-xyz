@@ -21,6 +21,9 @@ import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { TransactionHistory } from "@/components/TransactionHistory";
+import { MedicationReminders } from "@/components/MedicationReminders";
+import { AddressBook } from "@/components/AddressBook";
+import { OrderHistory } from "@/components/OrderHistory";
 import { PrescriptionStatusBadge, PrescriptionUploader, getPrescriptionFileUrl, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import pharmacy1 from "@/assets/pharmacy-1.jpg";
 import pharmacy2 from "@/assets/pharmacy-2.jpg";
@@ -129,6 +132,7 @@ function PatientDashboard() {
     { key: "Pain Relief", icon: Heart, terms: ["pain", "ibuprofen", "paracetamol", "panado", "aspirin"] },
     { key: "Cold & Flu", icon: Thermometer, terms: ["cold", "flu", "cough", "sinus", "med-lemon"] },
     { key: "Vitamins", icon: Sparkles, terms: ["vitamin", "supplement", "omega", "magnesium"] },
+    { key: "Chronic", icon: Repeat, terms: ["chronic", "insulin", "metformin", "blood pressure", "hypertension", "statin", "asthma"] },
     { key: "Baby Care", icon: Baby, terms: ["baby", "infant", "nappy", "calpol"] },
     { key: "First Aid", icon: Bandage, terms: ["bandage", "plaster", "antiseptic", "wound", "burn"] },
   ];
@@ -778,34 +782,14 @@ function PatientDashboard() {
           {/* Transactions */}
           <TransactionHistory role="patient" />
 
-          {/* Saved delivery address */}
-          <div id="address" className="scroll-mt-24"><SavedAddressCard /></div>
+          {/* Full order history with reorder + invoice download */}
+          <OrderHistory />
 
-          {/* Refill reminders */}
-          <div className="healthcare-card p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-              <Repeat className="h-5 w-5 text-primary" /> Refill Reminders
-            </h2>
-            {activePrescriptions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active prescriptions to refill.</p>
-            ) : (
-              <div className="space-y-2">
-                {activePrescriptions.slice(0, 3).map((p) => (
-                  <div key={p.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{p.medication_name}</p>
-                      <p className="text-xs text-muted-foreground">{p.dosage || "As prescribed"}</p>
-                    </div>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link to="/payment" search={{ medId: undefined, pharmacyId: undefined, name: p.medication_name, price: 120, qty: 1 }}>
-                        Refill
-                      </Link>
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Saved delivery addresses (multi, with GPS pin) */}
+          <div id="address" className="scroll-mt-24"><AddressBook /></div>
+
+          {/* Medication reminders & refill alerts */}
+          <MedicationReminders />
 
           {/* Payment methods */}
           <div id="payments" className="healthcare-card p-6 scroll-mt-24">
@@ -935,47 +919,6 @@ function PatientDashboard() {
   );
 }
 
-function SavedAddressCard() {
-  const { user } = useAuth();
-  const [address, setAddress] = useState("");
-  const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("profiles").select("address").eq("user_id", user.id).maybeSingle()
-      .then(({ data }) => { setAddress(data?.address ?? ""); setLoaded(true); });
-  }, [user]);
-
-  async function save() {
-    if (!user) return;
-    setSaving(true);
-    const { error } = await supabase.from("profiles").update({ address }).eq("user_id", user.id);
-    setSaving(false);
-    if (error) toast.error(error.message);
-    else toast.success("Delivery address saved");
-  }
-
-  return (
-    <div className="healthcare-card p-6">
-      <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-        <MapPin className="h-5 w-5 text-primary" /> Delivery Address
-      </h2>
-      <textarea
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-        placeholder="Street, suburb, city, postcode"
-        rows={2}
-        disabled={!loaded}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-      />
-      <Button size="sm" className="mt-3 w-full" disabled={!loaded || saving} onClick={save}>
-        {saving ? "Saving..." : "Save Address"}
-      </Button>
-      <p className="mt-2 text-xs text-muted-foreground">Used as the default delivery address at checkout.</p>
-    </div>
-  );
-}
 
 const TIMELINE_STEPS: { key: string; label: string }[] = [
   { key: "assigned", label: "Driver assigned" },
