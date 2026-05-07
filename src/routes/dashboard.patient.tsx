@@ -7,7 +7,13 @@ import {
 import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
   FileText, MapPin, Loader2, Stethoscope, Store, Star, MessageCircle, Settings,
+  Bell, ChevronDown, User as UserIcon, LifeBuoy, Repeat, Heart, Baby, Thermometer, Sparkles, Bandage,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
