@@ -57,11 +57,31 @@ function PaymentPage() {
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [cardName, setCardName] = useState("");
+  const [saveCard, setSaveCard] = useState(true);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [txnRef, setTxnRef] = useState<string>("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [rxRequired, setRxRequired] = useState(false);
   const [rxApproved, setRxApproved] = useState(false);
+  const [savedCards, setSavedCards] = useState<{ id: string; brand: string; last4: string; exp_month: number; exp_year: number; is_default: boolean }[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string | "new">("new");
+
+  // Load saved payment methods
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("saved_payment_methods")
+      .select("id, brand, last4, exp_month, exp_year, is_default")
+      .eq("user_id", user.id)
+      .order("is_default", { ascending: false })
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        const cards = (data ?? []) as typeof savedCards;
+        setSavedCards(cards);
+        const def = cards.find((c) => c.is_default) || cards[0];
+        if (def) setSelectedCardId(def.id);
+      });
+  }, [user]);
 
   // Pre-fill delivery address from patient profile
   useEffect(() => {
