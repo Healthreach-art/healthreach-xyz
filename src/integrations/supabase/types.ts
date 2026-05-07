@@ -354,10 +354,13 @@ export type Database = {
       }
       medications: {
         Row: {
+          batch_number: string | null
           category: string | null
           created_at: string
           description: string | null
+          expiry_date: string | null
           id: string
+          image_url: string | null
           name: string
           pharmacy_id: string
           price: number
@@ -366,10 +369,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          batch_number?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
+          expiry_date?: string | null
           id?: string
+          image_url?: string | null
           name: string
           pharmacy_id: string
           price?: number
@@ -378,10 +384,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          batch_number?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
+          expiry_date?: string | null
           id?: string
+          image_url?: string | null
           name?: string
           pharmacy_id?: string
           price?: number
@@ -623,11 +632,39 @@ export type Database = {
           },
         ]
       }
+      prescription_audit_log: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          prescription_upload_id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          prescription_upload_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          prescription_upload_id?: string
+        }
+        Relationships: []
+      }
       prescription_uploads: {
         Row: {
           created_at: string
           expires_at: string | null
           file_path: string
+          flagged: boolean
           id: string
           medication_id: string | null
           mime_type: string
@@ -644,6 +681,7 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           file_path: string
+          flagged?: boolean
           id?: string
           medication_id?: string | null
           mime_type?: string
@@ -660,6 +698,7 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           file_path?: string
+          flagged?: boolean
           id?: string
           medication_id?: string | null
           mime_type?: string
