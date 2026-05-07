@@ -32,6 +32,7 @@ import pharmacy4 from "@/assets/pharmacy-4.jpg";
 import patientHero from "@/assets/patient-hero.jpg";
 import medGeneric from "@/assets/med-generic.jpg";
 import { customerPrice } from "@/lib/pricing";
+import { downloadReceiptPdf } from "@/lib/receipt";
 
 const PHARMACY_IMAGES = [pharmacy1, pharmacy2, pharmacy3, pharmacy4];
 function pharmacyImage(id: string) {
@@ -254,6 +255,31 @@ function PatientDashboard() {
         if (newRow.status !== oldRow.status) {
           const msg = statusLabels[newRow.status];
           if (msg) { toast.success(msg, { description: order.medication_name }); refreshOrders(); }
+          if (newRow.status === "delivered") {
+            const { data: pay } = await supabase
+              .from("payments")
+              .select("invoice_number, subtotal, delivery_fee, total_paid, payment_method, transaction_ref, created_at")
+              .eq("order_id", newRow.order_id)
+              .maybeSingle();
+            if (pay?.invoice_number) {
+              toast.success("Receipt ready", {
+                description: `Invoice ${pay.invoice_number}`,
+                action: { label: "Download", onClick: () => downloadReceiptPdf({
+                  invoice_number: pay.invoice_number!,
+                  created_at: pay.created_at || new Date().toISOString(),
+                  patient_name: user.user_metadata?.full_name || user.email || "Customer",
+                  medication_name: order.medication_name,
+                  quantity: 1,
+                  subtotal: Number(pay.subtotal ?? 0),
+                  delivery_fee: Number(pay.delivery_fee ?? 0),
+                  total_paid: Number(pay.total_paid ?? 0),
+                  payment_method: pay.payment_method || "card",
+                  transaction_ref: pay.transaction_ref || "",
+                }) },
+                duration: 10000,
+              });
+            }
+          }
         }
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "prescriptions", filter: `patient_id=eq.${user.id}` }, async () => {
