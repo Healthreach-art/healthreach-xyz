@@ -139,6 +139,33 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          email_orders: boolean
+          email_promotions: boolean
+          push_orders: boolean
+          sms_orders: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          email_orders?: boolean
+          email_promotions?: boolean
+          push_orders?: boolean
+          sms_orders?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          email_orders?: boolean
+          email_promotions?: boolean
+          push_orders?: boolean
+          sms_orders?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       order_messages: {
         Row: {
           body: string
@@ -229,32 +256,74 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          delivery_fee: number | null
+          driver_amount: number | null
+          failure_reason: string | null
           id: string
+          invoice_number: string | null
           order_id: string
           patient_id: string
           payment_method: string
+          pharmacy_amount: number | null
+          pharmacy_id: string | null
+          platform_fee: number | null
+          provider: string | null
+          refund_amount: number | null
+          refund_status: string | null
+          retry_count: number | null
           status: Database["public"]["Enums"]["payment_status"]
+          subtotal: number | null
+          total_paid: number | null
           transaction_ref: string | null
+          updated_at: string
         }
         Insert: {
           amount: number
           created_at?: string
+          delivery_fee?: number | null
+          driver_amount?: number | null
+          failure_reason?: string | null
           id?: string
+          invoice_number?: string | null
           order_id: string
           patient_id: string
           payment_method?: string
+          pharmacy_amount?: number | null
+          pharmacy_id?: string | null
+          platform_fee?: number | null
+          provider?: string | null
+          refund_amount?: number | null
+          refund_status?: string | null
+          retry_count?: number | null
           status?: Database["public"]["Enums"]["payment_status"]
+          subtotal?: number | null
+          total_paid?: number | null
           transaction_ref?: string | null
+          updated_at?: string
         }
         Update: {
           amount?: number
           created_at?: string
+          delivery_fee?: number | null
+          driver_amount?: number | null
+          failure_reason?: string | null
           id?: string
+          invoice_number?: string | null
           order_id?: string
           patient_id?: string
           payment_method?: string
+          pharmacy_amount?: number | null
+          pharmacy_id?: string | null
+          platform_fee?: number | null
+          provider?: string | null
+          refund_amount?: number | null
+          refund_status?: string | null
+          retry_count?: number | null
           status?: Database["public"]["Enums"]["payment_status"]
+          subtotal?: number | null
+          total_paid?: number | null
           transaction_ref?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -344,6 +413,39 @@ export type Database = {
           organization_name?: string | null
           phone?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saved_payment_methods: {
+        Row: {
+          brand: string
+          created_at: string
+          exp_month: number
+          exp_year: number
+          id: string
+          is_default: boolean
+          last4: string
+          user_id: string
+        }
+        Insert: {
+          brand: string
+          created_at?: string
+          exp_month: number
+          exp_year: number
+          id?: string
+          is_default?: boolean
+          last4: string
+          user_id: string
+        }
+        Update: {
+          brand?: string
+          created_at?: string
+          exp_month?: number
+          exp_year?: number
+          id?: string
+          is_default?: boolean
+          last4?: string
           user_id?: string
         }
         Relationships: []
