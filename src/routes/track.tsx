@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { DeliveryMap } from "@/components/DeliveryMap";
 
 export const Route = createFileRoute("/track")({
   head: () => ({
@@ -141,11 +142,17 @@ function TrackPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <div className="healthcare-card overflow-hidden">
-              <div className="aspect-video bg-gradient-to-br from-healthcare-mint/30 via-healthcare-sky/20 to-primary/10 flex items-center justify-center relative">
-                <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(to_right,oklch(0.85_0.02_240)_1px,transparent_1px),linear-gradient(to_bottom,oklch(0.85_0.02_240)_1px,transparent_1px)] [background-size:32px_32px]" />
-                <div className="relative flex items-center gap-3 rounded-full bg-background/90 backdrop-blur px-4 py-2 shadow-lg">
-                  <Truck className="h-5 w-5 text-primary animate-pulse" />
-                  <span className="text-sm font-medium capitalize">Status: {delivery.status.replace(/_/g, " ")}</span>
+              <div className="aspect-video relative">
+                <DeliveryMap
+                  orderId={delivery.order_id}
+                  pickup={delivery.pickup_address}
+                  dropoff={delivery.delivery_address}
+                  status={delivery.status}
+                  className="absolute inset-0 h-full w-full"
+                />
+                <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-full bg-background/90 backdrop-blur px-3 py-1.5 shadow-md">
+                  <Truck className="h-4 w-4 text-primary animate-pulse" />
+                  <span className="text-xs font-medium capitalize">{delivery.status.replace(/_/g, " ")}</span>
                 </div>
               </div>
               <div className="p-4 flex items-center justify-between border-t border-border">
