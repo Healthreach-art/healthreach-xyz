@@ -83,7 +83,8 @@ function PharmacyDashboard() {
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [savingMed, setSavingMed] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false });
+  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "" });
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [pxQueue, setPxQueue] = useState<PrescriptionUpload[]>([]);
   const [pxFilter, setPxFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
 
@@ -195,7 +196,7 @@ function PharmacyDashboard() {
 
   function openAddMedication() {
     setEditingMed(null);
-    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false });
+    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "" });
     setMedDialogOpen(true);
   }
 
@@ -207,8 +208,31 @@ function PharmacyDashboard() {
       stock: String(med.stock_quantity),
       category: med.category ?? "",
       requires_prescription: !!med.requires_prescription,
+      image_url: med.image_url ?? "",
+      expiry_date: med.expiry_date ?? "",
+      batch_number: med.batch_number ?? "",
     });
     setMedDialogOpen(true);
+  }
+
+  async function handleImageUpload(file: File) {
+    if (!user) return;
+    if (!file.type.startsWith("image/")) { toast.error("Choose an image file"); return; }
+    if (file.size > 4 * 1024 * 1024) { toast.error("Max 4 MB"); return; }
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error } = await supabase.storage.from("medication-images").upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+      const { data } = supabase.storage.from("medication-images").getPublicUrl(path);
+      setForm((f) => ({ ...f, image_url: data.publicUrl }));
+      toast.success("Image uploaded");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingImage(false);
+    }
   }
 
   async function handleSaveMedication(e: FormEvent) {
@@ -222,6 +246,9 @@ function PharmacyDashboard() {
       stock_quantity: Number(form.stock) || 0,
       category: form.category || null,
       requires_prescription: form.requires_prescription,
+      image_url: form.image_url || null,
+      expiry_date: form.expiry_date || null,
+      batch_number: form.batch_number || null,
     };
     const { error } = editingMed
       ? await supabase.from("medications").update(payload).eq("id", editingMed.id)
