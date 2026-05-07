@@ -408,16 +408,29 @@ function PatientDashboard() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-foreground">R {customerPrice(med.price).toFixed(2)}</span>
-                      <Button size="sm" variant="default" asChild>
-                        <Link
-                          to="/payment"
-                          search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}
-                        >
-                          Order
-                        </Link>
-                      </Button>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-foreground">R {customerPrice(med.price).toFixed(2)}</span>
+                        {med.requires_prescription && !hasApprovedRx(med) ? (
+                          <Button size="sm" variant="outline" onClick={() => setRxFor(med)}>
+                            <Stethoscope className="h-3.5 w-3.5" /> Upload Rx
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="default" asChild>
+                            <Link
+                              to="/payment"
+                              search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}
+                            >
+                              Order
+                            </Link>
+                          </Button>
+                        )}
+                      </div>
+                      {med.requires_prescription && (
+                        <span className="text-[10px] uppercase tracking-wide text-healthcare-sky">
+                          {hasApprovedRx(med) ? "Rx approved ✓" : (rxStatusFor(med)?.status.replace("_", " ") ?? "Rx required")}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
