@@ -20,7 +20,7 @@ export const Route = createFileRoute("/signup")({
 const roles = [
   { value: "patient", label: "Patient", description: "Order medication and track health" },
   { value: "pharmacy", label: "Pharmacy", description: "Manage inventory and fulfill orders" },
-  { value: "hospital", label: "Hospital", description: "Issue prescriptions and coordinate care" },
+  // Hospital role temporarily hidden — only Patient, Pharmacy, Driver are user-selectable.
   { value: "driver", label: "Driver", description: "Deliver medications to patients" },
 ] as const;
 
