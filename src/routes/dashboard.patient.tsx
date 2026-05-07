@@ -676,15 +676,16 @@ function PatientDashboard() {
             <div className="space-y-3">
               {pxUploads.slice(0, 6).map((u) => {
                 const ph = pharmacies.find((p) => p.user_id === u.pharmacy_id);
+                const med = meds.find((m) => m.id === u.medication_id);
                 return (
                   <div key={u.id} className="rounded-lg border border-border p-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">
-                          {ph?.organization_name || ph?.full_name || "Pharmacy"}
+                          {med?.name || "Prescription"}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Uploaded {new Date(u.created_at).toLocaleString()}
+                        <p className="text-xs text-muted-foreground truncate">
+                          {ph?.organization_name || ph?.full_name || "Pharmacy"} · {new Date(u.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <PrescriptionStatusBadge status={u.status} />
@@ -692,6 +693,24 @@ function PatientDashboard() {
                     {(u.status === "rejected" || u.status === "reupload_requested") && u.pharmacist_notes && (
                       <p className="mt-2 text-xs text-destructive">Pharmacist: {u.pharmacist_notes}</p>
                     )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={async () => {
+                          try {
+                            const url = await getPrescriptionFileUrl(u.file_path);
+                            window.open(url, "_blank", "noopener,noreferrer");
+                          } catch (e: any) { toast.error(e?.message || "Could not open file"); }
+                        }}
+                      >View prescription</Button>
+                      {(u.status === "rejected" || u.status === "reupload_requested") && med && (
+                        <Button size="sm" className="h-7 text-xs" onClick={() => setRxFor(med)}>
+                          Re-upload
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
