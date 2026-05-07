@@ -85,6 +85,8 @@ function PatientDashboard() {
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [pxUploads, setPxUploads] = useState<PrescriptionUpload[]>([]);
+  const [rxFor, setRxFor] = useState<Med | null>(null);
   const [loading, setLoading] = useState(true);
   const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
