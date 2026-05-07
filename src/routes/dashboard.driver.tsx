@@ -432,12 +432,14 @@ function DriverDashboard() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 border ${online ? "bg-healthcare-green/10 border-healthcare-green/40" : "bg-muted border-border"}`}>
             <Power className={`h-4 w-4 ${online ? "text-healthcare-green" : "text-muted-foreground"}`} />
             <span className="text-xs font-medium">{online ? "Online" : "Offline"}</span>
             <Switch checked={online} onCheckedChange={setOnline} />
           </div>
+          <Button variant="outline" size="sm" asChild><Link to="/driver/wallet" className="gap-1"><Wallet className="h-4 w-4" /> Wallet</Link></Button>
+          <Button variant="outline" size="sm" asChild><Link to="/driver/onboarding" className="gap-1"><IdCard className="h-4 w-4" /> Verify</Link></Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
