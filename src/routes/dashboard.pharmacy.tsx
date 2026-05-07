@@ -62,6 +62,7 @@ interface LiveDelivery {
   medication_name: string;
   delivery_address: string | null;
   updated_at: string;
+  pickup_code: string | null;
 }
 
 function PharmacyDashboard() {
