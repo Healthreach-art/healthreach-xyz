@@ -60,6 +60,8 @@ function PaymentPage() {
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [txnRef, setTxnRef] = useState<string>("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [rxRequired, setRxRequired] = useState(false);
+  const [rxApproved, setRxApproved] = useState(false);
 
   // Pre-fill delivery address from patient profile
   useEffect(() => {
@@ -67,6 +69,29 @@ function PaymentPage() {
     supabase.from("profiles").select("address").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => { if (data?.address) setDeliveryAddress(data.address); });
   }, [user]);
+
+  // Check if medication requires a prescription, and whether the patient has an approved upload
+  useEffect(() => {
+    if (!user || !medId) return;
+    let cancel = false;
+    (async () => {
+      const { data: med } = await supabase
+        .from("medications").select("requires_prescription, pharmacy_id").eq("id", medId).maybeSingle();
+      if (cancel || !med) return;
+      const required = !!med.requires_prescription;
+      setRxRequired(required);
+      if (!required) { setRxApproved(true); return; }
+      const { data: ups } = await supabase
+        .from("prescription_uploads")
+        .select("id, expires_at")
+        .eq("patient_id", user.id)
+        .eq("pharmacy_id", med.pharmacy_id)
+        .eq("status", "approved");
+      const ok = (ups ?? []).some((u: any) => !u.expires_at || new Date(u.expires_at) > new Date());
+      setRxApproved(ok);
+    })();
+    return () => { cancel = true; };
+  }, [user, medId]);
 
   // Customer-facing pricing — pharmacy base price + 15%, delivery base + 7%.
   const unitPrice = customerPrice(price);
@@ -84,6 +109,10 @@ function PaymentPage() {
     }
     if (!deliveryAddress.trim()) {
       toast.error("Please enter a delivery address.");
+      return;
+    }
+    if (rxRequired && !rxApproved) {
+      toast.error("This medication needs an approved prescription before checkout.");
       return;
     }
     setProcessing(true);
@@ -296,7 +325,7 @@ function PaymentPage() {
                   <Input id="cvv" value={cvv} onChange={(e) => setCvv(e.target.value)} placeholder="123" maxLength={4} required />
                 </div>
               </div>
-              <Button type="submit" className="w-full" disabled={processing}>
+              <Button type="submit" className="w-full" disabled={processing || (rxRequired && !rxApproved)}>
                 <Lock className="h-4 w-4" />
                 {processing ? "Processing..." : `Pay ${amount}`}
               </Button>
@@ -309,7 +338,7 @@ function PaymentPage() {
               <p className="text-sm text-muted-foreground">
                 You will be redirected to complete your {method === "eft" ? "EFT" : method} payment securely.
               </p>
-              <Button type="submit" className="w-full" disabled={processing}>
+              <Button type="submit" className="w-full" disabled={processing || (rxRequired && !rxApproved)}>
                 <Lock className="h-4 w-4" />
                 {processing ? "Connecting..." : `Continue to Pay ${amount}`}
               </Button>
@@ -326,6 +355,11 @@ function PaymentPage() {
           <div className="flex justify-between pt-4 text-base font-semibold">
             <span>Total</span><span>{amount}</span>
           </div>
+          {rxRequired && !rxApproved && (
+            <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+              This medication requires a verified prescription. Please upload one from your patient dashboard and wait for pharmacy approval before checking out.
+            </div>
+          )}
           <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
             <Lock className="h-3 w-3" /> Secured with 256-bit encryption
           </p>

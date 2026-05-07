@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { TransactionHistory } from "@/components/TransactionHistory";
+import { PharmacyReviewActions, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { customerPrice } from "@/lib/pricing";
 
 export const Route = createFileRoute("/dashboard/pharmacy")({
@@ -36,6 +37,7 @@ interface Medication {
   stock_quantity: number;
   price: number;
   category: string | null;
+  requires_prescription?: boolean | null;
 }
 
 interface Order {
@@ -72,7 +74,9 @@ function PharmacyDashboard() {
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [savingMed, setSavingMed] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "" });
+  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false });
+  const [pxQueue, setPxQueue] = useState<PrescriptionUpload[]>([]);
+  const [pxFilter, setPxFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Medication | null>(null);
@@ -143,6 +147,16 @@ function PharmacyDashboard() {
     })));
   }
 
+  async function loadPxQueue() {
+    if (!user) return;
+    const { data } = await supabase
+      .from("prescription_uploads")
+      .select("*")
+      .eq("pharmacy_id", user.id)
+      .order("created_at", { ascending: false });
+    setPxQueue((data ?? []) as PrescriptionUpload[]);
+  }
+
   // Restore scroll to URL hash on load / refresh
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -157,11 +171,13 @@ function PharmacyDashboard() {
   useEffect(() => {
     loadData();
     loadDrivers();
+    loadPxQueue();
     if (!user) return;
     const channel = supabase
       .channel(`pharmacy-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => loadData())
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "prescription_uploads", filter: `pharmacy_id=eq.${user.id}` }, () => loadPxQueue())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,18 +185,18 @@ function PharmacyDashboard() {
 
   function openAddMedication() {
     setEditingMed(null);
-    setForm({ name: "", price: "", stock: "", category: "" });
+    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false });
     setMedDialogOpen(true);
   }
 
   function openEditMedication(med: Medication) {
-    // (no demo guards — all items are real)
     setEditingMed(med);
     setForm({
       name: med.name,
       price: String(med.price),
       stock: String(med.stock_quantity),
       category: med.category ?? "",
+      requires_prescription: !!med.requires_prescription,
     });
     setMedDialogOpen(true);
   }
@@ -195,6 +211,7 @@ function PharmacyDashboard() {
       price: Number(form.price) || 0,
       stock_quantity: Number(form.stock) || 0,
       category: form.category || null,
+      requires_prescription: form.requires_prescription,
     };
     const { error } = editingMed
       ? await supabase.from("medications").update(payload).eq("id", editingMed.id)
@@ -550,6 +567,56 @@ function PharmacyDashboard() {
         </div>
       </div>
 
+      {/* Prescription Verification Queue */}
+      <div id="prescription-queue" className="container-narrow px-4 sm:px-6 mt-6">
+        <div className="healthcare-card p-6 scroll-mt-24">
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Pill className="h-5 w-5 text-primary" /> Prescription Verification Queue
+              <span className="text-xs font-normal text-muted-foreground">({pxQueue.filter(p => p.status === "pending").length} pending)</span>
+            </h2>
+            <div className="flex gap-1 text-xs">
+              {(["pending", "approved", "rejected", "all"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setPxFilter(f)}
+                  className={`px-2 py-1 rounded-md capitalize ${pxFilter === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}
+                >{f}</button>
+              ))}
+            </div>
+          </div>
+          {pxQueue.length === 0 && (
+            <p className="text-sm text-muted-foreground py-4 text-center">No prescription uploads yet.</p>
+          )}
+          <div className="space-y-3">
+            {pxQueue
+              .filter((u) => pxFilter === "all" || u.status === pxFilter)
+              .slice(0, 10)
+              .map((u) => (
+                <div key={u.id} className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between mb-3 gap-2">
+                    <div>
+                      <p className="text-sm font-medium">Patient {u.patient_id.slice(0, 8)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(u.created_at).toLocaleString()}
+                        {u.medication_id ? ` · Med ${u.medication_id.slice(0, 8)}` : ""}
+                      </p>
+                    </div>
+                    <PrescriptionStatusBadge status={u.status} />
+                  </div>
+                  {(u.status === "pending" || u.status === "reupload_requested") ? (
+                    <PharmacyReviewActions row={u} onChanged={loadPxQueue} />
+                  ) : (
+                    u.pharmacist_notes && (
+                      <p className="text-xs text-muted-foreground">Notes: {u.pharmacist_notes}</p>
+                    )
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      </div>
+
       {/* Add / Edit Medication Dialog */}
       <Dialog open={medDialogOpen} onOpenChange={(o) => { setMedDialogOpen(o); if (!o) setEditingMed(null); }}>
         <DialogContent>
@@ -575,6 +642,15 @@ function PharmacyDashboard() {
               <Label htmlFor="category">Category</Label>
               <Input id="category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Antibiotics" />
             </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.requires_prescription}
+                onChange={(e) => setForm({ ...form, requires_prescription: e.target.checked })}
+                className="h-4 w-4 rounded border-input"
+              />
+              Requires a valid prescription (Rx)
+            </label>
             <DialogFooter>
               <Button type="submit" disabled={savingMed}>
                 {savingMed ? "Saving..." : editingMed ? "Save Changes" : "Add Medication"}

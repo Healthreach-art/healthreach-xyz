@@ -15,6 +15,7 @@ import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { TransactionHistory } from "@/components/TransactionHistory";
+import { PrescriptionStatusBadge, PrescriptionUploader, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import pharmacy1 from "@/assets/pharmacy-1.jpg";
 import pharmacy2 from "@/assets/pharmacy-2.jpg";
 import pharmacy3 from "@/assets/pharmacy-3.jpg";
@@ -48,6 +49,7 @@ interface Med {
   name: string;
   price: number;
   stock_quantity: number;
+  requires_prescription?: boolean | null;
 }
 interface Order {
   id: string;
@@ -83,6 +85,8 @@ function PatientDashboard() {
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [pxUploads, setPxUploads] = useState<PrescriptionUpload[]>([]);
+  const [rxFor, setRxFor] = useState<Med | null>(null);
   const [loading, setLoading] = useState(true);
   const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
@@ -108,7 +112,7 @@ function PatientDashboard() {
         (async () => {
           const { data } = await supabase
             .from("medications")
-            .select("id, pharmacy_id, name, price, stock_quantity")
+            .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription")
             .gt("stock_quantity", 0)
             .order("name");
           setMeds((data ?? []) as Med[]);
@@ -142,6 +146,14 @@ function PatientDashboard() {
               .eq("patient_id", user.id)
               .order("created_at", { ascending: false });
             setPrescriptions((data ?? []) as Prescription[]);
+          })(),
+          (async () => {
+            const { data } = await supabase
+              .from("prescription_uploads")
+              .select("*")
+              .eq("patient_id", user.id)
+              .order("created_at", { ascending: false });
+            setPxUploads((data ?? []) as PrescriptionUpload[]);
           })()
         );
       }
@@ -207,6 +219,14 @@ function PatientDashboard() {
           .order("created_at", { ascending: false });
         setPrescriptions((data ?? []) as Prescription[]);
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "prescription_uploads", filter: `patient_id=eq.${user.id}` }, async () => {
+        const { data } = await supabase
+          .from("prescription_uploads")
+          .select("*")
+          .eq("patient_id", user!.id)
+          .order("created_at", { ascending: false });
+        setPxUploads((data ?? []) as PrescriptionUpload[]);
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user]);
@@ -218,6 +238,23 @@ function PatientDashboard() {
   const pendingDelivery = orders.filter((o) => ["accepted", "preparing", "ready", "out_for_delivery"].includes(o.status)).length;
   const totalSpent = orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + Number(o.total_amount || 0), 0);
   const activePrescriptions = prescriptions.filter((p) => p.is_active !== false);
+
+  // Approved prescription upload exists for a given (medication, pharmacy) pair
+  function hasApprovedRx(med: Med) {
+    return pxUploads.some((u) =>
+      u.status === "approved" &&
+      u.pharmacy_id === med.pharmacy_id &&
+      (u.medication_id === med.id || u.medication_id === null) &&
+      (!u.expires_at || new Date(u.expires_at) > new Date())
+    );
+  }
+  function rxStatusFor(med: Med) {
+    return pxUploads.find((u) =>
+      u.pharmacy_id === med.pharmacy_id &&
+      (u.medication_id === med.id || u.medication_id === null) &&
+      ["pending", "rejected", "reupload_requested"].includes(u.status)
+    );
+  }
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
@@ -371,16 +408,29 @@ function PatientDashboard() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-foreground">R {customerPrice(med.price).toFixed(2)}</span>
-                      <Button size="sm" variant="default" asChild>
-                        <Link
-                          to="/payment"
-                          search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}
-                        >
-                          Order
-                        </Link>
-                      </Button>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-foreground">R {customerPrice(med.price).toFixed(2)}</span>
+                        {med.requires_prescription && !hasApprovedRx(med) ? (
+                          <Button size="sm" variant="outline" onClick={() => setRxFor(med)}>
+                            <Stethoscope className="h-3.5 w-3.5" /> Upload Rx
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="default" asChild>
+                            <Link
+                              to="/payment"
+                              search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}
+                            >
+                              Order
+                            </Link>
+                          </Button>
+                        )}
+                      </div>
+                      {med.requires_prescription && (
+                        <span className="text-[10px] uppercase tracking-wide text-healthcare-sky">
+                          {hasApprovedRx(med) ? "Rx approved ✓" : (rxStatusFor(med)?.status.replace("_", " ") ?? "Rx required")}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -415,6 +465,44 @@ function PatientDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Prescription Uploads (verification status) */}
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" /> Prescription Uploads
+              {pxUploads.length > 0 && (
+                <span className="ml-auto text-xs font-normal text-muted-foreground">{pxUploads.length} total</span>
+              )}
+            </h2>
+            {pxUploads.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No prescription uploads yet. When you order an Rx-required medicine you'll be prompted to upload one here.
+              </p>
+            )}
+            <div className="space-y-3">
+              {pxUploads.slice(0, 6).map((u) => {
+                const ph = pharmacies.find((p) => p.user_id === u.pharmacy_id);
+                return (
+                  <div key={u.id} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {ph?.organization_name || ph?.full_name || "Pharmacy"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Uploaded {new Date(u.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <PrescriptionStatusBadge status={u.status} />
+                    </div>
+                    {(u.status === "rejected" || u.status === "reupload_requested") && u.pharmacist_notes && (
+                      <p className="mt-2 text-xs text-destructive">Pharmacist: {u.pharmacist_notes}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -528,11 +616,17 @@ function PatientDashboard() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold">R {customerPrice(med.price).toFixed(2)}</span>
-                  <Button size="sm" asChild>
-                    <Link to="/payment" search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}>
-                      Order
-                    </Link>
-                  </Button>
+                  {med.requires_prescription && !hasApprovedRx(med) ? (
+                    <Button size="sm" variant="outline" onClick={() => { setRxFor(med); setOpenPharmacy(null); }}>
+                      <Stethoscope className="h-3.5 w-3.5" /> Upload Rx
+                    </Button>
+                  ) : (
+                    <Button size="sm" asChild>
+                      <Link to="/payment" search={{ medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 }}>
+                        Order
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -542,6 +636,27 @@ function PatientDashboard() {
 
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* Prescription upload dialog */}
+      <Dialog open={!!rxFor} onOpenChange={(o) => !o && setRxFor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Stethoscope className="h-5 w-5 text-primary" /> Upload prescription
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              {rxFor?.name} requires a valid prescription. Upload an image or PDF — your assigned pharmacy will verify it within minutes.
+            </p>
+          </DialogHeader>
+          {rxFor && (
+            <PrescriptionUploader
+              pharmacyId={rxFor.pharmacy_id}
+              medicationId={rxFor.id}
+              onUploaded={() => setRxFor(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

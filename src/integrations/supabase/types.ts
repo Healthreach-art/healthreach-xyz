@@ -440,6 +440,57 @@ export type Database = {
           },
         ]
       }
+      prescription_uploads: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          file_path: string
+          id: string
+          medication_id: string | null
+          mime_type: string
+          order_id: string | null
+          patient_id: string
+          pharmacist_notes: string | null
+          pharmacy_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["prescription_upload_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          file_path: string
+          id?: string
+          medication_id?: string | null
+          mime_type?: string
+          order_id?: string | null
+          patient_id: string
+          pharmacist_notes?: string | null
+          pharmacy_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["prescription_upload_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          file_path?: string
+          id?: string
+          medication_id?: string | null
+          mime_type?: string
+          order_id?: string | null
+          patient_id?: string
+          pharmacist_notes?: string | null
+          pharmacy_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["prescription_upload_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       prescriptions: {
         Row: {
           created_at: string
@@ -641,6 +692,12 @@ export type Database = {
         | "delivered"
         | "cancelled"
       payment_status: "pending" | "completed" | "failed" | "refunded"
+      prescription_upload_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "expired"
+        | "reupload_requested"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -782,6 +839,13 @@ export const Constants = {
         "cancelled",
       ],
       payment_status: ["pending", "completed", "failed", "refunded"],
+      prescription_upload_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "expired",
+        "reupload_requested",
+      ],
     },
   },
 } as const
