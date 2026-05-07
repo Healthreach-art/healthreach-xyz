@@ -391,8 +391,8 @@ function DriverDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="Driver" className="h-14 w-14 rounded-full object-cover ring-2 ring-primary/30" />
+            {(profile as { avatar_url?: string } | null)?.avatar_url ? (
+              <img src={(profile as { avatar_url?: string }).avatar_url} alt="Driver" className="h-14 w-14 rounded-full object-cover ring-2 ring-primary/30" />
             ) : (
               <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-lg font-semibold text-primary ring-2 ring-primary/30">
                 {(profile?.full_name || "D").slice(0, 1)}
