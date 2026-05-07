@@ -27,6 +27,11 @@ interface LiveDelivery {
   estimated_time: string | null;
   created_at: string;
   updated_at: string;
+  patient_name?: string;
+  patient_phone?: string;
+  pharmacy_name?: string;
+  pharmacy_phone?: string;
+  earnings?: number;
 }
 
 interface CompletedDelivery {
