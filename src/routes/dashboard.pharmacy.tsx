@@ -357,10 +357,17 @@ function PharmacyDashboard() {
           { icon: AlertTriangle, label: "Low Stock", value: String(lowStockItems.length), color: "text-destructive", target: "inventory-section" },
           { icon: DollarSign, label: "Revenue (Total)", value: `R ${monthRevenue.toFixed(0)}`, color: "text-healthcare-green", target: "orders-section" },
         ].map((stat) => (
-          <button
+          <a
             key={stat.label}
-            type="button"
-            onClick={() => document.getElementById(stat.target)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            href={`#${stat.target}`}
+            onClick={(e) => {
+              e.preventDefault();
+              const el = document.getElementById(stat.target);
+              if (el) {
+                history.replaceState(null, "", `#${stat.target}`);
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
             className="healthcare-card p-5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <div className="flex items-center gap-3">
@@ -372,7 +379,7 @@ function PharmacyDashboard() {
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
             </div>
-          </button>
+          </a>
         ))}
       </div>
 
