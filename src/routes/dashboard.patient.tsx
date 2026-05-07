@@ -7,7 +7,13 @@ import {
 import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
   FileText, MapPin, Loader2, Stethoscope, Store, Star, MessageCircle, Settings,
+  Bell, ChevronDown, User as UserIcon, LifeBuoy, Repeat, Heart, Baby, Thermometer, Sparkles, Bandage,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -94,6 +100,27 @@ function PatientDashboard() {
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeDelivery, setActiveDelivery] = useState<{ orderId: string; pickup: string | null; dropoff: string | null; status: string } | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [savedCards, setSavedCards] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null)
+      .then(({ count }) => setUnreadNotifs(count ?? 0));
+    supabase.from("saved_payment_methods").select("id", { count: "exact", head: true }).eq("user_id", user.id)
+      .then(({ count }) => setSavedCards(count ?? 0));
+  }, [user]);
+
+  const CATEGORIES = [
+    { key: "Pain Relief", icon: Heart, terms: ["pain", "ibuprofen", "paracetamol", "panado", "aspirin"] },
+    { key: "Cold & Flu", icon: Thermometer, terms: ["cold", "flu", "cough", "sinus", "med-lemon"] },
+    { key: "Vitamins", icon: Sparkles, terms: ["vitamin", "supplement", "omega", "magnesium"] },
+    { key: "Baby Care", icon: Baby, terms: ["baby", "infant", "nappy", "calpol"] },
+    { key: "First Aid", icon: Bandage, terms: ["bandage", "plaster", "antiseptic", "wound", "burn"] },
+  ];
+  const activeCategory = CATEGORIES.find((c) => c.key === category);
+  const cartCount = orders.filter((o) => o.status === "pending").length;
 
   // Restore scroll to URL hash on load / refresh
   useEffect(() => {
@@ -233,7 +260,12 @@ function PatientDashboard() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  const filteredMeds = meds.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredMeds = meds.filter((m) => {
+    const q = search.toLowerCase();
+    const matchesSearch = !q || m.name.toLowerCase().includes(q);
+    const matchesCat = !activeCategory || activeCategory.terms.some((t) => m.name.toLowerCase().includes(t));
+    return matchesSearch && matchesCat;
+  });
 
   const totalOrders = orders.length;
   const activeOrders = orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length;
@@ -260,18 +292,90 @@ function PatientDashboard() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Patient Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Welcome back, {profile?.full_name || "Patient"}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
-          <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+      {/* Top app bar */}
+      <div className="sticky top-0 z-30 -mx-4 sm:-mx-6 mb-6 border-b border-border/60 bg-background/85 backdrop-blur-md">
+        <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="h-8 w-8 rounded-lg healthcare-gradient flex items-center justify-center">
+              <Pill className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="hidden sm:inline font-bold text-foreground">HEALTHREACH</span>
+          </div>
+
+          <button
+            onClick={() => {
+              document.getElementById("address")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              history.replaceState(null, "", "#address");
+            }}
+            className="flex items-center gap-1.5 min-w-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs sm:text-sm hover:bg-accent transition-colors"
+          >
+            <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="truncate max-w-[140px] sm:max-w-[220px] text-foreground">
+              {profile?.address?.split(",")[0] || "Set delivery address"}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          </button>
+
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            <button
+              aria-label="Notifications"
+              onClick={() => { document.getElementById("orders")?.scrollIntoView({ behavior: "smooth" }); }}
+              className="relative h-9 w-9 rounded-full hover:bg-accent flex items-center justify-center"
+            >
+              <Bell className="h-4 w-4 text-foreground" />
+              {unreadNotifs > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                  {unreadNotifs > 9 ? "9+" : unreadNotifs}
+                </span>
+              )}
+            </button>
+            <button
+              aria-label="Cart"
+              onClick={() => { document.getElementById("orders")?.scrollIntoView({ behavior: "smooth" }); }}
+              className="relative h-9 w-9 rounded-full hover:bg-accent flex items-center justify-center"
+            >
+              <ShoppingCart className="h-4 w-4 text-foreground" />
+              {cartCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="h-9 w-9 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm">
+                  {(profile?.full_name || "P").charAt(0).toUpperCase()}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="truncate">{profile?.full_name || "Patient"}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                  <Settings className="h-4 w-4" /> Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => document.getElementById("address")?.scrollIntoView({ behavior: "smooth" })}>
+                  <MapPin className="h-4 w-4" /> Delivery address
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => document.getElementById("payments")?.scrollIntoView({ behavior: "smooth" })}>
+                  <CreditCard className="h-4 w-4" /> Payment methods
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => document.getElementById("support")?.scrollIntoView({ behavior: "smooth" })}>
+                  <LifeBuoy className="h-4 w-4" /> Support
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut}>Sign out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
-      {/* Stats */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-foreground">Welcome back, {profile?.full_name?.split(" ")[0] || "there"} 👋</h1>
+        <p className="text-sm text-muted-foreground">Order medicine and get it delivered fast.</p>
+      </div>
+
       {/* Hero banner */}
       <div className="relative overflow-hidden rounded-2xl mb-6 h-44 sm:h-56">
         <img src={patientHero} alt="Medicine delivered to your door" className="absolute inset-0 h-full w-full object-cover" />
@@ -283,6 +387,42 @@ function PatientDashboard() {
         </div>
       </div>
 
+      {/* Big search bar */}
+      <div className="relative mb-6">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search medicines, pharmacies, brands…"
+          className="w-full h-12 sm:h-14 rounded-2xl border border-border bg-card pl-12 pr-4 text-sm sm:text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </div>
+
+      {/* Quick categories */}
+      <div className="mb-8">
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+          {CATEGORIES.map((c) => {
+            const active = category === c.key;
+            return (
+              <button
+                key={c.key}
+                onClick={() => setCategory(active ? null : c.key)}
+                className={`flex flex-col items-center gap-1.5 shrink-0 rounded-2xl border p-3 w-20 sm:w-24 transition-all hover:-translate-y-0.5 ${
+                  active ? "border-primary bg-primary/10" : "border-border bg-card hover:shadow-md"
+                }`}
+              >
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                  <c.icon className="h-5 w-5" />
+                </div>
+                <span className="text-[11px] sm:text-xs font-medium text-foreground text-center leading-tight">{c.key}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Stats */}
       {/* Stats — clicking updates the URL hash and smooth-scrolls to the section */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
@@ -534,9 +674,16 @@ function PatientDashboard() {
                       <span>{new Date(order.created_at).toLocaleDateString()}</span>
                       <span>R {Number(order.total_amount).toFixed(2)}</span>
                     </div>
-                    <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
-                      <MessageCircle className="h-3 w-3" /> Chat
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
+                        <MessageCircle className="h-3 w-3" /> Chat
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" asChild>
+                        <Link to="/payment" search={{ medId: undefined, pharmacyId: undefined, name: order.medication_name, price: Number(order.total_amount), qty: 1 }}>
+                          <Repeat className="h-3 w-3" /> Reorder
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -560,7 +707,60 @@ function PatientDashboard() {
           <TransactionHistory role="patient" />
 
           {/* Saved delivery address */}
-          <SavedAddressCard />
+          <div id="address" className="scroll-mt-24"><SavedAddressCard /></div>
+
+          {/* Refill reminders */}
+          <div className="healthcare-card p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+              <Repeat className="h-5 w-5 text-primary" /> Refill Reminders
+            </h2>
+            {activePrescriptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No active prescriptions to refill.</p>
+            ) : (
+              <div className="space-y-2">
+                {activePrescriptions.slice(0, 3).map((p) => (
+                  <div key={p.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{p.medication_name}</p>
+                      <p className="text-xs text-muted-foreground">{p.dosage || "As prescribed"}</p>
+                    </div>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to="/payment" search={{ medId: undefined, pharmacyId: undefined, name: p.medication_name, price: 120, qty: 1 }}>
+                        Refill
+                      </Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Payment methods */}
+          <div id="payments" className="healthcare-card p-6 scroll-mt-24">
+            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" /> Payment Methods
+            </h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              {savedCards > 0
+                ? `You have ${savedCards} saved payment method${savedCards === 1 ? "" : "s"}.`
+                : "No saved cards yet. Add one at checkout for faster orders."}
+            </p>
+            <Button size="sm" variant="outline" className="w-full" onClick={() => setSettingsOpen(true)}>
+              Manage payment methods
+            </Button>
+          </div>
+
+          {/* Customer support */}
+          <div id="support" className="healthcare-card p-6 scroll-mt-24">
+            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+              <LifeBuoy className="h-5 w-5 text-primary" /> Customer Support
+            </h2>
+            <p className="text-sm text-muted-foreground mb-3">Need help with an order or prescription? Our team is here 7 days a week.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" asChild><a href="tel:+27800123456">Call us</a></Button>
+              <Button size="sm" variant="default" asChild><Link to="/contact">Contact</Link></Button>
+            </div>
+          </div>
 
           {/* Quick Actions */}
           <div className="healthcare-card p-6">
