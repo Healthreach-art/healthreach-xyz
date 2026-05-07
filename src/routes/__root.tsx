@@ -82,6 +82,7 @@ function RootComponent() {
         <Footer />
       </div>
       <Toaster />
+      <NotificationCenter />
     </AuthProvider>
   );
 }
