@@ -189,8 +189,9 @@ function SignupPage() {
             className="w-full"
             onClick={async () => {
               setError("");
+              try { localStorage.setItem("hr_oauth_role", selectedRole); } catch {}
               const result = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
+                redirect_uri: `${window.location.origin}/auth/callback`,
               });
               if (result.error) {
                 setError(result.error.message ?? "Google sign-up failed");

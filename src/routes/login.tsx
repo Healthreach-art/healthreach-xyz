@@ -141,7 +141,7 @@ function LoginPage() {
                 onClick={async () => {
                   setError("");
                   const result = await lovable.auth.signInWithOAuth("google", {
-                    redirect_uri: window.location.origin,
+                    redirect_uri: `${window.location.origin}/auth/callback`,
                   });
                   if (result.error) {
                     setError(result.error.message ?? "Google sign-in failed");
@@ -182,9 +182,8 @@ function LoginPage() {
 
           {isAdminMode ? (
             <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Seeded admin accounts</p>
-              <p>admin1@healthreach.co.za / Admin1Pass!2025</p>
-              <p>admin2@healthreach.co.za / Admin2Pass!2025</p>
+              <p className="font-medium text-foreground mb-1">Admin accounts</p>
+              <p className="text-[11px]">Use the credentials shared with you privately. Use “Forgot password?” to reset if needed.</p>
             </div>
           ) : null}
         </div>
