@@ -37,6 +37,7 @@ interface Medication {
   stock_quantity: number;
   price: number;
   category: string | null;
+  requires_prescription?: boolean | null;
 }
 
 interface Order {
