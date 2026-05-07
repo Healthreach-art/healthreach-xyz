@@ -10,10 +10,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
+import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE } from "@/lib/pricing";
 
 const paymentSearchSchema = z.object({
   medId: fallback(z.string().optional(), undefined),
   name: fallback(z.string(), "Amoxicillin 500mg").default("Amoxicillin 500mg"),
+  // `price` here is the BASE pharmacy price; customer-facing markup is applied below.
   price: fallback(z.number(), 120).default(120),
   pharmacyId: fallback(z.string().optional(), undefined),
   qty: fallback(z.number().int().min(1).max(50), 1).default(1),
