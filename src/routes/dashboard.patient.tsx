@@ -103,6 +103,19 @@ function PatientDashboard() {
   const [category, setCategory] = useState<string | null>(null);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [savedCards, setSavedCards] = useState(0);
+  const [pharmacySort, setPharmacySort] = useState<"rating" | "delivery" | "name">("rating");
+  const [openNowOnly, setOpenNowOnly] = useState(false);
+  const [minRating, setMinRating] = useState(0);
+
+  // Deterministic mock metadata for each pharmacy (rating, delivery time, open status)
+  function pharmacyMeta(id: string) {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    const rating = Number((4.0 + ((h % 100) / 100)).toFixed(1));
+    const deliveryMin = 15 + (h % 6) * 5;
+    const isOpen = (h % 7) !== 0;
+    return { rating, deliveryMin, deliveryLabel: `${deliveryMin}–${deliveryMin + 10} min`, isOpen };
+  }
 
   useEffect(() => {
     if (!user) return;
