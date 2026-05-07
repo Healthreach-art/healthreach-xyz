@@ -592,6 +592,15 @@ function PharmacyDashboard() {
               <Label htmlFor="category">Category</Label>
               <Input id="category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Antibiotics" />
             </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.requires_prescription}
+                onChange={(e) => setForm({ ...form, requires_prescription: e.target.checked })}
+                className="h-4 w-4 rounded border-input"
+              />
+              Requires a valid prescription (Rx)
+            </label>
             <DialogFooter>
               <Button type="submit" disabled={savingMed}>
                 {savingMed ? "Saving..." : editingMed ? "Save Changes" : "Add Medication"}
