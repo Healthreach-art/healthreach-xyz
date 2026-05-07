@@ -598,6 +598,27 @@ function PatientDashboard() {
 
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* Prescription upload dialog */}
+      <Dialog open={!!rxFor} onOpenChange={(o) => !o && setRxFor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Stethoscope className="h-5 w-5 text-primary" /> Upload prescription
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              {rxFor?.name} requires a valid prescription. Upload an image or PDF — your assigned pharmacy will verify it within minutes.
+            </p>
+          </DialogHeader>
+          {rxFor && (
+            <PrescriptionUploader
+              pharmacyId={rxFor.pharmacy_id}
+              medicationId={rxFor.id}
+              onUploaded={() => setRxFor(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
