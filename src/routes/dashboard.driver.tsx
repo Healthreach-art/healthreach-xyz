@@ -339,7 +339,10 @@ function DriverDashboard() {
           <h1 className="text-2xl font-bold text-foreground">Driver Dashboard</h1>
           <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Driver"}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
+          <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
