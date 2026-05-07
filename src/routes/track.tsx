@@ -45,28 +45,26 @@ function TrackPage() {
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [loading, setLoading] = useState(true);
   const [pulse, setPulse] = useState(false);
+  const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number; speed: number | null; updated_at: string } | null>(null);
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
 
     async function load() {
-      // Find the latest order for this patient, then its delivery
       const { data: orders } = await supabase
-        .from("orders")
-        .select("id")
-        .eq("patient_id", user!.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
+        .from("orders").select("id").eq("patient_id", user!.id)
+        .order("created_at", { ascending: false }).limit(1);
       if (!orders || orders.length === 0) { setDelivery(null); setLoading(false); return; }
 
       const { data: del } = await supabase
-        .from("deliveries")
-        .select("*")
-        .eq("order_id", orders[0].id)
-        .maybeSingle();
-
+        .from("deliveries").select("*").eq("order_id", orders[0].id).maybeSingle();
       setDelivery(del as Delivery | null);
+
+      const { data: loc } = await supabase
+        .from("driver_locations").select("lat, lng, speed, updated_at")
+        .eq("order_id", orders[0].id).maybeSingle();
+      if (loc) setDriverLoc(loc as any);
+
       setLoading(false);
     }
     load();
@@ -91,6 +89,17 @@ function TrackPage() {
         });
         setPulse(true);
         setTimeout(() => setPulse(false), 1200);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "driver_locations" }, (payload) => {
+        const next = payload.new as { order_id: string | null; lat: number; lng: number; speed: number | null; updated_at: string };
+        setDelivery((prev) => {
+          if (prev && next.order_id === prev.order_id) {
+            setDriverLoc({ lat: next.lat, lng: next.lng, speed: next.speed, updated_at: next.updated_at });
+            setPulse(true);
+            setTimeout(() => setPulse(false), 1200);
+          }
+          return prev;
+        });
       })
       .subscribe();
 
@@ -146,7 +155,14 @@ function TrackPage() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Your Driver</p>
-                    <p className="text-xs text-muted-foreground">ETA: {delivery.estimated_time || "calculating..."}</p>
+                    <p className="text-xs text-muted-foreground">
+                      ETA: {driverLoc
+                        ? `${Math.max(1, Math.round(((driverLoc.speed ?? 0) > 1 ? 30 : 25) ))}–${Math.max(2, Math.round(((driverLoc.speed ?? 0) > 1 ? 30 : 25) + 10))} min`
+                        : (delivery.estimated_time || "calculating...")}
+                      {driverLoc && (
+                        <span className="ml-2 text-healthcare-green">● Live · updated {new Date(driverLoc.updated_at).toLocaleTimeString()}</span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <Button size="sm" variant="outline"><Phone className="h-4 w-4" /> Call</Button>
