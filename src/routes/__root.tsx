@@ -1,6 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Footer } from "@/components/Footer";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -83,7 +83,6 @@ function RootComponent() {
 }
 
 function AppShell() {
-  const { useAuth } = require("@/hooks/useAuth") as typeof import("@/hooks/useAuth");
   const { user } = useAuth();
 
   if (!user) {
