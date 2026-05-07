@@ -236,6 +236,8 @@ function Wallet_() {
         <Button onClick={addBank} disabled={addingBank} size="sm" className="mt-2 gap-1"><Plus className="h-3 w-3" /> Add Account</Button>
       </div>
 
+      <div className="healthcare-card p-5">
+        <h2 className="font-semibold mb-3">Payout History</h2>
         {payouts.length === 0 ? (
           <p className="text-sm text-muted-foreground">No payout requests yet.</p>
         ) : (
