@@ -147,7 +147,7 @@ function DriverDashboard() {
 
   // Broadcast live GPS to driver_locations for the most recent active delivery
   const activeOrderId = liveDeliveries[0]?.order_id ?? null;
-  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId && online });
+  useDriverLocationBroadcaster({ driverId: user?.id ?? null, activeOrderId, enabled: !!activeOrderId && available });
 
   // 1s tick for countdown
   useEffect(() => {
