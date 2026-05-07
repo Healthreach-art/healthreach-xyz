@@ -639,6 +639,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_addresses: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          label: string
+          street: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          street: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          street?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
