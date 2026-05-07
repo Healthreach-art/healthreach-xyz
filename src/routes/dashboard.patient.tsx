@@ -328,7 +328,7 @@ function PatientDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-foreground">R {Number(med.price).toFixed(2)}</span>
+                      <span className="text-sm font-semibold text-foreground">R {customerPrice(med.price).toFixed(2)}</span>
                       <Button size="sm" variant="default" asChild>
                         <Link
                           to="/payment"
