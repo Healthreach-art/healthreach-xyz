@@ -517,7 +517,7 @@ function DriverDashboard() {
           })}
         </div>
 
-        <div className="lg:col-span-2">
+        <div id="completed" className="lg:col-span-2 scroll-mt-24">
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Completed Deliveries</h2>
             {completed.length === 0 ? (
