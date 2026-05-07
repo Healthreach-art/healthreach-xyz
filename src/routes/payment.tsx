@@ -325,7 +325,7 @@ function PaymentPage() {
                   <Input id="cvv" value={cvv} onChange={(e) => setCvv(e.target.value)} placeholder="123" maxLength={4} required />
                 </div>
               </div>
-              <Button type="submit" className="w-full" disabled={processing}>
+              <Button type="submit" className="w-full" disabled={processing || (rxRequired && !rxApproved)}>
                 <Lock className="h-4 w-4" />
                 {processing ? "Processing..." : `Pay ${amount}`}
               </Button>
@@ -338,7 +338,7 @@ function PaymentPage() {
               <p className="text-sm text-muted-foreground">
                 You will be redirected to complete your {method === "eft" ? "EFT" : method} payment securely.
               </p>
-              <Button type="submit" className="w-full" disabled={processing}>
+              <Button type="submit" className="w-full" disabled={processing || (rxRequired && !rxApproved)}>
                 <Lock className="h-4 w-4" />
                 {processing ? "Connecting..." : `Continue to Pay ${amount}`}
               </Button>
