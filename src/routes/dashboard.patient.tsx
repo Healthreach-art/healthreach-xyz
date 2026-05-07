@@ -239,6 +239,23 @@ function PatientDashboard() {
   const totalSpent = orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + Number(o.total_amount || 0), 0);
   const activePrescriptions = prescriptions.filter((p) => p.is_active !== false);
 
+  // Approved prescription upload exists for a given (medication, pharmacy) pair
+  function hasApprovedRx(med: Med) {
+    return pxUploads.some((u) =>
+      u.status === "approved" &&
+      u.pharmacy_id === med.pharmacy_id &&
+      (u.medication_id === med.id || u.medication_id === null) &&
+      (!u.expires_at || new Date(u.expires_at) > new Date())
+    );
+  }
+  function rxStatusFor(med: Med) {
+    return pxUploads.find((u) =>
+      u.pharmacy_id === med.pharmacy_id &&
+      (u.medication_id === med.id || u.medication_id === null) &&
+      ["pending", "rejected", "reupload_requested"].includes(u.status)
+    );
+  }
+
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
