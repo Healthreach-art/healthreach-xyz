@@ -642,6 +642,8 @@ function PharmacyDashboard() {
       </Dialog>
 
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
+      <div className="mt-6"><TransactionHistory role="pharmacy" /></div>
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
