@@ -22,7 +22,6 @@ const roles = [
   { value: "pharmacy", label: "Pharmacy", description: "Manage inventory and fulfill orders" },
   { value: "hospital", label: "Hospital", description: "Issue prescriptions and coordinate care" },
   { value: "driver", label: "Driver", description: "Deliver medications to patients" },
-  { value: "admin", label: "Admin", description: "Oversee platform operations" },
 ] as const;
 
 function SignupPage() {
