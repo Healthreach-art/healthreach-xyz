@@ -86,7 +86,7 @@ function RootComponent() {
 }
 
 function AppShell() {
-  const { user, role, loading } = useAuth();
+  const { user, loading } = useAuth();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const showSidebar = !!user && !loading && !NO_SIDEBAR_ROUTES.has(pathname);
 
@@ -106,6 +106,11 @@ function AppShell() {
     );
   }
 
+  return <SidebarShell />;
+}
+
+function SidebarShell() {
+  const { role } = useAuth();
   const storageKey = `sidebar_state:${role ?? "default"}`;
   const [open, setOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
