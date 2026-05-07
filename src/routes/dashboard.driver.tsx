@@ -417,7 +417,7 @@ function DriverDashboard() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3 space-y-4">
+        <div id="active" className="lg:col-span-3 space-y-4 scroll-mt-24">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             Active Deliveries
             <span className="inline-flex h-2 w-2 rounded-full bg-healthcare-green animate-pulse" />
