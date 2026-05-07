@@ -25,6 +25,9 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { PharmacyReviewActions, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { customerPrice } from "@/lib/pricing";
+import { PharmacyAnalytics } from "@/components/PharmacyAnalytics";
+import { PharmacyFinance } from "@/components/PharmacyFinance";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { RoleGuard } from "@/components/RoleGuard";
 
@@ -40,6 +43,9 @@ interface Medication {
   price: number;
   category: string | null;
   requires_prescription?: boolean | null;
+  image_url?: string | null;
+  expiry_date?: string | null;
+  batch_number?: string | null;
 }
 
 interface Order {
