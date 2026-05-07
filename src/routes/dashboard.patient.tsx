@@ -100,6 +100,27 @@ function PatientDashboard() {
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeDelivery, setActiveDelivery] = useState<{ orderId: string; pickup: string | null; dropoff: string | null; status: string } | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [savedCards, setSavedCards] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null)
+      .then(({ count }) => setUnreadNotifs(count ?? 0));
+    supabase.from("saved_payment_methods").select("id", { count: "exact", head: true }).eq("user_id", user.id)
+      .then(({ count }) => setSavedCards(count ?? 0));
+  }, [user]);
+
+  const CATEGORIES = [
+    { key: "Pain Relief", icon: Heart, terms: ["pain", "ibuprofen", "paracetamol", "panado", "aspirin"] },
+    { key: "Cold & Flu", icon: Thermometer, terms: ["cold", "flu", "cough", "sinus", "med-lemon"] },
+    { key: "Vitamins", icon: Sparkles, terms: ["vitamin", "supplement", "omega", "magnesium"] },
+    { key: "Baby Care", icon: Baby, terms: ["baby", "infant", "nappy", "calpol"] },
+    { key: "First Aid", icon: Bandage, terms: ["bandage", "plaster", "antiseptic", "wound", "burn"] },
+  ];
+  const activeCategory = CATEGORIES.find((c) => c.key === category);
+  const cartCount = orders.filter((o) => o.status === "pending").length;
 
   // Restore scroll to URL hash on load / refresh
   useEffect(() => {
