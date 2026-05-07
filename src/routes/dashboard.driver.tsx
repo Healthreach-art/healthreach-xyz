@@ -68,9 +68,11 @@ const deliveryStatusLabels: Record<DStatus, { label: string; color: string }> = 
   delivered: { label: "Delivered", color: "bg-healthcare-green/20 text-healthcare-green" },
 };
 
+import { RoleGuard } from "@/components/RoleGuard";
+
 export const Route = createFileRoute("/dashboard/driver")({
   head: () => ({ meta: [{ title: "Driver Dashboard — HEALTHREACH" }] }),
-  component: DriverDashboard,
+  component: () => <RoleGuard allow="driver"><DriverDashboard /></RoleGuard>,
 });
 
 // Fallback deterministic estimate (1.5–8.5 km) when Mapbox is unavailable

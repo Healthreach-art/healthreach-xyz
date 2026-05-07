@@ -6,9 +6,11 @@ import {
   Plus, Activity, Heart
 } from "lucide-react";
 
+import { RoleGuard } from "@/components/RoleGuard";
+
 export const Route = createFileRoute("/dashboard/hospital")({
   head: () => ({ meta: [{ title: "Hospital Dashboard — HEALTHREACH" }] }),
-  component: HospitalDashboard,
+  component: () => <RoleGuard allow="hospital"><HospitalDashboard /></RoleGuard>,
 });
 
 const mockPatients = [
