@@ -47,10 +47,8 @@ export const Route = createRootRoute({
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6de31345-24a7-4c2c-8465-25d7c705c8de/id-preview-8ba30e54--2e5d99c7-52f1-4a97-ba21-799533cca0bc.lovable.app-1776727367211.png" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", crossOrigin: "" },
     ],
   }),
   shellComponent: RootShell,

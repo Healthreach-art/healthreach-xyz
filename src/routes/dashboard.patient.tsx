@@ -6,12 +6,15 @@ import {
 } from "@/components/ui/dialog";
 import {
   ShoppingCart, Package, Clock, CreditCard, Search, Pill,
-  FileText, MapPin, Loader2, Stethoscope, Store, Star, MessageCircle,
+  FileText, MapPin, Loader2, Stethoscope, Store, Star, MessageCircle, Settings,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
+import { DeliveryMap } from "@/components/DeliveryMap";
+import { SettingsDialog } from "@/components/SettingsDialog";
+import { TransactionHistory } from "@/components/TransactionHistory";
 import pharmacy1 from "@/assets/pharmacy-1.jpg";
 import pharmacy2 from "@/assets/pharmacy-2.jpg";
 import pharmacy3 from "@/assets/pharmacy-3.jpg";
@@ -83,6 +86,8 @@ function PatientDashboard() {
   const [loading, setLoading] = useState(true);
   const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeDelivery, setActiveDelivery] = useState<{ pickup: string | null; dropoff: string | null; status: string } | null>(null);
 
   // Restore scroll to URL hash on load / refresh
   useEffect(() => {
@@ -141,6 +146,17 @@ function PatientDashboard() {
         );
       }
       await Promise.all(tasks);
+
+      // Active delivery (most recent non-delivered)
+      if (user) {
+        const { data: act } = await supabase
+          .from("orders").select("id").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(1);
+        if (act?.[0]) {
+          const { data: del } = await supabase
+            .from("deliveries").select("pickup_address, delivery_address, status").eq("order_id", act[0].id).maybeSingle();
+          if (del) setActiveDelivery({ pickup: del.pickup_address, dropoff: del.delivery_address, status: del.status });
+        }
+      }
       setLoading(false);
     }
     load();
@@ -210,7 +226,10 @@ function PatientDashboard() {
           <h1 className="text-2xl font-bold text-foreground">Patient Dashboard</h1>
           <p className="text-sm text-muted-foreground">Welcome back, {profile?.full_name || "Patient"}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
+          <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -434,6 +453,22 @@ function PatientDashboard() {
             </div>
           </div>
 
+
+          {/* Live delivery mini-map */}
+          {activeDelivery && (
+            <div className="healthcare-card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Live Delivery</h2>
+                <span className="text-[11px] capitalize text-muted-foreground">{activeDelivery.status.replace(/_/g, " ")}</span>
+              </div>
+              <DeliveryMap pickup={activeDelivery.pickup} dropoff={activeDelivery.dropoff} status={activeDelivery.status} className="h-44 w-full rounded-lg overflow-hidden" />
+              <Button asChild size="sm" variant="outline" className="w-full mt-3"><Link to="/track">Open full tracker</Link></Button>
+            </div>
+          )}
+
+          {/* Transactions */}
+          <TransactionHistory role="patient" />
+
           {/* Saved delivery address */}
           <SavedAddressCard />
 
@@ -506,6 +541,7 @@ function PatientDashboard() {
       </Dialog>
 
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

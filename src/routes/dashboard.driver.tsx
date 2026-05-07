@@ -3,13 +3,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   Truck, MapPin, Clock, CheckCircle, Package,
-  DollarSign, Navigation, Radio, X, Loader2, MessageCircle,
+  DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getMapboxDistance } from "@/utils/mapbox.functions";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
+import { DeliveryMap } from "@/components/DeliveryMap";
+import { SettingsDialog } from "@/components/SettingsDialog";
 
 type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered";
 
@@ -90,6 +92,7 @@ function DriverDashboard() {
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // 1s tick for countdown
   useEffect(() => {
@@ -336,7 +339,10 @@ function DriverDashboard() {
           <h1 className="text-2xl font-bold text-foreground">Driver Dashboard</h1>
           <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Driver"}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
+          <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -473,6 +479,11 @@ function DriverDashboard() {
                   </div>
                 </div>
 
+                {/* Mini route map */}
+                <div className="mt-3">
+                  <DeliveryMap pickup={delivery.pickup_address} dropoff={delivery.delivery_address} status={delivery.status} className="h-40 w-full rounded-lg overflow-hidden border border-border" />
+                </div>
+
                 {/* Stage Timeline */}
                 <div className="mt-4 flex items-center">
                   {STAGE_ORDER.map((stage, idx) => {
@@ -550,6 +561,7 @@ function DriverDashboard() {
         </div>
       </div>
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

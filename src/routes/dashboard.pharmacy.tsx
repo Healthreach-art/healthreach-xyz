@@ -15,12 +15,14 @@ import {
 import {
   Package, AlertTriangle, ShoppingCart, DollarSign,
   CheckCircle, XCircle, Clock, Pill, TrendingDown, Loader2,
-  Pencil, Trash2, Plus, Minus, Truck, Radio, MessageCircle,
+  Pencil, Trash2, Plus, Minus, Truck, Radio, MessageCircle, Settings,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
+import { SettingsDialog } from "@/components/SettingsDialog";
+import { TransactionHistory } from "@/components/TransactionHistory";
 import { customerPrice } from "@/lib/pricing";
 
 export const Route = createFileRoute("/dashboard/pharmacy")({
@@ -60,6 +62,7 @@ interface LiveDelivery {
 
 function PharmacyDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [liveDeliveries, setLiveDeliveries] = useState<LiveDelivery[]>([]);
@@ -347,7 +350,10 @@ function PharmacyDashboard() {
           <h1 className="text-2xl font-bold text-foreground">Pharmacy Dashboard</h1>
           <p className="text-sm text-muted-foreground">{profile?.organization_name || "My Pharmacy"}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
+          <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+        </div>
       </div>
 
       {/* Hero banner */}
@@ -636,6 +642,8 @@ function PharmacyDashboard() {
       </Dialog>
 
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
+      <div className="mt-6"><TransactionHistory role="pharmacy" /></div>
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
