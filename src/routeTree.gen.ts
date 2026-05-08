@@ -32,11 +32,14 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
 import { Route as DashboardPatientTransactionsRouteImport } from './routes/dashboard.patient.transactions'
 import { Route as DashboardPatientSupportRouteImport } from './routes/dashboard.patient.support'
+import { Route as DashboardPatientSearchRouteImport } from './routes/dashboard.patient.search'
 import { Route as DashboardPatientRemindersRouteImport } from './routes/dashboard.patient.reminders'
 import { Route as DashboardPatientPrescriptionsRouteImport } from './routes/dashboard.patient.prescriptions'
+import { Route as DashboardPatientPharmaciesRouteImport } from './routes/dashboard.patient.pharmacies'
 import { Route as DashboardPatientPaymentMethodsRouteImport } from './routes/dashboard.patient.payment-methods'
 import { Route as DashboardPatientOrdersRouteImport } from './routes/dashboard.patient.orders'
 import { Route as DashboardPatientAddressesRouteImport } from './routes/dashboard.patient.addresses'
+import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard.patient.activity'
 import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
 
 const TrackRoute = TrackRouteImport.update({
@@ -155,6 +158,11 @@ const DashboardPatientSupportRoute = DashboardPatientSupportRouteImport.update({
   path: '/support',
   getParentRoute: () => DashboardPatientRoute,
 } as any)
+const DashboardPatientSearchRoute = DashboardPatientSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => DashboardPatientRoute,
+} as any)
 const DashboardPatientRemindersRoute =
   DashboardPatientRemindersRouteImport.update({
     id: '/reminders',
@@ -165,6 +173,12 @@ const DashboardPatientPrescriptionsRoute =
   DashboardPatientPrescriptionsRouteImport.update({
     id: '/prescriptions',
     path: '/prescriptions',
+    getParentRoute: () => DashboardPatientRoute,
+  } as any)
+const DashboardPatientPharmaciesRoute =
+  DashboardPatientPharmaciesRouteImport.update({
+    id: '/pharmacies',
+    path: '/pharmacies',
     getParentRoute: () => DashboardPatientRoute,
   } as any)
 const DashboardPatientPaymentMethodsRoute =
@@ -182,6 +196,12 @@ const DashboardPatientAddressesRoute =
   DashboardPatientAddressesRouteImport.update({
     id: '/addresses',
     path: '/addresses',
+    getParentRoute: () => DashboardPatientRoute,
+  } as any)
+const DashboardPatientActivityRoute =
+  DashboardPatientActivityRouteImport.update({
+    id: '/activity',
+    path: '/activity',
     getParentRoute: () => DashboardPatientRoute,
   } as any)
 const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
@@ -213,11 +233,14 @@ export interface FileRoutesByFullPath {
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
+  '/dashboard/patient/pharmacies': typeof DashboardPatientPharmaciesRoute
   '/dashboard/patient/prescriptions': typeof DashboardPatientPrescriptionsRoute
   '/dashboard/patient/reminders': typeof DashboardPatientRemindersRoute
+  '/dashboard/patient/search': typeof DashboardPatientSearchRoute
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
 }
@@ -244,11 +267,14 @@ export interface FileRoutesByTo {
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
+  '/dashboard/patient/pharmacies': typeof DashboardPatientPharmaciesRoute
   '/dashboard/patient/prescriptions': typeof DashboardPatientPrescriptionsRoute
   '/dashboard/patient/reminders': typeof DashboardPatientRemindersRoute
+  '/dashboard/patient/search': typeof DashboardPatientSearchRoute
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
 }
@@ -276,11 +302,14 @@ export interface FileRoutesById {
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
+  '/dashboard/patient/pharmacies': typeof DashboardPatientPharmaciesRoute
   '/dashboard/patient/prescriptions': typeof DashboardPatientPrescriptionsRoute
   '/dashboard/patient/reminders': typeof DashboardPatientRemindersRoute
+  '/dashboard/patient/search': typeof DashboardPatientSearchRoute
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
 }
@@ -309,11 +338,14 @@ export interface FileRouteTypes {
     | '/driver/wallet'
     | '/pharmacy/$id'
     | '/api/public/payment-webhook'
+    | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
+    | '/dashboard/patient/pharmacies'
     | '/dashboard/patient/prescriptions'
     | '/dashboard/patient/reminders'
+    | '/dashboard/patient/search'
     | '/dashboard/patient/support'
     | '/dashboard/patient/transactions'
   fileRoutesByTo: FileRoutesByTo
@@ -340,11 +372,14 @@ export interface FileRouteTypes {
     | '/driver/wallet'
     | '/pharmacy/$id'
     | '/api/public/payment-webhook'
+    | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
+    | '/dashboard/patient/pharmacies'
     | '/dashboard/patient/prescriptions'
     | '/dashboard/patient/reminders'
+    | '/dashboard/patient/search'
     | '/dashboard/patient/support'
     | '/dashboard/patient/transactions'
   id:
@@ -371,11 +406,14 @@ export interface FileRouteTypes {
     | '/driver/wallet'
     | '/pharmacy/$id'
     | '/api/public/payment-webhook'
+    | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
+    | '/dashboard/patient/pharmacies'
     | '/dashboard/patient/prescriptions'
     | '/dashboard/patient/reminders'
+    | '/dashboard/patient/search'
     | '/dashboard/patient/support'
     | '/dashboard/patient/transactions'
   fileRoutesById: FileRoutesById
@@ -568,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientSupportRouteImport
       parentRoute: typeof DashboardPatientRoute
     }
+    '/dashboard/patient/search': {
+      id: '/dashboard/patient/search'
+      path: '/search'
+      fullPath: '/dashboard/patient/search'
+      preLoaderRoute: typeof DashboardPatientSearchRouteImport
+      parentRoute: typeof DashboardPatientRoute
+    }
     '/dashboard/patient/reminders': {
       id: '/dashboard/patient/reminders'
       path: '/reminders'
@@ -580,6 +625,13 @@ declare module '@tanstack/react-router' {
       path: '/prescriptions'
       fullPath: '/dashboard/patient/prescriptions'
       preLoaderRoute: typeof DashboardPatientPrescriptionsRouteImport
+      parentRoute: typeof DashboardPatientRoute
+    }
+    '/dashboard/patient/pharmacies': {
+      id: '/dashboard/patient/pharmacies'
+      path: '/pharmacies'
+      fullPath: '/dashboard/patient/pharmacies'
+      preLoaderRoute: typeof DashboardPatientPharmaciesRouteImport
       parentRoute: typeof DashboardPatientRoute
     }
     '/dashboard/patient/payment-methods': {
@@ -603,6 +655,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientAddressesRouteImport
       parentRoute: typeof DashboardPatientRoute
     }
+    '/dashboard/patient/activity': {
+      id: '/dashboard/patient/activity'
+      path: '/activity'
+      fullPath: '/dashboard/patient/activity'
+      preLoaderRoute: typeof DashboardPatientActivityRouteImport
+      parentRoute: typeof DashboardPatientRoute
+    }
     '/api/public/payment-webhook': {
       id: '/api/public/payment-webhook'
       path: '/api/public/payment-webhook'
@@ -614,21 +673,27 @@ declare module '@tanstack/react-router' {
 }
 
 interface DashboardPatientRouteChildren {
+  DashboardPatientActivityRoute: typeof DashboardPatientActivityRoute
   DashboardPatientAddressesRoute: typeof DashboardPatientAddressesRoute
   DashboardPatientOrdersRoute: typeof DashboardPatientOrdersRoute
   DashboardPatientPaymentMethodsRoute: typeof DashboardPatientPaymentMethodsRoute
+  DashboardPatientPharmaciesRoute: typeof DashboardPatientPharmaciesRoute
   DashboardPatientPrescriptionsRoute: typeof DashboardPatientPrescriptionsRoute
   DashboardPatientRemindersRoute: typeof DashboardPatientRemindersRoute
+  DashboardPatientSearchRoute: typeof DashboardPatientSearchRoute
   DashboardPatientSupportRoute: typeof DashboardPatientSupportRoute
   DashboardPatientTransactionsRoute: typeof DashboardPatientTransactionsRoute
 }
 
 const DashboardPatientRouteChildren: DashboardPatientRouteChildren = {
+  DashboardPatientActivityRoute: DashboardPatientActivityRoute,
   DashboardPatientAddressesRoute: DashboardPatientAddressesRoute,
   DashboardPatientOrdersRoute: DashboardPatientOrdersRoute,
   DashboardPatientPaymentMethodsRoute: DashboardPatientPaymentMethodsRoute,
+  DashboardPatientPharmaciesRoute: DashboardPatientPharmaciesRoute,
   DashboardPatientPrescriptionsRoute: DashboardPatientPrescriptionsRoute,
   DashboardPatientRemindersRoute: DashboardPatientRemindersRoute,
+  DashboardPatientSearchRoute: DashboardPatientSearchRoute,
   DashboardPatientSupportRoute: DashboardPatientSupportRoute,
   DashboardPatientTransactionsRoute: DashboardPatientTransactionsRoute,
 }
