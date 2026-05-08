@@ -204,6 +204,15 @@ function PaymentPage() {
       }).select().single();
       if (payErr) throw payErr;
 
+      // Stripe-style test card outcomes (only for new cards entered manually).
+      // 4242 4242 4242 4242 → success, 4000 0000 0000 0002 → declined, anything else → random.
+      let forcedOutcome: "completed" | "failed" | undefined;
+      if (method === "card" && selectedCardId === "new") {
+        const digits = cardNumber.replace(/\D/g, "");
+        if (digits.startsWith("4242")) forcedOutcome = "completed";
+        else if (digits.startsWith("4000")) forcedOutcome = "failed";
+      }
+
       // Process via server endpoint (mock gateway). Server flips status using service role.
       const { data: { session } } = await supabase.auth.getSession();
       const payRes = await fetch("/api/mock-pay", {
@@ -212,7 +221,7 @@ function PaymentPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token ?? ""}`,
         },
-        body: JSON.stringify({ payment_id: payment.id }),
+        body: JSON.stringify({ payment_id: payment.id, outcome: forcedOutcome }),
       });
       const payJson = await payRes.json().catch(() => ({} as { status?: string }));
       const gatewayOk = payRes.ok && payJson.status === "completed";
