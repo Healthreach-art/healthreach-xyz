@@ -5,11 +5,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
-import { usePatientStats } from "@/hooks/usePatientStats";
 import {
   Home, LogIn, UserPlus, MapPin, ShoppingBag, Pill, Stethoscope, Truck,
   ShieldCheck, LogOut, Info, Phone, FileText, Search, Store, Package,
-  Clock, CreditCard, Bell, Repeat, Upload, LifeBuoy, Settings, History,
+  CreditCard, Bell, LifeBuoy, Activity,
   Wallet,
 } from "lucide-react";
 
@@ -19,7 +18,6 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { user, role, signOut } = useAuth();
-  const stats = usePatientStats();
   const currentPath = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (p: string) => currentPath === p;
 
@@ -30,9 +28,10 @@ export function AppSidebar() {
   const patientGroups = role === "patient" ? {
     main: [
       { title: "Home", url: "/dashboard/patient", icon: Home },
-      { title: "Browse Pharmacies", url: "/dashboard/patient", icon: Store },
-      { title: "Search Medicines", url: "/dashboard/patient", icon: Search },
+      { title: "Browse Pharmacies", url: "/dashboard/patient/pharmacies", icon: Store },
+      { title: "Search Medicines", url: "/dashboard/patient/search", icon: Search },
       { title: "Track Order", url: "/track", icon: MapPin },
+      { title: "Your Activity", url: "/dashboard/patient/activity", icon: Activity },
     ] as Item[],
     orders: [
       { title: "My Orders", url: "/dashboard/patient/orders", icon: Package },
@@ -105,32 +104,6 @@ export function AppSidebar() {
       </SidebarGroup>
     ) : null;
 
-  // Stat cards (patient only, uber-style)
-  const statCards = role === "patient" && !collapsed ? (
-    <SidebarGroup>
-      <SidebarGroupLabel>Your activity</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <div className="grid grid-cols-2 gap-2 px-2">
-          {[
-            { label: "Total Orders", value: String(stats.totalOrders), icon: ShoppingBag, color: "text-primary" },
-            { label: "Active", value: String(stats.activeOrders), icon: Package, color: "text-healthcare-teal" },
-            { label: "Pending", value: String(stats.pendingDelivery), icon: Clock, color: "text-healthcare-sky" },
-            { label: "Total Spent", value: `R${stats.totalSpent.toFixed(0)}`, icon: CreditCard, color: "text-healthcare-green" },
-          ].map((s) => (
-            <Link
-              key={s.label}
-              to="/dashboard/patient/orders"
-              className="rounded-xl bg-foreground/95 dark:bg-card text-background dark:text-foreground p-2.5 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all border border-border/40"
-            >
-              <s.icon className={`h-3.5 w-3.5 ${s.color} mb-1`} />
-              <p className="text-[10px] uppercase tracking-wide opacity-70">{s.label}</p>
-              <p className="text-sm font-bold leading-tight">{s.value}</p>
-            </Link>
-          ))}
-        </div>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  ) : null;
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -151,7 +124,6 @@ export function AppSidebar() {
         {patientGroups ? (
           <>
             {renderGroup("Main", patientGroups.main)}
-            {statCards}
             {renderGroup("Orders", patientGroups.orders)}
             {renderGroup("Profile", patientGroups.profile)}
             {renderGroup("Support", patientGroups.support)}
