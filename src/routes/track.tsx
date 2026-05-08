@@ -29,16 +29,17 @@ interface Delivery {
   updated_at: string;
 }
 
-const stepDef: { key: DeliveryStatus | "placed"; label: string; icon: typeof CheckCircle2 }[] = [
+const stepDef: { key: DeliveryStatus | "placed" | "preparing"; label: string; icon: typeof CheckCircle2 }[] = [
   { key: "placed", label: "Order Placed", icon: CheckCircle2 },
+  { key: "preparing", label: "Pharmacy Preparing", icon: Package },
   { key: "assigned", label: "Driver Assigned", icon: Package },
   { key: "picked_up", label: "Picked Up from Pharmacy", icon: Package },
-  { key: "in_transit", label: "Out for Delivery", icon: Truck },
+  { key: "in_transit", label: "On the Way", icon: Truck },
   { key: "delivered", label: "Delivered", icon: MapPin },
 ];
 
-const statusOrder: Record<DeliveryStatus | "placed", number> = {
-  placed: 0, assigned: 1, picked_up: 2, in_transit: 3, delivered: 4,
+const statusOrder: Record<DeliveryStatus | "placed" | "preparing", number> = {
+  placed: 0, preparing: 1, assigned: 2, picked_up: 3, in_transit: 4, delivered: 5,
 };
 
 function TrackPage() {

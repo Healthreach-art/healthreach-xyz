@@ -1,15 +1,17 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Search, Pill, Star, Clock, MapPin, Stethoscope, Loader2,
+  Search, Star, Clock, MapPin, Stethoscope, Loader2,
   Heart, Thermometer, Sparkles, Repeat, Baby, Bandage, Plus, Store, TrendingUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { RoleGuard } from "@/components/RoleGuard";
 import { PrescriptionUploader } from "@/components/PrescriptionVerification";
+import { toast } from "sonner";
 import pharmacy1 from "@/assets/pharmacy-1.jpg";
 import pharmacy2 from "@/assets/pharmacy-2.jpg";
 import pharmacy3 from "@/assets/pharmacy-3.jpg";
@@ -54,16 +56,22 @@ const CATEGORIES = [
   { key: "First Aid", icon: Bandage, terms: ["bandage", "plaster", "antiseptic", "wound", "burn"] },
 ];
 
+// 5 decorative non-clickable demo pharmacies shown alongside real ones for a fuller home grid.
+const DEMO_DECOR = [
+  { name: "Dis-Chem Pharmacy", area: "Sandton City", img: pharmacy1, rating: 4.7, time: "20–30 min", fee: 0, badges: ["Popular"] },
+  { name: "MediCare Plus", area: "Rosebank", img: pharmacy2, rating: 4.5, time: "25–35 min", fee: 20, badges: ["24/7"] },
+  { name: "PharmaWorld", area: "Fourways", img: pharmacy3, rating: 4.3, time: "30–40 min", fee: 25, badges: ["Fast Delivery"] },
+  { name: "City Chemist", area: "CBD", img: pharmacy4, rating: 4.6, time: "15–25 min", fee: 0, badges: ["Popular", "Fast Delivery"] },
+  { name: "Wellness Apothecary", area: "Melville", img: pharmacy1, rating: 4.8, time: "35–45 min", fee: 30, badges: ["24/7"] },
+];
+
 function PatientHome() {
-  const { user, profile } = useAuth();
-  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const cart = useCart();
   const [search, setSearch] = useState("");
   const [meds, setMeds] = useState<Med[]>([]);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openPharmacy, setOpenPharmacy] = useState<Pharmacy | null>(null);
-  const [storeSearch, setStoreSearch] = useState("");
-  const [storeCat, setStoreCat] = useState<string | null>(null);
   const [rxFor, setRxFor] = useState<Med | null>(null);
   const [activeCat, setActiveCat] = useState<string | null>(null);
 
@@ -103,20 +111,19 @@ function PatientHome() {
     return matchesQ && matchesCat;
   });
 
-  const storeMeds = openPharmacy
-    ? meds
-        .filter((m) => m.pharmacy_id === openPharmacy.user_id)
-        .filter((m) => !storeSearch || m.name.toLowerCase().includes(storeSearch.toLowerCase()))
-        .filter((m) => {
-          if (!storeCat) return true;
-          const cat = CATEGORIES.find((c) => c.key === storeCat);
-          return cat?.terms.some((t) => m.name.toLowerCase().includes(t));
-        })
-    : [];
+  const addToCart = (med: Med) => {
+    if (med.requires_prescription) { setRxFor(med); return; }
+    const ph = pharmacies.find((p) => p.user_id === med.pharmacy_id);
+    cart.add({
+      medId: med.id, name: med.name, price: Number(med.price),
+      pharmacyId: med.pharmacy_id, pharmacyName: ph?.organization_name || ph?.full_name || "Pharmacy",
+      requiresPrescription: !!med.requires_prescription,
+    });
+    toast.success(`${med.name} added to cart`);
+  };
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-6 sm:py-8">
-      {/* Welcome + sticky search */}
       <div className="mb-5">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
           Welcome back, {profile?.full_name?.split(" ")[0] || "there"} 👋
@@ -124,6 +131,7 @@ function PatientHome() {
         <p className="text-sm text-muted-foreground mt-1">Medicine delivered in minutes. Order from pharmacies near you.</p>
       </div>
 
+      {/* Sticky search */}
       <div className="sticky top-2 z-20 mb-6">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -137,7 +145,7 @@ function PatientHome() {
         </div>
       </div>
 
-      {/* Categories - horizontal scroll */}
+      {/* Categories */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-foreground">Shop by category</h2>
@@ -170,24 +178,28 @@ function PatientHome() {
             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
               <Store className="h-5 w-5 text-primary" /> Featured Pharmacies
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{filteredPharmacies.length} near you</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{filteredPharmacies.length} clickable · {DEMO_DECOR.length} more nearby</p>
           </div>
         </div>
 
         {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
-        {!loading && filteredPharmacies.length === 0 && (
-          <div className="healthcare-card p-8 text-center text-sm text-muted-foreground">No pharmacies match your search.</div>
+        {!loading && filteredPharmacies.length === 0 && search === "" && (
+          <div className="healthcare-card p-8 text-center text-sm text-muted-foreground mb-4">
+            No live pharmacies onboarded yet. Demo previews shown below.
+          </div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Real, clickable pharmacy cards */}
           {filteredPharmacies.map((p) => {
             const m = pharmacyMeta(p.user_id);
             const name = p.organization_name || p.full_name;
             const itemCount = meds.filter((med) => med.pharmacy_id === p.user_id).length;
             return (
-              <button
+              <Link
                 key={p.user_id}
-                onClick={() => { setOpenPharmacy(p); setStoreSearch(""); setStoreCat(null); }}
+                to="/pharmacy/$id"
+                params={{ id: p.user_id }}
                 className="group text-left rounded-2xl border border-border bg-card overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1"
               >
                 <div className="relative h-40 overflow-hidden">
@@ -196,9 +208,7 @@ function PatientHome() {
                   {m.badges.length > 0 && (
                     <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                       {m.badges.slice(0, 2).map((b) => (
-                        <span key={b} className="px-2 py-1 rounded-full bg-white/95 backdrop-blur text-[10px] font-bold text-primary shadow">
-                          {b}
-                        </span>
+                        <span key={b} className="px-2 py-1 rounded-full bg-white/95 backdrop-blur text-[10px] font-bold text-primary shadow">{b}</span>
                       ))}
                     </div>
                   )}
@@ -221,15 +231,50 @@ function PatientHome() {
                   <p className="text-xs text-muted-foreground line-clamp-1 flex items-center gap-1">
                     <MapPin className="h-3 w-3" /> {p.address || "Johannesburg"} · {itemCount} items
                   </p>
+                  <p className="text-[11px] text-primary font-semibold mt-2 group-hover:underline">Browse store →</p>
                 </div>
-              </button>
+              </Link>
             );
           })}
+
+          {/* 5 decorative demo cards (non-clickable) */}
+          {DEMO_DECOR.map((d, i) => (
+            <div key={`demo-${i}`} className="relative text-left rounded-2xl border border-border/60 bg-card/70 overflow-hidden cursor-not-allowed opacity-80">
+              <div className="relative h-40 overflow-hidden">
+                <img src={d.img} alt={d.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover grayscale-[20%]" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                  {d.badges.map((b) => (
+                    <span key={b} className="px-2 py-1 rounded-full bg-white/95 backdrop-blur text-[10px] font-bold text-primary shadow">{b}</span>
+                  ))}
+                </div>
+                <span className="absolute top-3 right-3 px-2 py-1 rounded-full text-[10px] font-bold shadow bg-muted/90 text-muted-foreground">
+                  Coming soon
+                </span>
+              </div>
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h3 className="font-bold text-base text-foreground line-clamp-1">{d.name}</h3>
+                  <span className="flex items-center gap-0.5 text-sm font-semibold text-foreground shrink-0">
+                    <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" /> {d.rating.toFixed(1)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {d.time}</span>
+                  <span>•</span>
+                  <span className={d.fee === 0 ? "text-healthcare-green font-medium" : ""}>{d.fee === 0 ? "Free delivery" : `R${d.fee} delivery`}</span>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-1 flex items-center gap-1">
+                  <MapPin className="h-3 w-3" /> {d.area}, Johannesburg
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Trending medicines */}
-      <section className="mb-10">
+      {/* Trending medicines — Add To Cart */}
+      <section className="mb-16">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" /> Trending medicines
@@ -261,7 +306,7 @@ function PatientHome() {
                         <Stethoscope className="h-3.5 w-3.5" />
                       </Button>
                     ) : (
-                      <Button size="sm" className="h-8 px-2 rounded-full" onClick={() => navigate({ to: "/payment", search: { medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 } as any })}>
+                      <Button size="sm" className="h-8 px-2 rounded-full" onClick={() => addToCart(med)}>
                         <Plus className="h-4 w-4" />
                       </Button>
                     )}
@@ -273,96 +318,7 @@ function PatientHome() {
         </div>
       </section>
 
-      {/* Pharmacy Store - Uber Eats style full-screen */}
-      <Dialog open={!!openPharmacy} onOpenChange={(o) => !o && setOpenPharmacy(null)}>
-        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0 gap-0">
-          {openPharmacy && (() => {
-            const m = pharmacyMeta(openPharmacy.user_id);
-            const name = openPharmacy.organization_name || openPharmacy.full_name;
-            return (
-              <>
-                <DialogHeader className="sr-only"><DialogTitle>{name}</DialogTitle></DialogHeader>
-                {/* Hero banner */}
-                <div className="relative h-44 sm:h-56 overflow-hidden">
-                  <img src={pharmacyImage(openPharmacy.user_id)} alt={name} className="absolute inset-0 h-full w-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
-                  <div className="absolute bottom-4 left-6 right-6">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{name}</h2>
-                    <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-foreground mt-2">
-                      <span className="flex items-center gap-1 font-semibold">
-                        <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" /> {m.rating.toFixed(1)}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${m.isOpen ? "bg-healthcare-green text-white" : "bg-muted"}`}>
-                        {m.isOpen ? "Open" : "Closed"}
-                      </span>
-                      <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {m.deliveryLabel}</span>
-                      <span>{m.fee === 0 ? "Free delivery" : `R${m.fee} delivery`}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> {openPharmacy.address || "Johannesburg"}</p>
-                  </div>
-                </div>
-
-                {/* Search inside pharmacy */}
-                <div className="px-6 pt-4 pb-2 sticky top-0 bg-background z-10 border-b border-border">
-                  <div className="relative mb-3">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
-                      value={storeSearch}
-                      onChange={(e) => setStoreSearch(e.target.value)}
-                      placeholder={`Search inside ${name}…`}
-                      className="w-full h-10 rounded-xl border border-border bg-card pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    <button
-                      onClick={() => setStoreCat(null)}
-                      className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border ${!storeCat ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-accent"}`}
-                    >All</button>
-                    {CATEGORIES.map((c) => (
-                      <button
-                        key={c.key}
-                        onClick={() => setStoreCat(storeCat === c.key ? null : c.key)}
-                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border ${storeCat === c.key ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-accent"}`}
-                      >{c.key}</button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Products grid */}
-                <div className="px-6 py-4">
-                  {storeMeds.length === 0 ? (
-                    <p className="text-sm text-center text-muted-foreground py-10">No products in this category.</p>
-                  ) : (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {storeMeds.map((med) => (
-                        <div key={med.id} className="group flex items-center gap-3 rounded-xl border border-border p-3 hover:shadow-md hover:border-primary/40 transition-all">
-                          <img src={medGeneric} alt="" loading="lazy" className="h-16 w-16 rounded-lg object-cover shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-foreground line-clamp-1">{med.name}</p>
-                            <p className="text-[11px] text-muted-foreground">{med.stock_quantity} in stock {med.requires_prescription && "· Rx"}</p>
-                            <p className="text-base font-bold text-foreground mt-0.5">R{customerPrice(med.price).toFixed(2)}</p>
-                          </div>
-                          {med.requires_prescription ? (
-                            <Button size="sm" variant="outline" onClick={() => { setRxFor(med); setOpenPharmacy(null); }}>
-                              <Stethoscope className="h-3.5 w-3.5" /> Rx
-                            </Button>
-                          ) : (
-                            <Button size="sm" className="rounded-full h-9 w-9 p-0 group-hover:scale-110 transition-transform" onClick={() => { setOpenPharmacy(null); navigate({ to: "/payment", search: { medId: med.id, name: med.name, price: Number(med.price), pharmacyId: med.pharmacy_id, qty: 1 } as any }); }}>
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
-
-      {/* Prescription upload */}
+      {/* Prescription upload dialog */}
       <Dialog open={!!rxFor} onOpenChange={(o) => !o && setRxFor(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
