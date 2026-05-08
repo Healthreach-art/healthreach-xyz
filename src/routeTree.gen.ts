@@ -17,8 +17,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkAccountRouteImport } from './routes/link-account'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PharmacyIdRouteImport } from './routes/pharmacy.$id'
 import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
 import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding'
 import { Route as DashboardPharmacyRouteImport } from './routes/dashboard.pharmacy'
@@ -77,6 +79,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -85,6 +92,11 @@ const AboutRoute = AboutRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PharmacyIdRoute = PharmacyIdRouteImport.update({
+  id: '/pharmacy/$id',
+  path: '/pharmacy/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DriverWalletRoute = DriverWalletRouteImport.update({
@@ -181,6 +193,7 @@ const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
@@ -198,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
+  '/pharmacy/$id': typeof PharmacyIdRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
@@ -210,6 +224,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
@@ -227,6 +242,7 @@ export interface FileRoutesByTo {
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
+  '/pharmacy/$id': typeof PharmacyIdRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
@@ -240,6 +256,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
@@ -257,6 +274,7 @@ export interface FileRoutesById {
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
+  '/pharmacy/$id': typeof PharmacyIdRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
@@ -271,6 +289,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/checkout'
     | '/contact'
     | '/forgot-password'
     | '/link-account'
@@ -288,6 +307,7 @@ export interface FileRouteTypes {
     | '/dashboard/pharmacy'
     | '/driver/onboarding'
     | '/driver/wallet'
+    | '/pharmacy/$id'
     | '/api/public/payment-webhook'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/orders'
@@ -300,6 +320,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/checkout'
     | '/contact'
     | '/forgot-password'
     | '/link-account'
@@ -317,6 +338,7 @@ export interface FileRouteTypes {
     | '/dashboard/pharmacy'
     | '/driver/onboarding'
     | '/driver/wallet'
+    | '/pharmacy/$id'
     | '/api/public/payment-webhook'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/orders'
@@ -329,6 +351,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/checkout'
     | '/contact'
     | '/forgot-password'
     | '/link-account'
@@ -346,6 +369,7 @@ export interface FileRouteTypes {
     | '/dashboard/pharmacy'
     | '/driver/onboarding'
     | '/driver/wallet'
+    | '/pharmacy/$id'
     | '/api/public/payment-webhook'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/orders'
@@ -359,6 +383,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  CheckoutRoute: typeof CheckoutRoute
   ContactRoute: typeof ContactRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LinkAccountRoute: typeof LinkAccountRoute
@@ -376,6 +401,7 @@ export interface RootRouteChildren {
   DashboardPharmacyRoute: typeof DashboardPharmacyRoute
   DriverOnboardingRoute: typeof DriverOnboardingRoute
   DriverWalletRoute: typeof DriverWalletRoute
+  PharmacyIdRoute: typeof PharmacyIdRoute
   ApiPublicPaymentWebhookRoute: typeof ApiPublicPaymentWebhookRoute
 }
 
@@ -437,6 +463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -449,6 +482,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pharmacy/$id': {
+      id: '/pharmacy/$id'
+      path: '/pharmacy/$id'
+      fullPath: '/pharmacy/$id'
+      preLoaderRoute: typeof PharmacyIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/driver/wallet': {
@@ -599,6 +639,7 @@ const DashboardPatientRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  CheckoutRoute: CheckoutRoute,
   ContactRoute: ContactRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LinkAccountRoute: LinkAccountRoute,
@@ -616,6 +657,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardPharmacyRoute: DashboardPharmacyRoute,
   DriverOnboardingRoute: DriverOnboardingRoute,
   DriverWalletRoute: DriverWalletRoute,
+  PharmacyIdRoute: PharmacyIdRoute,
   ApiPublicPaymentWebhookRoute: ApiPublicPaymentWebhookRoute,
 }
 export const routeTree = rootRouteImport

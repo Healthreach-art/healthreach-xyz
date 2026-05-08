@@ -2,6 +2,8 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } f
 import { useEffect, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { CartProvider } from "@/hooks/useCart";
+import { FloatingCart } from "@/components/FloatingCart";
 import { Toaster } from "@/components/ui/sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -78,9 +80,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   return (
     <AuthProvider>
-      <AppShell />
-      <Toaster />
-      <NotificationCenter />
+      <CartProvider>
+        <AppShell />
+        <FloatingCart />
+        <Toaster />
+        <NotificationCenter />
+      </CartProvider>
     </AuthProvider>
   );
 }
