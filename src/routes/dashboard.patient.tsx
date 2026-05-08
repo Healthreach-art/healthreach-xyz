@@ -56,6 +56,18 @@ const CATEGORIES = [
   { key: "Chronic", icon: Repeat, terms: ["chronic", "insulin", "metformin", "blood pressure", "hypertension", "statin", "asthma"] },
   { key: "Baby Care", icon: Baby, terms: ["baby", "infant", "nappy", "calpol"] },
   { key: "First Aid", icon: Bandage, terms: ["bandage", "plaster", "antiseptic", "wound", "burn"] },
+  { key: "Antibiotics", icon: Pill, terms: ["antibiotic", "amoxicillin", "penicillin", "azithromycin"] },
+  { key: "Allergy", icon: Leaf, terms: ["allergy", "antihistamine", "loratadine", "cetirizine", "zyrtec"] },
+  { key: "Digestive", icon: Flame, terms: ["antacid", "gaviscon", "laxative", "diarrhea", "imodium", "rennie"] },
+  { key: "Eye Care", icon: Eye, terms: ["eye", "drops", "visine", "contact"] },
+  { key: "Dental", icon: Smile, terms: ["dental", "toothpaste", "mouthwash", "floss"] },
+  { key: "Skin Care", icon: Sun, terms: ["skin", "cream", "lotion", "sunscreen", "eczema", "acne"] },
+  { key: "Mental Health", icon: Brain, terms: ["anxiety", "depression", "sleep", "melatonin", "stress"] },
+  { key: "Heart Health", icon: HeartPulse, terms: ["heart", "cholesterol", "atorvastatin", "blood thinner"] },
+  { key: "Diabetes", icon: Droplet, terms: ["diabetes", "insulin", "glucose", "metformin"] },
+  { key: "Women's Health", icon: ShieldPlus, terms: ["women", "menstrual", "iron", "folic", "contraceptive"] },
+  { key: "Men's Health", icon: Activity, terms: ["men", "prostate", "testosterone"] },
+  { key: "Immunity", icon: Syringe, terms: ["immune", "vitamin c", "echinacea", "elderberry"] },
 ];
 
 // 5 decorative non-clickable demo pharmacies shown alongside real ones for a fuller home grid.
