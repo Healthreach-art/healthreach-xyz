@@ -408,6 +408,9 @@ function PaymentPage() {
                   <div className="space-y-2">
                     <Label htmlFor="cardNumber">Card Number</Label>
                     <Input id="cardNumber" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="4242 4242 4242 4242" maxLength={19} required />
+                    <p className="text-xs text-muted-foreground">
+                      Test mode — use <span className="font-mono">4242 4242 4242 4242</span> to approve, <span className="font-mono">4000 0000 0000 0002</span> to decline.
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
