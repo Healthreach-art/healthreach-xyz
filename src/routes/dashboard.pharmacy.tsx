@@ -337,21 +337,21 @@ function PharmacyDashboard() {
     return true;
   }
 
-  // Auto-assigns the least-busy approved driver, then sets order → ready and delivery → assigned
+  // Marks order ready and broadcasts a delivery offer to all approved drivers.
+  // First driver to accept wins — they become driver_id on the delivery row.
   async function markReadyAndAutoAssign(orderId: string) {
-    await loadDrivers();
-    if (drivers.length === 0) {
-      toast.error("No approved drivers available. Ask the admin to approve a driver.");
-      return;
-    }
-    const best = [...drivers].sort((a, b) => a.active - b.active)[0];
-    const ok = await ensureDeliveryRow(orderId, best.user_id);
+    if (!user) return;
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+    // Ensure a delivery row exists (no driver yet) so patient tracking can render immediately.
+    const ok = await ensureDeliveryRow(orderId, null);
     if (!ok) return;
     const { error: orderErr } = await supabase.from("orders").update({ status: "ready" }).eq("id", orderId);
     if (orderErr) { toast.error(orderErr.message); return; }
-    toast.success(`Order ready — assigned to ${best.full_name}`);
+    // Broadcast offer to all drivers (no-op if one is already open).
+    await broadcastToDrivers(order);
+    toast.success("Order ready — sent to nearby drivers");
     loadData();
-    loadDrivers();
   }
 
   async function assignDriver(driverId: string) {
@@ -550,7 +550,7 @@ function PharmacyDashboard() {
 
                 {order.status === "preparing" && (
                   <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markReadyAndAutoAssign(order.id)}>
-                    <Truck className="h-3 w-3" /> Mark Ready (Auto-assign Driver)
+                    <Truck className="h-3 w-3" /> Mark Ready & Broadcast to Drivers
                   </Button>
                 )}
 

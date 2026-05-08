@@ -204,6 +204,15 @@ function PaymentPage() {
       }).select().single();
       if (payErr) throw payErr;
 
+      // Stripe-style test card outcomes (only for new cards entered manually).
+      // 4242 4242 4242 4242 → success, 4000 0000 0000 0002 → declined, anything else → random.
+      let forcedOutcome: "completed" | "failed" | undefined;
+      if (method === "card" && selectedCardId === "new") {
+        const digits = cardNumber.replace(/\D/g, "");
+        if (digits.startsWith("4242")) forcedOutcome = "completed";
+        else if (digits.startsWith("4000")) forcedOutcome = "failed";
+      }
+
       // Process via server endpoint (mock gateway). Server flips status using service role.
       const { data: { session } } = await supabase.auth.getSession();
       const payRes = await fetch("/api/mock-pay", {
@@ -212,7 +221,7 @@ function PaymentPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token ?? ""}`,
         },
-        body: JSON.stringify({ payment_id: payment.id }),
+        body: JSON.stringify({ payment_id: payment.id, outcome: forcedOutcome }),
       });
       const payJson = await payRes.json().catch(() => ({} as { status?: string }));
       const gatewayOk = payRes.ok && payJson.status === "completed";
@@ -399,6 +408,9 @@ function PaymentPage() {
                   <div className="space-y-2">
                     <Label htmlFor="cardNumber">Card Number</Label>
                     <Input id="cardNumber" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="4242 4242 4242 4242" maxLength={19} required />
+                    <p className="text-xs text-muted-foreground">
+                      Test mode — use <span className="font-mono">4242 4242 4242 4242</span> to approve, <span className="font-mono">4000 0000 0000 0002</span> to decline.
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
