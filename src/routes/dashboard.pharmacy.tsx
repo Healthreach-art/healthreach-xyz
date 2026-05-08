@@ -550,7 +550,7 @@ function PharmacyDashboard() {
 
                 {order.status === "preparing" && (
                   <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markReadyAndAutoAssign(order.id)}>
-                    <Truck className="h-3 w-3" /> Mark Ready (Auto-assign Driver)
+                    <Truck className="h-3 w-3" /> Mark Ready & Broadcast to Drivers
                   </Button>
                 )}
 
