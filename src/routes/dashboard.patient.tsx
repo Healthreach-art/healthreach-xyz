@@ -6,6 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   Search, Star, Clock, MapPin, Stethoscope, Loader2,
   Heart, Thermometer, Sparkles, Repeat, Baby, Bandage, Plus, Store, TrendingUp,
+  Pill, Eye, Smile, Brain, Leaf, Droplet, Sun, ShieldPlus, Activity, Syringe,
+  HeartPulse, Flame,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
