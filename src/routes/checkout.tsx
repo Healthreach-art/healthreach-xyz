@@ -102,11 +102,13 @@ function CheckoutPage() {
             continue;
           }
 
-          await supabase.from("deliveries").insert({
-            order_id: order.id, status: "assigned",
-            pickup_address: pickupAddress, delivery_address: deliveryAddress,
-            estimated_time: "30-45 minutes",
-          });
+          // NOTE: do NOT create a deliveries row here. The pharmacy creates it
+          // when they "Mark Ready & Broadcast" (see ensureDeliveryRow / the
+          // create_delivery_on_ready DB trigger). Creating it now would show
+          // a phantom "Driver Assigned" state to the patient and a no-driver
+          // active delivery to the pharmacy. Pickup address is captured by
+          // the pharmacy's own profile when the row is created.
+          void pickupAddress; // intentionally unused at checkout time
 
           // Decrement stock
           const { data: med } = await supabase.from("medications").select("stock_quantity").eq("id", item.medId).maybeSingle();
