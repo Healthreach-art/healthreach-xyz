@@ -62,11 +62,6 @@ function CheckoutPage() {
 
       for (const item of items) {
         try {
-          const { data: pharmacyProfile } = await supabase
-            .from("profiles").select("address, organization_name")
-            .eq("user_id", item.pharmacyId).maybeSingle();
-          const pickupAddress = pharmacyProfile?.address?.trim() || pharmacyProfile?.organization_name || "Pharmacy pickup point";
-
           const breakdown = paymentBreakdown(item.price, item.qty, BASE_DELIVERY_FEE);
 
           const { data: order, error: orderErr } = await supabase.from("orders").insert({
