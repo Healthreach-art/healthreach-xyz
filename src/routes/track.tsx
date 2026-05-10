@@ -29,21 +29,38 @@ interface Delivery {
   updated_at: string;
 }
 
-const stepDef: { key: DeliveryStatus | "placed" | "preparing"; label: string; icon: typeof CheckCircle2 }[] = [
+interface OrderRow {
+  id: string;
+  status: string;
+  medication_name: string;
+  delivery_address: string | null;
+  updated_at: string;
+}
+
+const stepDef: { key: string; label: string; icon: typeof CheckCircle2 }[] = [
   { key: "placed", label: "Order Placed", icon: CheckCircle2 },
   { key: "preparing", label: "Pharmacy Preparing", icon: Package },
+  { key: "ready", label: "Ready — Finding Driver", icon: Package },
   { key: "assigned", label: "Driver Assigned", icon: Package },
   { key: "picked_up", label: "Picked Up from Pharmacy", icon: Package },
   { key: "in_transit", label: "On the Way", icon: Truck },
   { key: "delivered", label: "Delivered", icon: MapPin },
 ];
 
-const statusOrder: Record<DeliveryStatus | "placed" | "preparing", number> = {
-  placed: 0, preparing: 1, assigned: 2, picked_up: 3, in_transit: 4, delivered: 5,
-};
+// Maps order/delivery status → step index in stepDef
+function stepFromState(orderStatus: string | null, deliveryStatus: DeliveryStatus | null): number {
+  if (deliveryStatus === "delivered") return 6;
+  if (deliveryStatus === "in_transit") return 5;
+  if (deliveryStatus === "picked_up") return 4;
+  if (deliveryStatus === "assigned") return 3;
+  if (orderStatus === "ready") return 2;
+  if (orderStatus === "preparing" || orderStatus === "accepted") return 1;
+  return 0;
+}
 
 function TrackPage() {
   const { user } = useAuth();
+  const [order, setOrder] = useState<OrderRow | null>(null);
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [loading, setLoading] = useState(true);
   const [pulse, setPulse] = useState(false);
@@ -53,14 +70,20 @@ function TrackPage() {
     if (!user) { setLoading(false); return; }
 
     async function load() {
+      // Most recent non-cancelled order
       const { data: orders } = await supabase
-        .from("orders").select("id").eq("patient_id", user!.id)
-        .order("created_at", { ascending: false }).limit(1);
-      if (!orders || orders.length === 0) { setDelivery(null); setLoading(false); return; }
+        .from("orders")
+        .select("id, status, medication_name, delivery_address, updated_at")
+        .eq("patient_id", user!.id)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (!orders || orders.length === 0) { setOrder(null); setDelivery(null); setLoading(false); return; }
+      setOrder(orders[0] as OrderRow);
 
       const { data: del } = await supabase
         .from("deliveries").select("*").eq("order_id", orders[0].id).maybeSingle();
-      setDelivery(del as Delivery | null);
+      setDelivery((del ?? null) as Delivery | null);
 
       const { data: loc } = await supabase
         .from("driver_locations").select("lat, lng, speed, updated_at")
@@ -78,10 +101,21 @@ function TrackPage() {
     };
     const channel = supabase
       .channel("track-deliveries")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` }, () => {
+        // Order moved (e.g. preparing → ready) — refetch both
+        load();
+        setPulse(true);
+        setTimeout(() => setPulse(false), 1200);
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, (payload) => {
         const next = payload.new as Delivery;
         const prevStatus = (payload.old as { status?: string })?.status;
         setDelivery((prev) => {
+          // Adopt newly created delivery for the active order
+          if (!prev && order && next.order_id === order.id) {
+            if (statusLabels[next.status]) toast.success(statusLabels[next.status]);
+            return next;
+          }
           if (!prev || prev.id !== next.id) return prev;
           if (next.status !== prevStatus) {
             const msg = statusLabels[next.status];
@@ -106,9 +140,9 @@ function TrackPage() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, order?.id]);
 
-  const currentStep = delivery ? statusOrder[delivery.status] : 0;
+  const currentStep = stepFromState(order?.status ?? null, delivery?.status ?? null);
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
