@@ -25,7 +25,6 @@ interface OrderRow {
   total_amount: number | string;
   created_at: string;
   pharmacy_id: string;
-  items?: any;
 }
 
 const ACTION_CARDS = [
@@ -54,10 +53,10 @@ function PatientDashboard() {
     (async () => {
       const { data } = await supabase
         .from("orders")
-        .select("id, status, total_amount, created_at, pharmacy_id, items")
+        .select("id, status, total_amount, created_at, pharmacy_id")
         .order("created_at", { ascending: false })
         .limit(5);
-      const list = (data ?? []) as OrderRow[];
+      const list = (data ?? []) as unknown as OrderRow[];
       setOrders(list);
       const ids = Array.from(new Set(list.map((o) => o.pharmacy_id))).filter(Boolean);
       if (ids.length) {
@@ -227,10 +226,8 @@ function PatientDashboard() {
                       <tr><td colSpan={6} className="py-6 text-center text-muted-foreground text-sm">No recent orders yet.</td></tr>
                     )}
                     {orders.map((o) => {
-                      const items = Array.isArray(o.items) ? o.items : [];
-                      const first = items[0] || {};
-                      const medName = first.name || first.medication_name || "Medication";
-                      const qty = first.quantity || first.qty || 1;
+                      const medName = "Medication";
+                      const qty = 1;
                       const date = new Date(o.created_at).toLocaleDateString("en-ZA", { month: "short", day: "2-digit", year: "numeric" });
                       const isOnWay = ["out_for_delivery", "ready", "preparing", "accepted"].includes(o.status);
                       const isDelivered = o.status === "delivered";
