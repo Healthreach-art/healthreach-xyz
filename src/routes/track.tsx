@@ -153,7 +153,7 @@ function TrackPage() {
             <span className={`inline-flex h-2 w-2 rounded-full bg-healthcare-green transition-all ${pulse ? "scale-150 shadow-[0_0_12px_currentColor]" : ""}`} />
             <span className="text-xs font-normal text-muted-foreground">Live</span>
           </h1>
-          {delivery && <p className="text-sm text-muted-foreground">Order <span className="font-mono">{delivery.order_id.slice(0, 8)}</span></p>}
+          {order && <p className="text-sm text-muted-foreground">Order <span className="font-mono">{order.id.slice(0, 8)}</span> · {order.medication_name}</p>}
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link to="/dashboard/patient">← Dashboard</Link>
@@ -164,52 +164,66 @@ function TrackPage() {
         <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       )}
 
-      {!loading && !delivery && (
+      {!loading && !order && (
         <div className="healthcare-card p-8 text-center">
           <Package className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
-          <h2 className="text-lg font-semibold">No active deliveries</h2>
+          <h2 className="text-lg font-semibold">No active orders</h2>
           <p className="text-sm text-muted-foreground mt-1">Place an order to see live tracking here.</p>
           <Button className="mt-4" asChild><Link to="/dashboard/patient">Browse Medications</Link></Button>
         </div>
       )}
 
-      {!loading && delivery && (
+      {!loading && order && (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <div className="healthcare-card overflow-hidden">
-              <div className="aspect-video relative">
-                <DeliveryMap
-                  orderId={delivery.order_id}
-                  pickup={delivery.pickup_address}
-                  dropoff={delivery.delivery_address}
-                  status={delivery.status}
-                  className="absolute inset-0 h-full w-full"
-                />
-                <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-full bg-background/90 backdrop-blur px-3 py-1.5 shadow-md">
-                  <Truck className="h-4 w-4 text-primary animate-pulse" />
-                  <span className="text-xs font-medium capitalize">{delivery.status.replace(/_/g, " ")}</span>
-                </div>
-              </div>
-              <div className="p-4 flex items-center justify-between border-t border-border">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <Truck className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Your Driver</p>
-                    <p className="text-xs text-muted-foreground">
-                      ETA: {driverLoc
-                        ? `${Math.max(1, Math.round(((driverLoc.speed ?? 0) > 1 ? 30 : 25) ))}–${Math.max(2, Math.round(((driverLoc.speed ?? 0) > 1 ? 30 : 25) + 10))} min`
-                        : (delivery.estimated_time || "calculating...")}
-                      {driverLoc && (
-                        <span className="ml-2 text-healthcare-green">● Live · updated {new Date(driverLoc.updated_at).toLocaleTimeString()}</span>
-                      )}
-                    </p>
+            {delivery ? (
+              <div className="healthcare-card overflow-hidden">
+                <div className="aspect-video relative">
+                  <DeliveryMap
+                    orderId={delivery.order_id}
+                    pickup={delivery.pickup_address}
+                    dropoff={delivery.delivery_address}
+                    status={delivery.status}
+                    className="absolute inset-0 h-full w-full"
+                  />
+                  <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-full bg-background/90 backdrop-blur px-3 py-1.5 shadow-md">
+                    <Truck className="h-4 w-4 text-primary animate-pulse" />
+                    <span className="text-xs font-medium capitalize">{delivery.status.replace(/_/g, " ")}</span>
                   </div>
                 </div>
-                <Button size="sm" variant="outline"><Phone className="h-4 w-4" /> Call</Button>
+                <div className="p-4 flex items-center justify-between border-t border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <Truck className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Your Driver</p>
+                      <p className="text-xs text-muted-foreground">
+                        ETA: {driverLoc
+                          ? `${Math.max(1, Math.round(((driverLoc.speed ?? 0) > 1 ? 30 : 25) ))}–${Math.max(2, Math.round(((driverLoc.speed ?? 0) > 1 ? 30 : 25) + 10))} min`
+                          : (delivery.estimated_time || "calculating...")}
+                        {driverLoc && (
+                          <span className="ml-2 text-healthcare-green">● Live · updated {new Date(driverLoc.updated_at).toLocaleTimeString()}</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline"><Phone className="h-4 w-4" /> Call</Button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="healthcare-card p-8 text-center bg-gradient-to-br from-primary/5 to-healthcare-sky/5">
+                <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                  <Package className="h-8 w-8 text-primary animate-pulse" />
+                </div>
+                <h2 className="text-lg font-semibold capitalize">{order.status === "ready" ? "Finding a driver…" : "Pharmacy is preparing your order"}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {order.status === "ready"
+                    ? "We've sent your order to nearby drivers. A driver will accept shortly."
+                    : "The pharmacy will mark it ready as soon as it's packed."}
+                </p>
+              </div>
+            )}
 
             <div className="healthcare-card p-6">
               <h2 className="text-lg font-semibold mb-4">Delivery Progress</h2>
@@ -235,7 +249,7 @@ function TrackPage() {
                         </p>
                         {current && (
                           <p className="text-xs text-primary flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> Updated {new Date(delivery.updated_at).toLocaleTimeString()}
+                            <Clock className="h-3 w-3" /> Updated {new Date((delivery?.updated_at) ?? order.updated_at).toLocaleTimeString()}
                           </p>
                         )}
                       </div>
@@ -250,11 +264,11 @@ function TrackPage() {
             <h2 className="text-lg font-semibold">Delivery Details</h2>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Pickup</p>
-              <p className="text-sm">{delivery.pickup_address || "—"}</p>
+              <p className="text-sm">{delivery?.pickup_address || "Pharmacy will set this when ready"}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Drop-off</p>
-              <p className="text-sm">{delivery.delivery_address || "—"}</p>
+              <p className="text-sm">{delivery?.delivery_address || order.delivery_address || "—"}</p>
             </div>
           </div>
         </div>
