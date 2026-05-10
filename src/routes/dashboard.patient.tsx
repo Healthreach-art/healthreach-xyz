@@ -1,351 +1,357 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useAuth } from "@/hooks/useAuth";
-import { useCart } from "@/hooks/useCart";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  Search, Star, Clock, MapPin, Stethoscope, Loader2,
-  Heart, Thermometer, Sparkles, Repeat, Baby, Bandage, Plus, Store, TrendingUp,
-  Pill, Eye, Smile, Brain, Leaf, Droplet, Sun, ShieldPlus, Activity, Syringe,
-  HeartPulse, Flame,
-} from "lucide-react";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
-import { PrescriptionUploader } from "@/components/PrescriptionVerification";
-import { toast } from "sonner";
-import pharmacy1 from "@/assets/pharmacy-1.jpg";
-import pharmacy2 from "@/assets/pharmacy-2.jpg";
-import pharmacy3 from "@/assets/pharmacy-3.jpg";
-import pharmacy4 from "@/assets/pharmacy-4.jpg";
-import medGeneric from "@/assets/med-generic.jpg";
+import { supabase } from "@/integrations/supabase/client";
 import { customerPrice } from "@/lib/pricing";
-
-const PHARMACY_IMAGES = [pharmacy1, pharmacy2, pharmacy3, pharmacy4];
-function pharmacyImage(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return PHARMACY_IMAGES[h % PHARMACY_IMAGES.length];
-}
-function pharmacyMeta(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  const rating = Number((4.0 + ((h % 100) / 100)).toFixed(1));
-  const deliveryMin = 15 + (h % 6) * 5;
-  const isOpen = (h % 7) !== 0;
-  const fee = (h % 4 === 0) ? 0 : 15 + (h % 4) * 5;
-  const badges: string[] = [];
-  if (h % 5 === 0) badges.push("Popular");
-  if (h % 7 === 0) badges.push("24/7");
-  if (deliveryMin <= 20) badges.push("Fast Delivery");
-  return { rating, deliveryMin, deliveryLabel: `${deliveryMin}–${deliveryMin + 10} min`, isOpen, fee, badges };
-}
+import {
+  ShoppingBag, Upload, Truck, MessageCircle, BellRing, ArrowRight,
+  CheckCircle2, Package, Bike, MapPin, Phone, Star, Siren, Pill,
+  CalendarCheck, Wallet, FileText, MessageSquare, PhoneCall,
+} from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient")({
-  head: () => ({ meta: [{ title: "Order Medicine — HEALTHREACH" }] }),
-  component: () => <RoleGuard allow="patient"><PatientHome /></RoleGuard>,
+  head: () => ({ meta: [{ title: "Dashboard — Healthreach" }] }),
+  component: () => (
+    <RoleGuard allow="patient">
+      <PatientDashboard />
+    </RoleGuard>
+  ),
 });
 
-interface Pharmacy { user_id: string; organization_name: string | null; full_name: string; address: string | null; }
-interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; }
+interface OrderRow {
+  id: string;
+  status: string;
+  total_amount: number | string;
+  created_at: string;
+  pharmacy_id: string;
+  items?: any;
+}
 
-const CATEGORIES = [
-  { key: "Pain Relief", icon: Heart, terms: ["pain", "ibuprofen", "paracetamol", "panado", "aspirin", "disprin", "voltaren"] },
-  { key: "Cold & Flu", icon: Thermometer, terms: ["cold", "flu", "cough", "sinus", "med-lemon", "allergex"] },
-  { key: "Vitamins", icon: Sparkles, terms: ["vitamin", "supplement", "omega", "magnesium", "zinc"] },
-  { key: "Chronic", icon: Repeat, terms: ["chronic", "insulin", "metformin", "blood pressure", "hypertension", "statin", "asthma"] },
-  { key: "Baby Care", icon: Baby, terms: ["baby", "infant", "nappy", "calpol"] },
-  { key: "First Aid", icon: Bandage, terms: ["bandage", "plaster", "antiseptic", "wound", "burn"] },
-  { key: "Antibiotics", icon: Pill, terms: ["antibiotic", "amoxicillin", "penicillin", "azithromycin"] },
-  { key: "Allergy", icon: Leaf, terms: ["allergy", "antihistamine", "loratadine", "cetirizine", "zyrtec"] },
-  { key: "Digestive", icon: Flame, terms: ["antacid", "gaviscon", "laxative", "diarrhea", "imodium", "rennie"] },
-  { key: "Eye Care", icon: Eye, terms: ["eye", "drops", "visine", "contact"] },
-  { key: "Dental", icon: Smile, terms: ["dental", "toothpaste", "mouthwash", "floss"] },
-  { key: "Skin Care", icon: Sun, terms: ["skin", "cream", "lotion", "sunscreen", "eczema", "acne"] },
-  { key: "Mental Health", icon: Brain, terms: ["anxiety", "depression", "sleep", "melatonin", "stress"] },
-  { key: "Heart Health", icon: HeartPulse, terms: ["heart", "cholesterol", "atorvastatin", "blood thinner"] },
-  { key: "Diabetes", icon: Droplet, terms: ["diabetes", "insulin", "glucose", "metformin"] },
-  { key: "Women's Health", icon: ShieldPlus, terms: ["women", "menstrual", "iron", "folic", "contraceptive"] },
-  { key: "Men's Health", icon: Activity, terms: ["men", "prostate", "testosterone"] },
-  { key: "Immunity", icon: Syringe, terms: ["immune", "vitamin c", "echinacea", "elderberry"] },
+const ACTION_CARDS = [
+  { title: "Order Medication", icon: ShoppingBag, to: "/dashboard/patient/pharmacies", bg: "bg-healthcare-green/10", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
+  { title: "Upload Prescription", icon: Upload, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-mint/40", iconColor: "text-healthcare-teal" },
+  { title: "Track Delivery", icon: Truck, to: "/track", bg: "bg-healthcare-light", iconBg: "bg-healthcare-sky/30", iconColor: "text-healthcare-sky" },
+  { title: "Contact Pharmacist", icon: MessageCircle, to: "/dashboard/patient/support", bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+  { title: "Emergency Refill", icon: BellRing, to: "/dashboard/patient/reminders", bg: "bg-orange-50", iconBg: "bg-orange-100", iconColor: "text-orange-600" },
 ];
 
-// 5 decorative non-clickable demo pharmacies shown alongside real ones for a fuller home grid.
-const DEMO_DECOR = [
-  { name: "Dis-Chem Pharmacy", area: "Sandton City", img: pharmacy1, rating: 4.7, time: "20–30 min", fee: 0, badges: ["Popular"] },
-  { name: "MediCare Plus", area: "Rosebank", img: pharmacy2, rating: 4.5, time: "25–35 min", fee: 20, badges: ["24/7"] },
-  { name: "PharmaWorld", area: "Fourways", img: pharmacy3, rating: 4.3, time: "30–40 min", fee: 25, badges: ["Fast Delivery"] },
-  { name: "City Chemist", area: "CBD", img: pharmacy4, rating: 4.6, time: "15–25 min", fee: 0, badges: ["Popular", "Fast Delivery"] },
-  { name: "Wellness Apothecary", area: "Melville", img: pharmacy1, rating: 4.8, time: "35–45 min", fee: 30, badges: ["24/7"] },
+const TRACKER_STEPS = [
+  { key: "approved", label: "Prescription Approved", icon: CheckCircle2, time: "10:30 AM" },
+  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, time: "11:00 AM" },
+  { key: "collecting", label: "Driver Collecting", icon: Package, time: "11:25 AM" },
+  { key: "on_way", label: "On The Way", icon: Bike, time: "11:45 AM" },
+  { key: "delivered", label: "Delivered", icon: Truck, time: "Pending" },
 ];
 
-function PatientHome() {
+function PatientDashboard() {
   const { profile } = useAuth();
-  const cart = useCart();
-  const [search, setSearch] = useState("");
-  const [meds, setMeds] = useState<Med[]>([]);
-  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [rxFor, setRxFor] = useState<Med | null>(null);
-  const [activeCat, setActiveCat] = useState<string | null>(null);
+  const firstName = profile?.full_name?.split(" ")[0] || "John";
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
 
   useEffect(() => {
     (async () => {
-      const [{ data: medsData }, { data: roles }] = await Promise.all([
-        supabase.from("medications").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription").gt("stock_quantity", 0).order("name"),
-        supabase.from("user_roles").select("user_id").eq("role", "pharmacy"),
-      ]);
-      setMeds((medsData ?? []) as Med[]);
-      const ids = (roles ?? []).map((r: any) => r.user_id);
+      const { data } = await supabase
+        .from("orders")
+        .select("id, status, total_amount, created_at, pharmacy_id, items")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      const list = (data ?? []) as OrderRow[];
+      setOrders(list);
+      const ids = Array.from(new Set(list.map((o) => o.pharmacy_id))).filter(Boolean);
       if (ids.length) {
         const { data: profs } = await supabase
           .from("profiles")
-          .select("user_id, organization_name, full_name, address, approval_status")
-          .in("user_id", ids)
-          .eq("approval_status", "approved");
-        setPharmacies((profs ?? []) as Pharmacy[]);
+          .select("user_id, organization_name, full_name")
+          .in("user_id", ids);
+        const map: Record<string, string> = {};
+        (profs ?? []).forEach((p: any) => {
+          map[p.user_id] = p.organization_name || p.full_name || "Pharmacy";
+        });
+        setPharmaciesById(map);
       }
-      setLoading(false);
     })();
   }, []);
 
-  const trending = meds.slice(0, 12);
-  const activeCategory = CATEGORIES.find((c) => c.key === activeCat);
-  const filteredPharmacies = pharmacies.filter((p) => {
-    const q = search.toLowerCase();
-    if (!q) return true;
-    const name = (p.organization_name || p.full_name || "").toLowerCase();
-    const addr = (p.address ?? "").toLowerCase();
-    return name.includes(q) || addr.includes(q);
-  });
-  const filteredMeds = trending.filter((m) => {
-    const q = search.toLowerCase();
-    const matchesQ = !q || m.name.toLowerCase().includes(q);
-    const matchesCat = !activeCategory || activeCategory.terms.some((t) => m.name.toLowerCase().includes(t));
-    return matchesQ && matchesCat;
-  });
-
-  const addToCart = (med: Med) => {
-    if (med.requires_prescription) { setRxFor(med); return; }
-    const ph = pharmacies.find((p) => p.user_id === med.pharmacy_id);
-    cart.add({
-      medId: med.id, name: med.name, price: Number(med.price),
-      pharmacyId: med.pharmacy_id, pharmacyName: ph?.organization_name || ph?.full_name || "Pharmacy",
-      requiresPrescription: !!med.requires_prescription,
-    });
-    toast.success(`${med.name} added to cart`);
-  };
+  const activeStepIdx = 3; // "On The Way"
 
   return (
-    <div className="container-narrow px-4 sm:px-6 py-6 sm:py-8">
-      <div className="mb-5">
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-          Welcome back, {profile?.full_name?.split(" ")[0] || "there"} 👋
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Medicine delivered in minutes. Order from pharmacies near you.</p>
-      </div>
+    <div className="bg-[oklch(0.985_0.003_240)] min-h-screen">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
+          {/* MAIN COLUMN */}
+          <div className="space-y-6">
+            {/* Greeting */}
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                Good Morning, {firstName} <span className="inline-block">👋</span>
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your health is our priority. Let's take care of it today.
+              </p>
+            </div>
 
-      {/* Sticky search */}
-      <div className="sticky top-2 z-20 mb-6">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search medicines, pharmacies, brands…"
-            className="w-full h-13 sm:h-14 rounded-2xl border border-border bg-card pl-12 pr-4 text-sm sm:text-base shadow-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-      </div>
+            {/* Action cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+              {ACTION_CARDS.map((c) => (
+                <Link
+                  key={c.title}
+                  to={c.to}
+                  className={`group rounded-3xl ${c.bg} p-4 sm:p-5 border border-border/40 hover:shadow-lg hover:-translate-y-1 transition-all duration-200`}
+                >
+                  <div className={`h-12 w-12 rounded-2xl ${c.iconBg} flex items-center justify-center mb-3`}>
+                    <c.icon className={`h-6 w-6 ${c.iconColor}`} />
+                  </div>
+                  <p className="text-sm font-bold text-foreground leading-tight pr-4">{c.title}</p>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground mt-2 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              ))}
+            </div>
 
-      {/* Categories */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-foreground">Shop by category</h2>
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-          {CATEGORIES.map((c) => {
-            const active = activeCat === c.key;
-            return (
-              <button
-                key={c.key}
-                onClick={() => setActiveCat(active ? null : c.key)}
-                className={`flex flex-col items-center gap-2 shrink-0 rounded-2xl border p-3 w-24 sm:w-28 transition-all hover:-translate-y-0.5 ${
-                  active ? "border-primary bg-primary/10 shadow-md" : "border-border bg-card hover:shadow-md"
-                }`}
-              >
-                <div className={`h-12 w-12 rounded-full flex items-center justify-center ${active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
-                  <c.icon className="h-6 w-6" />
-                </div>
-                <span className="text-xs font-medium text-foreground text-center leading-tight">{c.key}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Featured pharmacies */}
-      <section className="mb-10">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <Store className="h-5 w-5 text-primary" /> Featured Pharmacies
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{filteredPharmacies.length} clickable · {DEMO_DECOR.length} more nearby</p>
-          </div>
-        </div>
-
-        {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
-        {!loading && filteredPharmacies.length === 0 && search === "" && (
-          <div className="healthcare-card p-8 text-center text-sm text-muted-foreground mb-4">
-            No live pharmacies onboarded yet. Demo previews shown below.
-          </div>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Real, clickable pharmacy cards */}
-          {filteredPharmacies.map((p) => {
-            const m = pharmacyMeta(p.user_id);
-            const name = p.organization_name || p.full_name;
-            const itemCount = meds.filter((med) => med.pharmacy_id === p.user_id).length;
-            return (
-              <Link
-                key={p.user_id}
-                to="/pharmacy/$id"
-                params={{ id: p.user_id }}
-                className="group text-left rounded-2xl border border-border bg-card overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1"
-              >
-                <div className="relative h-40 overflow-hidden">
-                  <img src={pharmacyImage(p.user_id)} alt={name} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                  {m.badges.length > 0 && (
-                    <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                      {m.badges.slice(0, 2).map((b) => (
-                        <span key={b} className="px-2 py-1 rounded-full bg-white/95 backdrop-blur text-[10px] font-bold text-primary shadow">{b}</span>
-                      ))}
-                    </div>
-                  )}
-                  <span className={`absolute top-3 right-3 px-2 py-1 rounded-full text-[10px] font-bold shadow ${m.isOpen ? "bg-healthcare-green text-white" : "bg-muted text-muted-foreground"}`}>
-                    {m.isOpen ? "Open" : "Closed"}
+            {/* Delivery Tracker */}
+            <div className="rounded-3xl bg-card border border-border p-5 sm:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-bold text-foreground">Delivery Tracker</h2>
+                  <span className="px-2.5 py-1 rounded-full bg-healthcare-green/15 text-healthcare-green text-[11px] font-semibold">
+                    In Progress
                   </span>
                 </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="font-bold text-base text-foreground line-clamp-1">{name}</h3>
-                    <span className="flex items-center gap-0.5 text-sm font-semibold text-foreground shrink-0">
-                      <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" /> {m.rating.toFixed(1)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {m.deliveryLabel}</span>
-                    <span>•</span>
-                    <span className={m.fee === 0 ? "text-healthcare-green font-medium" : ""}>{m.fee === 0 ? "Free delivery" : `R${m.fee} delivery`}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-1 flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {p.address || "Johannesburg"} · {itemCount} items
-                  </p>
-                  <p className="text-[11px] text-primary font-semibold mt-2 group-hover:underline">Browse store →</p>
-                </div>
-              </Link>
-            );
-          })}
-
-          {/* 5 decorative demo cards (non-clickable) */}
-          {DEMO_DECOR.map((d, i) => (
-            <div key={`demo-${i}`} className="relative text-left rounded-2xl border border-border/60 bg-card/70 overflow-hidden cursor-not-allowed opacity-80">
-              <div className="relative h-40 overflow-hidden">
-                <img src={d.img} alt={d.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover grayscale-[20%]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                  {d.badges.map((b) => (
-                    <span key={b} className="px-2 py-1 rounded-full bg-white/95 backdrop-blur text-[10px] font-bold text-primary shadow">{b}</span>
-                  ))}
-                </div>
-                <span className="absolute top-3 right-3 px-2 py-1 rounded-full text-[10px] font-bold shadow bg-muted/90 text-muted-foreground">
-                  Coming soon
-                </span>
+                <Link to="/track" className="text-xs text-healthcare-green font-semibold hover:underline">
+                  View all deliveries →
+                </Link>
               </div>
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-bold text-base text-foreground line-clamp-1">{d.name}</h3>
-                  <span className="flex items-center gap-0.5 text-sm font-semibold text-foreground shrink-0">
-                    <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" /> {d.rating.toFixed(1)}
-                  </span>
+
+              <div className="grid lg:grid-cols-[1fr_280px] gap-6">
+                {/* Timeline */}
+                <div>
+                  <div className="relative flex items-start justify-between">
+                    {/* progress line */}
+                    <div className="absolute top-6 left-6 right-6 h-0.5 bg-border -z-0" />
+                    <div
+                      className="absolute top-6 left-6 h-0.5 bg-healthcare-green -z-0 transition-all"
+                      style={{ width: `calc((100% - 3rem) * ${activeStepIdx / (TRACKER_STEPS.length - 1)})` }}
+                    />
+                    {TRACKER_STEPS.map((step, i) => {
+                      const done = i < activeStepIdx;
+                      const active = i === activeStepIdx;
+                      return (
+                        <div key={step.key} className="relative z-10 flex flex-col items-center text-center w-1/5">
+                          <div
+                            className={`h-12 w-12 rounded-full flex items-center justify-center border-4 transition-all ${
+                              done
+                                ? "bg-healthcare-green border-healthcare-green text-white"
+                                : active
+                                ? "bg-healthcare-green/15 border-healthcare-green text-healthcare-green ring-4 ring-healthcare-green/20"
+                                : "bg-muted border-border text-muted-foreground"
+                            }`}
+                          >
+                            <step.icon className="h-5 w-5" />
+                          </div>
+                          <p className={`mt-2 text-[11px] font-semibold leading-tight px-1 ${active ? "text-foreground" : done ? "text-foreground" : "text-muted-foreground"}`}>
+                            {step.label}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{step.time}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Arriving banner */}
+                  <div className="mt-6 rounded-2xl bg-healthcare-green/10 border border-healthcare-green/20 p-4 flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-healthcare-green/20 flex items-center justify-center shrink-0">
+                      <Bike className="h-6 w-6 text-healthcare-green" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-healthcare-green">Arriving in 20–25 mins</p>
+                      <p className="text-xs text-muted-foreground">
+                        Your medications are on the way. Thank you for choosing Healthreach!
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
-                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {d.time}</span>
-                  <span>•</span>
-                  <span className={d.fee === 0 ? "text-healthcare-green font-medium" : ""}>{d.fee === 0 ? "Free delivery" : `R${d.fee} delivery`}</span>
+
+                {/* Mini map + driver */}
+                <div className="rounded-2xl border border-border overflow-hidden bg-muted/30 relative">
+                  <div className="h-44 relative bg-[linear-gradient(135deg,oklch(0.95_0.03_165)_0%,oklch(0.92_0.05_185)_100%)] overflow-hidden">
+                    <svg viewBox="0 0 280 180" className="absolute inset-0 h-full w-full">
+                      <path d="M20 40 Q 80 60 100 90 T 180 130 L 240 150" stroke="oklch(0.6 0.15 155)" strokeWidth="3" fill="none" strokeDasharray="6 4" />
+                      <circle cx="20" cy="40" r="6" fill="oklch(0.6 0.15 155)" />
+                      <circle cx="240" cy="150" r="7" fill="oklch(0.55 0.15 240)" />
+                    </svg>
+                    <MapPin className="absolute top-7 left-3 h-5 w-5 text-healthcare-green" />
+                    <MapPin className="absolute bottom-5 right-3 h-5 w-5 text-primary" />
+                  </div>
+                  <div className="p-3 bg-card flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-healthcare-green/20 flex items-center justify-center text-sm font-bold text-healthcare-green">
+                      M
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-muted-foreground">Your Driver</p>
+                      <p className="text-sm font-bold text-foreground leading-tight">Michael</p>
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" /> 4.8
+                      </p>
+                    </div>
+                    <button className="h-9 w-9 rounded-full bg-healthcare-green/15 hover:bg-healthcare-green/25 flex items-center justify-center transition">
+                      <Phone className="h-4 w-4 text-healthcare-green" />
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-1 flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> {d.area}, Johannesburg
-                </p>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* Trending medicines — Add To Cart */}
-      <section className="mb-16">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" /> Trending medicines
-          </h2>
-        </div>
-        {loading && <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
-        {!loading && filteredMeds.length === 0 && (
-          <div className="healthcare-card p-6 text-center text-sm text-muted-foreground">No medicines match.</div>
-        )}
-        <div className="flex gap-4 overflow-x-auto pb-3 -mx-1 px-1 snap-x">
-          {filteredMeds.map((med) => {
-            const ph = pharmacies.find((p) => p.user_id === med.pharmacy_id);
-            return (
-              <div key={med.id} className="snap-start shrink-0 w-44 sm:w-52 rounded-2xl border border-border bg-card overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all">
-                <div className="relative h-32 bg-muted">
-                  <img src={medGeneric} alt={med.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                  {med.requires_prescription && (
-                    <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-healthcare-sky text-white text-[9px] font-bold">Rx</span>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p className="text-sm font-semibold text-foreground line-clamp-1">{med.name}</p>
-                  <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{ph?.organization_name || ph?.full_name || "Pharmacy"}</p>
-                  <p className="text-[11px] text-muted-foreground">{med.stock_quantity} in stock</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-base font-bold text-foreground">R{customerPrice(med.price).toFixed(0)}</span>
-                    {med.requires_prescription ? (
-                      <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setRxFor(med)}>
-                        <Stethoscope className="h-3.5 w-3.5" />
-                      </Button>
-                    ) : (
-                      <Button size="sm" className="h-8 px-2 rounded-full" onClick={() => addToCart(med)}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
+            {/* Recent Orders */}
+            <div className="rounded-3xl bg-card border border-border p-5 sm:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-foreground">Recent Orders</h2>
+                <Link to="/dashboard/patient/orders" className="text-xs text-healthcare-green font-semibold hover:underline">
+                  View all orders →
+                </Link>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase text-muted-foreground border-b border-border">
+                      <th className="py-3 pr-4 font-semibold">Medication</th>
+                      <th className="py-3 pr-4 font-semibold">Pharmacy</th>
+                      <th className="py-3 pr-4 font-semibold">Date</th>
+                      <th className="py-3 pr-4 font-semibold">Status</th>
+                      <th className="py-3 pr-4 font-semibold">Total</th>
+                      <th className="py-3 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.length === 0 && (
+                      <tr><td colSpan={6} className="py-6 text-center text-muted-foreground text-sm">No recent orders yet.</td></tr>
                     )}
-                  </div>
+                    {orders.map((o) => {
+                      const items = Array.isArray(o.items) ? o.items : [];
+                      const first = items[0] || {};
+                      const medName = first.name || first.medication_name || "Medication";
+                      const qty = first.quantity || first.qty || 1;
+                      const date = new Date(o.created_at).toLocaleDateString("en-ZA", { month: "short", day: "2-digit", year: "numeric" });
+                      const isOnWay = ["out_for_delivery", "ready", "preparing", "accepted"].includes(o.status);
+                      const isDelivered = o.status === "delivered";
+                      return (
+                        <tr key={o.id} className="border-b border-border/60 hover:bg-muted/30 transition">
+                          <td className="py-3 pr-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-lg bg-healthcare-green/10 flex items-center justify-center">
+                                <Pill className="h-5 w-5 text-healthcare-green" />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-foreground line-clamp-1">{medName}</p>
+                                <p className="text-[11px] text-muted-foreground">{qty} {qty === 1 ? "unit" : "units"}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4 text-muted-foreground">{pharmaciesById[o.pharmacy_id] || "Pharmacy"}</td>
+                          <td className="py-3 pr-4 text-muted-foreground">{date}</td>
+                          <td className="py-3 pr-4">
+                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                              isDelivered ? "bg-healthcare-green/15 text-healthcare-green" :
+                              isOnWay ? "bg-healthcare-sky/20 text-healthcare-sky" :
+                              o.status === "cancelled" ? "bg-destructive/15 text-destructive" :
+                              "bg-muted text-muted-foreground"
+                            }`}>
+                              {isOnWay ? "On The Way" : isDelivered ? "Delivered" : o.status}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4 font-semibold text-foreground">R{customerPrice(Number(o.total_amount || 0)).toFixed(2)}</td>
+                          <td className="py-3 text-right">
+                            <Link
+                              to="/dashboard/patient/orders"
+                              className="inline-flex items-center justify-center px-3 py-1.5 rounded-full border border-healthcare-green text-healthcare-green text-xs font-semibold hover:bg-healthcare-green/10 transition"
+                            >
+                              Reorder
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT PANEL */}
+          <aside className="space-y-5">
+            {/* Emergency */}
+            <div className="rounded-3xl bg-card border-2 border-red-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
+                  <Siren className="h-4 w-4 text-red-600" />
+                </div>
+                <span className="text-xs font-extrabold tracking-widest text-red-600">EMERGENCY</span>
+              </div>
+              <h3 className="text-lg font-bold text-foreground">Ambulance Assistance</h3>
+              <p className="text-xs text-muted-foreground mb-4">24/7 Emergency Support</p>
+
+              <div className="rounded-2xl border-2 border-dashed border-red-200 bg-red-50/50 p-4 mb-3 flex items-center gap-3">
+                <div className="h-11 w-11 rounded-full bg-red-100 flex items-center justify-center">
+                  <PhoneCall className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Call Emergency Ambulance</p>
+                  <p className="text-xl font-extrabold text-red-600 leading-tight">107 / 112</p>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </section>
 
-      {/* Prescription upload dialog */}
-      <Dialog open={!!rxFor} onOpenChange={(o) => !o && setRxFor(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Stethoscope className="h-5 w-5 text-primary" /> Upload prescription
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              {rxFor?.name} requires a valid prescription. Upload an image or PDF — your assigned pharmacy will verify it within minutes.
-            </p>
-          </DialogHeader>
-          {rxFor && <PrescriptionUploader pharmacyId={rxFor.pharmacy_id} medicationId={rxFor.id} onUploaded={() => setRxFor(null)} />}
-        </DialogContent>
-      </Dialog>
+              <a href="tel:107" className="flex items-center justify-center gap-2 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl transition shadow-md">
+                <PhoneCall className="h-4 w-4" /> Call Now
+              </a>
+              <p className="text-[11px] text-center text-muted-foreground mt-2">Your safety is our priority</p>
+            </div>
+
+            {/* Health Summary */}
+            <div className="rounded-3xl bg-card border border-border p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-foreground">Health Summary</h3>
+                <span className="text-[11px] text-muted-foreground border border-border px-2 py-1 rounded-lg">This Month ▾</span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { icon: Pill, color: "text-healthcare-green", bg: "bg-healthcare-green/10", label: "Active Prescriptions", value: "3" },
+                  { icon: CalendarCheck, color: "text-healthcare-sky", bg: "bg-healthcare-sky/15", label: "Upcoming Appointments", value: "1" },
+                  { icon: Wallet, color: "text-purple-600", bg: "bg-purple-100", label: "Monthly Spending", value: "R58.50" },
+                  { icon: FileText, color: "text-orange-600", bg: "bg-orange-100", label: "Health Notes", value: "2" },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center gap-3">
+                    <div className={`h-9 w-9 rounded-xl ${row.bg} flex items-center justify-center`}>
+                      <row.icon className={`h-4 w-4 ${row.color}`} />
+                    </div>
+                    <p className="flex-1 text-sm text-foreground">{row.label}</p>
+                    <p className="text-sm font-bold text-foreground">{row.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Need help */}
+            <div className="rounded-3xl bg-card border border-border p-5 shadow-sm">
+              <h3 className="font-bold text-foreground">Need Help?</h3>
+              <p className="text-xs text-muted-foreground mb-4">We are here for you</p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { icon: MessageSquare, label: "Live Chat", color: "text-healthcare-green", bg: "bg-healthcare-green/10", href: "/dashboard/patient/support" },
+                  { icon: MessageCircle, label: "WhatsApp", color: "text-green-600", bg: "bg-green-100", href: "https://wa.me/27000000000" },
+                  { icon: Phone, label: "Call Us", color: "text-healthcare-sky", bg: "bg-healthcare-sky/15", href: "tel:+27000000000" },
+                ].map((opt) => (
+                  <a key={opt.label} href={opt.href} className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-muted/50 transition">
+                    <div className={`h-12 w-12 rounded-full ${opt.bg} flex items-center justify-center`}>
+                      <opt.icon className={`h-5 w-5 ${opt.color}`} />
+                    </div>
+                    <span className="text-[11px] font-medium text-foreground">{opt.label}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }
