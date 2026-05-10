@@ -11,6 +11,7 @@ import { CreditCard, Lock, CheckCircle2, ShoppingCart, Loader2, Trash2 } from "l
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE, paymentBreakdown } from "@/lib/pricing";
+import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
