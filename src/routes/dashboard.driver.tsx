@@ -370,19 +370,20 @@ function DriverDashboard() {
       .eq("order_id", offer.order_id)
       .maybeSingle();
 
-    const opts = [
-      existing
-        ? supabase.from("deliveries").update({ driver_id: user.id, status: "assigned" }).eq("order_id", offer.order_id)
-        : supabase.from("deliveries").insert({
-            order_id: offer.order_id,
-            driver_id: user.id,
-            status: "assigned",
-            pickup_address: offer.pickup_address ?? "",
-            delivery_address: offer.delivery_address ?? "",
-          }),
-      supabase.from("orders").update({ status: "ready" }).eq("id", offer.order_id),
-    ];
-    await Promise.all(opts);
+    // Create or claim the deliveries row. Order status was already moved to
+    // 'ready' by the pharmacy when they broadcast the offer, so we don't
+    // touch orders.status here.
+    if (existing) {
+      await supabase.from("deliveries").update({ driver_id: user.id, status: "assigned" }).eq("order_id", offer.order_id);
+    } else {
+      await supabase.from("deliveries").insert({
+        order_id: offer.order_id,
+        driver_id: user.id,
+        status: "assigned",
+        pickup_address: offer.pickup_address ?? "",
+        delivery_address: offer.delivery_address ?? "",
+      });
+    }
 
     setRespondingId(null);
     setOffers((prev) => prev.filter((o) => o.id !== offer.id));
