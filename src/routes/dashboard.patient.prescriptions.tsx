@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Stethoscope, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrescriptionStatusBadge, getPrescriptionFileUrl, type PrescriptionUpload } from "@/components/PrescriptionVerification";
+import { PrescriptionScanButton } from "@/components/PrescriptionScanButton";
+import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient/prescriptions")({
