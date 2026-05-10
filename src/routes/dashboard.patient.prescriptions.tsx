@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Stethoscope, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrescriptionStatusBadge, getPrescriptionFileUrl, type PrescriptionUpload } from "@/components/PrescriptionVerification";
+import { PrescriptionScanButton } from "@/components/PrescriptionScanButton";
+import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient/prescriptions")({
@@ -84,10 +86,15 @@ function Page() {
                 try { const url = await getPrescriptionFileUrl(u.file_path); window.open(url, "_blank", "noopener,noreferrer"); }
                 catch (e: any) { toast.error(e?.message || "Could not open file"); }
               }}>View prescription</Button>
+              <PrescriptionScanButton row={u} />
             </div>
           ))}
         </div>
       </div>
+
+      {prescriptions.length >= 2 && (
+        <DrugInteractionPanel medications={prescriptions.filter(p => p.is_active !== false).map(p => p.medication_name)} />
+      )}
     </div>
   );
 }

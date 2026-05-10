@@ -11,6 +11,7 @@ import { CreditCard, Lock, CheckCircle2, ShoppingCart, Loader2, Trash2 } from "l
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE, paymentBreakdown } from "@/lib/pricing";
+import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
@@ -154,6 +155,9 @@ function CheckoutPage() {
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
       <div className="grid gap-6 lg:grid-cols-5">
         <form onSubmit={handlePay} className="lg:col-span-3 space-y-6">
+          {items.length >= 2 && (
+            <DrugInteractionPanel medications={items.map(i => i.name)} />
+          )}
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold mb-4">Delivery address</h2>
             <Textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Street, suburb, city" rows={2} required />
