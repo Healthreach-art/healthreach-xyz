@@ -62,11 +62,6 @@ function CheckoutPage() {
 
       for (const item of items) {
         try {
-          const { data: pharmacyProfile } = await supabase
-            .from("profiles").select("address, organization_name")
-            .eq("user_id", item.pharmacyId).maybeSingle();
-          const pickupAddress = pharmacyProfile?.address?.trim() || pharmacyProfile?.organization_name || "Pharmacy pickup point";
-
           const breakdown = paymentBreakdown(item.price, item.qty, BASE_DELIVERY_FEE);
 
           const { data: order, error: orderErr } = await supabase.from("orders").insert({
@@ -102,11 +97,11 @@ function CheckoutPage() {
             continue;
           }
 
-          await supabase.from("deliveries").insert({
-            order_id: order.id, status: "assigned",
-            pickup_address: pickupAddress, delivery_address: deliveryAddress,
-            estimated_time: "30-45 minutes",
-          });
+          // NOTE: do NOT create a deliveries row here. The pharmacy creates it
+          // when they "Mark Ready & Broadcast" (the create_delivery_on_ready
+          // DB trigger handles it server-side). Creating it now would show a
+          // phantom "Driver Assigned" state to the patient and a no-driver
+          // active delivery to the pharmacy.
 
           // Decrement stock
           const { data: med } = await supabase.from("medications").select("stock_quantity").eq("id", item.medId).maybeSingle();
