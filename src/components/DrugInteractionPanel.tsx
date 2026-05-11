@@ -31,14 +31,27 @@ export function DrugInteractionPanel({ medications }: { medications: string[] })
 
   const key = medications.slice().sort().join("|").toLowerCase();
 
-  useEffect(() => {
-    if (medications.length < 1) { setData(null); return; }
-    let cancelled = false;
+  function runCheck() {
+    if (medications.length < 1) { setData(null); return Promise.resolve(); }
     setLoading(true);
-    check({ data: { medications } })
-      .then((r) => { if (!cancelled) setData(r as any); })
-      .catch(() => { if (!cancelled) setData({ overall_risk: "unknown", interactions: [], error: "AI check failed" }); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+    return check({ data: { medications } })
+      .then((r: any) => {
+        setData(r);
+        if (r?.error) toast.error("Safety check incomplete", { description: r.error });
+        else if (r?.interactions?.some((i: Interaction) => i.severity === "major")) {
+          toast.warning("Major interaction detected", { description: "Review the AI Safety Check below." });
+        }
+      })
+      .catch((e: any) => {
+        setData({ overall_risk: "unknown", interactions: [], error: "AI safety check failed" });
+        toast.error("Couldn't run safety check", { description: e?.message || "Please try again in a moment." });
+      })
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    runCheck().then(() => { if (cancelled) return; });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
@@ -47,13 +60,33 @@ export function DrugInteractionPanel({ medications }: { medications: string[] })
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-bold text-foreground">AI Safety Check</h3>
-        {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-bold text-foreground">AI Safety Check</h3>
+          {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        </div>
+        {!loading && (
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => runCheck()}>
+            <RefreshCw className="h-3 w-3" /> Recheck
+          </Button>
+        )}
       </div>
 
-      {data?.error && <p className="text-xs text-muted-foreground">{data.error}</p>}
+      {loading && (
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      )}
+
+      {!loading && data?.error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+          {data.error}
+        </div>
+      )}
+
 
       {!loading && data && !data.error && (
         <>
