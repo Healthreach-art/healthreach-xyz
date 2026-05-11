@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { parsePrescription } from "@/utils/ai.functions";
 import { getPrescriptionFileUrl, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
