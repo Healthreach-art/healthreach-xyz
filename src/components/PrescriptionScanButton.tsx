@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { parsePrescription } from "@/utils/ai.functions";
 import { getPrescriptionFileUrl, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,17 +23,27 @@ export function PrescriptionScanButton({ row }: { row: PrescriptionUpload }) {
 
   async function run() {
     if (row.mime_type === "application/pdf") {
-      toast.error("PDF scanning not supported — try an image");
+      toast.error("PDF scanning isn't supported yet", {
+        description: "Please upload a JPG or PNG of the prescription instead.",
+      });
       return;
     }
     setBusy(true);
+    setResult(null);
+    const tId = toast.loading("Scanning prescription with AI…");
     try {
       const fileUrl = await getPrescriptionFileUrl(row.file_path);
       const r = await parse({ data: { fileUrl, mimeType: row.mime_type } }) as ScanResult;
-      if (r.error) toast.error(r.error);
+      if (r.error) {
+        toast.error("AI couldn't read this prescription", { id: tId, description: r.error });
+      } else if (r.medications.length === 0) {
+        toast.warning("No medications detected", { id: tId, description: "Try a clearer photo with the medication list visible." });
+      } else {
+        toast.success(`Extracted ${r.medications.length} medication${r.medications.length === 1 ? "" : "s"}`, { id: tId });
+      }
       setResult(r);
     } catch (e: any) {
-      toast.error(e?.message || "Scan failed");
+      toast.error("Scan failed", { id: tId, description: e?.message || "Please check your connection and try again." });
     } finally {
       setBusy(false);
     }
@@ -43,7 +54,15 @@ export function PrescriptionScanButton({ row }: { row: PrescriptionUpload }) {
       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={run} disabled={busy}>
         {busy ? <><Loader2 className="h-3 w-3 animate-spin" /> Scanning…</> : <><Sparkles className="h-3 w-3" /> Scan with AI</>}
       </Button>
-      {result && !result.error && (
+      {busy && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      )}
+      {!busy && result && !result.error && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs space-y-2">
           <div className="flex items-center gap-2 text-primary font-semibold">
             <Sparkles className="h-3 w-3" /> AI extraction
