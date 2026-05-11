@@ -53,7 +53,15 @@ export function PrescriptionScanButton({ row }: { row: PrescriptionUpload }) {
       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={run} disabled={busy}>
         {busy ? <><Loader2 className="h-3 w-3 animate-spin" /> Scanning…</> : <><Sparkles className="h-3 w-3" /> Scan with AI</>}
       </Button>
-      {result && !result.error && (
+      {busy && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      )}
+      {!busy && result && !result.error && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs space-y-2">
           <div className="flex items-center gap-2 text-primary font-semibold">
             <Sparkles className="h-3 w-3" /> AI extraction
