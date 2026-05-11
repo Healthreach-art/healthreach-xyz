@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
-import { AlertTriangle, ShieldCheck, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, ShieldCheck, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface Interaction {
   drugs: string[];
