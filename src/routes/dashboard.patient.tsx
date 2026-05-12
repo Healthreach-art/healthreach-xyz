@@ -35,12 +35,12 @@ const ACTION_CARDS = [
   { title: "Emergency Refill", icon: BellRing, to: "/dashboard/patient/reminders", bg: "bg-orange-50", iconBg: "bg-orange-100", iconColor: "text-orange-600" },
 ];
 
-const TRACKER_STEPS = [
-  { key: "approved", label: "Prescription Approved", icon: CheckCircle2, time: "10:30 AM" },
-  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, time: "11:00 AM" },
-  { key: "collecting", label: "Driver Collecting", icon: Package, time: "11:25 AM" },
-  { key: "on_way", label: "On The Way", icon: Bike, time: "11:45 AM" },
-  { key: "delivered", label: "Delivered", icon: Truck, time: "Pending" },
+const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; time: string; to: string }> = [
+  { key: "approved", label: "Prescription Approved", icon: CheckCircle2, time: "10:30 AM", to: "/dashboard/patient/prescriptions" },
+  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, time: "11:00 AM", to: "/dashboard/patient/orders" },
+  { key: "collecting", label: "Driver Collecting", icon: Package, time: "11:25 AM", to: "/track" },
+  { key: "on_way", label: "On The Way", icon: Bike, time: "11:45 AM", to: "/track" },
+  { key: "delivered", label: "Delivered", icon: Truck, time: "Pending", to: "/dashboard/patient/orders" },
 ];
 
 function PatientDashboard() {
@@ -136,9 +136,14 @@ function PatientDashboard() {
                       const done = i < activeStepIdx;
                       const active = i === activeStepIdx;
                       return (
-                        <div key={step.key} className="relative z-10 flex flex-col items-center text-center w-1/5">
+                        <Link
+                          to={step.to}
+                          key={step.key}
+                          className="relative z-10 flex flex-col items-center text-center w-1/5 group/step focus:outline-none"
+                          aria-label={`${step.label} — open details`}
+                        >
                           <div
-                            className={`h-12 w-12 rounded-full flex items-center justify-center border-4 transition-all ${
+                            className={`h-12 w-12 rounded-full flex items-center justify-center border-4 transition-all group-hover/step:scale-110 ${
                               done
                                 ? "bg-healthcare-green border-healthcare-green text-white"
                                 : active
@@ -148,11 +153,11 @@ function PatientDashboard() {
                           >
                             <step.icon className="h-5 w-5" />
                           </div>
-                          <p className={`mt-2 text-[11px] font-semibold leading-tight px-1 ${active ? "text-foreground" : done ? "text-foreground" : "text-muted-foreground"}`}>
+                          <p className={`mt-2 text-[11px] font-semibold leading-tight px-1 group-hover/step:underline ${active ? "text-foreground" : done ? "text-foreground" : "text-muted-foreground"}`}>
                             {step.label}
                           </p>
                           <p className="text-[10px] text-muted-foreground mt-0.5">{step.time}</p>
-                        </div>
+                        </Link>
                       );
                     })}
                   </div>

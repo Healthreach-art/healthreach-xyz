@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE, paymentBreakdown } from "@/lib/pricing";
 import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
+import { useServerFn } from "@tanstack/react-start";
+import { checkDrugInteractions } from "@/utils/ai.functions";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
@@ -155,6 +157,10 @@ function CheckoutPage() {
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
       <div className="grid gap-6 lg:grid-cols-5">
         <form onSubmit={handlePay} className="lg:col-span-3 space-y-6">
+          <CheckoutAIStatus
+            hasRx={items.some((i) => i.requiresPrescription)}
+            medications={items.map((i) => i.name)}
+          />
           {items.length >= 2 && (
             <DrugInteractionPanel medications={items.map(i => i.name)} />
           )}
@@ -218,6 +224,77 @@ function CheckoutPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CheckoutAIStatus({ hasRx, medications }: { hasRx: boolean; medications: string[] }) {
+  const check = useServerFn(checkDrugInteractions);
+  const [intState, setIntState] = useState<"idle" | "loading" | "ok" | "warn" | "error">("idle");
+  const [intMsg, setIntMsg] = useState<string>("");
+
+  const key = medications.slice().sort().join("|").toLowerCase();
+  useEffect(() => {
+    let cancelled = false;
+    if (medications.length < 2) { setIntState("idle"); setIntMsg("Add 2+ items to run check"); return; }
+    setIntState("loading"); setIntMsg("Scanning for interactions…");
+    check({ data: { medications } })
+      .then((r: any) => {
+        if (cancelled) return;
+        if (r?.error) { setIntState("error"); setIntMsg(r.error); return; }
+        const major = r?.interactions?.some((i: any) => i.severity === "major");
+        const any = r?.interactions?.length > 0;
+        if (major) { setIntState("warn"); setIntMsg("Major interaction detected — review below"); }
+        else if (any) { setIntState("warn"); setIntMsg(`${r.interactions.length} minor/moderate flagged`); }
+        else { setIntState("ok"); setIntMsg("No known interactions"); }
+      })
+      .catch(() => { if (!cancelled) { setIntState("error"); setIntMsg("Couldn't reach AI service"); } });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  const rxState: "ok" | "warn" | "idle" = !hasRx ? "ok" : "warn";
+  const rxMsg = !hasRx
+    ? "No prescription required for cart items"
+    : "Prescription required — upload & verify before paying";
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Loader2 className="h-3.5 w-3.5 text-primary" />
+        </div>
+        <h3 className="text-sm font-bold text-foreground">AI Assistant</h3>
+        <span className="text-[10px] text-muted-foreground">Live safety checks</span>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-2">
+        <StatusRow label="Prescription Check" state={rxState} message={rxMsg} />
+        <StatusRow label="Interaction Safety" state={intState} message={intMsg} />
+      </div>
+    </div>
+  );
+}
+
+function StatusRow({ label, state, message }: { label: string; state: "idle" | "loading" | "ok" | "warn" | "error"; message: string }) {
+  const styles: Record<string, string> = {
+    idle: "border-border bg-muted/30 text-muted-foreground",
+    loading: "border-healthcare-sky/30 bg-healthcare-sky/10 text-healthcare-sky",
+    ok: "border-healthcare-green/30 bg-healthcare-green/10 text-healthcare-green",
+    warn: "border-orange-200 bg-orange-50 text-orange-700",
+    error: "border-destructive/30 bg-destructive/5 text-destructive",
+  };
+  const Dot = state === "loading" ? Loader2 : state === "ok" ? CheckCircle2 : state === "error" ? Lock : ShoppingCart;
+  return (
+    <div className={`rounded-xl border p-2.5 ${styles[state]}`}>
+      <div className="flex items-center gap-2">
+        <Dot className={`h-3.5 w-3.5 ${state === "loading" ? "animate-spin" : ""}`} />
+        <p className="text-[11px] font-bold uppercase tracking-wide">{label}</p>
+      </div>
+      {state === "loading" ? (
+        <div className="mt-1.5 h-3 w-3/4 rounded animate-pulse bg-current/20" />
+      ) : (
+        <p className="text-xs mt-1 text-foreground/80">{message}</p>
+      )}
     </div>
   );
 }
