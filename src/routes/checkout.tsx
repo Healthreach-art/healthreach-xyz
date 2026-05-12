@@ -155,6 +155,10 @@ function CheckoutPage() {
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
       <div className="grid gap-6 lg:grid-cols-5">
         <form onSubmit={handlePay} className="lg:col-span-3 space-y-6">
+          <CheckoutAIStatus
+            hasRx={items.some((i) => i.requiresPrescription)}
+            medications={items.map((i) => i.name)}
+          />
           {items.length >= 2 && (
             <DrugInteractionPanel medications={items.map(i => i.name)} />
           )}
