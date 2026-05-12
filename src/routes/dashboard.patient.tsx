@@ -35,12 +35,12 @@ const ACTION_CARDS = [
   { title: "Emergency Refill", icon: BellRing, to: "/dashboard/patient/reminders", bg: "bg-orange-50", iconBg: "bg-orange-100", iconColor: "text-orange-600" },
 ];
 
-const TRACKER_STEPS = [
-  { key: "approved", label: "Prescription Approved", icon: CheckCircle2, time: "10:30 AM" },
-  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, time: "11:00 AM" },
-  { key: "collecting", label: "Driver Collecting", icon: Package, time: "11:25 AM" },
-  { key: "on_way", label: "On The Way", icon: Bike, time: "11:45 AM" },
-  { key: "delivered", label: "Delivered", icon: Truck, time: "Pending" },
+const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; time: string; to: string }> = [
+  { key: "approved", label: "Prescription Approved", icon: CheckCircle2, time: "10:30 AM", to: "/dashboard/patient/prescriptions" },
+  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, time: "11:00 AM", to: "/dashboard/patient/orders" },
+  { key: "collecting", label: "Driver Collecting", icon: Package, time: "11:25 AM", to: "/track" },
+  { key: "on_way", label: "On The Way", icon: Bike, time: "11:45 AM", to: "/track" },
+  { key: "delivered", label: "Delivered", icon: Truck, time: "Pending", to: "/dashboard/patient/orders" },
 ];
 
 function PatientDashboard() {
