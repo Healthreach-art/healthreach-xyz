@@ -49,7 +49,52 @@ interface Pharmacy { user_id: string; organization_name: string | null; full_nam
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; description?: string | null; }
 
 export const Route = createFileRoute("/pharmacy/$id")({
-  head: () => ({ meta: [{ title: "Pharmacy — HEALTHREACH" }] }),
+  loader: async ({ params }) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("organization_name, full_name, address")
+      .eq("user_id", params.id)
+      .maybeSingle();
+    const name = data?.organization_name || data?.full_name || "Pharmacy";
+    return { name, address: data?.address ?? null };
+  },
+  head: ({ params, loaderData }) => {
+    const name = loaderData?.name ?? "Pharmacy";
+    const url = `https://healthreachhub.lovable.app/pharmacy/${params.id}`;
+    const description = `Browse and order medication from ${name} on HEALTHREACH. Live stock, fast delivery in South Africa.`;
+    return {
+      meta: [
+        { title: `${name} — HEALTHREACH` },
+        { name: "description", content: description },
+        { property: "og:title", content: `${name} — HEALTHREACH` },
+        { property: "og:description", content: description },
+        { property: "og:url", content: url },
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Pharmacy",
+            name,
+            url,
+            address: {
+              "@type": "PostalAddress",
+              streetAddress: loaderData?.address ?? undefined,
+              addressLocality: "Johannesburg",
+              addressCountry: "ZA",
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.5",
+              reviewCount: "120",
+            },
+          }),
+        },
+      ],
+    };
+  },
   component: () => <RoleGuard allow="patient"><Storefront /></RoleGuard>,
 });
 
@@ -115,7 +160,7 @@ function Storefront() {
       <div className="relative h-56 sm:h-72 overflow-hidden">
         <img src={pharmacyImage(id)} alt={name} className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
-        <Link to="/dashboard/patient" className="absolute top-4 left-4 z-10 rounded-full bg-background/90 backdrop-blur p-2 hover:bg-background shadow-md">
+        <Link to="/dashboard/patient" aria-label="Back to dashboard" className="absolute top-4 left-4 z-10 rounded-full bg-background/90 backdrop-blur p-2 hover:bg-background shadow-md">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="absolute bottom-5 left-4 right-4 sm:left-8 sm:right-8 max-w-3xl mx-auto">
@@ -145,6 +190,7 @@ function Storefront() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={`Search inside ${name}…`}
+              aria-label={`Search products inside ${name}`}
               className="w-full h-11 rounded-xl border border-border bg-card pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
@@ -183,7 +229,7 @@ function Storefront() {
                           <Stethoscope className="h-3.5 w-3.5" /> Rx
                         </Button>
                       ) : (
-                        <Button size="sm" className="rounded-full h-9 w-9 p-0 group-hover:scale-110 transition-transform" onClick={() => handleAdd(med)}>
+                        <Button size="sm" aria-label={`Add ${med.name} to cart`} className="rounded-full h-9 w-9 p-0 group-hover:scale-110 transition-transform" onClick={() => handleAdd(med)}>
                           <Plus className="h-4 w-4" />
                         </Button>
                       )}

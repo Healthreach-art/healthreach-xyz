@@ -166,7 +166,8 @@ function CheckoutPage() {
           )}
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold mb-4">Delivery address</h2>
-            <Textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Street, suburb, city" rows={2} required />
+            <Label htmlFor="delivery-address" className="sr-only">Delivery address</Label>
+            <Textarea id="delivery-address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Street, suburb, city" rows={2} required />
           </div>
 
           <div className="healthcare-card p-6">
@@ -204,10 +205,11 @@ function CheckoutPage() {
                     <p className="font-medium line-clamp-1">{it.name}</p>
                     <p className="text-xs text-muted-foreground">{it.pharmacyName}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <select value={it.qty} onChange={(e) => setQty(it.medId, Number(e.target.value))} className="text-xs rounded border border-border bg-background px-1 py-0.5">
+                      <label htmlFor={`qty-${it.medId}`} className="sr-only">Quantity for {it.name}</label>
+                      <select id={`qty-${it.medId}`} value={it.qty} onChange={(e) => setQty(it.medId, Number(e.target.value))} className="text-xs rounded border border-border bg-background px-1 py-0.5">
                         {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>Qty {n}</option>)}
                       </select>
-                      <button type="button" onClick={() => remove(it.medId)} className="text-muted-foreground hover:text-destructive">
+                      <button type="button" aria-label={`Remove ${it.name} from cart`} onClick={() => remove(it.medId)} className="text-muted-foreground hover:text-destructive">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
@@ -264,7 +266,7 @@ function CheckoutAIStatus({ hasRx, medications }: { hasRx: boolean; medications:
         <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
           <Loader2 className="h-3.5 w-3.5 text-primary" />
         </div>
-        <h3 className="text-sm font-bold text-foreground">AI Assistant</h3>
+        <h2 className="text-sm font-bold text-foreground">AI Safety Assistant</h2>
         <span className="text-[10px] text-muted-foreground">Live safety checks</span>
       </div>
       <div className="grid sm:grid-cols-2 gap-2">

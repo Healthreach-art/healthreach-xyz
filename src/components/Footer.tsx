@@ -20,7 +20,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="mb-3 text-sm font-semibold text-foreground">Platform</h4>
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Platform</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><span className="hover:text-foreground cursor-pointer transition-colors">For Patients</span></li>
               <li><span className="hover:text-foreground cursor-pointer transition-colors">For Pharmacies</span></li>
@@ -30,7 +30,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="mb-3 text-sm font-semibold text-foreground">Company</h4>
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Company</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/about" className="hover:text-foreground transition-colors">About Us</Link></li>
               <li><Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link></li>
@@ -40,7 +40,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="mb-3 text-sm font-semibold text-foreground">Contact</h4>
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Contact</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>info@healthreach.co.za</li>
               <li>+27 (0) 11 000 0000</li>

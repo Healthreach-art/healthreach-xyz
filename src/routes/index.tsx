@@ -18,10 +18,41 @@ import heroBg from "@/assets/hero-bg.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HEALTHREACH — Integrated Healthcare Management" },
-      { name: "description", content: "Your central hub for integrated healthcare management. Connecting patients, pharmacies, hospitals, and delivery services." },
-      { property: "og:title", content: "HEALTHREACH — Integrated Healthcare Management" },
-      { property: "og:description", content: "Order medication, manage inventory, coordinate care, and track deliveries — all in one platform." },
+      { title: "HEALTHREACH — Order Medication & Manage Care in South Africa" },
+      { name: "description", content: "Order medication from verified South African pharmacies, upload prescriptions, track deliveries live, and coordinate care — all in one HEALTHREACH account." },
+      { property: "og:title", content: "HEALTHREACH — Order Medication & Manage Care in South Africa" },
+      { property: "og:description", content: "Order medication, upload prescriptions, track deliveries live, and coordinate care across pharmacies, hospitals and drivers." },
+      { property: "og:url", content: "https://healthreachhub.lovable.app/" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://healthreachhub.lovable.app/" },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "HEALTHREACH",
+          url: "https://healthreachhub.lovable.app/",
+          email: "info@healthreach.co.za",
+          telephone: "+27-11-000-0000",
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: "Johannesburg",
+            addressCountry: "ZA",
+          },
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "HEALTHREACH",
+          url: "https://healthreachhub.lovable.app/",
+        }),
+      },
     ],
   }),
   component: HomePage,
@@ -139,7 +170,7 @@ function HomePage() {
               </Link>
               <Link to="/about">
                 <Button variant="heroOutline" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                  Learn More
+                  Learn about our healthcare mission
                 </Button>
               </Link>
             </div>

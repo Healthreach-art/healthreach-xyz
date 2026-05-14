@@ -63,8 +63,9 @@ function SearchPage() {
         <p className="text-sm text-muted-foreground">Find any medicine across all approved pharmacies.</p>
       </div>
       <div className="relative">
+        <label htmlFor="med-search" className="sr-only">Search medicines</label>
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a medicine name…" autoFocus
+        <input id="med-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a medicine name…" autoFocus aria-label="Search medicines"
           className="w-full h-12 rounded-2xl border border-border bg-card pl-12 pr-4 text-sm shadow focus:outline-none focus:ring-2 focus:ring-primary" />
       </div>
       {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
@@ -90,9 +91,9 @@ function SearchPage() {
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-base font-bold">R{customerPrice(med.price).toFixed(0)}</span>
                   {med.requires_prescription ? (
-                    <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setRxFor(med)}><Stethoscope className="h-3.5 w-3.5" /></Button>
+                    <Button size="sm" variant="outline" aria-label={`Upload prescription for ${med.name}`} className="h-8 px-2" onClick={() => setRxFor(med)}><Stethoscope className="h-3.5 w-3.5" /></Button>
                   ) : (
-                    <Button size="sm" className="h-8 px-2 rounded-full" onClick={() => addToCart(med)}><Plus className="h-4 w-4" /></Button>
+                    <Button size="sm" aria-label={`Add ${med.name} to cart`} className="h-8 px-2 rounded-full" onClick={() => addToCart(med)}><Plus className="h-4 w-4" /></Button>
                   )}
                 </div>
               </div>
