@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
+import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
 import { customerPrice } from "@/lib/pricing";
 import {
   ShoppingBag, Upload, Truck, MessageCircle, BellRing, ArrowRight,
@@ -281,6 +282,9 @@ function PatientDashboard() {
 
           {/* RIGHT PANEL */}
           <aside className="space-y-5">
+            {/* Medication Reminders */}
+            <MedicationReminderWidget />
+
             {/* Emergency */}
             <div className="rounded-3xl bg-card border-2 border-red-200 p-5 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
