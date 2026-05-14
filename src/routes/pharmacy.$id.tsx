@@ -229,7 +229,7 @@ function Storefront() {
                           <Stethoscope className="h-3.5 w-3.5" /> Rx
                         </Button>
                       ) : (
-                        <Button size="sm" className="rounded-full h-9 w-9 p-0 group-hover:scale-110 transition-transform" onClick={() => handleAdd(med)}>
+                        <Button size="sm" aria-label={`Add ${med.name} to cart`} className="rounded-full h-9 w-9 p-0 group-hover:scale-110 transition-transform" onClick={() => handleAdd(med)}>
                           <Plus className="h-4 w-4" />
                         </Button>
                       )}
