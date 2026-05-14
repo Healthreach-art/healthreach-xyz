@@ -13,7 +13,9 @@ export const Route = createFileRoute("/contact")({
       { name: "description", content: "Get in touch with HEALTHREACH. We'd love to hear from you." },
       { property: "og:title", content: "Contact Us — HEALTHREACH" },
       { property: "og:description", content: "Have questions about our healthcare platform? Reach out and we'll get back to you." },
+      { property: "og:url", content: "https://healthreachhub.lovable.app/contact" },
     ],
+    links: [{ rel: "canonical", href: "https://healthreachhub.lovable.app/contact" }],
   }),
   component: ContactPage,
 });
