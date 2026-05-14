@@ -160,7 +160,7 @@ function Storefront() {
       <div className="relative h-56 sm:h-72 overflow-hidden">
         <img src={pharmacyImage(id)} alt={name} className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
-        <Link to="/dashboard/patient" className="absolute top-4 left-4 z-10 rounded-full bg-background/90 backdrop-blur p-2 hover:bg-background shadow-md">
+        <Link to="/dashboard/patient" aria-label="Back to dashboard" className="absolute top-4 left-4 z-10 rounded-full bg-background/90 backdrop-blur p-2 hover:bg-background shadow-md">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="absolute bottom-5 left-4 right-4 sm:left-8 sm:right-8 max-w-3xl mx-auto">
