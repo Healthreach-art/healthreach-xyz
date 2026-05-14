@@ -166,7 +166,8 @@ function CheckoutPage() {
           )}
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold mb-4">Delivery address</h2>
-            <Textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Street, suburb, city" rows={2} required />
+            <Label htmlFor="delivery-address" className="sr-only">Delivery address</Label>
+            <Textarea id="delivery-address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Street, suburb, city" rows={2} required />
           </div>
 
           <div className="healthcare-card p-6">
