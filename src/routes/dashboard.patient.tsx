@@ -199,7 +199,7 @@ function PatientDashboard() {
                         <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" /> 4.8
                       </p>
                     </div>
-                    <button className="h-9 w-9 rounded-full bg-healthcare-green/15 hover:bg-healthcare-green/25 flex items-center justify-center transition">
+                    <button aria-label="Call your driver" className="h-9 w-9 rounded-full bg-healthcare-green/15 hover:bg-healthcare-green/25 flex items-center justify-center transition">
                       <Phone className="h-4 w-4 text-healthcare-green" />
                     </button>
                   </div>
