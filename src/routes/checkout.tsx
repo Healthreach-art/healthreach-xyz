@@ -205,10 +205,11 @@ function CheckoutPage() {
                     <p className="font-medium line-clamp-1">{it.name}</p>
                     <p className="text-xs text-muted-foreground">{it.pharmacyName}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <select value={it.qty} onChange={(e) => setQty(it.medId, Number(e.target.value))} className="text-xs rounded border border-border bg-background px-1 py-0.5">
+                      <label htmlFor={`qty-${it.medId}`} className="sr-only">Quantity for {it.name}</label>
+                      <select id={`qty-${it.medId}`} value={it.qty} onChange={(e) => setQty(it.medId, Number(e.target.value))} className="text-xs rounded border border-border bg-background px-1 py-0.5">
                         {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>Qty {n}</option>)}
                       </select>
-                      <button type="button" onClick={() => remove(it.medId)} className="text-muted-foreground hover:text-destructive">
+                      <button type="button" aria-label={`Remove ${it.name} from cart`} onClick={() => remove(it.medId)} className="text-muted-foreground hover:text-destructive">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
