@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
 import { customerPrice } from "@/lib/pricing";
 import {
-  ShoppingBag, Upload, Truck, MessageCircle, BellRing, ArrowRight,
+  ShoppingBag, Upload, Truck, MessageCircle, BellRing, ArrowRight, Bot,
   CheckCircle2, Package, Bike, MapPin, Phone, Star, Siren, Pill,
   CalendarCheck, Wallet, FileText, MessageSquare, PhoneCall,
 } from "lucide-react";
@@ -34,6 +34,7 @@ const ACTION_CARDS = [
   { title: "Track Delivery", icon: Truck, to: "/track", bg: "bg-healthcare-light", iconBg: "bg-healthcare-sky/30", iconColor: "text-healthcare-sky" },
   { title: "Contact Pharmacist", icon: MessageCircle, to: "/dashboard/patient/support", bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
   { title: "Emergency Refill", icon: BellRing, to: "/dashboard/patient/reminders", bg: "bg-orange-50", iconBg: "bg-orange-100", iconColor: "text-orange-600" },
+  { title: "AI Medicine Assistant", icon: Bot, to: "/dashboard/patient/assistant", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
 ];
 
 const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; time: string; to: string }> = [

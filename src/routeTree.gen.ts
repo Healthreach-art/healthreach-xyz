@@ -39,6 +39,7 @@ import { Route as DashboardPatientPrescriptionsRouteImport } from './routes/dash
 import { Route as DashboardPatientPharmaciesRouteImport } from './routes/dashboard.patient.pharmacies'
 import { Route as DashboardPatientPaymentMethodsRouteImport } from './routes/dashboard.patient.payment-methods'
 import { Route as DashboardPatientOrdersRouteImport } from './routes/dashboard.patient.orders'
+import { Route as DashboardPatientAssistantRouteImport } from './routes/dashboard.patient.assistant'
 import { Route as DashboardPatientAddressesRouteImport } from './routes/dashboard.patient.addresses'
 import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard.patient.activity'
 import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
@@ -198,6 +199,12 @@ const DashboardPatientOrdersRoute = DashboardPatientOrdersRouteImport.update({
   path: '/orders',
   getParentRoute: () => DashboardPatientRoute,
 } as any)
+const DashboardPatientAssistantRoute =
+  DashboardPatientAssistantRouteImport.update({
+    id: '/assistant',
+    path: '/assistant',
+    getParentRoute: () => DashboardPatientRoute,
+  } as any)
 const DashboardPatientAddressesRoute =
   DashboardPatientAddressesRouteImport.update({
     id: '/addresses',
@@ -242,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
+  '/dashboard/patient/assistant': typeof DashboardPatientAssistantRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
   '/dashboard/patient/pharmacies': typeof DashboardPatientPharmaciesRoute
@@ -277,6 +285,7 @@ export interface FileRoutesByTo {
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
+  '/dashboard/patient/assistant': typeof DashboardPatientAssistantRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
   '/dashboard/patient/pharmacies': typeof DashboardPatientPharmaciesRoute
@@ -313,6 +322,7 @@ export interface FileRoutesById {
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
+  '/dashboard/patient/assistant': typeof DashboardPatientAssistantRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
   '/dashboard/patient/pharmacies': typeof DashboardPatientPharmaciesRoute
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/api/public/payment-webhook'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
+    | '/dashboard/patient/assistant'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
     | '/dashboard/patient/pharmacies'
@@ -385,6 +396,7 @@ export interface FileRouteTypes {
     | '/api/public/payment-webhook'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
+    | '/dashboard/patient/assistant'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
     | '/dashboard/patient/pharmacies'
@@ -420,6 +432,7 @@ export interface FileRouteTypes {
     | '/api/public/payment-webhook'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
+    | '/dashboard/patient/assistant'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
     | '/dashboard/patient/pharmacies'
@@ -668,6 +681,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientOrdersRouteImport
       parentRoute: typeof DashboardPatientRoute
     }
+    '/dashboard/patient/assistant': {
+      id: '/dashboard/patient/assistant'
+      path: '/assistant'
+      fullPath: '/dashboard/patient/assistant'
+      preLoaderRoute: typeof DashboardPatientAssistantRouteImport
+      parentRoute: typeof DashboardPatientRoute
+    }
     '/dashboard/patient/addresses': {
       id: '/dashboard/patient/addresses'
       path: '/addresses'
@@ -695,6 +715,7 @@ declare module '@tanstack/react-router' {
 interface DashboardPatientRouteChildren {
   DashboardPatientActivityRoute: typeof DashboardPatientActivityRoute
   DashboardPatientAddressesRoute: typeof DashboardPatientAddressesRoute
+  DashboardPatientAssistantRoute: typeof DashboardPatientAssistantRoute
   DashboardPatientOrdersRoute: typeof DashboardPatientOrdersRoute
   DashboardPatientPaymentMethodsRoute: typeof DashboardPatientPaymentMethodsRoute
   DashboardPatientPharmaciesRoute: typeof DashboardPatientPharmaciesRoute
@@ -708,6 +729,7 @@ interface DashboardPatientRouteChildren {
 const DashboardPatientRouteChildren: DashboardPatientRouteChildren = {
   DashboardPatientActivityRoute: DashboardPatientActivityRoute,
   DashboardPatientAddressesRoute: DashboardPatientAddressesRoute,
+  DashboardPatientAssistantRoute: DashboardPatientAssistantRoute,
   DashboardPatientOrdersRoute: DashboardPatientOrdersRoute,
   DashboardPatientPaymentMethodsRoute: DashboardPatientPaymentMethodsRoute,
   DashboardPatientPharmaciesRoute: DashboardPatientPharmaciesRoute,
