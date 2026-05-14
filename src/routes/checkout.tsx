@@ -266,7 +266,7 @@ function CheckoutAIStatus({ hasRx, medications }: { hasRx: boolean; medications:
         <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
           <Loader2 className="h-3.5 w-3.5 text-primary" />
         </div>
-        <h3 className="text-sm font-bold text-foreground">AI Assistant</h3>
+        <h2 className="text-sm font-bold text-foreground">AI Safety Assistant</h2>
         <span className="text-[10px] text-muted-foreground">Live safety checks</span>
       </div>
       <div className="grid sm:grid-cols-2 gap-2">
