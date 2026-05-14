@@ -170,7 +170,7 @@ function HomePage() {
               </Link>
               <Link to="/about">
                 <Button variant="heroOutline" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                  Learn More
+                  Learn about our healthcare mission
                 </Button>
               </Link>
             </div>
