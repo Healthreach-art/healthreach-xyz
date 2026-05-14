@@ -8,7 +8,9 @@ export const Route = createFileRoute("/about")({
       { name: "description", content: "Learn about HEALTHREACH's mission to transform healthcare delivery across South Africa." },
       { property: "og:title", content: "About Us — HEALTHREACH" },
       { property: "og:description", content: "Our mission is to make healthcare accessible, efficient, and transparent for everyone." },
+      { property: "og:url", content: "https://healthreachhub.lovable.app/about" },
     ],
+    links: [{ rel: "canonical", href: "https://healthreachhub.lovable.app/about" }],
   }),
   component: AboutPage,
 });
