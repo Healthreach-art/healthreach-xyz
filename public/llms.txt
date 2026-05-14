@@ -1,0 +1,18 @@
+# HEALTHREACH
+
+> Integrated healthcare management platform for South Africa — connecting patients, pharmacies, hospitals, and delivery drivers in one place.
+
+HEALTHREACH lets patients order medication from verified pharmacies, upload prescriptions, track deliveries in real time, manage medication reminders, and pay securely. Pharmacies manage inventory and fulfilment; hospitals issue digital prescriptions; drivers handle last-mile delivery.
+
+## Pages
+
+- [Home](/): Overview of the HEALTHREACH platform and roles it serves.
+- [About](/about): Mission, vision, and the team behind HEALTHREACH.
+- [Contact](/contact): Get in touch with HEALTHREACH support and sales.
+- [Sign up](/signup): Create a patient, pharmacy, hospital, driver, or admin account.
+- [Log in](/login): Sign in to your HEALTHREACH dashboard.
+
+## Optional
+
+- [Forgot password](/forgot-password): Reset your account password.
+- [Track delivery](/track): Live tracking for an active medication delivery.
