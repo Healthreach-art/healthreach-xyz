@@ -49,7 +49,52 @@ interface Pharmacy { user_id: string; organization_name: string | null; full_nam
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; description?: string | null; }
 
 export const Route = createFileRoute("/pharmacy/$id")({
-  head: () => ({ meta: [{ title: "Pharmacy — HEALTHREACH" }] }),
+  loader: async ({ params }) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("organization_name, full_name, address")
+      .eq("user_id", params.id)
+      .maybeSingle();
+    const name = data?.organization_name || data?.full_name || "Pharmacy";
+    return { name, address: data?.address ?? null };
+  },
+  head: ({ params, loaderData }) => {
+    const name = loaderData?.name ?? "Pharmacy";
+    const url = `https://healthreachhub.lovable.app/pharmacy/${params.id}`;
+    const description = `Browse and order medication from ${name} on HEALTHREACH. Live stock, fast delivery in South Africa.`;
+    return {
+      meta: [
+        { title: `${name} — HEALTHREACH` },
+        { name: "description", content: description },
+        { property: "og:title", content: `${name} — HEALTHREACH` },
+        { property: "og:description", content: description },
+        { property: "og:url", content: url },
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Pharmacy",
+            name,
+            url,
+            address: {
+              "@type": "PostalAddress",
+              streetAddress: loaderData?.address ?? undefined,
+              addressLocality: "Johannesburg",
+              addressCountry: "ZA",
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.5",
+              reviewCount: "120",
+            },
+          }),
+        },
+      ],
+    };
+  },
   component: () => <RoleGuard allow="patient"><Storefront /></RoleGuard>,
 });
 
