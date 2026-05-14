@@ -190,6 +190,7 @@ function Storefront() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={`Search inside ${name}…`}
+              aria-label={`Search products inside ${name}`}
               className="w-full h-11 rounded-xl border border-border bg-card pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
