@@ -91,9 +91,9 @@ function SearchPage() {
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-base font-bold">R{customerPrice(med.price).toFixed(0)}</span>
                   {med.requires_prescription ? (
-                    <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setRxFor(med)}><Stethoscope className="h-3.5 w-3.5" /></Button>
+                    <Button size="sm" variant="outline" aria-label={`Upload prescription for ${med.name}`} className="h-8 px-2" onClick={() => setRxFor(med)}><Stethoscope className="h-3.5 w-3.5" /></Button>
                   ) : (
-                    <Button size="sm" className="h-8 px-2 rounded-full" onClick={() => addToCart(med)}><Plus className="h-4 w-4" /></Button>
+                    <Button size="sm" aria-label={`Add ${med.name} to cart`} className="h-8 px-2 rounded-full" onClick={() => addToCart(med)}><Plus className="h-4 w-4" /></Button>
                   )}
                 </div>
               </div>
