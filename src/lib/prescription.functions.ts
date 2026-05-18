@@ -18,16 +18,24 @@ const cartSchema = z.object({
 
 export interface ValidationIssue {
   medId: string;
-  reason: "missing" | "expired" | "rejected" | "pending" | "wrong_pharmacy" | "unknown_medication";
+  reason:
+    | "missing"
+    | "expired"
+    | "rejected"
+    | "pending"
+    | "wrong_pharmacy"
+    | "unknown_medication"
+    | "no_repeats"
+    | "high_risk";
   message: string;
   uploadId?: string;
   expiresAt?: string | null;
+  repeatsRemaining?: number;
 }
 
 /**
  * Backend prescription validity + refill enforcement.
- * - Verifies each Rx-required item has an approved, non-expired upload at the same pharmacy.
- * - Returns valid:false with per-item reasons when any check fails.
+ * Checks approval, expiry, pharmacy match, repeats remaining, and fraud risk.
  */
 export const validateCartPrescriptions = createServerFn({ method: "POST" })
   .middleware([attachSupabaseAuth, requireSupabaseAuth])
@@ -53,13 +61,11 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
       }
       if (!med.requires_prescription) continue;
 
-      // Locate a valid Rx upload: explicit attachment first, otherwise any approved
-      // upload by this patient for this pharmacy that isn't expired.
       let upload: any = null;
       if (it.prescriptionUploadId) {
         const { data: u } = await supabase
           .from("prescription_uploads")
-          .select("id, status, expires_at, pharmacy_id, patient_id")
+          .select("id, status, expires_at, pharmacy_id, patient_id, repeats_total, repeats_used, fraud_score")
           .eq("id", it.prescriptionUploadId)
           .maybeSingle();
         upload = u;
@@ -67,7 +73,7 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
       if (!upload) {
         const { data: us } = await supabase
           .from("prescription_uploads")
-          .select("id, status, expires_at, pharmacy_id, patient_id")
+          .select("id, status, expires_at, pharmacy_id, patient_id, repeats_total, repeats_used, fraud_score")
           .eq("patient_id", userId)
           .eq("pharmacy_id", it.pharmacyId)
           .eq("status", "approved")
@@ -77,11 +83,7 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
       }
 
       if (!upload) {
-        issues.push({
-          medId: it.medId,
-          reason: "missing",
-          message: `${med.name} needs a prescription. Upload one for this pharmacy.`,
-        });
+        issues.push({ medId: it.medId, reason: "missing", message: `${med.name} needs a prescription. Upload one for this pharmacy.` });
         continue;
       }
       if (upload.patient_id !== userId) {
@@ -89,12 +91,7 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
         continue;
       }
       if (upload.pharmacy_id !== it.pharmacyId) {
-        issues.push({
-          medId: it.medId,
-          reason: "wrong_pharmacy",
-          message: `${med.name} prescription is for a different pharmacy.`,
-          uploadId: upload.id,
-        });
+        issues.push({ medId: it.medId, reason: "wrong_pharmacy", message: `${med.name} prescription is for a different pharmacy.`, uploadId: upload.id });
         continue;
       }
       if (upload.status === "rejected") {
@@ -102,25 +99,37 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
         continue;
       }
       if (upload.status !== "approved") {
-        issues.push({
-          medId: it.medId,
-          reason: "pending",
-          message: `${med.name} prescription is still awaiting pharmacist review.`,
-          uploadId: upload.id,
-        });
+        issues.push({ medId: it.medId, reason: "pending", message: `${med.name} prescription is still awaiting pharmacist review.`, uploadId: upload.id });
         continue;
       }
       if (upload.expires_at && new Date(upload.expires_at).getTime() < now) {
-        issues.push({
-          medId: it.medId,
-          reason: "expired",
-          message: `${med.name} prescription expired. Please upload a fresh one.`,
-          uploadId: upload.id,
-          expiresAt: upload.expires_at,
-        });
+        issues.push({ medId: it.medId, reason: "expired", message: `${med.name} prescription expired. Please upload a fresh one.`, uploadId: upload.id, expiresAt: upload.expires_at });
+        continue;
+      }
+      if (upload.fraud_score >= 75) {
+        issues.push({ medId: it.medId, reason: "high_risk", message: `${med.name} prescription flagged high risk — pharmacist re-review required.`, uploadId: upload.id });
+        continue;
+      }
+      const remaining = (upload.repeats_total ?? 0) - (upload.repeats_used ?? 0);
+      if ((upload.repeats_total ?? 0) > 0 && remaining <= 0) {
+        issues.push({ medId: it.medId, reason: "no_repeats", message: `${med.name} has no repeats remaining. Doctor renewal required.`, uploadId: upload.id, repeatsRemaining: 0 });
         continue;
       }
     }
 
     return { valid: issues.length === 0, issues };
+  });
+
+/**
+ * Consume one repeat and issue a unique dispense token (RX-XXXXXXXXXX).
+ * Called after a successful payment for an Rx-required item.
+ */
+export const consumePrescription = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .inputValidator((input) => z.object({ uploadId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: token, error } = await supabase.rpc("consume_prescription_repeat", { _upload_id: data.uploadId });
+    if (error) throw new Error(error.message);
+    return { token: token as string };
   });
