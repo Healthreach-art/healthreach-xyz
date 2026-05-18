@@ -809,16 +809,24 @@ export type Database = {
       prescription_uploads: {
         Row: {
           created_at: string
+          dispense_token: string | null
+          dispensed_at: string | null
+          dispensed_by: string | null
           expires_at: string | null
           file_path: string
           flagged: boolean
+          fraud_score: number
+          fraud_signals: Json
           id: string
+          last_dispensed_at: string | null
           medication_id: string | null
           mime_type: string
           order_id: string | null
           patient_id: string
           pharmacist_notes: string | null
           pharmacy_id: string
+          repeats_total: number
+          repeats_used: number
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["prescription_upload_status"]
@@ -826,16 +834,24 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          dispense_token?: string | null
+          dispensed_at?: string | null
+          dispensed_by?: string | null
           expires_at?: string | null
           file_path: string
           flagged?: boolean
+          fraud_score?: number
+          fraud_signals?: Json
           id?: string
+          last_dispensed_at?: string | null
           medication_id?: string | null
           mime_type?: string
           order_id?: string | null
           patient_id: string
           pharmacist_notes?: string | null
           pharmacy_id: string
+          repeats_total?: number
+          repeats_used?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["prescription_upload_status"]
@@ -843,16 +859,24 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          dispense_token?: string | null
+          dispensed_at?: string | null
+          dispensed_by?: string | null
           expires_at?: string | null
           file_path?: string
           flagged?: boolean
+          fraud_score?: number
+          fraud_signals?: Json
           id?: string
+          last_dispensed_at?: string | null
           medication_id?: string | null
           mime_type?: string
           order_id?: string | null
           patient_id?: string
           pharmacist_notes?: string | null
           pharmacy_id?: string
+          repeats_total?: number
+          repeats_used?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["prescription_upload_status"]
@@ -1108,6 +1132,10 @@ export type Database = {
       }
     }
     Functions: {
+      consume_prescription_repeat: {
+        Args: { _upload_id: string }
+        Returns: string
+      }
       expire_stale_offers: { Args: never; Returns: undefined }
       get_user_role: {
         Args: { _user_id: string }
