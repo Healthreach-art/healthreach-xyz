@@ -14,7 +14,7 @@ import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE, paymentBreakdown
 import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
-import { validateCartPrescriptions } from "@/lib/prescription.functions";
+import { validateCartPrescriptions, consumePrescription } from "@/lib/prescription.functions";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
