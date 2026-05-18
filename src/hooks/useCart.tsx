@@ -10,6 +10,7 @@ export interface CartItem {
   pharmacyName?: string;
   qty: number;
   requiresPrescription?: boolean;
+  prescriptionUploadId?: string; // attached prescription upload (existing or just submitted)
   stock?: number;           // last-known stock for this medication
 }
 
