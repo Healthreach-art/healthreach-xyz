@@ -18,7 +18,10 @@ interface Props {
 export function RoleGuard({ allow, children }: Props) {
   const { user, role, loading } = useAuth();
 
-  if (loading) {
+  // While auth is loading, or the user is signed in but role hasn't been
+  // fetched yet (fetchUserData runs async after onAuthStateChange), show a
+  // spinner instead of bouncing to /login.
+  if (loading || (user && !role)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -27,7 +30,6 @@ export function RoleGuard({ allow, children }: Props) {
   }
 
   if (!user) return <Navigate to="/login" />;
-  if (!role) return <Navigate to="/login" />;
   if (role !== allow) return <Navigate to={`/dashboard/${role}` as any} />;
 
   return <>{children}</>;
