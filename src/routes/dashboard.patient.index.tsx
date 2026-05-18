@@ -32,8 +32,7 @@ const ACTION_CARDS = [
   { title: "Order Medication", icon: ShoppingBag, to: "/dashboard/patient/pharmacies", bg: "bg-healthcare-green/10", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
   { title: "Upload Prescription", icon: Upload, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-mint/40", iconColor: "text-healthcare-teal" },
   { title: "Track Delivery", icon: Truck, to: "/track", bg: "bg-healthcare-light", iconBg: "bg-healthcare-sky/30", iconColor: "text-healthcare-sky" },
-  { title: "Contact Pharmacist", icon: MessageCircle, to: "/dashboard/patient/support", bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
-  { title: "Emergency Refill", icon: BellRing, to: "/dashboard/patient/reminders", bg: "bg-orange-50", iconBg: "bg-orange-100", iconColor: "text-orange-600" },
+  { title: "Book Appointment", icon: CalendarCheck, to: "/dashboard/patient/appointments", bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
   { title: "AI Medicine Assistant", icon: Bot, to: "/dashboard/patient/assistant", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
 ];
 
