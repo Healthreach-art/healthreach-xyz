@@ -29,20 +29,59 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-destructive/10 text-destructive",
 };
 
+const statusLabels: Record<string, string> = {
+  pending: "Order placed",
+  accepted: "Accepted by pharmacy",
+  preparing: "Pharmacy preparing",
+  ready: "Packed — finding driver",
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
+
 export function OrderHistory() {
   const { user, profile } = useAuth();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [filter, setFilter] = useState<"all" | "active" | "delivered">("all");
   const [q, setQ] = useState("");
+  const [pulseId, setPulseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    supabase
+    const load = () => supabase
       .from("orders")
       .select("id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at")
       .eq("patient_id", user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => setOrders((data ?? []) as OrderRow[]));
+    load();
+
+    const channel = supabase
+      .channel(`orders-live-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` },
+        (payload: any) => {
+          const row = payload.new as OrderRow;
+          if (payload.eventType === "INSERT") {
+            setOrders((prev) => [row, ...prev]);
+            toast.success("Order placed", { description: row.medication_name });
+          } else if (payload.eventType === "UPDATE") {
+            setOrders((prev) => prev.map((o) => (o.id === row.id ? { ...o, ...row } : o)));
+            const oldStatus = (payload.old as any)?.status;
+            if (oldStatus !== row.status) {
+              toast.success(statusLabels[row.status] ?? row.status, { description: row.medication_name });
+              setPulseId(row.id);
+              setTimeout(() => setPulseId(null), 1500);
+            }
+          } else if (payload.eventType === "DELETE") {
+            setOrders((prev) => prev.filter((o) => o.id !== (payload.old as any).id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   async function downloadInvoice(o: OrderRow) {
