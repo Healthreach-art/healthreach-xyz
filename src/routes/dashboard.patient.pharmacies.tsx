@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, Clock, MapPin, Pill, Plus, Stethoscope, Zap, Lock, Unlock, History, Truck, Store as StoreIcon, Star } from "lucide-react";
+import { Loader2, Search, Clock, MapPin, Pill, Plus, Stethoscope, Zap, Lock, Unlock, History, Truck, Store as StoreIcon, Star, Heart, Baby, Thermometer, Sparkles, Bandage, ShieldPlus, Activity, Grid3x3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useCart } from "@/hooks/useCart";
