@@ -11,7 +11,7 @@ import {
   CalendarCheck, Wallet, FileText, MessageSquare, PhoneCall,
 } from "lucide-react";
 
-export const Route = createFileRoute("/dashboard/patient")({
+export const Route = createFileRoute("/dashboard/patient/")({
   head: () => ({ meta: [{ title: "Dashboard — Healthreach" }] }),
   component: () => (
     <RoleGuard allow="patient">
