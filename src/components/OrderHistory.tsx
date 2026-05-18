@@ -29,20 +29,59 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-destructive/10 text-destructive",
 };
 
+const statusLabels: Record<string, string> = {
+  pending: "Order placed",
+  accepted: "Accepted by pharmacy",
+  preparing: "Pharmacy preparing",
+  ready: "Packed — finding driver",
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
+
 export function OrderHistory() {
   const { user, profile } = useAuth();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [filter, setFilter] = useState<"all" | "active" | "delivered">("all");
   const [q, setQ] = useState("");
+  const [pulseId, setPulseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    supabase
+    const load = () => supabase
       .from("orders")
       .select("id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at")
       .eq("patient_id", user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => setOrders((data ?? []) as OrderRow[]));
+    load();
+
+    const channel = supabase
+      .channel(`orders-live-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` },
+        (payload: any) => {
+          const row = payload.new as OrderRow;
+          if (payload.eventType === "INSERT") {
+            setOrders((prev) => [row, ...prev]);
+            toast.success("Order placed", { description: row.medication_name });
+          } else if (payload.eventType === "UPDATE") {
+            setOrders((prev) => prev.map((o) => (o.id === row.id ? { ...o, ...row } : o)));
+            const oldStatus = (payload.old as any)?.status;
+            if (oldStatus !== row.status) {
+              toast.success(statusLabels[row.status] ?? row.status, { description: row.medication_name });
+              setPulseId(row.id);
+              setTimeout(() => setPulseId(null), 1500);
+            }
+          } else if (payload.eventType === "DELETE") {
+            setOrders((prev) => prev.filter((o) => o.id !== (payload.old as any).id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   async function downloadInvoice(o: OrderRow) {
@@ -78,6 +117,8 @@ export function OrderHistory() {
     <div className="healthcare-card p-6">
       <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
         <History className="h-5 w-5 text-primary" /> Order History
+        <span className="inline-flex h-2 w-2 rounded-full bg-healthcare-green animate-pulse" aria-hidden />
+        <span className="text-[10px] uppercase tracking-wide text-healthcare-green font-semibold">Live</span>
         <span className="ml-auto text-xs font-normal text-muted-foreground">{orders.length} total</span>
       </h2>
       <div className="flex gap-2 mb-3">
@@ -96,12 +137,15 @@ export function OrderHistory() {
         <p className="text-sm text-muted-foreground text-center py-6">No orders match.</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map((o) => (
-            <div key={o.id} className="rounded-lg border border-border p-3">
+          {filtered.map((o) => {
+            const active = !["delivered", "cancelled"].includes(o.status);
+            return (
+            <div key={o.id} className={`rounded-lg border p-3 transition-all ${pulseId === o.id ? "border-primary shadow-md ring-2 ring-primary/30" : "border-border"}`}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-mono text-muted-foreground">{o.id.slice(0, 8)}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[o.status] ?? "bg-accent"}`}>
-                  {o.status.replace(/_/g, " ")}
+                <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${statusColors[o.status] ?? "bg-accent"}`}>
+                  {active && <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />}
+                  {statusLabels[o.status] ?? o.status.replace(/_/g, " ")}
                 </span>
               </div>
               <p className="text-sm font-medium">{o.medication_name}</p>
@@ -112,6 +156,11 @@ export function OrderHistory() {
                   <span>R {Number(o.total_amount).toFixed(2)}</span>
                 </div>
                 <div className="flex gap-1">
+                  {active && (
+                    <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
+                      <Link to="/track">Track</Link>
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => downloadInvoice(o)}>
                     <Download className="h-3 w-3" /> Invoice
                   </Button>
@@ -123,7 +172,8 @@ export function OrderHistory() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
