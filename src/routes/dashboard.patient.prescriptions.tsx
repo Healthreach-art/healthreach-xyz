@@ -104,6 +104,33 @@ function Page() {
       )}
 
       <div className="healthcare-card p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+          <UploadIcon className="h-5 w-5 text-primary" /> Upload a prescription
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          Send a prescription to any pharmacy for review. Once approved it stays valid for 90 days and can be reused for refills at that pharmacy.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Send to pharmacy</label>
+            <Select value={pickedPharmacy} onValueChange={setPickedPharmacy}>
+              <SelectTrigger><SelectValue placeholder="Choose a pharmacy…" /></SelectTrigger>
+              <SelectContent>
+                {pharmacies.map((p) => (
+                  <SelectItem key={p.user_id} value={p.user_id}>{p.organization_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {pickedPharmacy ? (
+            <PrescriptionUploader pharmacyId={pickedPharmacy} onUploaded={() => { reloadUploads(); toast.success("Pharmacy will review shortly."); }} />
+          ) : (
+            <p className="text-xs text-muted-foreground italic">Pick a pharmacy to enable upload.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="healthcare-card p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <Stethoscope className="h-5 w-5 text-primary" /> Active Prescriptions
         </h2>
