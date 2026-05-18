@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export interface CartItem {
   medId: string;
@@ -8,6 +10,7 @@ export interface CartItem {
   pharmacyName?: string;
   qty: number;
   requiresPrescription?: boolean;
+  stock?: number;           // last-known stock for this medication
 }
 
 interface CartCtx {
@@ -15,6 +18,7 @@ interface CartCtx {
   add: (item: Omit<CartItem, "qty">, qty?: number) => void;
   remove: (medId: string) => void;
   setQty: (medId: string, qty: number) => void;
+  update: (medId: string, patch: Partial<CartItem>) => void;
   clear: () => void;
   itemCount: number;
   subtotal: number;
@@ -58,14 +62,81 @@ export function CartProvider({ children }: { children: ReactNode }) {
         ? prev.filter((p) => p.medId !== medId)
         : prev.map((p) => (p.medId === medId ? { ...p, qty } : p))
     );
+  const update: CartCtx["update"] = (medId, patch) =>
+    setItems((prev) => prev.map((p) => (p.medId === medId ? { ...p, ...patch } : p)));
   const clear = () => setItems([]);
 
+  // Live-sync price + stock from medications table whenever cart has items.
+  // Refreshes on mount/change and listens for postgres_changes.
+  const medKey = items.map((i) => i.medId).sort().join(",");
+  useEffect(() => {
+    if (!items.length) return;
+    const ids = items.map((i) => i.medId);
+    let cancelled = false;
+
+    const refresh = async () => {
+      const { data } = await supabase
+        .from("medications")
+        .select("id, price, stock_quantity")
+        .in("id", ids);
+      if (cancelled || !data) return;
+      setItems((prev) => {
+        const next: CartItem[] = [];
+        for (const it of prev) {
+          const row = data.find((d: any) => d.id === it.medId);
+          if (!row) { next.push(it); continue; }
+          const newPrice = Number(row.price);
+          const stock = Number(row.stock_quantity);
+          if (stock <= 0) {
+            toast.error(`${it.name} just went out of stock — removed from cart`);
+            continue;
+          }
+          if (newPrice !== it.price) {
+            toast.message(`Price update`, { description: `${it.name}: R${it.price.toFixed(2)} → R${newPrice.toFixed(2)}` });
+          }
+          next.push({ ...it, price: newPrice, stock, qty: Math.min(it.qty, stock) });
+        }
+        return next;
+      });
+    };
+    refresh();
+
+    const channel = supabase
+      .channel(`cart-sync-${ids.join("-")}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "medications" },
+        (payload: any) => {
+          const row = payload.new;
+          if (!ids.includes(row.id)) return;
+          setItems((prev) =>
+            prev.flatMap((it) => {
+              if (it.medId !== row.id) return [it];
+              const stock = Number(row.stock_quantity);
+              const newPrice = Number(row.price);
+              if (stock <= 0) {
+                toast.error(`${it.name} just went out of stock — removed from cart`);
+                return [];
+              }
+              if (newPrice !== it.price) {
+                toast.message(`Price update`, { description: `${it.name}: R${it.price.toFixed(2)} → R${newPrice.toFixed(2)}` });
+              }
+              return [{ ...it, price: newPrice, stock, qty: Math.min(it.qty, stock) }];
+            })
+          );
+        }
+      )
+      .subscribe();
+
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [medKey]);
+
   const itemCount = items.reduce((s, i) => s + i.qty, 0);
-  // base subtotal (markup applied at checkout)
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
 
   return (
-    <Ctx.Provider value={{ items, add, remove, setQty, clear, itemCount, subtotal }}>
+    <Ctx.Provider value={{ items, add, remove, setQty, update, clear, itemCount, subtotal }}>
       {children}
     </Ctx.Provider>
   );
