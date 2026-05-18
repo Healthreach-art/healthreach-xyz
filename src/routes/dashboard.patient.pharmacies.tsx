@@ -358,14 +358,101 @@ function MedicineMarketplace() {
       <Dialog open={!!rxFor} onOpenChange={(o) => !o && setRxFor(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Stethoscope className="h-5 w-5 text-primary" /> Upload prescription</DialogTitle>
-            <DialogDescription>This medicine requires a valid prescription before the pharmacy can dispense it.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Stethoscope className="h-5 w-5 text-primary" /> Prescription required</DialogTitle>
+            <DialogDescription>Reuse an approved prescription on file, or upload a new one for the pharmacy to verify.</DialogDescription>
           </DialogHeader>
           {rxFor && (
-            <PrescriptionUploader pharmacyId={rxFor.med.pharmacy_id} medicationId={rxFor.med.id} onUploaded={() => { setRxFor(null); setActive(null); }} />
+            <RxPicker
+              med={rxFor.med}
+              onAttached={(uploadId) => {
+                cart.add({
+                  medId: rxFor.med.id, name: rxFor.med.name, price: Number(rxFor.med.price),
+                  pharmacyId: rxFor.med.pharmacy_id, pharmacyName: rxFor.med.pharmacyName,
+                  requiresPrescription: true, prescriptionUploadId: uploadId,
+                });
+                toast.success(`${rxFor.med.name} added with prescription attached`, {
+                  action: { label: "Checkout", onClick: () => navigate({ to: "/checkout" }) },
+                });
+                setRxFor(null); setActive(null);
+              }}
+            />
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+interface ExistingRx { id: string; status: string; created_at: string; expires_at: string | null; medication_id: string | null; }
+function RxPicker({ med, onAttached }: { med: Offer; onAttached: (uploadId: string) => void }) {
+  const { user } = useAuth();
+  const [existing, setExisting] = useState<ExistingRx[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<"choose" | "upload">("choose");
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("prescription_uploads")
+        .select("id, status, created_at, expires_at, medication_id")
+        .eq("patient_id", user.id)
+        .eq("pharmacy_id", med.pharmacy_id)
+        .in("status", ["approved", "pending"])
+        .order("created_at", { ascending: false });
+      const rows = (data ?? []) as ExistingRx[];
+      setExisting(rows);
+      setMode(rows.length ? "choose" : "upload");
+      setLoading(false);
+    })();
+  }, [user, med.pharmacy_id]);
+
+  if (loading) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div className="space-y-3">
+      {mode === "choose" && existing.length > 0 && (
+        <>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Use existing prescription</p>
+          <div className="space-y-2 max-h-56 overflow-y-auto">
+            {existing.map((rx) => {
+              const isApproved = rx.status === "approved";
+              const expires = rx.expires_at ? new Date(rx.expires_at) : null;
+              return (
+                <button key={rx.id} onClick={() => onAttached(rx.id)}
+                  className="w-full flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 hover:border-primary text-left transition">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">Rx · {new Date(rx.created_at).toLocaleDateString()}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {isApproved ? `Approved${expires ? ` · expires ${expires.toLocaleDateString()}` : ""}` : "Pending pharmacy review"}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isApproved ? "bg-healthcare-green/20 text-healthcare-green" : "bg-accent text-accent-foreground"}`}>
+                    {rx.status.toUpperCase()}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <button onClick={() => setMode("upload")} className="text-xs font-semibold text-primary hover:underline">
+            + Upload a new prescription instead
+          </button>
+        </>
+      )}
+      {mode === "upload" && (
+        <>
+          {existing.length > 0 && (
+            <button onClick={() => setMode("choose")} className="text-xs font-semibold text-primary hover:underline">
+              ← Back to existing prescriptions
+            </button>
+          )}
+          <PrescriptionUploader
+            pharmacyId={med.pharmacy_id}
+            medicationId={med.id}
+            onUploaded={(row) => onAttached(row.id)}
+          />
+        </>
+      )}
     </div>
   );
 }
