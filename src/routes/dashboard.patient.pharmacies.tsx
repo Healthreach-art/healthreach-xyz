@@ -20,6 +20,19 @@ interface Group { key: string; name: string; image: string; requiresRx: boolean;
 const FULFILL_KEY = "hr.fulfillment";
 const LOCK_KEY = "hr.lockedPharmacy";
 
+const CATEGORIES: { key: string; label: string; icon: any; tone: string; iconColor: string }[] = [
+  { key: "All", label: "All", icon: Grid3x3, tone: "bg-primary/10", iconColor: "text-primary" },
+  { key: "Pain Relief", label: "Pain Relief", icon: Activity, tone: "bg-rose-100", iconColor: "text-rose-600" },
+  { key: "Cold & Flu", label: "Cold & Flu", icon: Thermometer, tone: "bg-sky-100", iconColor: "text-sky-600" },
+  { key: "Allergy", label: "Allergy", icon: Sparkles, tone: "bg-amber-100", iconColor: "text-amber-600" },
+  { key: "Vitamins", label: "Vitamins", icon: Heart, tone: "bg-emerald-100", iconColor: "text-emerald-600" },
+  { key: "Antibiotics", label: "Antibiotics", icon: ShieldPlus, tone: "bg-violet-100", iconColor: "text-violet-600" },
+  { key: "Chronic", label: "Chronic Care", icon: Pill, tone: "bg-blue-100", iconColor: "text-blue-600" },
+  { key: "First Aid", label: "First Aid", icon: Bandage, tone: "bg-red-100", iconColor: "text-red-600" },
+  { key: "Baby Care", label: "Baby Care", icon: Baby, tone: "bg-pink-100", iconColor: "text-pink-600" },
+  { key: "Other", label: "Other", icon: StoreIcon, tone: "bg-muted", iconColor: "text-muted-foreground" },
+];
+
 function hashOf(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
 function distanceFor(id: string) {
   const h = hashOf(id);
