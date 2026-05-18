@@ -234,13 +234,13 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row.file_path]);
 
+  const [repeats, setRepeats] = useState<number>(row.repeats_total ?? 5);
+
   async function setStatus(status: PrescriptionStatus) {
     setBusy(status);
-    const { error } = await supabase.from("prescription_uploads").update({
-      status,
-      pharmacist_notes: notes,
-      reviewed_by: user?.id ?? null,
-    }).eq("id", row.id);
+    const patch: any = { status, pharmacist_notes: notes, reviewed_by: user?.id ?? null };
+    if (status === "approved") patch.repeats_total = Math.max(1, Math.min(12, repeats || 5));
+    const { error } = await supabase.from("prescription_uploads").update(patch).eq("id", row.id);
     setBusy(null);
     if (error) { toast.error(error.message); return; }
     await logAction(status, notes);
