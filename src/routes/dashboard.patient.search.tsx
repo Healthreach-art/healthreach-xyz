@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Search, Loader2, Plus, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { PrescriptionUploader } from "@/components/PrescriptionVerification";
+import { PrescriptionPicker } from "@/components/PrescriptionPicker";
 import { useCart } from "@/hooks/useCart";
 import { customerPrice } from "@/lib/pricing";
 import { toast } from "sonner";
