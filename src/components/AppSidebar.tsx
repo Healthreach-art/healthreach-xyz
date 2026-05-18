@@ -7,7 +7,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
-  FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse,
+  FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin, CalendarCheck,
 } from "lucide-react";
 
 type Item = { title: string; url: string; icon: any };
@@ -26,9 +26,11 @@ export function AppSidebar() {
     { title: "Orders", url: "/dashboard/patient/orders", icon: ShoppingBag },
     { title: "Prescriptions", url: "/dashboard/patient/prescriptions", icon: Pill },
     { title: "Deliveries", url: "/track", icon: Truck },
+    { title: "Appointments", url: "/dashboard/patient/appointments", icon: CalendarCheck },
     { title: "Reminders", url: "/dashboard/patient/reminders", icon: Bell },
     { title: "Health Records", url: "/dashboard/patient/activity", icon: ClipboardList },
-    { title: "Family Profiles", url: "/dashboard/patient/addresses", icon: Users },
+    { title: "Family Profiles", url: "/dashboard/patient/family", icon: Users },
+    { title: "Addresses", url: "/dashboard/patient/addresses", icon: MapPin },
     { title: "Wallet & Payments", url: "/dashboard/patient/payment-methods", icon: Wallet },
     { title: "Support", url: "/dashboard/patient/support", icon: LifeBuoy },
   ];

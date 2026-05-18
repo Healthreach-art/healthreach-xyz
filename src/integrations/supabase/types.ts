@@ -352,6 +352,48 @@ export type Database = {
         }
         Relationships: []
       }
+      family_members: {
+        Row: {
+          allergies: string | null
+          avatar_url: string | null
+          conditions: string | null
+          created_at: string
+          date_of_birth: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          relationship: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allergies?: string | null
+          avatar_url?: string | null
+          conditions?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          relationship?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allergies?: string | null
+          avatar_url?: string | null
+          conditions?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          relationship?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       medication_reminders: {
         Row: {
           active: boolean
@@ -683,6 +725,56 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pharmacy_appointments: {
+        Row: {
+          created_at: string
+          family_member_id: string | null
+          id: string
+          mode: string
+          patient_id: string
+          pharmacist_notes: string | null
+          pharmacy_id: string
+          preferred_at: string
+          reason: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          mode?: string
+          patient_id: string
+          pharmacist_notes?: string | null
+          pharmacy_id: string
+          preferred_at: string
+          reason?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          mode?: string
+          patient_id?: string
+          pharmacist_notes?: string | null
+          pharmacy_id?: string
+          preferred_at?: string
+          reason?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_appointments_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
             referencedColumns: ["id"]
           },
         ]
