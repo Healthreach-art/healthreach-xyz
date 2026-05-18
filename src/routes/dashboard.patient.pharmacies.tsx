@@ -292,35 +292,59 @@ function MedicineMarketplace() {
 
 function MedCard({ g, onOpen, onOneClick }: { g: Group; onOpen: () => void; onOneClick: () => void }) {
   const closest = g.offers[0];
+  const maxPrice = Math.max(...g.offers.map((o) => Number(o.price)));
+  const hasRange = maxPrice > g.minPrice;
   return (
     <div className="group rounded-2xl border border-border bg-card overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col">
-      <button onClick={onOpen} className="block text-left">
-        <div className="relative h-32 overflow-hidden">
-          <img src={g.image} alt={g.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover group-hover:scale-110 transition-transform duration-500" />
-          {g.requiresRx && <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-healthcare-sky text-white text-[10px] font-bold">Rx</span>}
-          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-card/90 text-[10px] font-bold">{g.offers.length} {g.offers.length === 1 ? "pharmacy" : "pharmacies"}</span>
+      <button onClick={onOpen} className="block text-left w-full">
+        <div className="relative h-36 overflow-hidden bg-muted">
+          <img src={g.image} alt={g.name} loading="lazy" className="absolute inset-0 h-full w-full object-contain p-2 group-hover:scale-105 transition-transform duration-500" />
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
+            {g.requiresRx && <span className="px-2 py-0.5 rounded bg-healthcare-sky text-white text-[10px] font-bold shadow">Rx ONLY</span>}
+            {closest.category && <span className="px-2 py-0.5 rounded bg-card/95 text-foreground text-[10px] font-semibold shadow">{closest.category}</span>}
+          </div>
+          {!closest.isOpen && <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-destructive text-destructive-foreground text-[10px] font-bold shadow">CLOSED</span>}
         </div>
-        <div className="p-3 space-y-1">
-          <h3 className="font-bold text-sm line-clamp-1">{g.name}</h3>
-          <p className="text-[11px] text-muted-foreground line-clamp-1 flex items-center gap-1">
-            <MapPin className="h-3 w-3" /> Closest: {closest.pharmacyName} • {closest.distanceKm} km
-          </p>
-          <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-            <Clock className="h-3 w-3" /> {closest.etaMin}–{closest.etaMax} min
-          </p>
+        <div className="p-3 space-y-2">
+          <div>
+            <h3 className="font-bold text-sm line-clamp-2 leading-tight min-h-[2.5rem]">{g.name}</h3>
+            {closest.description && <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{closest.description}</p>}
+          </div>
+
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-extrabold text-lg text-primary">R{customerPrice(g.minPrice).toFixed(2)}</span>
+            {hasRange && <span className="text-[10px] text-muted-foreground">– R{customerPrice(maxPrice).toFixed(2)}</span>}
+          </div>
+
+          {/* Supplier panel — Dischem-style */}
+          <div className="rounded-lg bg-muted/50 border border-border/60 p-2 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <StoreIcon className="h-3 w-3 text-primary" />
+                </div>
+                <span className="font-semibold text-[11px] line-clamp-1">{closest.pharmacyName}</span>
+              </div>
+              <span className="flex items-center gap-0.5 text-[10px] font-semibold shrink-0">
+                <Star className="h-2.5 w-2.5 fill-yellow-500 text-yellow-500" />{closest.rating}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><MapPin className="h-2.5 w-2.5" />{closest.distanceKm} km</span>
+              <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{closest.etaMin}–{closest.etaMax} min</span>
+              <span className="flex items-center gap-1 ml-auto"><Pill className="h-2.5 w-2.5" />{closest.stock_quantity} in stock</span>
+            </div>
+            {g.offers.length > 1 && (
+              <div className="text-[10px] text-primary font-semibold pt-0.5">+ {g.offers.length - 1} more {g.offers.length - 1 === 1 ? "pharmacy" : "pharmacies"} nearby</div>
+            )}
+          </div>
         </div>
       </button>
-      <div className="px-3 pb-3 mt-auto flex items-center justify-between gap-2">
-        <div>
-          <div className="text-[10px] text-muted-foreground leading-none">from</div>
-          <div className="font-bold text-base">R{customerPrice(g.minPrice).toFixed(0)}</div>
-        </div>
-        <div className="flex gap-1.5">
-          <Button size="sm" variant="outline" className="rounded-full h-8 px-2.5 text-xs" onClick={onOpen}>Compare</Button>
-          <Button size="sm" className="rounded-full h-8 px-2.5 text-xs" onClick={onOneClick}>
-            <Zap className="h-3.5 w-3.5" /> 1-click
-          </Button>
-        </div>
+      <div className="px-3 pb-3 mt-auto flex items-center gap-1.5">
+        <Button size="sm" variant="outline" className="flex-1 rounded-full h-9 text-xs" onClick={onOpen}>Compare</Button>
+        <Button size="sm" className="flex-1 rounded-full h-9 text-xs" onClick={onOneClick}>
+          <Zap className="h-3.5 w-3.5" /> 1-click
+        </Button>
       </div>
     </div>
   );
