@@ -137,12 +137,15 @@ export function OrderHistory() {
         <p className="text-sm text-muted-foreground text-center py-6">No orders match.</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map((o) => (
-            <div key={o.id} className="rounded-lg border border-border p-3">
+          {filtered.map((o) => {
+            const active = !["delivered", "cancelled"].includes(o.status);
+            return (
+            <div key={o.id} className={`rounded-lg border p-3 transition-all ${pulseId === o.id ? "border-primary shadow-md ring-2 ring-primary/30" : "border-border"}`}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-mono text-muted-foreground">{o.id.slice(0, 8)}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[o.status] ?? "bg-accent"}`}>
-                  {o.status.replace(/_/g, " ")}
+                <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${statusColors[o.status] ?? "bg-accent"}`}>
+                  {active && <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />}
+                  {statusLabels[o.status] ?? o.status.replace(/_/g, " ")}
                 </span>
               </div>
               <p className="text-sm font-medium">{o.medication_name}</p>
@@ -153,6 +156,11 @@ export function OrderHistory() {
                   <span>R {Number(o.total_amount).toFixed(2)}</span>
                 </div>
                 <div className="flex gap-1">
+                  {active && (
+                    <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
+                      <Link to="/track">Track</Link>
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => downloadInvoice(o)}>
                     <Download className="h-3 w-3" /> Invoice
                   </Button>
@@ -164,7 +172,8 @@ export function OrderHistory() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
