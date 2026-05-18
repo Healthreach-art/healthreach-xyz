@@ -125,6 +125,12 @@ function CheckoutPage() {
             continue;
           }
 
+          // Dispense lock — consume one repeat + issue token for Rx items
+          if (item.requiresPrescription && item.prescriptionUploadId) {
+            try { await consumeRx({ data: { uploadId: item.prescriptionUploadId } }); }
+            catch (e: any) { console.warn("consume repeat failed", e?.message); }
+          }
+
           // NOTE: do NOT create a deliveries row here. The pharmacy creates it
           // when they "Mark Ready & Broadcast" (the create_delivery_on_ready
           // DB trigger handles it server-side). Creating it now would show a
