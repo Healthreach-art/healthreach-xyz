@@ -216,7 +216,31 @@ function MedicineMarketplace() {
 
       {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
 
-      {!loading && !search && recentGroups.length > 0 && (
+      {!loading && (
+        <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
+          <div className="flex gap-2 pb-1 min-w-max">
+            {CATEGORIES.map((c) => {
+              const Icon = c.icon;
+              const count = catCounts[c.key] || 0;
+              const isActive = activeCat === c.key;
+              return (
+                <button key={c.key} onClick={() => setActiveCat(c.key)}
+                  className={`flex flex-col items-center justify-center gap-1 min-w-[84px] px-3 py-2.5 rounded-2xl border transition-all ${
+                    isActive ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-border bg-card hover:border-primary/40"
+                  }`}>
+                  <div className={`h-9 w-9 rounded-full flex items-center justify-center ${isActive ? "bg-primary-foreground/15" : c.tone}`}>
+                    <Icon className={`h-5 w-5 ${isActive ? "text-primary-foreground" : c.iconColor}`} />
+                  </div>
+                  <div className="text-[11px] font-semibold leading-tight text-center">{c.label}</div>
+                  <div className={`text-[9px] ${isActive ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{count}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!loading && !search && activeCat === "All" && recentGroups.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-2"><History className="h-4 w-4" /> Reorder recent</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
