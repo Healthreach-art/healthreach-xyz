@@ -26,6 +26,7 @@ function CheckoutPage() {
   const { user } = useAuth();
   const { items, clear, setQty, remove } = useCart();
   const validateRx = useServerFn(validateCartPrescriptions);
+  const consumeRx = useServerFn(consumePrescription);
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
