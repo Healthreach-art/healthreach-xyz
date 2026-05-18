@@ -294,6 +294,21 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
           </div>
         )}
       </div>
+      <FraudPanel row={row} />
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
+        <span className="text-xs text-muted-foreground">Repeats granted on approval</span>
+        <div className="flex items-center gap-2">
+          <input
+            type="number" min={1} max={12}
+            value={repeats}
+            onChange={(e) => setRepeats(Number(e.target.value))}
+            className="h-7 w-16 rounded border border-input bg-background px-2 text-xs"
+          />
+          <span className="text-[11px] text-muted-foreground">
+            {(row.repeats_used ?? 0)} used · {(row.repeats_total ?? 0)} total
+          </span>
+        </div>
+      </div>
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
