@@ -47,8 +47,8 @@ function CheckoutPage() {
     if (!user) { navigate({ to: "/login" }); return; }
     if (items.length === 0) { toast.error("Your cart is empty."); return; }
     if (!deliveryAddress.trim()) { toast.error("Enter a delivery address."); return; }
-    if (items.some((i) => i.requiresPrescription)) {
-      toast.error("Remove Rx-required items or upload prescription first.");
+    if (items.some((i) => i.requiresPrescription && !i.prescriptionUploadId)) {
+      toast.error("Attach a prescription for Rx-required items first.");
       return;
     }
     setProcessing(true);
