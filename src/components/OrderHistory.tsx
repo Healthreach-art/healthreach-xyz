@@ -117,6 +117,8 @@ export function OrderHistory() {
     <div className="healthcare-card p-6">
       <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
         <History className="h-5 w-5 text-primary" /> Order History
+        <span className="inline-flex h-2 w-2 rounded-full bg-healthcare-green animate-pulse" aria-hidden />
+        <span className="text-[10px] uppercase tracking-wide text-healthcare-green font-semibold">Live</span>
         <span className="ml-auto text-xs font-normal text-muted-foreground">{orders.length} total</span>
       </h2>
       <div className="flex gap-2 mb-3">
