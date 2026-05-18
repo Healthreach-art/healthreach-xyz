@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, Clock, MapPin, Pill, Plus, Stethoscope, Zap, Lock, Unlock, History, Truck, Store as StoreIcon, Star } from "lucide-react";
+import { Loader2, Search, Clock, MapPin, Pill, Plus, Stethoscope, Zap, Lock, Unlock, History, Truck, Store as StoreIcon, Star, Heart, Baby, Thermometer, Sparkles, Bandage, ShieldPlus, Activity, Grid3x3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useCart } from "@/hooks/useCart";
@@ -19,6 +19,19 @@ interface Group { key: string; name: string; image: string; requiresRx: boolean;
 
 const FULFILL_KEY = "hr.fulfillment";
 const LOCK_KEY = "hr.lockedPharmacy";
+
+const CATEGORIES: { key: string; label: string; icon: any; tone: string; iconColor: string }[] = [
+  { key: "All", label: "All", icon: Grid3x3, tone: "bg-primary/10", iconColor: "text-primary" },
+  { key: "Pain Relief", label: "Pain Relief", icon: Activity, tone: "bg-rose-100", iconColor: "text-rose-600" },
+  { key: "Cold & Flu", label: "Cold & Flu", icon: Thermometer, tone: "bg-sky-100", iconColor: "text-sky-600" },
+  { key: "Allergy", label: "Allergy", icon: Sparkles, tone: "bg-amber-100", iconColor: "text-amber-600" },
+  { key: "Vitamins", label: "Vitamins", icon: Heart, tone: "bg-emerald-100", iconColor: "text-emerald-600" },
+  { key: "Antibiotics", label: "Antibiotics", icon: ShieldPlus, tone: "bg-violet-100", iconColor: "text-violet-600" },
+  { key: "Chronic", label: "Chronic Care", icon: Pill, tone: "bg-blue-100", iconColor: "text-blue-600" },
+  { key: "First Aid", label: "First Aid", icon: Bandage, tone: "bg-red-100", iconColor: "text-red-600" },
+  { key: "Baby Care", label: "Baby Care", icon: Baby, tone: "bg-pink-100", iconColor: "text-pink-600" },
+  { key: "Other", label: "Other", icon: StoreIcon, tone: "bg-muted", iconColor: "text-muted-foreground" },
+];
 
 function hashOf(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
 function distanceFor(id: string) {
@@ -42,6 +55,7 @@ function MedicineMarketplace() {
   const [recent, setRecent] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [activeCat, setActiveCat] = useState<string>("All");
   const [active, setActive] = useState<Group | null>(null);
   const [rxFor, setRxFor] = useState<{ med: Offer } | null>(null);
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
@@ -51,6 +65,24 @@ function MedicineMarketplace() {
     if (typeof window === "undefined") return;
     setFulfillment((localStorage.getItem(FULFILL_KEY) as any) || "delivery");
     setLockedPharmacy(localStorage.getItem(LOCK_KEY));
+  }, []);
+
+  // Realtime: refresh medication stock/price as pharmacies update
+  useEffect(() => {
+    const channel = supabase
+      .channel("meds-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "medications" }, (payload: any) => {
+        setMeds((prev) => {
+          if (payload.eventType === "DELETE") return prev.filter((m) => m.id !== payload.old.id);
+          const row = payload.new as Med;
+          const idx = prev.findIndex((m) => m.id === row.id);
+          if (idx === -1) return row.stock_quantity > 0 ? [...prev, row] : prev;
+          const next = [...prev]; next[idx] = row;
+          return next.filter((m) => m.stock_quantity > 0);
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
@@ -121,8 +153,17 @@ function MedicineMarketplace() {
   }, [meds, phById, lockedPharmacy]);
 
   const search = q.trim().toLowerCase();
-  const filtered = search ? groups.filter((g) => g.name.toLowerCase().includes(search) || g.offers.some((o) => o.pharmacyName.toLowerCase().includes(search))) : groups;
+  const byCat = activeCat === "All" ? groups : groups.filter((g) => (g.offers[0]?.category || "Other") === activeCat);
+  const filtered = search
+    ? byCat.filter((g) => g.name.toLowerCase().includes(search) || g.offers.some((o) => o.pharmacyName.toLowerCase().includes(search)))
+    : byCat;
   const recentGroups = recent.map((n) => groups.find((g) => g.name.toLowerCase() === n.toLowerCase())).filter(Boolean) as Group[];
+
+  const catCounts = useMemo(() => {
+    const c: Record<string, number> = { All: groups.length };
+    for (const g of groups) { const k = g.offers[0]?.category || "Other"; c[k] = (c[k] || 0) + 1; }
+    return c;
+  }, [groups]);
 
   const setMode = (m: "delivery" | "pickup") => { setFulfillment(m); localStorage.setItem(FULFILL_KEY, m); };
   const toggleLock = (id: string, name: string) => {
@@ -188,7 +229,31 @@ function MedicineMarketplace() {
 
       {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
 
-      {!loading && !search && recentGroups.length > 0 && (
+      {!loading && (
+        <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
+          <div className="flex gap-2 pb-1 min-w-max">
+            {CATEGORIES.map((c) => {
+              const Icon = c.icon;
+              const count = catCounts[c.key] || 0;
+              const isActive = activeCat === c.key;
+              return (
+                <button key={c.key} onClick={() => setActiveCat(c.key)}
+                  className={`flex flex-col items-center justify-center gap-1 min-w-[84px] px-3 py-2.5 rounded-2xl border transition-all ${
+                    isActive ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-border bg-card hover:border-primary/40"
+                  }`}>
+                  <div className={`h-9 w-9 rounded-full flex items-center justify-center ${isActive ? "bg-primary-foreground/15" : c.tone}`}>
+                    <Icon className={`h-5 w-5 ${isActive ? "text-primary-foreground" : c.iconColor}`} />
+                  </div>
+                  <div className="text-[11px] font-semibold leading-tight text-center">{c.label}</div>
+                  <div className={`text-[9px] ${isActive ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{count}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!loading && !search && activeCat === "All" && recentGroups.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-2"><History className="h-4 w-4" /> Reorder recent</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -200,7 +265,7 @@ function MedicineMarketplace() {
       {!loading && (
         <section className="space-y-3">
           <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            <Pill className="h-4 w-4" /> {search ? `Results for "${q}"` : "All medicines"} ({filtered.length})
+            <Pill className="h-4 w-4" /> {search ? `Results for "${q}"` : activeCat === "All" ? "All medicines" : activeCat} ({filtered.length})
           </h2>
           {filtered.length === 0 ? (
             <div className="healthcare-card p-8 text-center text-sm text-muted-foreground">No medicines match your search.</div>
