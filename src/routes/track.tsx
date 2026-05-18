@@ -185,9 +185,16 @@ function TrackPage() {
           </h1>
           {order && <p className="text-sm text-muted-foreground">Order <span className="font-mono">{order.id.slice(0, 8)}</span> · {order.medication_name}</p>}
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/dashboard/patient">← Dashboard</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {order && order.status !== "delivered" && (
+            <Button variant="outline" size="sm" onClick={() => runSimulation(order.id)} disabled={simulating}>
+              {simulating ? <><Loader2 className="h-4 w-4 animate-spin" /> Simulating…</> : <><PlayCircle className="h-4 w-4" /> Run demo</>}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/dashboard/patient">← Dashboard</Link>
+          </Button>
+        </div>
       </div>
 
       {loading && (
