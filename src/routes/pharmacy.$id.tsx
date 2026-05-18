@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCart } from "@/hooks/useCart";
 import { customerPrice } from "@/lib/pricing";
-import { PrescriptionUploader } from "@/components/PrescriptionVerification";
+import { PrescriptionPicker } from "@/components/PrescriptionPicker";
 import { toast } from "sonner";
 import pharmacy1 from "@/assets/pharmacy-1.jpg";
 import pharmacy2 from "@/assets/pharmacy-2.jpg";
