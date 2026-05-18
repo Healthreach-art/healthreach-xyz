@@ -104,9 +104,27 @@ function SearchPage() {
       <Dialog open={!!rxFor} onOpenChange={(o) => !o && setRxFor(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Stethoscope className="h-5 w-5 text-primary" /> Upload prescription</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Stethoscope className="h-5 w-5 text-primary" /> Prescription required</DialogTitle>
           </DialogHeader>
-          {rxFor && <PrescriptionUploader pharmacyId={rxFor.pharmacy_id} medicationId={rxFor.id} onUploaded={() => setRxFor(null)} />}
+          {rxFor && (
+            <PrescriptionPicker
+              pharmacyId={rxFor.pharmacy_id}
+              pharmacyName={pharmacies.find((p) => p.user_id === rxFor.pharmacy_id)?.organization_name || pharmacies.find((p) => p.user_id === rxFor.pharmacy_id)?.full_name}
+              medicationId={rxFor.id}
+              medicationName={rxFor.name}
+              onPicked={(uploadId) => {
+                const ph = pharmacies.find((p) => p.user_id === rxFor.pharmacy_id);
+                cart.add({
+                  medId: rxFor.id, name: rxFor.name, price: Number(rxFor.price),
+                  pharmacyId: rxFor.pharmacy_id, pharmacyName: ph?.organization_name || ph?.full_name || "Pharmacy",
+                  requiresPrescription: true, prescriptionUploadId: uploadId,
+                });
+                toast.success(`${rxFor.name} added to cart`);
+                setRxFor(null);
+              }}
+              onUploadedPending={() => { toast.success("Prescription uploaded — we'll notify you once approved"); setRxFor(null); }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
