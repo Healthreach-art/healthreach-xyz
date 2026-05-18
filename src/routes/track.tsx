@@ -102,16 +102,23 @@ function TrackPage() {
         .order("created_at", { ascending: false })
         .limit(1);
       if (!orders || orders.length === 0) { setOrder(null); setDelivery(null); setLoading(false); return; }
-      setOrder(orders[0] as OrderRow);
+      const o = orders[0] as OrderRow;
+      setOrder(o);
 
       const { data: del } = await supabase
-        .from("deliveries").select("*").eq("order_id", orders[0].id).maybeSingle();
+        .from("deliveries").select("*").eq("order_id", o.id).maybeSingle();
       setDelivery((del ?? null) as Delivery | null);
 
       const { data: loc } = await supabase
         .from("driver_locations").select("lat, lng, speed, updated_at")
-        .eq("order_id", orders[0].id).maybeSingle();
+        .eq("order_id", o.id).maybeSingle();
       if (loc) setDriverLoc(loc as any);
+
+      // Auto-start the demo simulation the first time we see a freshly placed order.
+      if (autoStartedRef.current !== o.id && (o.status === "pending" || o.status === "preparing") && !del) {
+        autoStartedRef.current = o.id;
+        runSimulation(o.id);
+      }
 
       setLoading(false);
     }
