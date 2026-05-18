@@ -14,6 +14,7 @@ import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE, paymentBreakdown
 import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
+import { validateCartPrescriptions } from "@/lib/prescription.functions";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
@@ -24,6 +25,7 @@ function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { items, clear, setQty, remove } = useCart();
+  const validateRx = useServerFn(validateCartPrescriptions);
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -31,6 +33,7 @@ function CheckoutPage() {
   const [cardName, setCardName] = useState("");
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [rxIssues, setRxIssues] = useState<{ medId: string; message: string }[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -47,11 +50,32 @@ function CheckoutPage() {
     if (!user) { navigate({ to: "/login" }); return; }
     if (items.length === 0) { toast.error("Your cart is empty."); return; }
     if (!deliveryAddress.trim()) { toast.error("Enter a delivery address."); return; }
-    if (items.some((i) => i.requiresPrescription && !i.prescriptionUploadId)) {
-      toast.error("Attach a prescription for Rx-required items first.");
+
+    setProcessing(true);
+    setRxIssues([]);
+
+    // Backend Rx validity + refill eligibility enforcement
+    try {
+      const result = await validateRx({
+        data: {
+          items: items.map((i) => ({
+            medId: i.medId,
+            pharmacyId: i.pharmacyId,
+            prescriptionUploadId: i.prescriptionUploadId ?? null,
+          })),
+        },
+      });
+      if (!result.valid) {
+        setRxIssues(result.issues.map((i: any) => ({ medId: i.medId, message: i.message })));
+        toast.error("Prescription check failed — see issues above.");
+        setProcessing(false);
+        return;
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Could not verify prescriptions.");
+      setProcessing(false);
       return;
     }
-    setProcessing(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -161,6 +185,17 @@ function CheckoutPage() {
             hasRx={items.some((i) => i.requiresPrescription)}
             medications={items.map((i) => i.name)}
           />
+          {rxIssues.length > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-1">
+              <p className="text-sm font-semibold text-destructive">Prescription issues</p>
+              <ul className="text-xs text-destructive list-disc pl-5">
+                {rxIssues.map((i, idx) => <li key={idx}>{i.message}</li>)}
+              </ul>
+              <p className="text-xs text-muted-foreground pt-1">
+                Upload or refresh a prescription from the <Link to="/dashboard/patient/prescriptions" className="underline">Prescriptions</Link> page, then retry.
+              </p>
+            </div>
+          )}
           {items.length >= 2 && (
             <DrugInteractionPanel medications={items.map(i => i.name)} />
           )}
