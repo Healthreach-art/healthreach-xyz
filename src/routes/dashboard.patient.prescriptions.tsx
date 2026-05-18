@@ -190,17 +190,48 @@ function Page() {
               {(u.status === "rejected" || u.status === "reupload_requested") && u.pharmacist_notes && (
                 <p className="mt-2 text-xs text-destructive">Pharmacist: {u.pharmacist_notes}</p>
               )}
+              {u.status === "approved" && (
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs flex items-center gap-2">
+                    <RefreshCw className="h-3 w-3 text-primary" />
+                    <span>
+                      <span className="font-semibold">{Math.max(0, (u.repeats_total ?? 0) - (u.repeats_used ?? 0))}</span>
+                      <span className="text-muted-foreground"> of {(u.repeats_total ?? 0)} repeats remaining</span>
+                    </span>
+                  </div>
+                  {u.dispense_token && (
+                    <div className="rounded-md border border-healthcare-green/30 bg-healthcare-green/10 px-2.5 py-1.5 text-xs flex items-center gap-2">
+                      <KeyRound className="h-3 w-3 text-healthcare-green" />
+                      <span className="font-mono font-semibold text-healthcare-green">{u.dispense_token}</span>
+                      <span className="text-[10px] text-muted-foreground ml-auto">last dispense</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {(u.fraud_score ?? 0) >= 40 && (
+                <div className="mt-2"><FraudPanel row={u} /></div>
+              )}
+              {(u.fraud_score ?? 0) < 40 && u.status === "approved" && (
+                <div className="mt-2 inline-flex items-center gap-1 text-[11px] text-healthcare-green">
+                  <ShieldCheck className="h-3 w-3" /> Verified · low risk
+                </div>
+              )}
               <div className="flex flex-wrap gap-2 mt-2">
                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={async () => {
                   try { const url = await getPrescriptionFileUrl(u.file_path); window.open(url, "_blank", "noopener,noreferrer"); }
                   catch (e: any) { toast.error(e?.message || "Could not open file"); }
                 }}>View prescription</Button>
-                {canRefill && (
+                {canRefill && (u.repeats_total ?? 0) > (u.repeats_used ?? 0) && (
                   <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
                     <Link to="/dashboard/patient/pharmacies">
                       <RefreshCw className="h-3 w-3" /> Refill
                     </Link>
                   </Button>
+                )}
+                {(u.repeats_total ?? 0) > 0 && (u.repeats_used ?? 0) >= (u.repeats_total ?? 0) && (
+                  <span className="text-xs px-2 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 inline-flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> Renewal required
+                  </span>
                 )}
                 <PrescriptionScanButton row={u} />
               </div>
