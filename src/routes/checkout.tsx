@@ -185,6 +185,17 @@ function CheckoutPage() {
             hasRx={items.some((i) => i.requiresPrescription)}
             medications={items.map((i) => i.name)}
           />
+          {rxIssues.length > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-1">
+              <p className="text-sm font-semibold text-destructive">Prescription issues</p>
+              <ul className="text-xs text-destructive list-disc pl-5">
+                {rxIssues.map((i, idx) => <li key={idx}>{i.message}</li>)}
+              </ul>
+              <p className="text-xs text-muted-foreground pt-1">
+                Upload or refresh a prescription from the <Link to="/dashboard/patient/prescriptions" className="underline">Prescriptions</Link> page, then retry.
+              </p>
+            </div>
+          )}
           {items.length >= 2 && (
             <DrugInteractionPanel medications={items.map(i => i.name)} />
           )}
