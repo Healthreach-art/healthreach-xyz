@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileCheck2, FileX2, Clock, AlertCircle, RefreshCw, Loader2, ZoomIn, ZoomOut, Flag, History } from "lucide-react";
+import { Upload, FileCheck2, FileX2, Clock, AlertCircle, RefreshCw, Loader2, ZoomIn, ZoomOut, Flag, History, ShieldAlert, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export type PrescriptionStatus = "pending" | "approved" | "rejected" | "expired" | "reupload_requested";
