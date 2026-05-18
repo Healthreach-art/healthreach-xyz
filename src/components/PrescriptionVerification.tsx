@@ -348,3 +348,31 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
     </div>
   );
 }
+
+export function FraudPanel({ row }: { row: PrescriptionUpload }) {
+  const score = row.fraud_score ?? 0;
+  const signals = (row.fraud_signals ?? []) as FraudSignal[];
+  const level = score >= 75 ? "high" : score >= 40 ? "medium" : "low";
+  const meta = {
+    low: { cls: "border-healthcare-green/30 bg-healthcare-green/10 text-healthcare-green", label: "Low risk", Icon: ShieldCheck },
+    medium: { cls: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400", label: "Medium risk — review", Icon: ShieldAlert },
+    high: { cls: "border-destructive/40 bg-destructive/10 text-destructive", label: "High risk — block dispense", Icon: ShieldAlert },
+  }[level];
+  const Icon = meta.Icon;
+  return (
+    <div className={`rounded-md border px-3 py-2 ${meta.cls}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-semibold">
+          <Icon className="h-3.5 w-3.5" /> Fraud score {score}/100 · {meta.label}
+        </div>
+      </div>
+      {signals.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-[11px] opacity-90">
+          {signals.map((s, i) => (
+            <li key={i}>• <span className="font-medium capitalize">{s.label.replace(/_/g, " ")}</span> — {s.detail}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
