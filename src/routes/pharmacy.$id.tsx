@@ -247,13 +247,30 @@ function Storefront() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Stethoscope className="h-5 w-5 text-primary" /> Upload prescription
+              <Stethoscope className="h-5 w-5 text-primary" /> Prescription required
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
-              {rxFor?.name} requires a valid prescription. Upload an image or PDF — it will be reviewed within minutes.
+              {rxFor?.name} needs a valid prescription. Pick an approved one below or upload a new one.
             </p>
           </DialogHeader>
-          {rxFor && <PrescriptionUploader pharmacyId={rxFor.pharmacy_id} medicationId={rxFor.id} onUploaded={() => setRxFor(null)} />}
+          {rxFor && (
+            <PrescriptionPicker
+              pharmacyId={rxFor.pharmacy_id}
+              pharmacyName={name}
+              medicationId={rxFor.id}
+              medicationName={rxFor.name}
+              onPicked={(uploadId) => {
+                cart.add({
+                  medId: rxFor.id, name: rxFor.name, price: Number(rxFor.price),
+                  pharmacyId: rxFor.pharmacy_id, pharmacyName: name,
+                  requiresPrescription: true, prescriptionUploadId: uploadId,
+                });
+                toast.success(`${rxFor.name} added to cart`);
+                setRxFor(null);
+              }}
+              onUploadedPending={() => { toast.success("Prescription uploaded — we'll notify you once approved"); setRxFor(null); }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
