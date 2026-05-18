@@ -65,6 +65,29 @@ function TrackPage() {
   const [loading, setLoading] = useState(true);
   const [pulse, setPulse] = useState(false);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number; speed: number | null; updated_at: string } | null>(null);
+  const [simulating, setSimulating] = useState(false);
+  const autoStartedRef = useRef<string | null>(null);
+
+  async function runSimulation(orderId: string) {
+    if (simulating) return;
+    setSimulating(true);
+    const steps: Array<"preparing" | "ready" | "assigned" | "picked_up" | "in_transit" | "delivered"> =
+      ["preparing", "ready", "assigned", "picked_up", "in_transit", "delivered"];
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      for (const step of steps) {
+        await new Promise((r) => setTimeout(r, 3500));
+        const res = await fetch("/api/demo-advance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token ?? ""}` },
+          body: JSON.stringify({ order_id: orderId, step }),
+        });
+        if (!res.ok) { toast.error(`Demo step "${step}" failed`); break; }
+      }
+    } finally {
+      setSimulating(false);
+    }
+  }
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
