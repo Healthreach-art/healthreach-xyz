@@ -30,6 +30,7 @@ import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
+import { Route as ApiDemoAdvanceRouteImport } from './routes/api/demo-advance'
 import { Route as DashboardPatientIndexRouteImport } from './routes/dashboard.patient.index'
 import { Route as DashboardPatientTransactionsRouteImport } from './routes/dashboard.patient.transactions'
 import { Route as DashboardPatientSupportRouteImport } from './routes/dashboard.patient.support'
@@ -151,6 +152,11 @@ const ApiMockPayRoute = ApiMockPayRouteImport.update({
   path: '/api/mock-pay',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDemoAdvanceRoute = ApiDemoAdvanceRouteImport.update({
+  id: '/api/demo-advance',
+  path: '/api/demo-advance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardPatientIndexRoute = DashboardPatientIndexRouteImport.update({
   id: '/dashboard/patient/',
   path: '/dashboard/patient/',
@@ -249,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/track': typeof TrackRoute
+  '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRoute
@@ -287,6 +294,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/track': typeof TrackRoute
+  '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRoute
@@ -326,6 +334,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/track': typeof TrackRoute
+  '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRoute
@@ -366,6 +375,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/track'
+    | '/api/demo-advance'
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
@@ -404,6 +414,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/track'
+    | '/api/demo-advance'
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
@@ -442,6 +453,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/track'
+    | '/api/demo-advance'
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
@@ -481,6 +493,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TrackRoute: typeof TrackRoute
+  ApiDemoAdvanceRoute: typeof ApiDemoAdvanceRoute
   ApiMockPayRoute: typeof ApiMockPayRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   DashboardAdminRoute: typeof DashboardAdminRoute
@@ -656,6 +669,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMockPayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/demo-advance': {
+      id: '/api/demo-advance'
+      path: '/api/demo-advance'
+      fullPath: '/api/demo-advance'
+      preLoaderRoute: typeof ApiDemoAdvanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/patient/': {
       id: '/dashboard/patient/'
       path: '/dashboard/patient'
@@ -777,6 +797,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TrackRoute: TrackRoute,
+  ApiDemoAdvanceRoute: ApiDemoAdvanceRoute,
   ApiMockPayRoute: ApiMockPayRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   DashboardAdminRoute: DashboardAdminRoute,
