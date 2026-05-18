@@ -48,7 +48,7 @@ function LoginPage() {
     setError("");
     setLoading(true);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() });
 
     if (authError) {
       setError(authError.message);
