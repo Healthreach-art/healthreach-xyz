@@ -156,66 +156,66 @@ const DashboardPatientIndexRoute = DashboardPatientIndexRouteImport.update({
 } as any)
 const DashboardPatientTransactionsRoute =
   DashboardPatientTransactionsRouteImport.update({
-    id: '/transactions',
-    path: '/transactions',
-    getParentRoute: () => DashboardPatientRoute,
+    id: '/dashboard/patient/transactions',
+    path: '/dashboard/patient/transactions',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const DashboardPatientSupportRoute = DashboardPatientSupportRouteImport.update({
-  id: '/support',
-  path: '/support',
-  getParentRoute: () => DashboardPatientRoute,
+  id: '/dashboard/patient/support',
+  path: '/dashboard/patient/support',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardPatientSearchRoute = DashboardPatientSearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => DashboardPatientRoute,
+  id: '/dashboard/patient/search',
+  path: '/dashboard/patient/search',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardPatientRemindersRoute =
   DashboardPatientRemindersRouteImport.update({
-    id: '/reminders',
-    path: '/reminders',
-    getParentRoute: () => DashboardPatientRoute,
+    id: '/dashboard/patient/reminders',
+    path: '/dashboard/patient/reminders',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const DashboardPatientPrescriptionsRoute =
   DashboardPatientPrescriptionsRouteImport.update({
-    id: '/prescriptions',
-    path: '/prescriptions',
-    getParentRoute: () => DashboardPatientRoute,
+    id: '/dashboard/patient/prescriptions',
+    path: '/dashboard/patient/prescriptions',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const DashboardPatientPharmaciesRoute =
   DashboardPatientPharmaciesRouteImport.update({
-    id: '/pharmacies',
-    path: '/pharmacies',
-    getParentRoute: () => DashboardPatientRoute,
+    id: '/dashboard/patient/pharmacies',
+    path: '/dashboard/patient/pharmacies',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const DashboardPatientPaymentMethodsRoute =
   DashboardPatientPaymentMethodsRouteImport.update({
-    id: '/payment-methods',
-    path: '/payment-methods',
-    getParentRoute: () => DashboardPatientRoute,
+    id: '/dashboard/patient/payment-methods',
+    path: '/dashboard/patient/payment-methods',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const DashboardPatientOrdersRoute = DashboardPatientOrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => DashboardPatientRoute,
+  id: '/dashboard/patient/orders',
+  path: '/dashboard/patient/orders',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardPatientAssistantRoute =
   DashboardPatientAssistantRouteImport.update({
-    id: '/assistant',
-    path: '/assistant',
-    getParentRoute: () => DashboardPatientRoute,
+    id: '/dashboard/patient/assistant',
+    path: '/dashboard/patient/assistant',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const DashboardPatientAddressesRoute =
   DashboardPatientAddressesRouteImport.update({
-    id: '/addresses',
-    path: '/addresses',
-    getParentRoute: () => DashboardPatientRoute,
+    id: '/dashboard/patient/addresses',
+    path: '/dashboard/patient/addresses',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const DashboardPatientActivityRoute =
   DashboardPatientActivityRouteImport.update({
-    id: '/activity',
-    path: '/activity',
-    getParentRoute: () => DashboardPatientRoute,
+    id: '/dashboard/patient/activity',
+    path: '/dashboard/patient/activity',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
   id: '/api/public/payment-webhook',
@@ -466,6 +466,17 @@ export interface RootRouteChildren {
   DriverWalletRoute: typeof DriverWalletRoute
   PharmacyIdRoute: typeof PharmacyIdRoute
   ApiPublicPaymentWebhookRoute: typeof ApiPublicPaymentWebhookRoute
+  DashboardPatientActivityRoute: typeof DashboardPatientActivityRoute
+  DashboardPatientAddressesRoute: typeof DashboardPatientAddressesRoute
+  DashboardPatientAssistantRoute: typeof DashboardPatientAssistantRoute
+  DashboardPatientOrdersRoute: typeof DashboardPatientOrdersRoute
+  DashboardPatientPaymentMethodsRoute: typeof DashboardPatientPaymentMethodsRoute
+  DashboardPatientPharmaciesRoute: typeof DashboardPatientPharmaciesRoute
+  DashboardPatientPrescriptionsRoute: typeof DashboardPatientPrescriptionsRoute
+  DashboardPatientRemindersRoute: typeof DashboardPatientRemindersRoute
+  DashboardPatientSearchRoute: typeof DashboardPatientSearchRoute
+  DashboardPatientSupportRoute: typeof DashboardPatientSupportRoute
+  DashboardPatientTransactionsRoute: typeof DashboardPatientTransactionsRoute
   DashboardPatientIndexRoute: typeof DashboardPatientIndexRoute
 }
 
@@ -627,80 +638,80 @@ declare module '@tanstack/react-router' {
     }
     '/dashboard/patient/transactions': {
       id: '/dashboard/patient/transactions'
-      path: '/transactions'
+      path: '/dashboard/patient/transactions'
       fullPath: '/dashboard/patient/transactions'
       preLoaderRoute: typeof DashboardPatientTransactionsRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/support': {
       id: '/dashboard/patient/support'
-      path: '/support'
+      path: '/dashboard/patient/support'
       fullPath: '/dashboard/patient/support'
       preLoaderRoute: typeof DashboardPatientSupportRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/search': {
       id: '/dashboard/patient/search'
-      path: '/search'
+      path: '/dashboard/patient/search'
       fullPath: '/dashboard/patient/search'
       preLoaderRoute: typeof DashboardPatientSearchRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/reminders': {
       id: '/dashboard/patient/reminders'
-      path: '/reminders'
+      path: '/dashboard/patient/reminders'
       fullPath: '/dashboard/patient/reminders'
       preLoaderRoute: typeof DashboardPatientRemindersRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/prescriptions': {
       id: '/dashboard/patient/prescriptions'
-      path: '/prescriptions'
+      path: '/dashboard/patient/prescriptions'
       fullPath: '/dashboard/patient/prescriptions'
       preLoaderRoute: typeof DashboardPatientPrescriptionsRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/pharmacies': {
       id: '/dashboard/patient/pharmacies'
-      path: '/pharmacies'
+      path: '/dashboard/patient/pharmacies'
       fullPath: '/dashboard/patient/pharmacies'
       preLoaderRoute: typeof DashboardPatientPharmaciesRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/payment-methods': {
       id: '/dashboard/patient/payment-methods'
-      path: '/payment-methods'
+      path: '/dashboard/patient/payment-methods'
       fullPath: '/dashboard/patient/payment-methods'
       preLoaderRoute: typeof DashboardPatientPaymentMethodsRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/orders': {
       id: '/dashboard/patient/orders'
-      path: '/orders'
+      path: '/dashboard/patient/orders'
       fullPath: '/dashboard/patient/orders'
       preLoaderRoute: typeof DashboardPatientOrdersRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/assistant': {
       id: '/dashboard/patient/assistant'
-      path: '/assistant'
+      path: '/dashboard/patient/assistant'
       fullPath: '/dashboard/patient/assistant'
       preLoaderRoute: typeof DashboardPatientAssistantRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/addresses': {
       id: '/dashboard/patient/addresses'
-      path: '/addresses'
+      path: '/dashboard/patient/addresses'
       fullPath: '/dashboard/patient/addresses'
       preLoaderRoute: typeof DashboardPatientAddressesRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/activity': {
       id: '/dashboard/patient/activity'
-      path: '/activity'
+      path: '/dashboard/patient/activity'
       fullPath: '/dashboard/patient/activity'
       preLoaderRoute: typeof DashboardPatientActivityRouteImport
-      parentRoute: typeof DashboardPatientRoute
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/payment-webhook': {
       id: '/api/public/payment-webhook'
@@ -735,6 +746,17 @@ const rootRouteChildren: RootRouteChildren = {
   DriverWalletRoute: DriverWalletRoute,
   PharmacyIdRoute: PharmacyIdRoute,
   ApiPublicPaymentWebhookRoute: ApiPublicPaymentWebhookRoute,
+  DashboardPatientActivityRoute: DashboardPatientActivityRoute,
+  DashboardPatientAddressesRoute: DashboardPatientAddressesRoute,
+  DashboardPatientAssistantRoute: DashboardPatientAssistantRoute,
+  DashboardPatientOrdersRoute: DashboardPatientOrdersRoute,
+  DashboardPatientPaymentMethodsRoute: DashboardPatientPaymentMethodsRoute,
+  DashboardPatientPharmaciesRoute: DashboardPatientPharmaciesRoute,
+  DashboardPatientPrescriptionsRoute: DashboardPatientPrescriptionsRoute,
+  DashboardPatientRemindersRoute: DashboardPatientRemindersRoute,
+  DashboardPatientSearchRoute: DashboardPatientSearchRoute,
+  DashboardPatientSupportRoute: DashboardPatientSupportRoute,
+  DashboardPatientTransactionsRoute: DashboardPatientTransactionsRoute,
   DashboardPatientIndexRoute: DashboardPatientIndexRoute,
 }
 export const routeTree = rootRouteImport
