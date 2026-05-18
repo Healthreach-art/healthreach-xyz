@@ -8,6 +8,8 @@ import { toast } from "sonner";
 
 export type PrescriptionStatus = "pending" | "approved" | "rejected" | "expired" | "reupload_requested";
 
+export interface FraudSignal { label: string; detail: string; }
+
 export interface PrescriptionUpload {
   id: string;
   patient_id: string;
@@ -21,6 +23,12 @@ export interface PrescriptionUpload {
   expires_at: string | null;
   created_at: string;
   flagged?: boolean | null;
+  repeats_total?: number | null;
+  repeats_used?: number | null;
+  fraud_score?: number | null;
+  fraud_signals?: FraudSignal[] | null;
+  dispense_token?: string | null;
+  last_dispensed_at?: string | null;
 }
 
 interface AuditEntry { id: string; action: string; notes: string; created_at: string; actor_id: string; }
