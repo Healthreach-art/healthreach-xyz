@@ -27,16 +27,18 @@ const statusColors: Record<string, string> = {
   out_for_delivery: "bg-primary/10 text-primary",
   delivered: "bg-healthcare-green/20 text-healthcare-green",
   cancelled: "bg-destructive/10 text-destructive",
+  rejected: "bg-destructive/10 text-destructive",
 };
 
 const statusLabels: Record<string, string> = {
-  pending: "Order placed",
-  accepted: "Accepted by pharmacy",
-  preparing: "Pharmacy preparing",
-  ready: "Packed — finding driver",
+  pending: "Pending verification",
+  accepted: "Pharmacist reviewing",
+  preparing: "Approved — preparing",
+  ready: "Packed",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
   cancelled: "Cancelled",
+  rejected: "Rejected",
 };
 
 export function OrderHistory() {

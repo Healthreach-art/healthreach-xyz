@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Stethoscope, FileText, Loader2 } from "lucide-react";
+import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrescriptionStatusBadge, getPrescriptionFileUrl, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { PrescriptionScanButton } from "@/components/PrescriptionScanButton";
@@ -16,6 +16,17 @@ export const Route = createFileRoute("/dashboard/patient/prescriptions")({
 });
 
 interface Prescription { id: string; medication_name: string; dosage: string | null; doctor_name: string; is_active: boolean | null; created_at: string; }
+
+const MS_DAY = 86_400_000;
+
+function validityOf(u: PrescriptionUpload): { state: "valid" | "expiring" | "expired" | "pending"; days: number | null } {
+  if (u.status !== "approved") return { state: "pending", days: null };
+  if (!u.expires_at) return { state: "valid", days: null };
+  const days = Math.floor((new Date(u.expires_at).getTime() - Date.now()) / MS_DAY);
+  if (days < 0) return { state: "expired", days };
+  if (days <= 14) return { state: "expiring", days };
+  return { state: "valid", days };
+}
 
 function Page() {
   const { user } = useAuth();
@@ -36,12 +47,42 @@ function Page() {
     })();
   }, [user]);
 
+  const alerts = useMemo(() => {
+    const expiring = pxUploads.filter((u) => validityOf(u).state === "expiring");
+    const expired = pxUploads.filter((u) => validityOf(u).state === "expired");
+    const refillable = pxUploads.filter((u) => validityOf(u).state === "valid" || validityOf(u).state === "expiring");
+    return { expiring, expired, refillable };
+  }, [pxUploads]);
+
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Prescriptions</h1>
-        <p className="text-sm text-muted-foreground">Doctor-issued prescriptions and your upload status.</p>
+        <p className="text-sm text-muted-foreground">Validity, expiry alerts, and refill eligibility.</p>
       </div>
+
+      {(alerts.expiring.length > 0 || alerts.expired.length > 0) && (
+        <div className="space-y-2">
+          {alerts.expired.length > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-destructive">{alerts.expired.length} prescription{alerts.expired.length > 1 ? "s" : ""} expired</p>
+                <p className="text-xs text-muted-foreground">Upload a fresh prescription to keep ordering Rx medication.</p>
+              </div>
+            </div>
+          )}
+          {alerts.expiring.length > 0 && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 flex items-start gap-2">
+              <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-700 dark:text-amber-400">{alerts.expiring.length} expiring within 14 days</p>
+                <p className="text-xs text-muted-foreground">Reorder soon — eligible for refill until expiry.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="healthcare-card p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -70,25 +111,56 @@ function Page() {
       <div className="healthcare-card p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <FileText className="h-5 w-5 text-primary" /> Prescription Uploads
+          <span className="ml-auto text-xs font-normal text-muted-foreground">{alerts.refillable.length} eligible for refill</span>
         </h2>
         {pxUploads.length === 0 && <p className="text-sm text-muted-foreground">No uploads yet — upload happens during checkout for Rx-required medicines.</p>}
         <div className="space-y-3">
-          {pxUploads.map((u) => (
+          {pxUploads.map((u) => {
+            const v = validityOf(u);
+            const canRefill = v.state === "valid" || v.state === "expiring";
+            return (
             <div key={u.id} className="rounded-lg border border-border p-3">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="text-sm font-medium text-foreground truncate">Upload · {new Date(u.created_at).toLocaleDateString()}</p>
-                <PrescriptionStatusBadge status={u.status} />
+                <div className="flex items-center gap-2">
+                  <PrescriptionStatusBadge status={u.status} />
+                  {v.state === "valid" && v.days !== null && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-healthcare-green/20 text-healthcare-green inline-flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Valid · {v.days}d left
+                    </span>
+                  )}
+                  {v.state === "expiring" && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> Expires in {v.days}d
+                    </span>
+                  )}
+                  {v.state === "expired" && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/15 text-destructive inline-flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> Expired
+                    </span>
+                  )}
+                </div>
               </div>
               {(u.status === "rejected" || u.status === "reupload_requested") && u.pharmacist_notes && (
                 <p className="mt-2 text-xs text-destructive">Pharmacist: {u.pharmacist_notes}</p>
               )}
-              <Button size="sm" variant="outline" className="h-7 text-xs mt-2" onClick={async () => {
-                try { const url = await getPrescriptionFileUrl(u.file_path); window.open(url, "_blank", "noopener,noreferrer"); }
-                catch (e: any) { toast.error(e?.message || "Could not open file"); }
-              }}>View prescription</Button>
-              <PrescriptionScanButton row={u} />
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={async () => {
+                  try { const url = await getPrescriptionFileUrl(u.file_path); window.open(url, "_blank", "noopener,noreferrer"); }
+                  catch (e: any) { toast.error(e?.message || "Could not open file"); }
+                }}>View prescription</Button>
+                {canRefill && (
+                  <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
+                    <Link to="/dashboard/patient/pharmacies">
+                      <RefreshCw className="h-3 w-3" /> Refill
+                    </Link>
+                  </Button>
+                )}
+                <PrescriptionScanButton row={u} />
+              </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
