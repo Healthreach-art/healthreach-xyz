@@ -140,8 +140,17 @@ function MedicineMarketplace() {
   }, [meds, phById, lockedPharmacy]);
 
   const search = q.trim().toLowerCase();
-  const filtered = search ? groups.filter((g) => g.name.toLowerCase().includes(search) || g.offers.some((o) => o.pharmacyName.toLowerCase().includes(search))) : groups;
+  const byCat = activeCat === "All" ? groups : groups.filter((g) => (g.offers[0]?.category || "Other") === activeCat);
+  const filtered = search
+    ? byCat.filter((g) => g.name.toLowerCase().includes(search) || g.offers.some((o) => o.pharmacyName.toLowerCase().includes(search)))
+    : byCat;
   const recentGroups = recent.map((n) => groups.find((g) => g.name.toLowerCase() === n.toLowerCase())).filter(Boolean) as Group[];
+
+  const catCounts = useMemo(() => {
+    const c: Record<string, number> = { All: groups.length };
+    for (const g of groups) { const k = g.offers[0]?.category || "Other"; c[k] = (c[k] || 0) + 1; }
+    return c;
+  }, [groups]);
 
   const setMode = (m: "delivery" | "pickup") => { setFulfillment(m); localStorage.setItem(FULFILL_KEY, m); };
   const toggleLock = (id: string, name: string) => {
