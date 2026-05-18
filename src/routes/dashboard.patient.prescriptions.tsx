@@ -3,9 +3,10 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw } from "lucide-react";
+import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw, Upload as UploadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PrescriptionStatusBadge, getPrescriptionFileUrl, type PrescriptionUpload } from "@/components/PrescriptionVerification";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PrescriptionStatusBadge, PrescriptionUploader, getPrescriptionFileUrl, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { PrescriptionScanButton } from "@/components/PrescriptionScanButton";
 import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { toast } from "sonner";
@@ -28,21 +29,39 @@ function validityOf(u: PrescriptionUpload): { state: "valid" | "expiring" | "exp
   return { state: "valid", days };
 }
 
+interface PharmacyOpt { user_id: string; organization_name: string | null; }
+
 function Page() {
   const { user } = useAuth();
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [pxUploads, setPxUploads] = useState<PrescriptionUpload[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pharmacies, setPharmacies] = useState<PharmacyOpt[]>([]);
+  const [pickedPharmacy, setPickedPharmacy] = useState<string>("");
+
+  const reloadUploads = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false });
+    setPxUploads((data ?? []) as PrescriptionUpload[]);
+  };
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data: rx }, { data: ups }] = await Promise.all([
+      const [{ data: rx }, { data: ups }, { data: phs }] = await Promise.all([
         supabase.from("prescriptions").select("id, medication_name, dosage, doctor_name, is_active, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }),
         supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("profiles").select("user_id, organization_name").not("organization_name", "is", null).neq("organization_name", "").order("organization_name"),
       ]);
       setPrescriptions((rx ?? []) as Prescription[]);
       setPxUploads((ups ?? []) as PrescriptionUpload[]);
+      // Filter to pharmacies via user_roles
+      const ids = (phs ?? []).map((p: any) => p.user_id);
+      if (ids.length) {
+        const { data: roles } = await supabase.from("user_roles").select("user_id").in("user_id", ids).eq("role", "pharmacy");
+        const pharmacyIds = new Set((roles ?? []).map((r: any) => r.user_id));
+        setPharmacies(((phs ?? []) as any[]).filter((p) => pharmacyIds.has(p.user_id)));
+      }
       setLoading(false);
     })();
   }, [user]);
