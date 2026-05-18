@@ -265,7 +265,7 @@ function MedicineMarketplace() {
       {!loading && (
         <section className="space-y-3">
           <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            <Pill className="h-4 w-4" /> {search ? `Results for "${q}"` : "All medicines"} ({filtered.length})
+            <Pill className="h-4 w-4" /> {search ? `Results for "${q}"` : activeCat === "All" ? "All medicines" : activeCat} ({filtered.length})
           </h2>
           {filtered.length === 0 ? (
             <div className="healthcare-card p-8 text-center text-sm text-muted-foreground">No medicines match your search.</div>
