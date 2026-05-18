@@ -154,6 +154,8 @@ function MedicineMarketplace() {
 
   const search = q.trim().toLowerCase();
   const byCat = activeCat === "All" ? groups : groups.filter((g) => (g.offers[0]?.category || "Other") === activeCat);
+  // "All" never lists the full catalogue — user must search or pick a category.
+  const showGrid = activeCat !== "All" || !!search;
   const filtered = search
     ? byCat.filter((g) => g.name.toLowerCase().includes(search) || g.offers.some((o) => o.pharmacyName.toLowerCase().includes(search)))
     : byCat;
@@ -262,10 +264,10 @@ function MedicineMarketplace() {
         </section>
       )}
 
-      {!loading && (
+      {!loading && showGrid && (
         <section className="space-y-3">
           <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            <Pill className="h-4 w-4" /> {search ? `Results for "${q}"` : activeCat === "All" ? "All medicines" : activeCat} ({filtered.length})
+            <Pill className="h-4 w-4" /> {search ? `Results for "${q}"` : activeCat} ({filtered.length})
           </h2>
           {filtered.length === 0 ? (
             <div className="healthcare-card p-8 text-center text-sm text-muted-foreground">No medicines match your search.</div>
@@ -274,6 +276,19 @@ function MedicineMarketplace() {
               {filtered.map((g) => <MedCard key={g.key} g={g} onOpen={() => setActive(g)} onOneClick={() => oneClick(g)} />)}
             </div>
           )}
+        </section>
+      )}
+
+      {!loading && !showGrid && (
+        <section className="healthcare-card p-10 text-center space-y-3">
+          <div className="mx-auto h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <Search className="h-6 w-6 text-primary" />
+          </div>
+          <h2 className="text-lg font-bold">Search for any medicine</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Type the medicine name above, or pick a category to browse. We'll show every pharmacy that has it in stock — sorted by closest to you with live pricing.
+          </p>
+          <p className="text-[11px] text-muted-foreground">{groups.length} medicines available across {pharmacies.length} pharmacies</p>
         </section>
       )}
 
