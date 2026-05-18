@@ -3,10 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileCheck2, FileX2, Clock, AlertCircle, RefreshCw, Loader2, ZoomIn, ZoomOut, Flag, History } from "lucide-react";
+import { Upload, FileCheck2, FileX2, Clock, AlertCircle, RefreshCw, Loader2, ZoomIn, ZoomOut, Flag, History, ShieldAlert, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export type PrescriptionStatus = "pending" | "approved" | "rejected" | "expired" | "reupload_requested";
+
+export interface FraudSignal { label: string; detail: string; }
 
 export interface PrescriptionUpload {
   id: string;
@@ -21,6 +23,12 @@ export interface PrescriptionUpload {
   expires_at: string | null;
   created_at: string;
   flagged?: boolean | null;
+  repeats_total?: number | null;
+  repeats_used?: number | null;
+  fraud_score?: number | null;
+  fraud_signals?: FraudSignal[] | null;
+  dispense_token?: string | null;
+  last_dispensed_at?: string | null;
 }
 
 interface AuditEntry { id: string; action: string; notes: string; created_at: string; actor_id: string; }
@@ -226,13 +234,13 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row.file_path]);
 
+  const [repeats, setRepeats] = useState<number>(row.repeats_total ?? 5);
+
   async function setStatus(status: PrescriptionStatus) {
     setBusy(status);
-    const { error } = await supabase.from("prescription_uploads").update({
-      status,
-      pharmacist_notes: notes,
-      reviewed_by: user?.id ?? null,
-    }).eq("id", row.id);
+    const patch: any = { status, pharmacist_notes: notes, reviewed_by: user?.id ?? null };
+    if (status === "approved") patch.repeats_total = Math.max(1, Math.min(12, repeats || 5));
+    const { error } = await supabase.from("prescription_uploads").update(patch).eq("id", row.id);
     setBusy(null);
     if (error) { toast.error(error.message); return; }
     await logAction(status, notes);
@@ -286,6 +294,21 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
           </div>
         )}
       </div>
+      <FraudPanel row={row} />
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
+        <span className="text-xs text-muted-foreground">Repeats granted on approval</span>
+        <div className="flex items-center gap-2">
+          <input
+            type="number" min={1} max={12}
+            value={repeats}
+            onChange={(e) => setRepeats(Number(e.target.value))}
+            className="h-7 w-16 rounded border border-input bg-background px-2 text-xs"
+          />
+          <span className="text-[11px] text-muted-foreground">
+            {(row.repeats_used ?? 0)} used · {(row.repeats_total ?? 0)} total
+          </span>
+        </div>
+      </div>
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
@@ -321,6 +344,34 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
             ))
           }
         </div>
+      )}
+    </div>
+  );
+}
+
+export function FraudPanel({ row }: { row: PrescriptionUpload }) {
+  const score = row.fraud_score ?? 0;
+  const signals = (row.fraud_signals ?? []) as FraudSignal[];
+  const level = score >= 75 ? "high" : score >= 40 ? "medium" : "low";
+  const meta = {
+    low: { cls: "border-healthcare-green/30 bg-healthcare-green/10 text-healthcare-green", label: "Low risk", Icon: ShieldCheck },
+    medium: { cls: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400", label: "Medium risk — review", Icon: ShieldAlert },
+    high: { cls: "border-destructive/40 bg-destructive/10 text-destructive", label: "High risk — block dispense", Icon: ShieldAlert },
+  }[level];
+  const Icon = meta.Icon;
+  return (
+    <div className={`rounded-md border px-3 py-2 ${meta.cls}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-semibold">
+          <Icon className="h-3.5 w-3.5" /> Fraud score {score}/100 · {meta.label}
+        </div>
+      </div>
+      {signals.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-[11px] opacity-90">
+          {signals.map((s, i) => (
+            <li key={i}>• <span className="font-medium capitalize">{s.label.replace(/_/g, " ")}</span> — {s.detail}</li>
+          ))}
+        </ul>
       )}
     </div>
   );
