@@ -42,6 +42,7 @@ function MedicineMarketplace() {
   const [recent, setRecent] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [activeCat, setActiveCat] = useState<string>("All");
   const [active, setActive] = useState<Group | null>(null);
   const [rxFor, setRxFor] = useState<{ med: Offer } | null>(null);
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
@@ -51,6 +52,24 @@ function MedicineMarketplace() {
     if (typeof window === "undefined") return;
     setFulfillment((localStorage.getItem(FULFILL_KEY) as any) || "delivery");
     setLockedPharmacy(localStorage.getItem(LOCK_KEY));
+  }, []);
+
+  // Realtime: refresh medication stock/price as pharmacies update
+  useEffect(() => {
+    const channel = supabase
+      .channel("meds-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "medications" }, (payload: any) => {
+        setMeds((prev) => {
+          if (payload.eventType === "DELETE") return prev.filter((m) => m.id !== payload.old.id);
+          const row = payload.new as Med;
+          const idx = prev.findIndex((m) => m.id === row.id);
+          if (idx === -1) return row.stock_quantity > 0 ? [...prev, row] : prev;
+          const next = [...prev]; next[idx] = row;
+          return next.filter((m) => m.stock_quantity > 0);
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
