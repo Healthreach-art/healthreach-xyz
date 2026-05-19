@@ -61,39 +61,40 @@
   --card-foreground: oklch(0.2 0.01 160);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0.01 160);
-  --primary: oklch(0.55 0.16 155);
+  --primary: oklch(0.45 0.13 155);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.97 0.005 160);
-  --secondary-foreground: oklch(0.25 0.02 160);
-  --muted: oklch(0.97 0.003 160);
+  --secondary: oklch(0.98 0 0);
+  --secondary-foreground: oklch(0.2 0.01 160);
+  --muted: oklch(0.98 0 0);
   --muted-foreground: oklch(0.5 0.01 160);
-  --accent: oklch(0.95 0.05 155);
-  --accent-foreground: oklch(0.3 0.08 155);
+  --accent: oklch(0.96 0.03 155);
+  --accent-foreground: oklch(0.35 0.1 155);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.92 0.005 160);
-  --input: oklch(0.92 0.005 160);
-  --ring: oklch(0.55 0.16 155);
-  --chart-1: oklch(0.55 0.16 155);
-  --chart-2: oklch(0.65 0.14 175);
-  --chart-3: oklch(0.7 0.15 145);
-  --chart-4: oklch(0.6 0.12 185);
-  --chart-5: oklch(0.45 0.14 165);
+  --border: oklch(0.93 0 0);
+  --input: oklch(0.93 0 0);
+  --ring: oklch(0.45 0.13 155);
+  --chart-1: oklch(0.45 0.13 155);
+  --chart-2: oklch(0.6 0.12 160);
+  --chart-3: oklch(0.7 0.1 150);
+  --chart-4: oklch(0.55 0.11 170);
+  --chart-5: oklch(0.35 0.1 155);
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.2 0.01 160);
-  --sidebar-primary: oklch(0.55 0.16 155);
+  --sidebar-primary: oklch(0.45 0.13 155);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.95 0.05 155);
-  --sidebar-accent-foreground: oklch(0.3 0.08 155);
-  --sidebar-border: oklch(0.92 0.005 160);
-  --sidebar-ring: oklch(0.55 0.16 155);
+  --sidebar-accent: oklch(0.96 0.03 155);
+  --sidebar-accent-foreground: oklch(0.35 0.1 155);
+  --sidebar-border: oklch(0.93 0 0);
+  --sidebar-ring: oklch(0.45 0.13 155);
 
-  /* Healthcare-specific tokens — green palette */
-  --healthcare-light: oklch(0.96 0.05 160);
-  --healthcare-sky: oklch(0.78 0.12 175);
-  --healthcare-teal: oklch(0.6 0.13 180);
-  --healthcare-mint: oklch(0.85 0.1 160);
-  --healthcare-green: oklch(0.55 0.16 150);
+  /* Healthcare tokens — neutralized so bg-healthcare-* renders near-white.
+     Green stays only on primary, accent, ring, charts, and gradients. */
+  --healthcare-light: oklch(0.985 0.005 160);
+  --healthcare-sky: oklch(0.985 0.005 160);
+  --healthcare-teal: oklch(0.5 0.12 165);
+  --healthcare-mint: oklch(0.985 0.005 160);
+  --healthcare-green: oklch(0.45 0.13 155);
 }
 
 .dark {
