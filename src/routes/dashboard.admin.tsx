@@ -153,6 +153,12 @@ function AdminDashboard() {
   const [refundConfirm, setRefundConfirm] = useState<PaymentRow | null>(null);
   const [complaintReply, setComplaintReply] = useState<ComplaintRow | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [chatOrderId, setChatOrderId] = useState<string | null>(null);
+  const [broadcastAudience, setBroadcastAudience] = useState<"all" | "patient" | "pharmacy" | "driver" | "hospital">("all");
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastBody, setBroadcastBody] = useState("");
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const broadcastFn = useServerFn(broadcastNotification);
 
   useEffect(() => {
     if (authLoading) return;
