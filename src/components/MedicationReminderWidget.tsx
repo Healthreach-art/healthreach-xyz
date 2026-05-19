@@ -38,28 +38,47 @@ function fmtTime(t: { h: number; m: number }) {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-/** Generate a soft 3-note chime via WebAudio — no asset needed. */
-function playChime() {
+/** Classic phone-ring style alert: two-tone ring bursts, looped until stopped. */
+function createRingtone() {
+  let ctx: AudioContext | null = null;
+  let stopped = false;
+  let timer: number | null = null;
+
   try {
     const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const notes = [880, 1108.73, 1318.51]; // A5, C#6, E6
-    const now = ctx.currentTime;
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+    if (!Ctx) return { stop: () => {} };
+    ctx = new Ctx();
+  } catch { return { stop: () => {} }; }
+
+  const playBurst = () => {
+    if (!ctx || stopped) return;
+    const start = ctx.currentTime;
+    // Classic ring: two warble tones (440Hz + 480Hz) for 1.2s, then 1.5s silence
+    [440, 480].forEach((freq) => {
+      const osc = ctx!.createOscillator();
+      const gain = ctx!.createGain();
       osc.type = "sine";
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, now + i * 0.18);
-      gain.gain.linearRampToValueAtTime(0.18, now + i * 0.18 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.18 + 0.45);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(now + i * 0.18);
-      osc.stop(now + i * 0.18 + 0.5);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.22, start + 0.05);
+      gain.gain.setValueAtTime(0.22, start + 1.15);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.25);
+      osc.connect(gain).connect(ctx!.destination);
+      osc.start(start);
+      osc.stop(start + 1.3);
     });
-    setTimeout(() => ctx.close().catch(() => {}), 1200);
-  } catch { /* ignore */ }
+  };
+
+  playBurst();
+  timer = window.setInterval(playBurst, 2700);
+
+  return {
+    stop: () => {
+      stopped = true;
+      if (timer) window.clearInterval(timer);
+      try { ctx?.close(); } catch { /* ignore */ }
+    },
+  };
 }
 
 export function MedicationReminderWidget() {
@@ -68,10 +87,14 @@ export function MedicationReminderWidget() {
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState<Reminder | null>(null);
   const firedKeys = useRef<Set<string>>(new Set());
+  const ringRef = useRef<{ stop: () => void } | null>(null);
   const [muted, setMuted] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("hr_reminder_muted") === "1";
   });
+
+  function stopRing() { ringRef.current?.stop(); ringRef.current = null; }
+  function startRing() { stopRing(); ringRef.current = createRingtone(); }
 
   useEffect(() => {
     if (!user?.id) return;
@@ -108,7 +131,7 @@ export function MedicationReminderWidget() {
         if (diff <= 0 && diff > -2 && !firedKeys.current.has(key)) {
           firedKeys.current.add(key);
           setPopup(r);
-          if (!muted) playChime();
+          if (!muted) startRing();
           toast(`Time for ${r.medication_name}`, {
             description: r.dosage ? `Dose: ${r.dosage}` : "Tap to mark as taken.",
             icon: <Pill className="h-4 w-4" />,
@@ -133,7 +156,7 @@ export function MedicationReminderWidget() {
     const next = !muted;
     setMuted(next);
     window.localStorage.setItem("hr_reminder_muted", next ? "1" : "0");
-    if (!next) playChime(); // preview when enabling
+    if (next) stopRing(); else { startRing(); window.setTimeout(stopRing, 1400); }
   }
 
   const upcoming = useMemo(() => {
@@ -208,7 +231,7 @@ export function MedicationReminderWidget() {
         )}
       </div>
 
-      <Dialog open={!!popup} onOpenChange={(o) => !o && setPopup(null)}>
+      <Dialog open={!!popup} onOpenChange={(o) => { if (!o) { stopRing(); setPopup(null); } }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -219,8 +242,8 @@ export function MedicationReminderWidget() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setPopup(null)}>Snooze 10 min</Button>
-            <Button onClick={() => { toast.success("Marked as taken"); setPopup(null); }}>
+            <Button variant="outline" onClick={() => { stopRing(); setPopup(null); }}>Snooze 10 min</Button>
+            <Button onClick={() => { stopRing(); toast.success("Marked as taken"); setPopup(null); }}>
               <Check className="h-4 w-4 mr-1" /> Mark taken
             </Button>
           </DialogFooter>

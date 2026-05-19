@@ -5,10 +5,11 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
   ShoppingBag, Upload, Truck, ArrowRight, Bot,
-  CheckCircle2, Package, Bike, MapPin, Star, Siren, Pill,
+  Package, Bike, Star, Siren, Pill,
   CalendarCheck, FileText, MessageSquare, PhoneCall,
 } from "lucide-react";
 
@@ -45,6 +46,8 @@ function PatientDashboard() {
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
   const [driverName, setDriverName] = useState<string>("");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [mapPickup, setMapPickup] = useState<string | null>(null);
+  const [mapDropoff, setMapDropoff] = useState<string | null>(null);
   const [activePrescriptionsCount, setActivePrescriptionsCount] = useState(0);
   const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
 
@@ -78,25 +81,26 @@ function PatientDashboard() {
         setPharmaciesById(map);
       }
 
-      // Driver name for active order
+      // Driver name + map endpoints for active order
       if (active?.id) {
-        const { data: del } = await supabase
-          .from("deliveries")
-          .select("driver_id")
-          .eq("order_id", active.id)
-          .maybeSingle();
+        const [{ data: del }, { data: ordRow }] = await Promise.all([
+          supabase.from("deliveries").select("driver_id, delivery_address").eq("order_id", active.id).maybeSingle(),
+          supabase.from("orders").select("delivery_address, pharmacy_id").eq("id", active.id).maybeSingle(),
+        ]);
+        if (cancelled) return;
+        setMapDropoff((ordRow?.delivery_address as string) || (del?.delivery_address as string) || null);
+        if (ordRow?.pharmacy_id) {
+          const { data: pharm } = await supabase.from("profiles").select("address").eq("user_id", ordRow.pharmacy_id).maybeSingle();
+          if (!cancelled) setMapPickup((pharm?.address as string) || null);
+        }
         if (del?.driver_id) {
-          const { data: dp } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("user_id", del.driver_id)
-            .maybeSingle();
+          const { data: dp } = await supabase.from("profiles").select("full_name").eq("user_id", del.driver_id).maybeSingle();
           if (!cancelled) setDriverName(dp?.full_name ?? "");
         } else if (!cancelled) {
           setDriverName("");
         }
       } else if (!cancelled) {
-        setDriverName("");
+        setDriverName(""); setMapPickup(null); setMapDropoff(null);
       }
     }
     load();
@@ -203,17 +207,15 @@ function PatientDashboard() {
                 </div>
 
 
-                {/* Mini map + driver */}
-                <div className="rounded-2xl border border-border overflow-hidden bg-muted/30 relative">
-                  <div className="h-44 relative bg-[linear-gradient(135deg,oklch(0.95_0.03_165)_0%,oklch(0.92_0.05_185)_100%)] overflow-hidden">
-                    <svg viewBox="0 0 280 180" className="absolute inset-0 h-full w-full">
-                      <path d="M20 40 Q 80 60 100 90 T 180 130 L 240 150" stroke="oklch(0.6 0.15 155)" strokeWidth="3" fill="none" strokeDasharray="6 4" />
-                      <circle cx="20" cy="40" r="6" fill="oklch(0.6 0.15 155)" />
-                      <circle cx="240" cy="150" r="7" fill="oklch(0.55 0.15 240)" />
-                    </svg>
-                    <MapPin className="absolute top-7 left-3 h-5 w-5 text-healthcare-green" />
-                    <MapPin className="absolute bottom-5 right-3 h-5 w-5 text-primary" />
-                  </div>
+                {/* Real live map */}
+                <div className="rounded-2xl border border-border overflow-hidden bg-muted/30">
+                  <DeliveryMap
+                    orderId={activeOrderId}
+                    pickup={mapPickup}
+                    dropoff={mapDropoff}
+                    status={latestActive?.status}
+                    className="h-44 w-full"
+                  />
                   <div className="p-3 bg-card flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-healthcare-green/20 flex items-center justify-center text-sm font-bold text-healthcare-green">
                       {driverInitial}
