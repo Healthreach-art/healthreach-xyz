@@ -78,16 +78,20 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
   }
 
   async function addAddress() {
-    if (!userId || !newStreet.trim()) { toast.error("Enter a street address"); return; }
+    if (!userId || !newStreet.trim() || !newCoords) {
+      toast.error("Pick a real address from the suggestions or use current location");
+      return;
+    }
     setAdding(true);
     const isFirst = addresses.length === 0;
     const { data, error } = await supabase.from("user_addresses").insert({
-      user_id: userId, label: newLabel || "Other", street: newStreet.trim(), is_default: isFirst,
+      user_id: userId, label: newLabel || "Other", street: newStreet.trim(),
+      lat: newCoords.lat, lng: newCoords.lng, is_default: isFirst,
     }).select().single();
     setAdding(false);
     if (error) { toast.error(error.message); return; }
-    setNewStreet(""); setNewLabel("Home");
-    if (isFirst) await supabase.from("profiles").update({ address: data.street }).eq("user_id", userId);
+    setNewStreet(""); setNewLabel("Home"); setNewCoords(null);
+    if (isFirst) await supabase.from("profiles").update({ address: data.street, latitude: newCoords.lat, longitude: newCoords.lng }).eq("user_id", userId);
     await loadAddresses();
     toast.success("Address added");
   }
