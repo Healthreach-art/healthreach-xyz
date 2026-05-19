@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapPin, Plus, Star, Trash2, Home, Briefcase, Crosshair } from "lucide-react";
+import { AddressPicker } from "@/components/AddressPicker";
+import { MapPin, Plus, Star, Trash2, Home, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 
 interface Address {
