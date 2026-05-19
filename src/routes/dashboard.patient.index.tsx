@@ -119,8 +119,8 @@ function PatientDashboard() {
       const [{ count: rxCount }, { count: apptCount }] = await Promise.all([
         supabase.from("prescription_uploads").select("id", { count: "exact", head: true })
           .eq("patient_id", user.id).eq("status", "approved"),
-        supabase.from("appointments").select("id", { count: "exact", head: true })
-          .eq("patient_id", user.id).gte("starts_at", new Date().toISOString()),
+        supabase.from("pharmacy_appointments").select("id", { count: "exact", head: true })
+          .eq("patient_id", user.id).gte("scheduled_at", new Date().toISOString()),
       ]).catch(() => [{ count: 0 } as any, { count: 0 } as any]);
       if (cancelled) return;
       setActivePrescriptionsCount(rxCount ?? 0);
