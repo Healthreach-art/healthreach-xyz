@@ -5,10 +5,11 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
   ShoppingBag, Upload, Truck, ArrowRight, Bot,
-  CheckCircle2, Package, Bike, MapPin, Star, Siren, Pill,
+  Package, Bike, Star, Siren, Pill,
   CalendarCheck, FileText, MessageSquare, PhoneCall,
 } from "lucide-react";
 
