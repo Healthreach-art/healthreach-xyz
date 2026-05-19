@@ -705,6 +705,68 @@ function AdminDashboard() {
         </div>
       )}
 
+      {/* BROADCASTS */}
+      {activeTab === "broadcasts" && (
+        <div className="healthcare-card p-6 max-w-2xl">
+          <h2 className="text-lg font-semibold mb-1 flex items-center gap-2"><Megaphone className="h-5 w-5 text-primary" /> Broadcast notification</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Sends an in-app notification (and triggers any push/email channels users have enabled) to every account in the selected audience.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <Label>Audience</Label>
+              <div className="mt-2 grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {(["all","patient","pharmacy","driver","hospital"] as const).map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setBroadcastAudience(a)}
+                    className={`rounded-lg border px-3 py-2 text-sm capitalize transition-colors ${
+                      broadcastAudience === a ? "border-primary bg-primary/5 text-primary font-medium" : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    {a === "all" ? "Everyone" : `${a}s`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="bcast-title">Title</Label>
+              <Input id="bcast-title" value={broadcastTitle} onChange={(e) => setBroadcastTitle(e.target.value)} maxLength={120} placeholder="Scheduled maintenance tonight" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="bcast-body">Message</Label>
+              <Textarea id="bcast-body" value={broadcastBody} onChange={(e) => setBroadcastBody(e.target.value)} maxLength={1000} rows={4} placeholder="Type your announcement..." />
+              <p className="text-[11px] text-muted-foreground text-right">{broadcastBody.length}/1000</p>
+            </div>
+            <Button
+              disabled={broadcastSending || !broadcastTitle.trim() || !broadcastBody.trim()}
+              onClick={async () => {
+                setBroadcastSending(true);
+                try {
+                  const res = await broadcastFn({ data: {
+                    audience: broadcastAudience,
+                    title: broadcastTitle.trim(),
+                    body: broadcastBody.trim(),
+                  } });
+                  toast.success(`Sent to ${res.count} user${res.count === 1 ? "" : "s"}`);
+                  setBroadcastTitle("");
+                  setBroadcastBody("");
+                } catch (e: any) {
+                  toast.error(e?.message ?? "Broadcast failed");
+                } finally {
+                  setBroadcastSending(false);
+                }
+              }}
+            >
+              {broadcastSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Send broadcast
+            </Button>
+          </div>
+        </div>
+      )}
+
+
       {/* REPORTS */}
       {activeTab === "reports" && (
         <div className="grid gap-6 lg:grid-cols-2">
