@@ -3,9 +3,10 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw, Upload as UploadIcon, ShieldAlert, ShieldCheck, KeyRound } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { verifyPrescription } from "@/utils/ai.functions";
+import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw, Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PrescriptionStatusBadge, PrescriptionUploader, getPrescriptionFileUrl, FraudPanel, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { PrescriptionScanButton } from "@/components/PrescriptionScanButton";
 import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
@@ -36,8 +37,7 @@ function Page() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [pxUploads, setPxUploads] = useState<PrescriptionUpload[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pharmacies, setPharmacies] = useState<PharmacyOpt[]>([]);
-  const [pickedPharmacy, setPickedPharmacy] = useState<string>("");
+  const verifyRx = useServerFn(verifyPrescription);
 
   const reloadUploads = async () => {
     if (!user) return;
@@ -48,20 +48,12 @@ function Page() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data: rx }, { data: ups }, { data: phs }] = await Promise.all([
+      const [{ data: rx }, { data: ups }] = await Promise.all([
         supabase.from("prescriptions").select("id, medication_name, dosage, doctor_name, is_active, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }),
         supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("profiles").select("user_id, organization_name").not("organization_name", "is", null).neq("organization_name", "").order("organization_name"),
       ]);
       setPrescriptions((rx ?? []) as Prescription[]);
       setPxUploads((ups ?? []) as PrescriptionUpload[]);
-      // Filter to pharmacies via user_roles
-      const ids = (phs ?? []).map((p: any) => p.user_id);
-      if (ids.length) {
-        const { data: roles } = await supabase.from("user_roles").select("user_id").in("user_id", ids).eq("role", "pharmacy");
-        const pharmacyIds = new Set((roles ?? []).map((r: any) => r.user_id));
-        setPharmacies(((phs ?? []) as any[]).filter((p) => pharmacyIds.has(p.user_id)));
-      }
       setLoading(false);
     })();
   }, [user]);
@@ -73,11 +65,29 @@ function Page() {
     return { expiring, expired, refillable };
   }, [pxUploads]);
 
+  // Auto-run AI verification after a new upload so the patient sees a trust score immediately.
+  async function runAutoVerify(row: PrescriptionUpload) {
+    if (row.mime_type === "application/pdf") return;
+    try {
+      const fileUrl = await getPrescriptionFileUrl(row.file_path);
+      const r = await verifyRx({ data: { uploadId: row.id, fileUrl, mimeType: row.mime_type } });
+      if (!r.error) {
+        const lvl = r.risk_level;
+        const fn = lvl === "low" ? toast.success : lvl === "high" ? toast.error : toast.warning;
+        fn(`AI trust ${r.trust_score}/100 · ${lvl} risk`, { description: r.summary || `${r.medications.length} medication(s) detected.` });
+      }
+    } catch {
+      /* silent — user can re-run manually */
+    } finally {
+      reloadUploads();
+    }
+  }
+
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Prescriptions</h1>
-        <p className="text-sm text-muted-foreground">Validity, expiry alerts, and refill eligibility.</p>
+        <h1 className="text-2xl font-bold text-foreground">My Prescription Library</h1>
+        <p className="text-sm text-muted-foreground">Upload once — our AI verifies it and re-uses it at any pharmacy when you order.</p>
       </div>
 
       {(alerts.expiring.length > 0 || alerts.expired.length > 0) && (
@@ -105,30 +115,18 @@ function Page() {
 
       <div className="healthcare-card p-6">
         <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
-          <UploadIcon className="h-5 w-5 text-primary" /> Upload a prescription
+          <UploadIcon className="h-5 w-5 text-primary" /> Add to my library
         </h2>
-        <p className="text-xs text-muted-foreground mb-4">
-          Send a prescription to any pharmacy for review. Once approved it stays valid for 90 days and can be reused for refills at that pharmacy.
+        <p className="text-xs text-muted-foreground mb-4 flex items-start gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+          <span>
+            No need to choose a pharmacy. Upload your prescription and our AI captures the doctor details, medications, signature
+            and trust score. When you order Rx medicine the prescription is attached automatically.
+          </span>
         </p>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Send to pharmacy</label>
-            <Select value={pickedPharmacy} onValueChange={setPickedPharmacy}>
-              <SelectTrigger><SelectValue placeholder="Choose a pharmacy…" /></SelectTrigger>
-              <SelectContent>
-                {pharmacies.map((p) => (
-                  <SelectItem key={p.user_id} value={p.user_id}>{p.organization_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {pickedPharmacy ? (
-            <PrescriptionUploader pharmacyId={pickedPharmacy} onUploaded={() => { reloadUploads(); toast.success("Pharmacy will review shortly."); }} />
-          ) : (
-            <p className="text-xs text-muted-foreground italic">Pick a pharmacy to enable upload.</p>
-          )}
-        </div>
+        <PrescriptionUploader onUploaded={(row) => { reloadUploads(); runAutoVerify(row); }} />
       </div>
+
 
       <div className="healthcare-card p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
