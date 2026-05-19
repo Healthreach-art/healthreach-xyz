@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, Trash2, Upload, ShieldCheck, Bell, User as UserIcon, Plus, Check } from "lucide-react";
+import { AddressPicker } from "@/components/AddressPicker";
 
 interface Props { open: boolean; onClose: () => void; }
 
