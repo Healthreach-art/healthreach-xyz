@@ -34,7 +34,9 @@ export function PrescriptionPicker({
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [uploads, setUploads] = useState<PrescriptionUpload[]>([]);
-  const [mode, setMode] = useState<"list" | "upload">("list");
+  const [verification, setVerification] = useState<PatientVerification | null>(null);
+  const [mode, setMode] = useState<"list" | "upload" | "verify">("list");
+
 
   useEffect(() => {
     if (!user) return;
