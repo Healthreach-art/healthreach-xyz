@@ -8,9 +8,11 @@ import { verifyPrescription } from "@/utils/ai.functions";
 import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw, Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrescriptionStatusBadge, PrescriptionUploader, getPrescriptionFileUrl, FraudPanel, type PrescriptionUpload } from "@/components/PrescriptionVerification";
+import { PatientVerificationCard } from "@/components/PatientVerificationCard";
 import { PrescriptionScanButton } from "@/components/PrescriptionScanButton";
 import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/dashboard/patient/prescriptions")({
   head: () => ({ meta: [{ title: "Prescriptions — HEALTHREACH" }] }),
