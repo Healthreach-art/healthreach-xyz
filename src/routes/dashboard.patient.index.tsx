@@ -37,13 +37,6 @@ const ACTION_CARDS = [
   { title: "AI Medicine Assistant", icon: Bot, to: "/dashboard/patient/assistant", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
 ];
 
-const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; to: string }> = [
-  { key: "approved", label: "Order Placed", icon: CheckCircle2, to: "/dashboard/patient/orders" },
-  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, to: "/dashboard/patient/orders" },
-  { key: "collecting", label: "Driver Collecting", icon: Package, to: "/track" },
-  { key: "on_way", label: "On The Way", icon: Bike, to: "/track" },
-  { key: "delivered", label: "Delivered", icon: Truck, to: "/dashboard/patient/orders" },
-];
 
 function PatientDashboard() {
   const { user, profile } = useAuth();
