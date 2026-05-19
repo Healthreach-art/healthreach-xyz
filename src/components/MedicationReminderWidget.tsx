@@ -86,7 +86,10 @@ export function MedicationReminderWidget() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState<Reminder | null>(null);
+  const [snoozeMin, setSnoozeMin] = useState(10);
   const firedKeys = useRef<Set<string>>(new Set());
+  /** Map of key → snooze re-fire timeout id, so cancelling stops the next ring. */
+  const snoozeTimers = useRef<Map<string, number>>(new Map());
   const ringRef = useRef<{ stop: () => void } | null>(null);
   const [muted, setMuted] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -96,6 +99,42 @@ export function MedicationReminderWidget() {
   function stopRing() { ringRef.current?.stop(); ringRef.current = null; }
   function startRing() { stopRing(); ringRef.current = createRingtone(); }
 
+  function triggerReminder(r: Reminder) {
+    setPopup(r);
+    if (!muted) startRing();
+    toast(`Time for ${r.medication_name}`, {
+      description: r.dosage ? `Dose: ${r.dosage}` : "Tap to mark as taken.",
+      icon: <Pill className="h-4 w-4" />,
+    });
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      try { new Notification("Medication reminder", { body: `${r.medication_name}${r.dosage ? ` • ${r.dosage}` : ""}`, icon: "/favicon.ico" }); }
+      catch { /* ignore */ }
+    }
+  }
+
+  function snooze(r: Reminder, minutes: number) {
+    stopRing();
+    setPopup(null);
+    const ms = Math.max(1, minutes) * 60_000;
+    const key = `snz:${r.id}:${Date.now()}`;
+    const id = window.setTimeout(() => {
+      snoozeTimers.current.delete(key);
+      triggerReminder(r);
+    }, ms);
+    snoozeTimers.current.set(key, id);
+    toast.info(`Snoozed for ${minutes} min`, { description: r.medication_name });
+  }
+
+  function markTaken(r: Reminder) {
+    stopRing();
+    // Cancel any pending snoozes for this reminder so it doesn't ring again.
+    for (const [k, id] of snoozeTimers.current.entries()) {
+      if (k.startsWith(`snz:${r.id}:`)) { window.clearTimeout(id); snoozeTimers.current.delete(k); }
+    }
+    toast.success(`${r.medication_name} marked as taken`);
+    setPopup(null);
+  }
+
   useEffect(() => {
     if (!user?.id) return;
     let mounted = true;
@@ -103,8 +142,7 @@ export function MedicationReminderWidget() {
       const { data } = await supabase
         .from("medication_reminders")
         .select("id, medication_name, dosage, time_of_day, frequency, active")
-        .eq("user_id", user.id)
-        .eq("active", true)
+        .eq("user_id", user.id).eq("active", true)
         .order("time_of_day", { ascending: true });
       if (!mounted) return;
       if (data) setReminders(data as Reminder[]);
@@ -130,40 +168,34 @@ export function MedicationReminderWidget() {
         const key = `${r.id}:${todayKey}:${t.h}:${t.m}`;
         if (diff <= 0 && diff > -2 && !firedKeys.current.has(key)) {
           firedKeys.current.add(key);
-          setPopup(r);
-          if (!muted) startRing();
-          toast(`Time for ${r.medication_name}`, {
-            description: r.dosage ? `Dose: ${r.dosage}` : "Tap to mark as taken.",
-            icon: <Pill className="h-4 w-4" />,
-          });
-          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-            try {
-              new Notification("Medication reminder", {
-                body: `${r.medication_name}${r.dosage ? ` • ${r.dosage}` : ""}`,
-                icon: "/favicon.ico",
-              });
-            } catch { /* ignore */ }
-          }
+          triggerReminder(r);
         }
       }
     };
     tick();
     const id = window.setInterval(tick, 30_000);
     return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reminders, muted]);
+
+  useEffect(() => () => {
+    for (const id of snoozeTimers.current.values()) window.clearTimeout(id);
+    snoozeTimers.current.clear();
+    stopRing();
+  }, []);
 
   function toggleMute() {
     const next = !muted;
     setMuted(next);
     window.localStorage.setItem("hr_reminder_muted", next ? "1" : "0");
-    if (next) stopRing(); else { startRing(); window.setTimeout(stopRing, 1400); }
+    if (next) stopRing();
   }
 
   const upcoming = useMemo(() => {
     return reminders
-      .map(r => ({ r, t: parseTime(r.time_of_day) }))
+      .map((r) => ({ r, t: parseTime(r.time_of_day) }))
       .filter((x): x is { r: Reminder; t: { h: number; m: number } } => !!x.t)
-      .map(x => ({ ...x, mins: minutesUntil(x.t) }))
+      .map((x) => ({ ...x, mins: minutesUntil(x.t) }))
       .sort((a, b) => a.mins - b.mins)
       .slice(0, 3);
   }, [reminders]);
@@ -195,7 +227,7 @@ export function MedicationReminderWidget() {
         </div>
 
         <h3 className="text-lg font-bold text-foreground">Take Your Medicine</h3>
-        <p className="text-xs text-muted-foreground mb-4">We'll remind you with a chime when it's time.</p>
+        <p className="text-xs text-muted-foreground mb-4">Your phone will ring until you snooze or mark it taken.</p>
 
         {loading ? (
           <div className="space-y-2">
@@ -231,19 +263,35 @@ export function MedicationReminderWidget() {
         )}
       </div>
 
-      <Dialog open={!!popup} onOpenChange={(o) => { if (!o) { stopRing(); setPopup(null); } }}>
+      <Dialog open={!!popup} onOpenChange={(o) => { if (!o && popup) snooze(popup, snoozeMin); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Pill className="h-5 w-5 text-healthcare-green" /> Time to take your medicine
+              <Pill className="h-5 w-5 text-healthcare-green animate-pulse" /> Time to take your medicine
             </DialogTitle>
             <DialogDescription>
               {popup?.medication_name}{popup?.dosage ? ` — ${popup.dosage}` : ""}
             </DialogDescription>
           </DialogHeader>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span>Snooze for</span>
+            <select
+              value={snoozeMin}
+              onChange={(e) => setSnoozeMin(Number(e.target.value))}
+              className="h-7 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              {[5, 10, 15, 30, 45, 60].map((m) => (
+                <option key={m} value={m}>{m} min</option>
+              ))}
+            </select>
+            <span>then ring again.</span>
+          </div>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => { stopRing(); setPopup(null); }}>Snooze 10 min</Button>
-            <Button onClick={() => { stopRing(); toast.success("Marked as taken"); setPopup(null); }}>
+            <Button variant="outline" onClick={() => popup && snooze(popup, snoozeMin)}>
+              Snooze {snoozeMin}m
+            </Button>
+            <Button onClick={() => popup && markTaken(popup)}>
               <Check className="h-4 w-4 mr-1" /> Mark taken
             </Button>
           </DialogFooter>
@@ -252,3 +300,5 @@ export function MedicationReminderWidget() {
     </>
   );
 }
+
+

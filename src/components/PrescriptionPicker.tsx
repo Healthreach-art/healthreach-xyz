@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
-import { FileCheck2, Plus, Loader2, AlertCircle, ChevronLeft, ShieldCheck } from "lucide-react";
+import { PatientVerificationCard, fetchVerification, isVerificationComplete, type PatientVerification } from "@/components/PatientVerificationCard";
+import { FileCheck2, Plus, Loader2, AlertCircle, ChevronLeft, ShieldCheck, ShieldAlert } from "lucide-react";
+
 
 interface Props {
   /** Optional — pharmacy currently being ordered from. Used only to filter out
@@ -32,26 +34,29 @@ export function PrescriptionPicker({
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [uploads, setUploads] = useState<PrescriptionUpload[]>([]);
-  const [mode, setMode] = useState<"list" | "upload">("list");
+  const [verification, setVerification] = useState<PatientVerification | null>(null);
+  const [mode, setMode] = useState<"list" | "upload" | "verify">("list");
+
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("prescription_uploads")
-        .select("*")
-        .eq("patient_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(30);
+      const [{ data }, v] = await Promise.all([
+        supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(30),
+        fetchVerification(user.id),
+      ]);
       if (cancelled) return;
       setUploads((data ?? []) as PrescriptionUpload[]);
+      setVerification(v);
       setLoading(false);
-      if (!data || data.length === 0) setMode("upload");
+      if (!isVerificationComplete(v)) setMode("verify");
+      else if (!data || data.length === 0) setMode("upload");
     })();
     return () => { cancelled = true; };
   }, [user]);
+
 
   const now = Date.now();
   // Reusable = approved, not expired, repeats remaining, and not locked to another pharmacy.
@@ -63,7 +68,25 @@ export function PrescriptionPicker({
   });
   const others = uploads.filter((u) => !approved.includes(u));
 
+  if (mode === "verify" || !isVerificationComplete(verification)) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs">
+          <ShieldAlert className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <p>To order prescription medication you must first upload a clear photo of your <strong>ID</strong> and a <strong>selfie</strong>. Over-the-counter medication can still be ordered without this.</p>
+        </div>
+        <PatientVerificationCard
+          onChanged={(v) => {
+            setVerification(v);
+            if (isVerificationComplete(v)) setMode(uploads.length === 0 ? "upload" : "list");
+          }}
+        />
+      </div>
+    );
+  }
+
   if (mode === "upload") {
+
     return (
       <div className="space-y-3">
         {uploads.length > 0 && (
