@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
-import { FileCheck2, Plus, Loader2, AlertCircle, ChevronLeft, ShieldCheck } from "lucide-react";
+import { PatientVerificationCard, fetchVerification, isVerificationComplete, type PatientVerification } from "@/components/PatientVerificationCard";
+import { FileCheck2, Plus, Loader2, AlertCircle, ChevronLeft, ShieldCheck, ShieldAlert } from "lucide-react";
+
 
 interface Props {
   /** Optional — pharmacy currently being ordered from. Used only to filter out
