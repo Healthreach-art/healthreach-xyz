@@ -68,7 +68,25 @@ export function PrescriptionPicker({
   });
   const others = uploads.filter((u) => !approved.includes(u));
 
+  if (mode === "verify" || !isVerificationComplete(verification)) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs">
+          <ShieldAlert className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <p>To order prescription medication you must first upload a clear photo of your <strong>ID</strong> and a <strong>selfie</strong>. Over-the-counter medication can still be ordered without this.</p>
+        </div>
+        <PatientVerificationCard
+          onChanged={(v) => {
+            setVerification(v);
+            if (isVerificationComplete(v)) setMode(uploads.length === 0 ? "upload" : "list");
+          }}
+        />
+      </div>
+    );
+  }
+
   if (mode === "upload") {
+
     return (
       <div className="space-y-3">
         {uploads.length > 0 && (
