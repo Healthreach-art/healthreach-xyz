@@ -606,45 +606,63 @@ export type Database = {
       }
       orders: {
         Row: {
+          assignment_radius_km: number
           created_at: string
           delivery_address: string | null
           delivery_fee: number
+          delivery_lat: number | null
+          delivery_lng: number | null
           id: string
           medication_id: string | null
           medication_name: string
           notes: string | null
           patient_id: string
-          pharmacy_id: string
+          pharmacy_assigned_at: string | null
+          pharmacy_id: string | null
+          pickup_lat: number | null
+          pickup_lng: number | null
           quantity: number
           status: Database["public"]["Enums"]["order_status"]
           total_amount: number
           updated_at: string
         }
         Insert: {
+          assignment_radius_km?: number
           created_at?: string
           delivery_address?: string | null
           delivery_fee?: number
+          delivery_lat?: number | null
+          delivery_lng?: number | null
           id?: string
           medication_id?: string | null
           medication_name: string
           notes?: string | null
           patient_id: string
-          pharmacy_id: string
+          pharmacy_assigned_at?: string | null
+          pharmacy_id?: string | null
+          pickup_lat?: number | null
+          pickup_lng?: number | null
           quantity?: number
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
           updated_at?: string
         }
         Update: {
+          assignment_radius_km?: number
           created_at?: string
           delivery_address?: string | null
           delivery_fee?: number
+          delivery_lat?: number | null
+          delivery_lng?: number | null
           id?: string
           medication_id?: string | null
           medication_name?: string
           notes?: string | null
           patient_id?: string
-          pharmacy_id?: string
+          pharmacy_assigned_at?: string | null
+          pharmacy_id?: string | null
+          pickup_lat?: number | null
+          pickup_lng?: number | null
           quantity?: number
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
@@ -830,6 +848,53 @@ export type Database = {
           },
         ]
       }
+      pharmacy_offers: {
+        Row: {
+          created_at: string
+          distance_km: number
+          expires_at: string
+          id: string
+          order_id: string
+          patient_id: string
+          pharmacy_id: string
+          responded_at: string | null
+          status: string
+          tier_km: number
+        }
+        Insert: {
+          created_at?: string
+          distance_km: number
+          expires_at?: string
+          id?: string
+          order_id: string
+          patient_id: string
+          pharmacy_id: string
+          responded_at?: string | null
+          status?: string
+          tier_km: number
+        }
+        Update: {
+          created_at?: string
+          distance_km?: number
+          expires_at?: string
+          id?: string
+          order_id?: string
+          patient_id?: string
+          pharmacy_id?: string
+          responded_at?: string | null
+          status?: string
+          tier_km?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_offers_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prescription_audit_log: {
         Row: {
           action: string
@@ -980,8 +1045,11 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          latitude: number | null
+          longitude: number | null
           organization_name: string | null
           phone: string | null
+          service_radius_km: number
           updated_at: string
           user_id: string
         }
@@ -995,8 +1063,11 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           organization_name?: string | null
           phone?: string | null
+          service_radius_km?: number
           updated_at?: string
           user_id: string
         }
@@ -1010,8 +1081,11 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           organization_name?: string | null
           phone?: string | null
+          service_radius_km?: number
           updated_at?: string
           user_id?: string
         }
@@ -1183,6 +1257,7 @@ export type Database = {
       }
     }
     Functions: {
+      accept_pharmacy_offer: { Args: { _offer_id: string }; Returns: string }
       claim_prescription_for_pharmacy: {
         Args: { _pharmacy_id: string; _upload_id: string }
         Returns: undefined
@@ -1191,10 +1266,26 @@ export type Database = {
         Args: { _upload_id: string }
         Returns: string
       }
+      decline_pharmacy_offer: {
+        Args: { _offer_id: string }
+        Returns: undefined
+      }
       expire_stale_offers: { Args: never; Returns: undefined }
+      find_pharmacies_near: {
+        Args: { _lat: number; _lng: number; _max_km: number }
+        Returns: {
+          distance_km: number
+          organization_name: string
+          pharmacy_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      haversine_km: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
       }
       is_order_participant: {
         Args: { _order_id: string; _user_id: string }
