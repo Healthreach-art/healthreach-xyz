@@ -45,36 +45,103 @@ const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; time: string
 ];
 
 function PatientDashboard() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const firstName = profile?.full_name?.split(" ")[0] || "";
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
+  const [driverName, setDriverName] = useState<string>("");
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [activePrescriptionsCount, setActivePrescriptionsCount] = useState(0);
+  const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
 
   useEffect(() => {
-    (async () => {
+    if (!user?.id) return;
+    let cancelled = false;
+    async function load() {
       const { data } = await supabase
         .from("orders")
         .select("id, status, total_amount, created_at, pharmacy_id")
+        .eq("patient_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(5);
+      if (cancelled) return;
       const list = (data ?? []) as unknown as OrderRow[];
       setOrders(list);
+      const active = list.find((o) => !["delivered", "cancelled"].includes(o.status));
+      setActiveOrderId(active?.id ?? null);
+
       const ids = Array.from(new Set(list.map((o) => o.pharmacy_id))).filter(Boolean);
       if (ids.length) {
         const { data: profs } = await supabase
           .from("profiles")
           .select("user_id, organization_name, full_name")
           .in("user_id", ids);
+        if (cancelled) return;
         const map: Record<string, string> = {};
         (profs ?? []).forEach((p: any) => {
           map[p.user_id] = p.organization_name || p.full_name || "Pharmacy";
         });
         setPharmaciesById(map);
       }
-    })();
-  }, []);
 
-  const activeStepIdx = 3; // "On The Way"
+      // Driver name for active order
+      if (active?.id) {
+        const { data: del } = await supabase
+          .from("deliveries")
+          .select("driver_id")
+          .eq("order_id", active.id)
+          .maybeSingle();
+        if (del?.driver_id) {
+          const { data: dp } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("user_id", del.driver_id)
+            .maybeSingle();
+          if (!cancelled) setDriverName(dp?.full_name ?? "");
+        } else if (!cancelled) {
+          setDriverName("");
+        }
+      } else if (!cancelled) {
+        setDriverName("");
+      }
+    }
+    load();
+
+    // Realtime — orders + deliveries
+    const ch = supabase
+      .channel(`patient-dash-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, load)
+      .subscribe();
+
+    // Side stats
+    (async () => {
+      const [{ count: rxCount }, { count: apptCount }] = await Promise.all([
+        supabase.from("prescription_uploads").select("id", { count: "exact", head: true })
+          .eq("patient_id", user.id).eq("status", "approved"),
+        supabase.from("appointments").select("id", { count: "exact", head: true })
+          .eq("patient_id", user.id).gte("starts_at", new Date().toISOString()),
+      ]).catch(() => [{ count: 0 } as any, { count: 0 } as any]);
+      if (cancelled) return;
+      setActivePrescriptionsCount(rxCount ?? 0);
+      setUpcomingAppointmentsCount(apptCount ?? 0);
+    })();
+
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [user?.id]);
+
+  const driverInitial = (driverName || "?").charAt(0).toUpperCase();
+  const activeOrdersCount = orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length;
+
+  // Map latest active order status → tracker index
+  const STATUS_STEP: Record<string, number> = {
+    pending: 0, accepted: 1, preparing: 1, ready: 2, out_for_delivery: 3, delivered: 4,
+  };
+  const latestActive = orders.find((o) => !["delivered", "cancelled"].includes(o.status));
+  const latestDelivered = orders.find((o) => o.status === "delivered");
+  const activeStepIdx = latestActive
+    ? (STATUS_STEP[latestActive.status] ?? 0)
+    : latestDelivered ? 4 : -1;
 
   return (
     <div className="bg-background min-h-screen">
