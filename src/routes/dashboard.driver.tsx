@@ -684,38 +684,11 @@ function DriverDashboard() {
                   <DeliveryMap orderId={delivery.order_id} driverId={user?.id} pickup={delivery.pickup_address} dropoff={delivery.delivery_address} status={delivery.status} className="h-40 w-full rounded-lg overflow-hidden border border-border" />
                 </div>
 
-                {/* Stage Timeline */}
-                <div className="mt-4 flex items-center">
-                  {STAGE_ORDER.map((stage, idx) => {
-                    const reached = idx <= activeIndex;
-                    const isCurrent = idx === activeIndex;
-                    return (
-                      <div key={stage} className="flex-1 flex items-center last:flex-none">
-                        <button
-                          type="button"
-                          onClick={() => !isUpdating && stage !== delivery.status && setDeliveryStatus(delivery, stage)}
-                          disabled={isUpdating || stage === delivery.status}
-                          title={`Set ${stageLabel[stage]}`}
-                          className="flex flex-col items-center disabled:cursor-default group"
-                        >
-                          <div
-                            className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${
-                              reached ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-primary/20"
-                            } ${isCurrent ? "ring-2 ring-primary/40 ring-offset-1 ring-offset-card animate-pulse" : ""}`}
-                          >
-                            {reached ? "✓" : idx + 1}
-                          </div>
-                          <span className={`mt-1 text-[10px] text-center leading-tight ${reached ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                            {stageLabel[stage]}
-                          </span>
-                        </button>
-                        {idx < STAGE_ORDER.length - 1 && (
-                          <div className={`flex-1 h-0.5 mx-1 mb-4 transition-colors ${idx < activeIndex ? "bg-primary" : "bg-muted"}`} />
-                        )}
-                      </div>
-                    );
-                  })}
+                {/* Unified real-time timeline */}
+                <div className="mt-4">
+                  <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} compact />
                 </div>
+
 
                 <div className="flex items-center justify-between gap-2 mt-4 flex-wrap">
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
