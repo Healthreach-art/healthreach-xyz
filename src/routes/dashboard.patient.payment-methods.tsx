@@ -4,9 +4,9 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { SettingsDialog } from "@/components/SettingsDialog";
+import { AddCardDialog } from "@/components/AddCardDialog";
 import { TransactionHistory } from "@/components/TransactionHistory";
-import { Wallet, CreditCard, Plus, Star, Trash2, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Wallet, CreditCard, Plus, Star, Trash2, ArrowDownLeft, ArrowUpRight, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient/payment-methods")({
@@ -125,7 +125,7 @@ function Page() {
         <TransactionHistory role="patient" />
       </div>
 
-      <SettingsDialog open={open} onClose={() => setOpen(false)} />
+      <AddCardDialog open={open} onClose={() => setOpen(false)} onAdded={load} />
     </div>
   );
 }
