@@ -15,6 +15,8 @@ import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
 import { validateCartPrescriptions, consumePrescription, claimPrescriptionForPharmacy } from "@/lib/prescription.functions";
+import { placeOrderWithRouting } from "@/lib/dispatch.functions";
+import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
@@ -26,9 +28,8 @@ function CheckoutPage() {
   const { user } = useAuth();
   const { items, clear, setQty, remove } = useCart();
   const validateRx = useServerFn(validateCartPrescriptions);
-  const consumeRx = useServerFn(consumePrescription);
-  const claimRx = useServerFn(claimPrescriptionForPharmacy);
-  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const placeOrder = useServerFn(placeOrderWithRouting);
+  const [delivery, setDelivery] = useState<PickedAddress | null>(null);
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
@@ -39,13 +40,17 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("address").eq("user_id", user.id).maybeSingle()
-      .then(({ data }) => { if (data?.address) setDeliveryAddress(data.address); });
+    supabase.from("user_addresses").select("street, lat, lng, is_default").eq("user_id", user.id).order("is_default", { ascending: false }).limit(1)
+      .then(({ data }) => {
+        const a = data?.[0];
+        if (a?.lat && a?.lng) setDelivery({ address: a.street, lat: a.lat, lng: a.lng });
+      });
   }, [user]);
 
   const subtotal = items.reduce((s, i) => s + customerPrice(i.price) * i.qty, 0);
   const deliveryFee = customerDeliveryFee(BASE_DELIVERY_FEE);
   const total = subtotal + deliveryFee;
+
 
   const handlePay = async (e: FormEvent) => {
     e.preventDefault();
