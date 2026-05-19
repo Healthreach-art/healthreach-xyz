@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
+import { OrderTimeline } from "@/components/OrderTimeline";
 import { customerPrice } from "@/lib/pricing";
 import {
   ShoppingBag, Upload, Truck, ArrowRight, Bot,
