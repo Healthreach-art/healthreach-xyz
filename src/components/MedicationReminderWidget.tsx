@@ -231,7 +231,7 @@ export function MedicationReminderWidget() {
         )}
       </div>
 
-      <Dialog open={!!popup} onOpenChange={(o) => !o && setPopup(null)}>
+      <Dialog open={!!popup} onOpenChange={(o) => { if (!o) { stopRing(); setPopup(null); } }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -242,8 +242,8 @@ export function MedicationReminderWidget() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setPopup(null)}>Snooze 10 min</Button>
-            <Button onClick={() => { toast.success("Marked as taken"); setPopup(null); }}>
+            <Button variant="outline" onClick={() => { stopRing(); setPopup(null); }}>Snooze 10 min</Button>
+            <Button onClick={() => { stopRing(); toast.success("Marked as taken"); setPopup(null); }}>
               <Check className="h-4 w-4 mr-1" /> Mark taken
             </Button>
           </DialogFooter>
