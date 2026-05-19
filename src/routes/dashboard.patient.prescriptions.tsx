@@ -30,7 +30,8 @@ function validityOf(u: PrescriptionUpload): { state: "valid" | "expiring" | "exp
   return { state: "valid", days };
 }
 
-interface PharmacyOpt { user_id: string; organization_name: string | null; }
+
+
 
 function Page() {
   const { user } = useAuth();
