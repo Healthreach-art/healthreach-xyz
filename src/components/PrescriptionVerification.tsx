@@ -53,11 +53,15 @@ export function PrescriptionStatusBadge({ status }: { status: PrescriptionStatus
 }
 
 interface UploadProps {
-  pharmacyId: string;
+  /** Optional — when omitted the prescription is added to the patient's personal library
+   *  and gets attached to a pharmacy automatically when used at checkout. */
+  pharmacyId?: string | null;
   medicationId?: string | null;
   orderId?: string | null;
   onUploaded?: (row: PrescriptionUpload) => void;
 }
+
+
 
 /** Upload a prescription image/PDF into private bucket and create a verification row. */
 export function PrescriptionUploader({ pharmacyId, medicationId, orderId, onUploaded }: UploadProps) {
@@ -93,7 +97,7 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, onUplo
         .from("prescription_uploads")
         .insert({
           patient_id: user.id,
-          pharmacy_id: pharmacyId,
+          pharmacy_id: pharmacyId ?? null,
           medication_id: medicationId ?? null,
           order_id: orderId ?? null,
           file_path: path,
@@ -104,7 +108,7 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, onUplo
         .single();
       if (error) throw error;
       setProgress(100);
-      toast.success("Prescription uploaded — awaiting pharmacy review");
+      toast.success(pharmacyId ? "Prescription uploaded — awaiting pharmacy review" : "Prescription saved to your library — AI is verifying it now");
       URL.revokeObjectURL(pending.url);
       setPending(null);
       onUploaded?.(data as PrescriptionUpload);
