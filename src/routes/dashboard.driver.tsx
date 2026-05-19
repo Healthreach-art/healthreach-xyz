@@ -642,7 +642,6 @@ function DriverDashboard() {
 
           {liveDeliveries.map((delivery) => {
             const statusInfo = deliveryStatusLabels[delivery.status];
-            const activeIndex = STAGE_ORDER.indexOf(delivery.status);
             const isUpdating = updating === delivery.id;
             return (
               <div key={delivery.id} className="healthcare-card p-5 ring-1 ring-primary/20">
