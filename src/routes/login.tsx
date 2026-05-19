@@ -183,7 +183,13 @@ function LoginPage() {
           {isAdminMode ? (
             <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               <p className="font-medium text-foreground mb-1">Admin accounts</p>
-              <p className="text-[11px]">Use the credentials shared with you privately. Use “Forgot password?” to reset if needed.</p>
+              <p className="text-[11px]">Use the credentials shared with you privately. Use "Forgot password?" to reset if needed.</p>
+              <p className="mt-2 text-[11px]">
+                Need an admin account?{" "}
+                <Link to="/signup/admin" className="text-primary font-medium hover:underline">
+                  Create one with an invite code
+                </Link>
+              </p>
             </div>
           ) : null}
         </div>

@@ -13,11 +13,16 @@ import {
   Users, ShieldCheck, DollarSign, Activity, CheckCircle, XCircle,
   Building2, Truck, Pill, BarChart3, FileText, AlertTriangle, Settings,
   Loader2, Crown, ShieldOff, TrendingUp, MessageSquare, Star, RotateCcw,
-  PackageX, Stethoscope, ShoppingCart, CreditCard,
+  PackageX, Stethoscope, ShoppingCart, CreditCard, Megaphone, Eye, Send,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { broadcastNotification } from "@/lib/admin.functions";
+import { OrderChatDialog } from "@/components/OrderChatDialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import { RoleGuard } from "@/components/RoleGuard";
 
@@ -28,7 +33,7 @@ export const Route = createFileRoute("/dashboard/admin")({
 
 type TabId =
   | "overview" | "analytics" | "approvals" | "pharmacies" | "drivers"
-  | "orders" | "payments" | "refunds" | "prescriptions" | "complaints" | "users" | "reports";
+  | "orders" | "payments" | "refunds" | "prescriptions" | "complaints" | "users" | "broadcasts" | "reports";
 type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin";
 type ApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -148,6 +153,12 @@ function AdminDashboard() {
   const [refundConfirm, setRefundConfirm] = useState<PaymentRow | null>(null);
   const [complaintReply, setComplaintReply] = useState<ComplaintRow | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [chatOrderId, setChatOrderId] = useState<string | null>(null);
+  const [broadcastAudience, setBroadcastAudience] = useState<"all" | "patient" | "pharmacy" | "driver" | "hospital">("all");
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastBody, setBroadcastBody] = useState("");
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const broadcastFn = useServerFn(broadcastNotification);
 
   useEffect(() => {
     if (authLoading) return;
@@ -303,6 +314,7 @@ function AdminDashboard() {
     { id: "prescriptions", label: "Prescriptions", icon: Stethoscope },
     { id: "complaints", label: "Complaints", icon: MessageSquare, badge: complaints.filter((c) => c.status === "open").length },
     { id: "users", label: "Users", icon: Users },
+    { id: "broadcasts", label: "Broadcasts", icon: Megaphone },
     { id: "reports", label: "Reports", icon: FileText },
   ];
 
@@ -531,7 +543,7 @@ function AdminDashboard() {
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left text-muted-foreground">
                 <th className="pb-2">Order</th><th className="pb-2">Patient</th><th className="pb-2">Pharmacy</th>
-                <th className="pb-2">Medication</th><th className="pb-2">Total</th><th className="pb-2">Status</th><th className="pb-2">Date</th>
+                <th className="pb-2">Medication</th><th className="pb-2">Total</th><th className="pb-2">Status</th><th className="pb-2">Date</th><th className="pb-2"></th>
               </tr></thead>
               <tbody>
                 {orders.map((o) => (
@@ -543,6 +555,11 @@ function AdminDashboard() {
                     <td className="py-2 font-semibold">R {Number(o.total_amount).toFixed(2)}</td>
                     <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(o.status)}`}>{o.status.replace(/_/g, " ")}</span></td>
                     <td className="py-2 text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</td>
+                    <td className="py-2">
+                      <Button size="sm" variant="outline" className="h-7" onClick={() => setChatOrderId(o.id)}>
+                        <Eye className="h-3 w-3" /> Chat
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -688,6 +705,68 @@ function AdminDashboard() {
         </div>
       )}
 
+      {/* BROADCASTS */}
+      {activeTab === "broadcasts" && (
+        <div className="healthcare-card p-6 max-w-2xl">
+          <h2 className="text-lg font-semibold mb-1 flex items-center gap-2"><Megaphone className="h-5 w-5 text-primary" /> Broadcast notification</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Sends an in-app notification (and triggers any push/email channels users have enabled) to every account in the selected audience.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <Label>Audience</Label>
+              <div className="mt-2 grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {(["all","patient","pharmacy","driver","hospital"] as const).map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setBroadcastAudience(a)}
+                    className={`rounded-lg border px-3 py-2 text-sm capitalize transition-colors ${
+                      broadcastAudience === a ? "border-primary bg-primary/5 text-primary font-medium" : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    {a === "all" ? "Everyone" : `${a}s`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="bcast-title">Title</Label>
+              <Input id="bcast-title" value={broadcastTitle} onChange={(e) => setBroadcastTitle(e.target.value)} maxLength={120} placeholder="Scheduled maintenance tonight" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="bcast-body">Message</Label>
+              <Textarea id="bcast-body" value={broadcastBody} onChange={(e) => setBroadcastBody(e.target.value)} maxLength={1000} rows={4} placeholder="Type your announcement..." />
+              <p className="text-[11px] text-muted-foreground text-right">{broadcastBody.length}/1000</p>
+            </div>
+            <Button
+              disabled={broadcastSending || !broadcastTitle.trim() || !broadcastBody.trim()}
+              onClick={async () => {
+                setBroadcastSending(true);
+                try {
+                  const res = await broadcastFn({ data: {
+                    audience: broadcastAudience,
+                    title: broadcastTitle.trim(),
+                    body: broadcastBody.trim(),
+                  } });
+                  toast.success(`Sent to ${res.count} user${res.count === 1 ? "" : "s"}`);
+                  setBroadcastTitle("");
+                  setBroadcastBody("");
+                } catch (e: any) {
+                  toast.error(e?.message ?? "Broadcast failed");
+                } finally {
+                  setBroadcastSending(false);
+                }
+              }}
+            >
+              {broadcastSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Send broadcast
+            </Button>
+          </div>
+        </div>
+      )}
+
+
       {/* REPORTS */}
       {activeTab === "reports" && (
         <div className="grid gap-6 lg:grid-cols-2">
@@ -793,6 +872,13 @@ function AdminDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Read-only order chat (admin can monitor patient↔pharmacy↔driver conversation) */}
+      <OrderChatDialog
+        orderId={chatOrderId}
+        orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : undefined}
+        onClose={() => setChatOrderId(null)}
+      />
     </div>
   );
 }
