@@ -56,7 +56,7 @@ function CheckoutPage() {
     e.preventDefault();
     if (!user) { navigate({ to: "/login" }); return; }
     if (items.length === 0) { toast.error("Your cart is empty."); return; }
-    if (!deliveryAddress.trim()) { toast.error("Enter a delivery address."); return; }
+    if (!delivery || !delivery.lat || !delivery.lng) { toast.error("Pick a delivery address."); return; }
 
     setProcessing(true);
     setRxIssues([]);
@@ -85,89 +85,41 @@ function CheckoutPage() {
     }
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const digits = cardNumber.replace(/\D/g, "");
-      const forcedOutcome: "completed" | "failed" | undefined =
-        digits.startsWith("4242") ? "completed" :
-        digits.startsWith("4000") ? "failed" : undefined;
-
-      let firstOrderId: string | null = null;
-      let lastError: string | null = null;
-
-      for (const item of items) {
-        try {
-          const breakdown = paymentBreakdown(item.price, item.qty, BASE_DELIVERY_FEE);
-
-          const { data: order, error: orderErr } = await supabase.from("orders").insert({
-            patient_id: user.id, pharmacy_id: item.pharmacyId,
-            medication_id: item.medId, medication_name: item.name,
-            quantity: item.qty, delivery_fee: BASE_DELIVERY_FEE,
-            total_amount: breakdown.total_paid, status: "pending",
-            delivery_address: deliveryAddress, notes: "Paid via card",
-          }).select().single();
-          if (orderErr || !order) throw orderErr ?? new Error("Order creation failed");
-          if (!firstOrderId) firstOrderId = order.id;
-
-          const reference = `TXN-${Date.now().toString().slice(-8)}-${Math.random().toString(36).slice(2, 5)}`;
-
-          const { data: payment, error: payErr } = await supabase.from("payments").insert({
-            order_id: order.id, patient_id: user.id, pharmacy_id: item.pharmacyId,
-            amount: breakdown.total_paid, subtotal: breakdown.subtotal,
-            delivery_fee: breakdown.delivery_fee, platform_fee: breakdown.platform_fee,
-            total_paid: breakdown.total_paid, pharmacy_amount: breakdown.pharmacy_amount,
-            driver_amount: breakdown.driver_amount, payment_method: "card",
-            provider: "mock", status: "pending", transaction_ref: reference,
-          }).select().single();
-          if (payErr || !payment) throw payErr ?? new Error("Payment row failed");
-
-          const payRes = await fetch("/api/mock-pay", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token ?? ""}` },
-            body: JSON.stringify({ payment_id: payment.id, outcome: forcedOutcome }),
-          });
-          const payJson = await payRes.json().catch(() => ({} as { status?: string }));
-          if (!payRes.ok || payJson.status !== "completed") {
-            lastError = "Payment declined by gateway";
-            continue;
-          }
-
-          // Dispense lock — claim library prescription for this pharmacy, consume one repeat + issue token for Rx items
-          if (item.requiresPrescription && item.prescriptionUploadId) {
-            try { await claimRx({ data: { uploadId: item.prescriptionUploadId, pharmacyId: item.pharmacyId } }); }
-            catch (e: any) { console.warn("claim prescription failed", e?.message); }
-            try { await consumeRx({ data: { uploadId: item.prescriptionUploadId } }); }
-            catch (e: any) { console.warn("consume repeat failed", e?.message); }
-          }
-
-          // NOTE: do NOT create a deliveries row here. The pharmacy creates it
-          // when they "Mark Ready & Broadcast" (the create_delivery_on_ready
-          // DB trigger handles it server-side). Creating it now would show a
-          // phantom "Driver Assigned" state to the patient and a no-driver
-          // active delivery to the pharmacy.
-
-          // Decrement stock
-          const { data: med } = await supabase.from("medications").select("stock_quantity").eq("id", item.medId).maybeSingle();
-          if (med && typeof med.stock_quantity === "number") {
-            await supabase.from("medications").update({
-              stock_quantity: Math.max(0, med.stock_quantity - item.qty)
-            }).eq("id", item.medId);
-          }
-        } catch (err: any) {
-          lastError = err?.message || "Unknown error";
-        }
+      if (!digits.startsWith("4242")) {
+        toast.error("Test mode: card declined. Use 4242…");
+        setProcessing(false);
+        return;
       }
 
-      if (firstOrderId) {
-        clear();
-        setSuccess(true);
-        toast.success("Order placed! Redirecting to live tracking…");
-        setTimeout(() => navigate({ to: "/track" }), 1200);
-      } else {
-        toast.error(lastError || "Checkout failed.");
+      // Auto-route order to nearest pharmacy (10→20→30→45→60km tiers)
+      const res = await placeOrder({
+        data: {
+          items: items.map((i) => ({
+            medicationId: i.medId,
+            medicationName: i.name,
+            quantity: i.qty,
+            pharmacyIdHint: i.pharmacyId,
+          })),
+          delivery: { address: delivery.address, lat: delivery.lat, lng: delivery.lng },
+          notes: "Paid via card",
+        },
+      });
+
+      const matched = res.orders.filter((o) => o.matched).length;
+      if (matched === 0) {
+        toast.error("No pharmacies available within 60 km. Please try again later.");
+        setProcessing(false);
+        return;
       }
+      clear();
+      setSuccess(true);
+      toast.success(`${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`);
+      setTimeout(() => navigate({ to: "/track" }), 1500);
     } finally {
       setProcessing(false);
     }
+
   };
 
   if (items.length === 0 && !success) {
