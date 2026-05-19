@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { BellRing, Pill, Clock, Check, ArrowRight } from "lucide-react";
+import { BellRing, Pill, Clock, Check, ArrowRight, Volume2, VolumeX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -13,7 +13,7 @@ interface Reminder {
   id: string;
   medication_name: string;
   dosage: string | null;
-  time_of_day: string | null; // "HH:MM:SS"
+  time_of_day: string | null;
   frequency: string;
   active: boolean;
 }
@@ -24,20 +24,42 @@ function parseTime(t: string | null): { h: number; m: number } | null {
   if (Number.isNaN(h) || Number.isNaN(m)) return null;
   return { h, m };
 }
-
 function minutesUntil(t: { h: number; m: number }) {
   const now = new Date();
   const target = new Date();
   target.setHours(t.h, t.m, 0, 0);
   let diff = (target.getTime() - now.getTime()) / 60000;
-  if (diff < -1) diff += 24 * 60; // next day
+  if (diff < -1) diff += 24 * 60;
   return diff;
 }
-
 function fmtTime(t: { h: number; m: number }) {
   const d = new Date();
   d.setHours(t.h, t.m, 0, 0);
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+/** Generate a soft 3-note chime via WebAudio — no asset needed. */
+function playChime() {
+  try {
+    const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const notes = [880, 1108.73, 1318.51]; // A5, C#6, E6
+    const now = ctx.currentTime;
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * 0.18);
+      gain.gain.linearRampToValueAtTime(0.18, now + i * 0.18 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.18 + 0.45);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + i * 0.18);
+      osc.stop(now + i * 0.18 + 0.5);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 1200);
+  } catch { /* ignore */ }
 }
 
 export function MedicationReminderWidget() {
@@ -45,32 +67,34 @@ export function MedicationReminderWidget() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState<Reminder | null>(null);
-  const [firedKeys, setFiredKeys] = useState<Set<string>>(new Set());
+  const firedKeys = useRef<Set<string>>(new Set());
+  const [muted, setMuted] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("hr_reminder_muted") === "1";
+  });
 
   useEffect(() => {
     if (!user?.id) return;
     let mounted = true;
     (async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("medication_reminders")
         .select("id, medication_name, dosage, time_of_day, frequency, active")
         .eq("user_id", user.id)
         .eq("active", true)
         .order("time_of_day", { ascending: true });
       if (!mounted) return;
-      if (!error && data) setReminders(data as Reminder[]);
+      if (data) setReminders(data as Reminder[]);
       setLoading(false);
     })();
     return () => { mounted = false; };
   }, [user?.id]);
 
-  // Ask for browser notification permission once
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     if (Notification.permission === "default") Notification.requestPermission().catch(() => {});
   }, []);
 
-  // Poll every 30s and fire popup/toast when a dose is due
   useEffect(() => {
     if (reminders.length === 0) return;
     const tick = () => {
@@ -81,9 +105,10 @@ export function MedicationReminderWidget() {
         if (!t) continue;
         const diff = minutesUntil(t);
         const key = `${r.id}:${todayKey}:${t.h}:${t.m}`;
-        if (diff <= 0 && diff > -2 && !firedKeys.has(key)) {
-          setFiredKeys(prev => new Set(prev).add(key));
+        if (diff <= 0 && diff > -2 && !firedKeys.current.has(key)) {
+          firedKeys.current.add(key);
           setPopup(r);
+          if (!muted) playChime();
           toast(`Time for ${r.medication_name}`, {
             description: r.dosage ? `Dose: ${r.dosage}` : "Tap to mark as taken.",
             icon: <Pill className="h-4 w-4" />,
@@ -102,7 +127,14 @@ export function MedicationReminderWidget() {
     tick();
     const id = window.setInterval(tick, 30_000);
     return () => window.clearInterval(id);
-  }, [reminders, firedKeys]);
+  }, [reminders, muted]);
+
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    window.localStorage.setItem("hr_reminder_muted", next ? "1" : "0");
+    if (!next) playChime(); // preview when enabling
+  }
 
   const upcoming = useMemo(() => {
     return reminders
@@ -123,13 +155,24 @@ export function MedicationReminderWidget() {
             </div>
             <span className="text-xs font-extrabold tracking-widest text-healthcare-teal">REMINDERS</span>
           </div>
-          <Link to="/dashboard/patient/reminders" className="text-[11px] text-healthcare-teal hover:underline inline-flex items-center gap-1">
-            Manage <ArrowRight className="h-3 w-3" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleMute}
+              aria-label={muted ? "Unmute reminder sound" : "Mute reminder sound"}
+              title={muted ? "Sound off" : "Sound on"}
+              className="h-7 w-7 rounded-md hover:bg-muted flex items-center justify-center"
+            >
+              {muted ? <VolumeX className="h-3.5 w-3.5 text-muted-foreground" /> : <Volume2 className="h-3.5 w-3.5 text-healthcare-teal" />}
+            </button>
+            <Link to="/dashboard/patient/reminders" className="text-[11px] text-healthcare-teal hover:underline inline-flex items-center gap-1">
+              Manage <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
 
         <h3 className="text-lg font-bold text-foreground">Take Your Medicine</h3>
-        <p className="text-xs text-muted-foreground mb-4">We'll remind you when it's time.</p>
+        <p className="text-xs text-muted-foreground mb-4">We'll remind you with a chime when it's time.</p>
 
         {loading ? (
           <div className="space-y-2">

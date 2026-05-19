@@ -6,9 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
 import { customerPrice } from "@/lib/pricing";
 import {
-  ShoppingBag, Upload, Truck, MessageCircle, BellRing, ArrowRight, Bot,
-  CheckCircle2, Package, Bike, MapPin, Phone, Star, Siren, Pill,
-  CalendarCheck, Wallet, FileText, MessageSquare, PhoneCall,
+  ShoppingBag, Upload, Truck, ArrowRight, Bot,
+  CheckCircle2, Package, Bike, MapPin, Star, Siren, Pill,
+  CalendarCheck, FileText, MessageSquare, PhoneCall,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/")({
@@ -36,48 +36,115 @@ const ACTION_CARDS = [
   { title: "AI Medicine Assistant", icon: Bot, to: "/dashboard/patient/assistant", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
 ];
 
-const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; time: string; to: string }> = [
-  { key: "approved", label: "Prescription Approved", icon: CheckCircle2, time: "10:30 AM", to: "/dashboard/patient/prescriptions" },
-  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, time: "11:00 AM", to: "/dashboard/patient/orders" },
-  { key: "collecting", label: "Driver Collecting", icon: Package, time: "11:25 AM", to: "/track" },
-  { key: "on_way", label: "On The Way", icon: Bike, time: "11:45 AM", to: "/track" },
-  { key: "delivered", label: "Delivered", icon: Truck, time: "Pending", to: "/dashboard/patient/orders" },
+const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; to: string }> = [
+  { key: "approved", label: "Order Placed", icon: CheckCircle2, to: "/dashboard/patient/orders" },
+  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, to: "/dashboard/patient/orders" },
+  { key: "collecting", label: "Driver Collecting", icon: Package, to: "/track" },
+  { key: "on_way", label: "On The Way", icon: Bike, to: "/track" },
+  { key: "delivered", label: "Delivered", icon: Truck, to: "/dashboard/patient/orders" },
 ];
 
 function PatientDashboard() {
-  const { profile } = useAuth();
-  const firstName = profile?.full_name?.split(" ")[0] || "John";
+  const { user, profile } = useAuth();
+  const firstName = profile?.full_name?.split(" ")[0] || "";
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
+  const [driverName, setDriverName] = useState<string>("");
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [activePrescriptionsCount, setActivePrescriptionsCount] = useState(0);
+  const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
 
   useEffect(() => {
-    (async () => {
+    if (!user?.id) return;
+    let cancelled = false;
+    async function load() {
       const { data } = await supabase
         .from("orders")
         .select("id, status, total_amount, created_at, pharmacy_id")
+        .eq("patient_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(5);
+      if (cancelled) return;
       const list = (data ?? []) as unknown as OrderRow[];
       setOrders(list);
+      const active = list.find((o) => !["delivered", "cancelled"].includes(o.status));
+      setActiveOrderId(active?.id ?? null);
+
       const ids = Array.from(new Set(list.map((o) => o.pharmacy_id))).filter(Boolean);
       if (ids.length) {
         const { data: profs } = await supabase
           .from("profiles")
           .select("user_id, organization_name, full_name")
           .in("user_id", ids);
+        if (cancelled) return;
         const map: Record<string, string> = {};
         (profs ?? []).forEach((p: any) => {
           map[p.user_id] = p.organization_name || p.full_name || "Pharmacy";
         });
         setPharmaciesById(map);
       }
-    })();
-  }, []);
 
-  const activeStepIdx = 3; // "On The Way"
+      // Driver name for active order
+      if (active?.id) {
+        const { data: del } = await supabase
+          .from("deliveries")
+          .select("driver_id")
+          .eq("order_id", active.id)
+          .maybeSingle();
+        if (del?.driver_id) {
+          const { data: dp } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("user_id", del.driver_id)
+            .maybeSingle();
+          if (!cancelled) setDriverName(dp?.full_name ?? "");
+        } else if (!cancelled) {
+          setDriverName("");
+        }
+      } else if (!cancelled) {
+        setDriverName("");
+      }
+    }
+    load();
+
+    // Realtime — orders + deliveries
+    const ch = supabase
+      .channel(`patient-dash-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, load)
+      .subscribe();
+
+    // Side stats
+    (async () => {
+      const [{ count: rxCount }, { count: apptCount }] = await Promise.all([
+        supabase.from("prescription_uploads").select("id", { count: "exact", head: true })
+          .eq("patient_id", user.id).eq("status", "approved"),
+        supabase.from("pharmacy_appointments").select("id", { count: "exact", head: true })
+          .eq("patient_id", user.id).gte("preferred_at", new Date().toISOString()),
+      ]).catch(() => [{ count: 0 } as any, { count: 0 } as any]);
+      if (cancelled) return;
+      setActivePrescriptionsCount(rxCount ?? 0);
+      setUpcomingAppointmentsCount(apptCount ?? 0);
+    })();
+
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [user?.id]);
+
+  const driverInitial = (driverName || "?").charAt(0).toUpperCase();
+  const activeOrdersCount = orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length;
+
+  // Map latest active order status → tracker index
+  const STATUS_STEP: Record<string, number> = {
+    pending: 0, accepted: 1, preparing: 1, ready: 2, out_for_delivery: 3, delivered: 4,
+  };
+  const latestActive = orders.find((o) => !["delivered", "cancelled"].includes(o.status));
+  const latestDelivered = orders.find((o) => o.status === "delivered");
+  const activeStepIdx = latestActive
+    ? (STATUS_STEP[latestActive.status] ?? 0)
+    : latestDelivered ? 4 : -1;
 
   return (
-    <div className="bg-[oklch(0.985_0.003_240)] min-h-screen">
+    <div className="bg-background min-h-screen">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
           {/* MAIN COLUMN */}
@@ -85,7 +152,7 @@ function PatientDashboard() {
             {/* Greeting */}
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Good Morning, {firstName} <span className="inline-block">👋</span>
+                Welcome{firstName ? `, ${firstName}` : ""} <span className="inline-block">👋</span>
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Your health is our priority. Let's take care of it today.
@@ -114,8 +181,12 @@ function PatientDashboard() {
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-bold text-foreground">Delivery Tracker</h2>
-                  <span className="px-2.5 py-1 rounded-full bg-healthcare-green/15 text-healthcare-green text-[11px] font-semibold">
-                    In Progress
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                    activeStepIdx < 0 ? "bg-muted text-muted-foreground" :
+                    activeStepIdx === 4 ? "bg-healthcare-green/15 text-healthcare-green" :
+                    "bg-healthcare-sky/20 text-healthcare-sky"
+                  }`}>
+                    {activeStepIdx < 0 ? "No active order" : activeStepIdx === 4 ? "Delivered" : "In Progress"}
                   </span>
                 </div>
                 <Link to="/track" className="text-xs text-healthcare-green font-semibold hover:underline">
@@ -157,24 +228,25 @@ function PatientDashboard() {
                           <p className={`mt-2 text-[11px] font-semibold leading-tight px-1 group-hover/step:underline ${active ? "text-foreground" : done ? "text-foreground" : "text-muted-foreground"}`}>
                             {step.label}
                           </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{step.time}</p>
                         </Link>
                       );
                     })}
                   </div>
 
-                  {/* Arriving banner */}
-                  <div className="mt-6 rounded-2xl bg-healthcare-green/10 border border-healthcare-green/20 p-4 flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-healthcare-green/20 flex items-center justify-center shrink-0">
-                      <Bike className="h-6 w-6 text-healthcare-green" />
+                  {/* Status banner */}
+                  {activeStepIdx >= 0 && (
+                    <div className="mt-6 rounded-2xl bg-healthcare-green/10 border border-healthcare-green/20 p-4 flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-healthcare-green/20 flex items-center justify-center shrink-0">
+                        <Bike className="h-6 w-6 text-healthcare-green" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-healthcare-green">{TRACKER_STEPS[activeStepIdx]?.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {activeStepIdx === 4 ? "Your delivery is complete." : "Live updates appear here as your order progresses."}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-healthcare-green">Arriving in 20–25 mins</p>
-                      <p className="text-xs text-muted-foreground">
-                        Your medications are on the way. Thank you for choosing Healthreach!
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Mini map + driver */}
@@ -190,18 +262,26 @@ function PatientDashboard() {
                   </div>
                   <div className="p-3 bg-card flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-healthcare-green/20 flex items-center justify-center text-sm font-bold text-healthcare-green">
-                      M
+                      {driverInitial}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] text-muted-foreground">Your Driver</p>
-                      <p className="text-sm font-bold text-foreground leading-tight">Michael</p>
-                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" /> 4.8
-                      </p>
+                      <p className="text-sm font-bold text-foreground leading-tight truncate">{driverName || "Awaiting assignment"}</p>
+                      {driverName && (
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" /> 5.0
+                        </p>
+                      )}
                     </div>
-                    <button aria-label="Call your driver" className="h-9 w-9 rounded-full bg-healthcare-green/15 hover:bg-healthcare-green/25 flex items-center justify-center transition">
-                      <Phone className="h-4 w-4 text-healthcare-green" />
-                    </button>
+                    {activeOrderId && (
+                      <Link
+                        to="/dashboard/patient/orders"
+                        aria-label="Open order chat"
+                        className="h-9 w-9 rounded-full bg-healthcare-green/15 hover:bg-healthcare-green/25 flex items-center justify-center transition"
+                      >
+                        <MessageSquare className="h-4 w-4 text-healthcare-green" />
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
@@ -320,10 +400,9 @@ function PatientDashboard() {
               </div>
               <div className="space-y-3">
                 {[
-                  { icon: Pill, color: "text-healthcare-green", bg: "bg-healthcare-green/10", label: "Active Prescriptions", value: "3" },
-                  { icon: CalendarCheck, color: "text-healthcare-sky", bg: "bg-healthcare-sky/15", label: "Upcoming Appointments", value: "1" },
-                  { icon: Wallet, color: "text-purple-600", bg: "bg-purple-100", label: "Monthly Spending", value: "R58.50" },
-                  { icon: FileText, color: "text-orange-600", bg: "bg-orange-100", label: "Health Notes", value: "2" },
+                  { icon: Pill, color: "text-healthcare-green", bg: "bg-healthcare-green/10", label: "Active Prescriptions", value: String(activePrescriptionsCount) },
+                  { icon: CalendarCheck, color: "text-healthcare-sky", bg: "bg-healthcare-sky/15", label: "Upcoming Appointments", value: String(upcomingAppointmentsCount) },
+                  { icon: FileText, color: "text-orange-600", bg: "bg-orange-100", label: "Active Orders", value: String(activeOrdersCount) },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center gap-3">
                     <div className={`h-9 w-9 rounded-xl ${row.bg} flex items-center justify-center`}>
@@ -339,21 +418,20 @@ function PatientDashboard() {
             {/* Need help */}
             <div className="rounded-3xl bg-card border border-border p-5 shadow-sm">
               <h3 className="font-bold text-foreground">Need Help?</h3>
-              <p className="text-xs text-muted-foreground mb-4">We are here for you</p>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { icon: MessageSquare, label: "Live Chat", color: "text-healthcare-green", bg: "bg-healthcare-green/10", href: "/dashboard/patient/support" },
-                  { icon: MessageCircle, label: "WhatsApp", color: "text-green-600", bg: "bg-green-100", href: "https://wa.me/27000000000" },
-                  { icon: Phone, label: "Call Us", color: "text-healthcare-sky", bg: "bg-healthcare-sky/15", href: "tel:+27000000000" },
-                ].map((opt) => (
-                  <a key={opt.label} href={opt.href} className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-muted/50 transition">
-                    <div className={`h-12 w-12 rounded-full ${opt.bg} flex items-center justify-center`}>
-                      <opt.icon className={`h-5 w-5 ${opt.color}`} />
-                    </div>
-                    <span className="text-[11px] font-medium text-foreground">{opt.label}</span>
-                  </a>
-                ))}
-              </div>
+              <p className="text-xs text-muted-foreground mb-4">Chat with our team in real time.</p>
+              <Link
+                to="/dashboard/patient/support"
+                className="flex items-center gap-3 p-3 rounded-2xl bg-healthcare-green/10 hover:bg-healthcare-green/15 transition"
+              >
+                <div className="h-12 w-12 rounded-full bg-healthcare-green/20 flex items-center justify-center">
+                  <MessageSquare className="h-5 w-5 text-healthcare-green" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-foreground">Live Chat Support</p>
+                  <p className="text-[11px] text-muted-foreground">Typically replies in minutes</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-healthcare-green" />
+              </Link>
             </div>
           </aside>
         </div>

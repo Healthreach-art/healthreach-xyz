@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
-  Phone, Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
+  Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
   Coffee, AlertTriangle, TrendingUp, WifiOff,
 } from "lucide-react";
 import { PickupCodeDialog } from "@/components/PickupCodeDialog";
@@ -661,11 +661,6 @@ function DriverDashboard() {
                       <span className="text-muted-foreground">Pickup — {delivery.pharmacy_name || "Pharmacy"}:</span>
                       <p className="text-foreground">{delivery.pickup_address || "—"}</p>
                     </div>
-                    {delivery.pharmacy_phone && (
-                      <a href={`tel:${delivery.pharmacy_phone}`} className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary/10 text-primary hover:bg-primary/20" title={`Call ${delivery.pharmacy_name}`}>
-                        <Phone className="h-3.5 w-3.5" />
-                      </a>
-                    )}
                   </div>
                   <div className="flex items-start gap-2">
                     <MapPin className="h-3.5 w-3.5 text-healthcare-green mt-0.5 shrink-0" />
@@ -673,11 +668,6 @@ function DriverDashboard() {
                       <span className="text-muted-foreground">Dropoff — {delivery.patient_name || "Customer"}:</span>
                       <p className="text-foreground">{delivery.delivery_address || "—"}</p>
                     </div>
-                    {delivery.patient_phone && (
-                      <a href={`tel:${delivery.patient_phone}`} className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-healthcare-green/15 text-healthcare-green hover:bg-healthcare-green/25" title={`Call ${delivery.patient_name}`}>
-                        <Phone className="h-3.5 w-3.5" />
-                      </a>
-                    )}
                   </div>
                   {delivery.earnings != null && (
                     <div className="flex items-center gap-2 pt-1">
