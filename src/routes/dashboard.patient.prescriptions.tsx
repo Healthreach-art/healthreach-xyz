@@ -92,6 +92,8 @@ function Page() {
         <h1 className="text-2xl font-bold text-foreground">My Prescription Library</h1>
         <p className="text-sm text-muted-foreground">Upload once — our AI verifies it and re-uses it at any pharmacy when you order.</p>
       </div>
+      <PatientVerificationCard />
+
 
       {(alerts.expiring.length > 0 || alerts.expired.length > 0) && (
         <div className="space-y-2">
