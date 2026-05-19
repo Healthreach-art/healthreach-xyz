@@ -872,6 +872,13 @@ function AdminDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Read-only order chat (admin can monitor patient↔pharmacy↔driver conversation) */}
+      <OrderChatDialog
+        orderId={chatOrderId}
+        orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : undefined}
+        onClose={() => setChatOrderId(null)}
+      />
     </div>
   );
 }
