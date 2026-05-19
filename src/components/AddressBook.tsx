@@ -128,14 +128,12 @@ export function AddressBook() {
               </button>
             ))}
           </div>
-          <Input placeholder="Street, suburb, city, postcode" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} />
+          <AddressPicker
+            value={form.lat && form.lng ? { address: form.street, lat: form.lat, lng: form.lng } : null}
+            onChange={(a) => setForm({ ...form, street: a.address, lat: a.lat, lng: a.lng })}
+            placeholder="Start typing your address…"
+          />
           <Input placeholder="Delivery notes (gate code, building...)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={detect} className="flex-1">
-              <Crosshair className="h-3.5 w-3.5" /> Use current location
-            </Button>
-            {form.lat && <span className="text-[10px] text-healthcare-green">📍 pinned</span>}
-          </div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setAdding(false)} className="flex-1">Cancel</Button>
             <Button size="sm" onClick={add} disabled={busy} className="flex-1">{busy ? "Saving..." : "Save address"}</Button>
