@@ -21,6 +21,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SignupAdminRouteImport } from './routes/signup.admin'
 import { Route as PharmacyIdRouteImport } from './routes/pharmacy.$id'
 import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
 import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding'
@@ -106,6 +107,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SignupAdminRoute = SignupAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => SignupRoute,
 } as any)
 const PharmacyIdRoute = PharmacyIdRouteImport.update({
   id: '/pharmacy/$id',
@@ -252,7 +258,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/signup': typeof SignupRoute
+  '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/track': typeof TrackRoute
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
+  '/signup/admin': typeof SignupAdminRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
@@ -291,7 +298,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/signup': typeof SignupRoute
+  '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/track': typeof TrackRoute
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
@@ -304,6 +311,7 @@ export interface FileRoutesByTo {
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
+  '/signup/admin': typeof SignupAdminRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
@@ -331,7 +339,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/signup': typeof SignupRoute
+  '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/track': typeof TrackRoute
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
@@ -344,6 +352,7 @@ export interface FileRoutesById {
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
+  '/signup/admin': typeof SignupAdminRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
@@ -385,6 +394,7 @@ export interface FileRouteTypes {
     | '/driver/onboarding'
     | '/driver/wallet'
     | '/pharmacy/$id'
+    | '/signup/admin'
     | '/api/public/payment-webhook'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
@@ -424,6 +434,7 @@ export interface FileRouteTypes {
     | '/driver/onboarding'
     | '/driver/wallet'
     | '/pharmacy/$id'
+    | '/signup/admin'
     | '/api/public/payment-webhook'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
@@ -463,6 +474,7 @@ export interface FileRouteTypes {
     | '/driver/onboarding'
     | '/driver/wallet'
     | '/pharmacy/$id'
+    | '/signup/admin'
     | '/api/public/payment-webhook'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
@@ -490,7 +502,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PaymentRoute: typeof PaymentRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  SignupRoute: typeof SignupRoute
+  SignupRoute: typeof SignupRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TrackRoute: typeof TrackRoute
   ApiDemoAdvanceRoute: typeof ApiDemoAdvanceRoute
@@ -605,6 +617,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/signup/admin': {
+      id: '/signup/admin'
+      path: '/admin'
+      fullPath: '/signup/admin'
+      preLoaderRoute: typeof SignupAdminRouteImport
+      parentRoute: typeof SignupRoute
     }
     '/pharmacy/$id': {
       id: '/pharmacy/$id'
@@ -784,6 +803,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface SignupRouteChildren {
+  SignupAdminRoute: typeof SignupAdminRoute
+}
+
+const SignupRouteChildren: SignupRouteChildren = {
+  SignupAdminRoute: SignupAdminRoute,
+}
+
+const SignupRouteWithChildren =
+  SignupRoute._addFileChildren(SignupRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -794,7 +824,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PaymentRoute: PaymentRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  SignupRoute: SignupRoute,
+  SignupRoute: SignupRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TrackRoute: TrackRoute,
   ApiDemoAdvanceRoute: ApiDemoAdvanceRoute,
