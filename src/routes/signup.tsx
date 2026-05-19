@@ -1,14 +1,19 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { Link } from "@tanstack/react-router";
-import { UserPlus, AlertCircle, CheckCircle } from "lucide-react";
+import { UserPlus, AlertCircle, CheckCircle, Truck, Store, ArrowLeft } from "lucide-react";
+
+type SignupSearch = { role?: "patient" | "pharmacy" | "driver" };
 
 export const Route = createFileRoute("/signup")({
+  validateSearch: (search: Record<string, unknown>): SignupSearch => {
+    const r = search.role;
+    return { role: r === "pharmacy" || r === "driver" ? r : "patient" };
+  },
   head: () => ({
     meta: [
       { title: "Sign Up — HEALTHREACH" },
@@ -18,26 +23,26 @@ export const Route = createFileRoute("/signup")({
   component: SignupPage,
 });
 
-const roles = [
-  { value: "patient", label: "Patient", description: "Order medication and track health" },
-  { value: "pharmacy", label: "Pharmacy", description: "Manage inventory and fulfill orders" },
-  // Hospital role temporarily hidden — only Patient, Pharmacy, Driver are user-selectable.
-  { value: "driver", label: "Driver", description: "Deliver medications to patients" },
-] as const;
+const ROLE_META = {
+  patient: { label: "Patient", title: "Create Patient Account", desc: "Join HEALTHREACH today" },
+  pharmacy: { label: "Pharmacy", title: "Become a Pharmacy Partner", desc: "Manage inventory and fulfill orders" },
+  driver: { label: "Driver", title: "Become a Driver", desc: "Deliver medications to patients" },
+} as const;
 
 function SignupPage() {
   const navigate = useNavigate();
+  const { role = "patient" } = useSearch({ from: "/signup" });
+  const meta = ROLE_META[role];
+  const needsOrg = role === "pharmacy";
+  const needsApproval = role === "pharmacy" || role === "driver";
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string>("patient");
   const [orgName, setOrgName] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const needsOrg = ["pharmacy"].includes(selectedRole);
-  const needsApproval = ["pharmacy", "driver"].includes(selectedRole);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -48,10 +53,7 @@ function SignupPage() {
       email,
       password,
       options: {
-        data: {
-          full_name: fullName,
-          role: selectedRole,
-        },
+        data: { full_name: fullName, role },
         emailRedirectTo: window.location.origin,
       },
     });
@@ -62,7 +64,6 @@ function SignupPage() {
       return;
     }
 
-    // Update org name if needed
     if (needsOrg && orgName) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -103,9 +104,19 @@ function SignupPage() {
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full healthcare-gradient">
               <UserPlus className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Create Account</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Join HEALTHREACH today</p>
+            <h1 className="text-2xl font-bold text-foreground">{meta.title}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{meta.desc}</p>
           </div>
+
+          {role !== "patient" && (
+            <Link
+              to="/signup"
+              search={{ role: "patient" }}
+              className="mb-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3 w-3" /> Back to patient signup
+            </Link>
+          )}
 
           {error && (
             <div className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
@@ -130,39 +141,9 @@ function SignupPage() {
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
             </div>
 
-            <div className="space-y-2">
-              <Label>Select Your Role</Label>
-              <div className="grid gap-2">
-                {roles.map((role) => (
-                  <button
-                    key={role.value}
-                    type="button"
-                    onClick={() => setSelectedRole(role.value)}
-                    className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
-                      selectedRole === role.value
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/30"
-                    }`}
-                  >
-                    <div className={`mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center ${
-                      selectedRole === role.value ? "border-primary" : "border-muted-foreground"
-                    }`}>
-                      {selectedRole === role.value && (
-                        <div className="h-2 w-2 rounded-full bg-primary" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-foreground">{role.label}</div>
-                      <div className="text-xs text-muted-foreground">{role.description}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {needsOrg && (
               <div className="space-y-2">
-                <Label htmlFor="orgName">Organization Name</Label>
+                <Label htmlFor="orgName">Pharmacy Name</Label>
                 <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="e.g. City Pharmacy" required maxLength={200} />
               </div>
             )}
@@ -174,7 +155,7 @@ function SignupPage() {
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create Account"}
+              {loading ? "Creating account..." : `Create ${meta.label} Account`}
             </Button>
           </form>
 
@@ -189,7 +170,7 @@ function SignupPage() {
             className="w-full"
             onClick={async () => {
               setError("");
-              try { localStorage.setItem("hr_oauth_role", selectedRole); } catch {}
+              try { localStorage.setItem("hr_oauth_role", role); } catch {}
               const result = await lovable.auth.signInWithOAuth("google", {
                 redirect_uri: `${window.location.origin}/auth/callback`,
               });
@@ -206,6 +187,24 @@ function SignupPage() {
             </svg>
             Continue with Google
           </Button>
+
+          {role === "patient" && (
+            <div className="mt-6 space-y-2">
+              <p className="text-center text-xs uppercase tracking-wide text-muted-foreground">Join as a partner</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Link to="/signup" search={{ role: "pharmacy" }}>
+                  <Button type="button" variant="outline" className="w-full">
+                    <Store className="mr-2 h-4 w-4" /> Become a Pharmacy
+                  </Button>
+                </Link>
+                <Link to="/signup" search={{ role: "driver" }}>
+                  <Button type="button" variant="outline" className="w-full">
+                    <Truck className="mr-2 h-4 w-4" /> Become a Driver
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
