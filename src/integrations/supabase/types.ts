@@ -824,7 +824,7 @@ export type Database = {
           order_id: string | null
           patient_id: string
           pharmacist_notes: string | null
-          pharmacy_id: string
+          pharmacy_id: string | null
           repeats_total: number
           repeats_used: number
           reviewed_at: string | null
@@ -849,7 +849,7 @@ export type Database = {
           order_id?: string | null
           patient_id: string
           pharmacist_notes?: string | null
-          pharmacy_id: string
+          pharmacy_id?: string | null
           repeats_total?: number
           repeats_used?: number
           reviewed_at?: string | null
@@ -874,7 +874,7 @@ export type Database = {
           order_id?: string | null
           patient_id?: string
           pharmacist_notes?: string | null
-          pharmacy_id?: string
+          pharmacy_id?: string | null
           repeats_total?: number
           repeats_used?: number
           reviewed_at?: string | null
@@ -1132,6 +1132,10 @@ export type Database = {
       }
     }
     Functions: {
+      claim_prescription_for_pharmacy: {
+        Args: { _pharmacy_id: string; _upload_id: string }
+        Returns: undefined
+      }
       consume_prescription_repeat: {
         Args: { _upload_id: string }
         Returns: string
