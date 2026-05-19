@@ -173,11 +173,14 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
           {addresses.length === 0 && <p className="text-xs text-muted-foreground">No addresses yet. Add one below.</p>}
         </div>
         <div className="rounded-md border border-dashed border-border p-3 space-y-2">
-          <div className="grid grid-cols-3 gap-2">
-            <Input className="col-span-1" placeholder="Label (Home, Work...)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
-            <Input className="col-span-2" placeholder="Street, suburb, city" value={newStreet} onChange={(e) => setNewStreet(e.target.value)} />
-          </div>
-          <Button size="sm" onClick={addAddress} disabled={adding}><Plus className="h-3.5 w-3.5 mr-1" />Add address</Button>
+          <Input placeholder="Label (Home, Work, Mom's place...)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
+          <AddressPicker
+            value={newCoords ? { address: newStreet, lat: newCoords.lat, lng: newCoords.lng } : null}
+            onChange={(a) => { setNewStreet(a.address); setNewCoords({ lat: a.lat, lng: a.lng }); }}
+            placeholder="Start typing a real address…"
+          />
+          <Button size="sm" onClick={addAddress} disabled={adding || !newCoords}><Plus className="h-3.5 w-3.5 mr-1" />Add address</Button>
+          <p className="text-[11px] text-muted-foreground">Addresses are validated via Google Places — pick a suggestion or use your current location so couriers can find you.</p>
         </div>
       </div>
     </div>
