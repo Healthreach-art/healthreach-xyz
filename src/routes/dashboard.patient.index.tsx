@@ -46,6 +46,8 @@ function PatientDashboard() {
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
   const [driverName, setDriverName] = useState<string>("");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [mapPickup, setMapPickup] = useState<string | null>(null);
+  const [mapDropoff, setMapDropoff] = useState<string | null>(null);
   const [activePrescriptionsCount, setActivePrescriptionsCount] = useState(0);
   const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
 
@@ -79,25 +81,26 @@ function PatientDashboard() {
         setPharmaciesById(map);
       }
 
-      // Driver name for active order
+      // Driver name + map endpoints for active order
       if (active?.id) {
-        const { data: del } = await supabase
-          .from("deliveries")
-          .select("driver_id")
-          .eq("order_id", active.id)
-          .maybeSingle();
+        const [{ data: del }, { data: ordRow }] = await Promise.all([
+          supabase.from("deliveries").select("driver_id, delivery_address").eq("order_id", active.id).maybeSingle(),
+          supabase.from("orders").select("delivery_address, pharmacy_id").eq("id", active.id).maybeSingle(),
+        ]);
+        if (cancelled) return;
+        setMapDropoff((ordRow?.delivery_address as string) || (del?.delivery_address as string) || null);
+        if (ordRow?.pharmacy_id) {
+          const { data: pharm } = await supabase.from("profiles").select("address").eq("user_id", ordRow.pharmacy_id).maybeSingle();
+          if (!cancelled) setMapPickup((pharm?.address as string) || null);
+        }
         if (del?.driver_id) {
-          const { data: dp } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("user_id", del.driver_id)
-            .maybeSingle();
+          const { data: dp } = await supabase.from("profiles").select("full_name").eq("user_id", del.driver_id).maybeSingle();
           if (!cancelled) setDriverName(dp?.full_name ?? "");
         } else if (!cancelled) {
           setDriverName("");
         }
       } else if (!cancelled) {
-        setDriverName("");
+        setDriverName(""); setMapPickup(null); setMapDropoff(null);
       }
     }
     load();
