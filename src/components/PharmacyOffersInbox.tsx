@@ -45,16 +45,32 @@ export function PharmacyOffersInbox() {
   }
 
   useEffect(() => {
-    load();
+    let cancelled = false;
     const t = setInterval(() => setNow(Date.now()), 1000);
+
+    if (!user) {
+      return () => { clearInterval(t); };
+    }
+
+    load();
     const poll = setInterval(load, 5000);
-    if (!user) return () => { clearInterval(t); clearInterval(poll); };
-    const ch = supabase.channel(`pharmacy_offers_${user.id}_${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes",
+
+    const ch = supabase
+      .channel(`pharmacy_offers_${user.id}_${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
         { event: "*", schema: "public", table: "pharmacy_offers", filter: `pharmacy_id=eq.${user.id}` },
-        () => load())
+        () => { if (!cancelled) load(); },
+      )
       .subscribe();
-    return () => { clearInterval(t); clearInterval(poll); supabase.removeChannel(ch); };
+
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+      clearInterval(poll);
+      try { ch.unsubscribe(); } catch { /* noop */ }
+      supabase.removeChannel(ch);
+    };
   }, [user]);
 
   async function accept(id: string) {
