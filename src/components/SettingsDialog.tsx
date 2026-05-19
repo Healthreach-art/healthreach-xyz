@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, Trash2, Upload, ShieldCheck, Bell, User as UserIcon, Plus, Check } from "lucide-react";
+import { AddressPicker } from "@/components/AddressPicker";
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -47,6 +48,7 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [newStreet, setNewStreet] = useState("");
   const [newLabel, setNewLabel] = useState("Home");
+  const [newCoords, setNewCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [adding, setAdding] = useState(false);
   const [legacyAddress, setLegacyAddress] = useState<string>("");
 
@@ -76,16 +78,20 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
   }
 
   async function addAddress() {
-    if (!userId || !newStreet.trim()) { toast.error("Enter a street address"); return; }
+    if (!userId || !newStreet.trim() || !newCoords) {
+      toast.error("Pick a real address from the suggestions or use current location");
+      return;
+    }
     setAdding(true);
     const isFirst = addresses.length === 0;
     const { data, error } = await supabase.from("user_addresses").insert({
-      user_id: userId, label: newLabel || "Other", street: newStreet.trim(), is_default: isFirst,
+      user_id: userId, label: newLabel || "Other", street: newStreet.trim(),
+      lat: newCoords.lat, lng: newCoords.lng, is_default: isFirst,
     }).select().single();
     setAdding(false);
     if (error) { toast.error(error.message); return; }
-    setNewStreet(""); setNewLabel("Home");
-    if (isFirst) await supabase.from("profiles").update({ address: data.street }).eq("user_id", userId);
+    setNewStreet(""); setNewLabel("Home"); setNewCoords(null);
+    if (isFirst) await supabase.from("profiles").update({ address: data.street, latitude: newCoords.lat, longitude: newCoords.lng }).eq("user_id", userId);
     await loadAddresses();
     toast.success("Address added");
   }
@@ -167,11 +173,14 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
           {addresses.length === 0 && <p className="text-xs text-muted-foreground">No addresses yet. Add one below.</p>}
         </div>
         <div className="rounded-md border border-dashed border-border p-3 space-y-2">
-          <div className="grid grid-cols-3 gap-2">
-            <Input className="col-span-1" placeholder="Label (Home, Work...)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
-            <Input className="col-span-2" placeholder="Street, suburb, city" value={newStreet} onChange={(e) => setNewStreet(e.target.value)} />
-          </div>
-          <Button size="sm" onClick={addAddress} disabled={adding}><Plus className="h-3.5 w-3.5 mr-1" />Add address</Button>
+          <Input placeholder="Label (Home, Work, Mom's place...)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
+          <AddressPicker
+            value={newCoords ? { address: newStreet, lat: newCoords.lat, lng: newCoords.lng } : null}
+            onChange={(a) => { setNewStreet(a.address); setNewCoords({ lat: a.lat, lng: a.lng }); }}
+            placeholder="Start typing a real address…"
+          />
+          <Button size="sm" onClick={addAddress} disabled={adding || !newCoords}><Plus className="h-3.5 w-3.5 mr-1" />Add address</Button>
+          <p className="text-[11px] text-muted-foreground">Addresses are validated via Google Places — pick a suggestion or use your current location so couriers can find you.</p>
         </div>
       </div>
     </div>
