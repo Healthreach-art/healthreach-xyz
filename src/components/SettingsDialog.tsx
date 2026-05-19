@@ -48,6 +48,7 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [newStreet, setNewStreet] = useState("");
   const [newLabel, setNewLabel] = useState("Home");
+  const [newCoords, setNewCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [adding, setAdding] = useState(false);
   const [legacyAddress, setLegacyAddress] = useState<string>("");
 
