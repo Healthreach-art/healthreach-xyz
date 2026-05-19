@@ -43,19 +43,20 @@ export function PrescriptionPicker({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("prescription_uploads")
-        .select("*")
-        .eq("patient_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(30);
+      const [{ data }, v] = await Promise.all([
+        supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(30),
+        fetchVerification(user.id),
+      ]);
       if (cancelled) return;
       setUploads((data ?? []) as PrescriptionUpload[]);
+      setVerification(v);
       setLoading(false);
-      if (!data || data.length === 0) setMode("upload");
+      if (!isVerificationComplete(v)) setMode("verify");
+      else if (!data || data.length === 0) setMode("upload");
     })();
     return () => { cancelled = true; };
   }, [user]);
+
 
   const now = Date.now();
   // Reusable = approved, not expired, repeats remaining, and not locked to another pharmacy.
