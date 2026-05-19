@@ -35,7 +35,10 @@ export function AddressBook() {
 
   async function add() {
     if (!user) return;
-    if (!form.street.trim()) { toast.error("Street address required"); return; }
+    if (!form.street.trim() || form.lat == null || form.lng == null) {
+      toast.error("Please pick a real address from the suggestions or use current location");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.from("user_addresses").insert({
       user_id: user.id,
