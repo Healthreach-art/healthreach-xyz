@@ -190,18 +190,26 @@ function PatientDashboard() {
                   </div>
                   <div className="p-3 bg-card flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-healthcare-green/20 flex items-center justify-center text-sm font-bold text-healthcare-green">
-                      M
+                      {driverInitial}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] text-muted-foreground">Your Driver</p>
-                      <p className="text-sm font-bold text-foreground leading-tight">Michael</p>
-                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" /> 4.8
-                      </p>
+                      <p className="text-sm font-bold text-foreground leading-tight truncate">{driverName || "Awaiting assignment"}</p>
+                      {driverName && (
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" /> 5.0
+                        </p>
+                      )}
                     </div>
-                    <button aria-label="Call your driver" className="h-9 w-9 rounded-full bg-healthcare-green/15 hover:bg-healthcare-green/25 flex items-center justify-center transition">
-                      <Phone className="h-4 w-4 text-healthcare-green" />
-                    </button>
+                    {activeOrderId && (
+                      <Link
+                        to="/dashboard/patient/orders"
+                        aria-label="Open order chat"
+                        className="h-9 w-9 rounded-full bg-healthcare-green/15 hover:bg-healthcare-green/25 flex items-center justify-center transition"
+                      >
+                        <MessageSquare className="h-4 w-4 text-healthcare-green" />
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
@@ -320,10 +328,9 @@ function PatientDashboard() {
               </div>
               <div className="space-y-3">
                 {[
-                  { icon: Pill, color: "text-healthcare-green", bg: "bg-healthcare-green/10", label: "Active Prescriptions", value: "3" },
-                  { icon: CalendarCheck, color: "text-healthcare-sky", bg: "bg-healthcare-sky/15", label: "Upcoming Appointments", value: "1" },
-                  { icon: Wallet, color: "text-purple-600", bg: "bg-purple-100", label: "Monthly Spending", value: "R58.50" },
-                  { icon: FileText, color: "text-orange-600", bg: "bg-orange-100", label: "Health Notes", value: "2" },
+                  { icon: Pill, color: "text-healthcare-green", bg: "bg-healthcare-green/10", label: "Active Prescriptions", value: String(activePrescriptionsCount) },
+                  { icon: CalendarCheck, color: "text-healthcare-sky", bg: "bg-healthcare-sky/15", label: "Upcoming Appointments", value: String(upcomingAppointmentsCount) },
+                  { icon: FileText, color: "text-orange-600", bg: "bg-orange-100", label: "Active Orders", value: String(activeOrdersCount) },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center gap-3">
                     <div className={`h-9 w-9 rounded-xl ${row.bg} flex items-center justify-center`}>
@@ -339,21 +346,20 @@ function PatientDashboard() {
             {/* Need help */}
             <div className="rounded-3xl bg-card border border-border p-5 shadow-sm">
               <h3 className="font-bold text-foreground">Need Help?</h3>
-              <p className="text-xs text-muted-foreground mb-4">We are here for you</p>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { icon: MessageSquare, label: "Live Chat", color: "text-healthcare-green", bg: "bg-healthcare-green/10", href: "/dashboard/patient/support" },
-                  { icon: MessageCircle, label: "WhatsApp", color: "text-green-600", bg: "bg-green-100", href: "https://wa.me/27000000000" },
-                  { icon: Phone, label: "Call Us", color: "text-healthcare-sky", bg: "bg-healthcare-sky/15", href: "tel:+27000000000" },
-                ].map((opt) => (
-                  <a key={opt.label} href={opt.href} className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-muted/50 transition">
-                    <div className={`h-12 w-12 rounded-full ${opt.bg} flex items-center justify-center`}>
-                      <opt.icon className={`h-5 w-5 ${opt.color}`} />
-                    </div>
-                    <span className="text-[11px] font-medium text-foreground">{opt.label}</span>
-                  </a>
-                ))}
-              </div>
+              <p className="text-xs text-muted-foreground mb-4">Chat with our team in real time.</p>
+              <Link
+                to="/dashboard/patient/support"
+                className="flex items-center gap-3 p-3 rounded-2xl bg-healthcare-green/10 hover:bg-healthcare-green/15 transition"
+              >
+                <div className="h-12 w-12 rounded-full bg-healthcare-green/20 flex items-center justify-center">
+                  <MessageSquare className="h-5 w-5 text-healthcare-green" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-foreground">Live Chat Support</p>
+                  <p className="text-[11px] text-muted-foreground">Typically replies in minutes</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-healthcare-green" />
+              </Link>
             </div>
           </aside>
         </div>
