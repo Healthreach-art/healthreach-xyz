@@ -822,18 +822,10 @@ function PharmacyDashboard() {
   );
 }
 
-const DELIVERY_STAGES: { key: string; label: string }[] = [
-  { key: "assigned", label: "Assigned" },
-  { key: "picked_up", label: "Picked Up" },
-  { key: "in_transit", label: "In Transit" },
-  { key: "delivered", label: "Delivered" },
-];
-
 function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; onChat?: (orderId: string) => void }) {
-  const currentIndex = DELIVERY_STAGES.findIndex((s) => s.key === delivery.status);
-  const activeIndex = currentIndex === -1 ? 0 : currentIndex;
   const updated = new Date(delivery.updated_at);
   const minsAgo = Math.max(0, Math.round((Date.now() - updated.getTime()) / 60000));
+
 
   return (
     <div className="rounded-lg border border-border p-4 bg-card">
