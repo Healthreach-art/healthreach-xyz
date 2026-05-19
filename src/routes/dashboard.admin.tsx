@@ -543,7 +543,7 @@ function AdminDashboard() {
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left text-muted-foreground">
                 <th className="pb-2">Order</th><th className="pb-2">Patient</th><th className="pb-2">Pharmacy</th>
-                <th className="pb-2">Medication</th><th className="pb-2">Total</th><th className="pb-2">Status</th><th className="pb-2">Date</th>
+                <th className="pb-2">Medication</th><th className="pb-2">Total</th><th className="pb-2">Status</th><th className="pb-2">Date</th><th className="pb-2"></th>
               </tr></thead>
               <tbody>
                 {orders.map((o) => (
@@ -555,6 +555,11 @@ function AdminDashboard() {
                     <td className="py-2 font-semibold">R {Number(o.total_amount).toFixed(2)}</td>
                     <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(o.status)}`}>{o.status.replace(/_/g, " ")}</span></td>
                     <td className="py-2 text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</td>
+                    <td className="py-2">
+                      <Button size="sm" variant="outline" className="h-7" onClick={() => setChatOrderId(o.id)}>
+                        <Eye className="h-3 w-3" /> Chat
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
