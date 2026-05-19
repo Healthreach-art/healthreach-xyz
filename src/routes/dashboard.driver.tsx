@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
-  Phone, Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
+  Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
   Coffee, AlertTriangle, TrendingUp, WifiOff,
 } from "lucide-react";
 import { PickupCodeDialog } from "@/components/PickupCodeDialog";
