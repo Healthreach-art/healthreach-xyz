@@ -168,9 +168,10 @@ function CheckoutPage() {
           )}
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold mb-4">Delivery address</h2>
-            <Label htmlFor="delivery-address" className="sr-only">Delivery address</Label>
-            <Textarea id="delivery-address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Street, suburb, city" rows={2} required />
+            <p className="text-xs text-muted-foreground mb-2">We'll auto-route your order to the closest pharmacy (10 → 60 km).</p>
+            <AddressPicker value={delivery} onChange={setDelivery} placeholder="Street, suburb, city…" />
           </div>
+
 
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
