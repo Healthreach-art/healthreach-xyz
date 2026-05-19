@@ -71,27 +71,30 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
         upload = u;
       }
       if (!upload) {
+        // Fall back to any approved prescription in the patient's library that
+        // isn't already locked to a different pharmacy.
         const { data: us } = await supabase
           .from("prescription_uploads")
           .select("id, status, expires_at, pharmacy_id, patient_id, repeats_total, repeats_used, fraud_score")
           .eq("patient_id", userId)
-          .eq("pharmacy_id", it.pharmacyId)
           .eq("status", "approved")
+          .or(`pharmacy_id.is.null,pharmacy_id.eq.${it.pharmacyId}`)
           .order("created_at", { ascending: false })
           .limit(1);
         upload = us?.[0];
       }
 
       if (!upload) {
-        issues.push({ medId: it.medId, reason: "missing", message: `${med.name} needs a prescription. Upload one for this pharmacy.` });
+        issues.push({ medId: it.medId, reason: "missing", message: `${med.name} needs a prescription. Add one to your library first.` });
         continue;
       }
       if (upload.patient_id !== userId) {
         issues.push({ medId: it.medId, reason: "missing", message: "Prescription does not belong to you." });
         continue;
       }
-      if (upload.pharmacy_id !== it.pharmacyId) {
-        issues.push({ medId: it.medId, reason: "wrong_pharmacy", message: `${med.name} prescription is for a different pharmacy.`, uploadId: upload.id });
+      // Library prescriptions (pharmacy_id null) are fine; pharmacy-locked ones must match.
+      if (upload.pharmacy_id && upload.pharmacy_id !== it.pharmacyId) {
+        issues.push({ medId: it.medId, reason: "wrong_pharmacy", message: `${med.name} prescription is already locked to another pharmacy.`, uploadId: upload.id });
         continue;
       }
       if (upload.status === "rejected") {
@@ -99,7 +102,7 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
         continue;
       }
       if (upload.status !== "approved") {
-        issues.push({ medId: it.medId, reason: "pending", message: `${med.name} prescription is still awaiting pharmacist review.`, uploadId: upload.id });
+        issues.push({ medId: it.medId, reason: "pending", message: `${med.name} prescription is still awaiting verification.`, uploadId: upload.id });
         continue;
       }
       if (upload.expires_at && new Date(upload.expires_at).getTime() < now) {
@@ -118,6 +121,23 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
     }
 
     return { valid: issues.length === 0, issues };
+  });
+
+/**
+ * Claim a library prescription for a specific pharmacy at order time. Idempotent;
+ * raises if already locked to a different pharmacy.
+ */
+export const claimPrescriptionForPharmacy = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .inputValidator((input) => z.object({ uploadId: z.string().uuid(), pharmacyId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase.rpc("claim_prescription_for_pharmacy", {
+      _upload_id: data.uploadId,
+      _pharmacy_id: data.pharmacyId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /**

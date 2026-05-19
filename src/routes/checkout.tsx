@@ -14,7 +14,7 @@ import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE, paymentBreakdown
 import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
-import { validateCartPrescriptions, consumePrescription } from "@/lib/prescription.functions";
+import { validateCartPrescriptions, consumePrescription, claimPrescriptionForPharmacy } from "@/lib/prescription.functions";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
@@ -27,6 +27,7 @@ function CheckoutPage() {
   const { items, clear, setQty, remove } = useCart();
   const validateRx = useServerFn(validateCartPrescriptions);
   const consumeRx = useServerFn(consumePrescription);
+  const claimRx = useServerFn(claimPrescriptionForPharmacy);
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -125,8 +126,10 @@ function CheckoutPage() {
             continue;
           }
 
-          // Dispense lock — consume one repeat + issue token for Rx items
+          // Dispense lock — claim library prescription for this pharmacy, consume one repeat + issue token for Rx items
           if (item.requiresPrescription && item.prescriptionUploadId) {
+            try { await claimRx({ data: { uploadId: item.prescriptionUploadId, pharmacyId: item.pharmacyId } }); }
+            catch (e: any) { console.warn("claim prescription failed", e?.message); }
             try { await consumeRx({ data: { uploadId: item.prescriptionUploadId } }); }
             catch (e: any) { console.warn("consume repeat failed", e?.message); }
           }
