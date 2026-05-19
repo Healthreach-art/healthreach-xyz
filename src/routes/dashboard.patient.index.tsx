@@ -204,17 +204,15 @@ function PatientDashboard() {
                 </div>
 
 
-                {/* Mini map + driver */}
-                <div className="rounded-2xl border border-border overflow-hidden bg-muted/30 relative">
-                  <div className="h-44 relative bg-[linear-gradient(135deg,oklch(0.95_0.03_165)_0%,oklch(0.92_0.05_185)_100%)] overflow-hidden">
-                    <svg viewBox="0 0 280 180" className="absolute inset-0 h-full w-full">
-                      <path d="M20 40 Q 80 60 100 90 T 180 130 L 240 150" stroke="oklch(0.6 0.15 155)" strokeWidth="3" fill="none" strokeDasharray="6 4" />
-                      <circle cx="20" cy="40" r="6" fill="oklch(0.6 0.15 155)" />
-                      <circle cx="240" cy="150" r="7" fill="oklch(0.55 0.15 240)" />
-                    </svg>
-                    <MapPin className="absolute top-7 left-3 h-5 w-5 text-healthcare-green" />
-                    <MapPin className="absolute bottom-5 right-3 h-5 w-5 text-primary" />
-                  </div>
+                {/* Real live map */}
+                <div className="rounded-2xl border border-border overflow-hidden bg-muted/30">
+                  <DeliveryMap
+                    orderId={activeOrderId}
+                    pickup={mapPickup}
+                    dropoff={mapDropoff}
+                    status={latestActive?.status}
+                    className="h-44 w-full"
+                  />
                   <div className="p-3 bg-card flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-healthcare-green/20 flex items-center justify-center text-sm font-bold text-healthcare-green">
                       {driverInitial}
