@@ -87,10 +87,14 @@ export function MedicationReminderWidget() {
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState<Reminder | null>(null);
   const firedKeys = useRef<Set<string>>(new Set());
+  const ringRef = useRef<{ stop: () => void } | null>(null);
   const [muted, setMuted] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("hr_reminder_muted") === "1";
   });
+
+  function stopRing() { ringRef.current?.stop(); ringRef.current = null; }
+  function startRing() { stopRing(); ringRef.current = createRingtone(); }
 
   useEffect(() => {
     if (!user?.id) return;
@@ -127,7 +131,7 @@ export function MedicationReminderWidget() {
         if (diff <= 0 && diff > -2 && !firedKeys.current.has(key)) {
           firedKeys.current.add(key);
           setPopup(r);
-          if (!muted) playChime();
+          if (!muted) startRing();
           toast(`Time for ${r.medication_name}`, {
             description: r.dosage ? `Dose: ${r.dosage}` : "Tap to mark as taken.",
             icon: <Pill className="h-4 w-4" />,
@@ -152,7 +156,7 @@ export function MedicationReminderWidget() {
     const next = !muted;
     setMuted(next);
     window.localStorage.setItem("hr_reminder_muted", next ? "1" : "0");
-    if (!next) playChime(); // preview when enabling
+    if (next) stopRing(); else { startRing(); window.setTimeout(stopRing, 1400); }
   }
 
   const upcoming = useMemo(() => {
