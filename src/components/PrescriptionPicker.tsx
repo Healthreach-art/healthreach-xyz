@@ -3,22 +3,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
-import { FileCheck2, Plus, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
+import { FileCheck2, Plus, Loader2, AlertCircle, ChevronLeft, ShieldCheck } from "lucide-react";
 
 interface Props {
-  pharmacyId: string;
+  /** Optional — pharmacy currently being ordered from. Used only to filter out
+   *  prescriptions already claimed by a *different* pharmacy. */
+  pharmacyId?: string | null;
   pharmacyName?: string;
   medicationId?: string | null;
   medicationName?: string | null;
-  /** Called when user selects an existing approved prescription. */
   onPicked: (uploadId: string) => void;
-  /** Called when a brand-new upload is submitted (still pending review). */
   onUploadedPending?: (upload: PrescriptionUpload) => void;
 }
 
 /**
- * Shows the patient's existing prescriptions for this pharmacy so they can re-use
- * an approved one instead of re-uploading. Falls back to a fresh upload flow.
+ * Personal-library prescription picker. Shows ALL of the patient's approved
+ * prescriptions (regardless of pharmacy). The selected prescription is later
+ * claimed to the current pharmacy at checkout.
  */
 export function PrescriptionPicker({
   pharmacyId,
@@ -42,22 +43,24 @@ export function PrescriptionPicker({
         .from("prescription_uploads")
         .select("*")
         .eq("patient_id", user.id)
-        .eq("pharmacy_id", pharmacyId)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
       if (cancelled) return;
       setUploads((data ?? []) as PrescriptionUpload[]);
       setLoading(false);
-      // Auto-jump to upload if there are none at all.
       if (!data || data.length === 0) setMode("upload");
     })();
     return () => { cancelled = true; };
-  }, [user, pharmacyId]);
+  }, [user]);
 
   const now = Date.now();
-  const approved = uploads.filter(
-    (u) => u.status === "approved" && (!u.expires_at || new Date(u.expires_at).getTime() > now)
-  );
+  // Reusable = approved, not expired, repeats remaining, and not locked to another pharmacy.
+  const approved = uploads.filter((u) => {
+    if (u.status !== "approved") return false;
+    if (u.expires_at && new Date(u.expires_at).getTime() <= now) return false;
+    if (pharmacyId && u.pharmacy_id && u.pharmacy_id !== pharmacyId) return false;
+    return true;
+  });
   const others = uploads.filter((u) => !approved.includes(u));
 
   if (mode === "upload") {
@@ -73,11 +76,10 @@ export function PrescriptionPicker({
           </button>
         )}
         <p className="text-xs text-muted-foreground">
-          {medicationName ? `${medicationName} — upload a new prescription` : "Upload a new prescription"} for{" "}
-          <span className="font-medium text-foreground">{pharmacyName ?? "this pharmacy"}</span>.
+          {medicationName ? `${medicationName} — ` : ""}Add a prescription to your personal library. Our AI verifies it
+          automatically and you can re-use it at any pharmacy{pharmacyName ? ` (including ${pharmacyName})` : ""}.
         </p>
         <PrescriptionUploader
-          pharmacyId={pharmacyId}
           medicationId={medicationId ?? null}
           onUploaded={(row) => onUploadedPending?.(row)}
         />
@@ -96,7 +98,7 @@ export function PrescriptionPicker({
           {approved.length > 0 ? (
             <>
               <p className="text-xs font-medium text-muted-foreground">
-                Use an existing approved prescription
+                Pick from your prescription library
               </p>
               <ul className="space-y-2">
                 {approved.map((u) => {
@@ -116,6 +118,11 @@ export function PrescriptionPicker({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <PrescriptionStatusBadge status={u.status} />
+                            {(u.fraud_score ?? 0) < 40 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-healthcare-green/15 text-healthcare-green inline-flex items-center gap-1">
+                                <ShieldCheck className="h-2.5 w-2.5" /> AI verified
+                              </span>
+                            )}
                             {(u.repeats_total ?? 0) > 0 && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                                 {remaining}/{u.repeats_total} repeats left
@@ -140,9 +147,9 @@ export function PrescriptionPicker({
             </>
           ) : (
             <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
-              <p className="text-sm font-medium">No approved prescription yet</p>
+              <p className="text-sm font-medium">Your prescription library is empty</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Upload one — your pharmacist will review it within minutes.
+                Upload one — our AI will verify it and keep it ready for every pharmacy visit.
               </p>
             </div>
           )}
