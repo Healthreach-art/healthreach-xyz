@@ -192,7 +192,7 @@ function DriverDashboard() {
           .select("id, patient_id, pharmacy_id, delivery_fee")
           .in("id", orderIds);
         const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
-        const userIds = Array.from(new Set((orders ?? []).flatMap((o) => [o.patient_id, o.pharmacy_id])));
+        const userIds = Array.from(new Set((orders ?? []).flatMap((o) => [o.patient_id, o.pharmacy_id].filter((v): v is string => !!v))));
         const { data: profs } = userIds.length > 0
           ? await supabase.from("profiles").select("user_id, full_name, phone, organization_name").in("user_id", userIds)
           : { data: [] as { user_id: string; full_name: string; phone: string; organization_name: string }[] };
@@ -200,7 +200,7 @@ function DriverDashboard() {
         setLiveDeliveries(active.map((d) => {
           const o = orderMap.get(d.order_id);
           const pat = o ? profMap.get(o.patient_id) : null;
-          const phar = o ? profMap.get(o.pharmacy_id) : null;
+          const phar = o?.pharmacy_id ? profMap.get(o.pharmacy_id) : null;
           const fee = Number(o?.delivery_fee ?? 0);
           return {
             ...d,
