@@ -196,59 +196,19 @@ function PatientDashboard() {
               </div>
 
               <div className="grid lg:grid-cols-[1fr_280px] gap-6">
-                {/* Timeline */}
+                {/* Unified real-time timeline */}
                 <div>
-                  <div className="relative flex items-start justify-between">
-                    {/* progress line */}
-                    <div className="absolute top-6 left-6 right-6 h-0.5 bg-border -z-0" />
-                    <div
-                      className="absolute top-6 left-6 h-0.5 bg-healthcare-green -z-0 transition-all"
-                      style={{ width: `calc((100% - 3rem) * ${activeStepIdx / (TRACKER_STEPS.length - 1)})` }}
-                    />
-                    {TRACKER_STEPS.map((step, i) => {
-                      const done = i < activeStepIdx;
-                      const active = i === activeStepIdx;
-                      return (
-                        <Link
-                          to={step.to}
-                          key={step.key}
-                          className="relative z-10 flex flex-col items-center text-center w-1/5 group/step focus:outline-none"
-                          aria-label={`${step.label} — open details`}
-                        >
-                          <div
-                            className={`h-12 w-12 rounded-full flex items-center justify-center border-4 transition-all group-hover/step:scale-110 ${
-                              done
-                                ? "bg-healthcare-green border-healthcare-green text-white"
-                                : active
-                                ? "bg-healthcare-green/15 border-healthcare-green text-healthcare-green ring-4 ring-healthcare-green/20"
-                                : "bg-muted border-border text-muted-foreground"
-                            }`}
-                          >
-                            <step.icon className="h-5 w-5" />
-                          </div>
-                          <p className={`mt-2 text-[11px] font-semibold leading-tight px-1 group-hover/step:underline ${active ? "text-foreground" : done ? "text-foreground" : "text-muted-foreground"}`}>
-                            {step.label}
-                          </p>
-                        </Link>
-                      );
-                    })}
-                  </div>
-
-                  {/* Status banner */}
-                  {activeStepIdx >= 0 && (
-                    <div className="mt-6 rounded-2xl bg-healthcare-green/10 border border-healthcare-green/20 p-4 flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-healthcare-green/20 flex items-center justify-center shrink-0">
-                        <Bike className="h-6 w-6 text-healthcare-green" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-healthcare-green">{TRACKER_STEPS[activeStepIdx]?.label}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {activeStepIdx === 4 ? "Your delivery is complete." : "Live updates appear here as your order progresses."}
-                        </p>
-                      </div>
+                  {activeOrderId ? (
+                    <OrderTimeline orderId={activeOrderId} initialOrderStatus={latestActive?.status ?? null} />
+                  ) : latestDelivered ? (
+                    <OrderTimeline orderId={latestDelivered.id} initialOrderStatus="delivered" />
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                      No active order yet. Place one to see live tracking.
                     </div>
                   )}
                 </div>
+
 
                 {/* Mini map + driver */}
                 <div className="rounded-2xl border border-border overflow-hidden bg-muted/30 relative">
