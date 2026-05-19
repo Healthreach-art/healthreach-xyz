@@ -13,11 +13,16 @@ import {
   Users, ShieldCheck, DollarSign, Activity, CheckCircle, XCircle,
   Building2, Truck, Pill, BarChart3, FileText, AlertTriangle, Settings,
   Loader2, Crown, ShieldOff, TrendingUp, MessageSquare, Star, RotateCcw,
-  PackageX, Stethoscope, ShoppingCart, CreditCard,
+  PackageX, Stethoscope, ShoppingCart, CreditCard, Megaphone, Eye, Send,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { broadcastNotification } from "@/lib/admin.functions";
+import { OrderChatDialog } from "@/components/OrderChatDialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import { RoleGuard } from "@/components/RoleGuard";
 
