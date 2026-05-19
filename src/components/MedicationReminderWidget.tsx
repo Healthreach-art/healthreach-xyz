@@ -38,28 +38,47 @@ function fmtTime(t: { h: number; m: number }) {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-/** Generate a soft 3-note chime via WebAudio — no asset needed. */
-function playChime() {
+/** Classic phone-ring style alert: two-tone ring bursts, looped until stopped. */
+function createRingtone() {
+  let ctx: AudioContext | null = null;
+  let stopped = false;
+  let timer: number | null = null;
+
   try {
     const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const notes = [880, 1108.73, 1318.51]; // A5, C#6, E6
-    const now = ctx.currentTime;
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+    if (!Ctx) return { stop: () => {} };
+    ctx = new Ctx();
+  } catch { return { stop: () => {} }; }
+
+  const playBurst = () => {
+    if (!ctx || stopped) return;
+    const start = ctx.currentTime;
+    // Classic ring: two warble tones (440Hz + 480Hz) for 1.2s, then 1.5s silence
+    [440, 480].forEach((freq) => {
+      const osc = ctx!.createOscillator();
+      const gain = ctx!.createGain();
       osc.type = "sine";
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, now + i * 0.18);
-      gain.gain.linearRampToValueAtTime(0.18, now + i * 0.18 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.18 + 0.45);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(now + i * 0.18);
-      osc.stop(now + i * 0.18 + 0.5);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.22, start + 0.05);
+      gain.gain.setValueAtTime(0.22, start + 1.15);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.25);
+      osc.connect(gain).connect(ctx!.destination);
+      osc.start(start);
+      osc.stop(start + 1.3);
     });
-    setTimeout(() => ctx.close().catch(() => {}), 1200);
-  } catch { /* ignore */ }
+  };
+
+  playBurst();
+  timer = window.setInterval(playBurst, 2700);
+
+  return {
+    stop: () => {
+      stopped = true;
+      if (timer) window.clearInterval(timer);
+      try { ctx?.close(); } catch { /* ignore */ }
+    },
+  };
 }
 
 export function MedicationReminderWidget() {
