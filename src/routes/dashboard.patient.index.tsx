@@ -36,12 +36,12 @@ const ACTION_CARDS = [
   { title: "AI Medicine Assistant", icon: Bot, to: "/dashboard/patient/assistant", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
 ];
 
-const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; time: string; to: string }> = [
-  { key: "approved", label: "Prescription Approved", icon: CheckCircle2, time: "10:30 AM", to: "/dashboard/patient/prescriptions" },
-  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, time: "11:00 AM", to: "/dashboard/patient/orders" },
-  { key: "collecting", label: "Driver Collecting", icon: Package, time: "11:25 AM", to: "/track" },
-  { key: "on_way", label: "On The Way", icon: Bike, time: "11:45 AM", to: "/track" },
-  { key: "delivered", label: "Delivered", icon: Truck, time: "Pending", to: "/dashboard/patient/orders" },
+const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; to: string }> = [
+  { key: "approved", label: "Order Placed", icon: CheckCircle2, to: "/dashboard/patient/orders" },
+  { key: "preparing", label: "Pharmacy Preparing", icon: Pill, to: "/dashboard/patient/orders" },
+  { key: "collecting", label: "Driver Collecting", icon: Package, to: "/track" },
+  { key: "on_way", label: "On The Way", icon: Bike, to: "/track" },
+  { key: "delivered", label: "Delivered", icon: Truck, to: "/dashboard/patient/orders" },
 ];
 
 function PatientDashboard() {
@@ -181,8 +181,12 @@ function PatientDashboard() {
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-bold text-foreground">Delivery Tracker</h2>
-                  <span className="px-2.5 py-1 rounded-full bg-healthcare-green/15 text-healthcare-green text-[11px] font-semibold">
-                    In Progress
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                    activeStepIdx < 0 ? "bg-muted text-muted-foreground" :
+                    activeStepIdx === 4 ? "bg-healthcare-green/15 text-healthcare-green" :
+                    "bg-healthcare-sky/20 text-healthcare-sky"
+                  }`}>
+                    {activeStepIdx < 0 ? "No active order" : activeStepIdx === 4 ? "Delivered" : "In Progress"}
                   </span>
                 </div>
                 <Link to="/track" className="text-xs text-healthcare-green font-semibold hover:underline">
@@ -224,24 +228,25 @@ function PatientDashboard() {
                           <p className={`mt-2 text-[11px] font-semibold leading-tight px-1 group-hover/step:underline ${active ? "text-foreground" : done ? "text-foreground" : "text-muted-foreground"}`}>
                             {step.label}
                           </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{step.time}</p>
                         </Link>
                       );
                     })}
                   </div>
 
-                  {/* Arriving banner */}
-                  <div className="mt-6 rounded-2xl bg-healthcare-green/10 border border-healthcare-green/20 p-4 flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-healthcare-green/20 flex items-center justify-center shrink-0">
-                      <Bike className="h-6 w-6 text-healthcare-green" />
+                  {/* Status banner */}
+                  {activeStepIdx >= 0 && (
+                    <div className="mt-6 rounded-2xl bg-healthcare-green/10 border border-healthcare-green/20 p-4 flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-healthcare-green/20 flex items-center justify-center shrink-0">
+                        <Bike className="h-6 w-6 text-healthcare-green" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-healthcare-green">{TRACKER_STEPS[activeStepIdx]?.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {activeStepIdx === 4 ? "Your delivery is complete." : "Live updates appear here as your order progresses."}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-healthcare-green">Arriving in 20–25 mins</p>
-                      <p className="text-xs text-muted-foreground">
-                        Your medications are on the way. Thank you for choosing Healthreach!
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Mini map + driver */}
