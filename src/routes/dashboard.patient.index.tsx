@@ -6,9 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
 import { customerPrice } from "@/lib/pricing";
 import {
-  ShoppingBag, Upload, Truck, MessageCircle, BellRing, ArrowRight, Bot,
-  CheckCircle2, Package, Bike, MapPin, Phone, Star, Siren, Pill,
-  CalendarCheck, Wallet, FileText, MessageSquare, PhoneCall,
+  ShoppingBag, Upload, Truck, ArrowRight, Bot,
+  CheckCircle2, Package, Bike, MapPin, Star, Siren, Pill,
+  CalendarCheck, FileText, MessageSquare, PhoneCall,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/")({
@@ -46,7 +46,7 @@ const TRACKER_STEPS: Array<{ key: string; label: string; icon: any; time: string
 
 function PatientDashboard() {
   const { profile } = useAuth();
-  const firstName = profile?.full_name?.split(" ")[0] || "John";
+  const firstName = profile?.full_name?.split(" ")[0] || "";
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
 
@@ -77,7 +77,7 @@ function PatientDashboard() {
   const activeStepIdx = 3; // "On The Way"
 
   return (
-    <div className="bg-[oklch(0.985_0.003_240)] min-h-screen">
+    <div className="bg-background min-h-screen">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
           {/* MAIN COLUMN */}
@@ -85,7 +85,7 @@ function PatientDashboard() {
             {/* Greeting */}
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Good Morning, {firstName} <span className="inline-block">👋</span>
+                Welcome{firstName ? `, ${firstName}` : ""} <span className="inline-block">👋</span>
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Your health is our priority. Let's take care of it today.
