@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -188,4 +190,256 @@ export const checkDrugInteractions = createServerFn({ method: "POST" })
     } catch {
       return { error: "Could not parse AI response", interactions: [], overall_risk: "unknown" as const };
     }
+  });
+
+// ============================================================
+// ADVANCED AI PRESCRIPTION VERIFICATION ENGINE
+// Deep analysis: doctor info, patient info, validation,
+// fraud signals, trust score. Persists results onto the
+// prescription_uploads row + audit log.
+// ============================================================
+
+const verifyInput = z.object({
+  uploadId: z.string().uuid(),
+  fileUrl: z.string().url(),
+  mimeType: z.string().min(3).max(100),
+});
+
+export interface VerifyResult {
+  error: string | null;
+  trust_score: number;            // 0-100 — AI confidence
+  risk_level: "low" | "medium" | "high" | "unknown";
+  summary: string;
+  doctor: {
+    name: string | null;
+    practice_name: string | null;
+    hpcsa_number: string | null;
+    practice_number: string | null;
+    address: string | null;
+    contact: string | null;
+    signature_present: boolean;
+    stamp_present: boolean;
+  };
+  patient: {
+    name: string | null;
+    id_number: string | null;
+    date_of_birth: string | null;
+    gender: string | null;
+    address: string | null;
+  };
+  prescription: {
+    issue_date: string | null;
+    expiry_estimate: string | null;
+    repeats: number | null;
+    is_chronic: boolean;
+    is_controlled: boolean;
+  };
+  medications: { name: string; strength: string; quantity: string; instructions: string; route: string }[];
+  validation: { check: string; passed: boolean; detail: string }[];
+  fraud_signals: { label: string; detail: string; severity: "low" | "medium" | "high" }[];
+  missing_fields: string[];
+}
+
+const EMPTY_RESULT: Omit<VerifyResult, "error"> = {
+  trust_score: 0,
+  risk_level: "unknown",
+  summary: "",
+  doctor: { name: null, practice_name: null, hpcsa_number: null, practice_number: null, address: null, contact: null, signature_present: false, stamp_present: false },
+  patient: { name: null, id_number: null, date_of_birth: null, gender: null, address: null },
+  prescription: { issue_date: null, expiry_estimate: null, repeats: null, is_chronic: false, is_controlled: false },
+  medications: [],
+  validation: [],
+  fraud_signals: [],
+  missing_fields: [],
+};
+
+export const verifyPrescription = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .inputValidator((input) => verifyInput.parse(input))
+  .handler(async ({ data, context }): Promise<VerifyResult> => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) return { ...EMPTY_RESULT, error: "AI not configured" };
+    if (data.mimeType === "application/pdf") {
+      return { ...EMPTY_RESULT, error: "PDF verification not supported yet — upload JPG/PNG." };
+    }
+
+    // Download & base64 encode
+    let imageDataUrl: string;
+    try {
+      const r = await fetch(data.fileUrl);
+      if (!r.ok) return { ...EMPTY_RESULT, error: `Could not fetch file (${r.status})` };
+      const buf = new Uint8Array(await r.arrayBuffer());
+      let bin = ""; for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+      imageDataUrl = `data:${data.mimeType};base64,${btoa(bin)}`;
+    } catch {
+      return { ...EMPTY_RESULT, error: "Could not download prescription file" };
+    }
+
+    const tool = {
+      type: "function",
+      function: {
+        name: "verify_prescription",
+        description: "Deeply verify a South African doctor's prescription. Analyze structure, doctor info, patient info, medications, validity, and tampering risk.",
+        parameters: {
+          type: "object",
+          properties: {
+            trust_score: { type: "number", description: "0-100 confidence that prescription is authentic, complete, and valid" },
+            risk_level: { type: "string", enum: ["low", "medium", "high"] },
+            summary: { type: "string", description: "One-paragraph pharmacist-style assessment" },
+            doctor: {
+              type: "object",
+              properties: {
+                name: { type: "string" }, practice_name: { type: "string" },
+                hpcsa_number: { type: "string", description: "HPCSA registration number (e.g. MP0123456) — empty if not visible" },
+                practice_number: { type: "string", description: "Practice/BHF number — empty if not visible" },
+                address: { type: "string" }, contact: { type: "string" },
+                signature_present: { type: "boolean" }, stamp_present: { type: "boolean" },
+              },
+              required: ["name","practice_name","hpcsa_number","practice_number","address","contact","signature_present","stamp_present"],
+              additionalProperties: false,
+            },
+            patient: {
+              type: "object",
+              properties: {
+                name: { type: "string" }, id_number: { type: "string" },
+                date_of_birth: { type: "string" }, gender: { type: "string" }, address: { type: "string" },
+              },
+              required: ["name","id_number","date_of_birth","gender","address"],
+              additionalProperties: false,
+            },
+            prescription: {
+              type: "object",
+              properties: {
+                issue_date: { type: "string", description: "YYYY-MM-DD if visible" },
+                expiry_estimate: { type: "string", description: "YYYY-MM-DD — issue + 6 months for chronic, 30 days for acute" },
+                repeats: { type: "number" },
+                is_chronic: { type: "boolean" },
+                is_controlled: { type: "boolean", description: "Schedule 5/6 controlled substance" },
+              },
+              required: ["issue_date","expiry_estimate","repeats","is_chronic","is_controlled"],
+              additionalProperties: false,
+            },
+            medications: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" }, strength: { type: "string" },
+                  quantity: { type: "string" }, instructions: { type: "string" },
+                  route: { type: "string", description: "Oral / Topical / IV / etc." },
+                },
+                required: ["name","strength","quantity","instructions","route"],
+                additionalProperties: false,
+              },
+            },
+            validation: {
+              type: "array",
+              description: "Structural checks: signature exists, practice number present, date valid, repeats sane, medicines recognized, antibiotic-no-repeat, controlled-substance handling, layout consistency, image clarity",
+              items: {
+                type: "object",
+                properties: { check: { type: "string" }, passed: { type: "boolean" }, detail: { type: "string" } },
+                required: ["check","passed","detail"],
+                additionalProperties: false,
+              },
+            },
+            fraud_signals: {
+              type: "array",
+              description: "Tampering or fraud indicators: edited PDF, photoshop artifacts, inconsistent fonts, cropped script, screenshot tampering, AI-generated look, missing signature/stamp, invalid HPCSA, blurry/illegible",
+              items: {
+                type: "object",
+                properties: {
+                  label: { type: "string" }, detail: { type: "string" },
+                  severity: { type: "string", enum: ["low","medium","high"] },
+                },
+                required: ["label","detail","severity"],
+                additionalProperties: false,
+              },
+            },
+            missing_fields: { type: "array", items: { type: "string" } },
+          },
+          required: ["trust_score","risk_level","summary","doctor","patient","prescription","medications","validation","fraud_signals","missing_fields"],
+          additionalProperties: false,
+        },
+      },
+    };
+
+    const system = `You are an expert South African pharmacy verification assistant.
+You understand how legitimate medical prescriptions are structured: doctor header (name, HPCSA number, practice number, address, contact), patient block, medication list (name, strength, quantity, sig, route, repeats), date, signature, and stamp.
+Analyze the image like a pharmacist checking for authenticity, completeness, and safety.
+Flag tampering: edited PDFs, font inconsistencies, photoshop artifacts, missing signature/stamp, suspiciously perfect AI-generated look, screenshot artifacts, cropped/blurry uploads, invalid HPCSA format (should look like MP followed by 6+ digits), impossible repeat counts, antibiotic repeats (suspicious), expired dates, unrecognized medicine names.
+Be conservative — when uncertain leave fields empty rather than fabricating.
+Score 71-100 = low risk (clearly authentic), 31-70 = medium (needs pharmacist review), 0-30 = high risk (likely fake/invalid).`;
+
+    const body = {
+      model: MODEL,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: [
+          { type: "text", text: "Verify this prescription. Extract every structural field and flag anything suspicious." },
+          { type: "image_url", image_url: { url: imageDataUrl } },
+        ]},
+      ],
+      tools: [tool],
+      tool_choice: { type: "function", function: { name: "verify_prescription" } },
+    };
+
+    const res = await fetch(GATEWAY, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      if (res.status === 429) return { ...EMPTY_RESULT, error: "AI rate limit — try again in a moment" };
+      if (res.status === 402) return { ...EMPTY_RESULT, error: "AI credits exhausted" };
+      return { ...EMPTY_RESULT, error: `AI request failed (${res.status})` };
+    }
+    const json: any = await res.json();
+    const args = json.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    if (!args) return { ...EMPTY_RESULT, error: "AI returned no data" };
+
+    let parsed: any;
+    try { parsed = JSON.parse(args); } catch { return { ...EMPTY_RESULT, error: "Could not parse AI response" }; }
+
+    const result: VerifyResult = {
+      error: null,
+      trust_score: Math.max(0, Math.min(100, Number(parsed.trust_score) || 0)),
+      risk_level: parsed.risk_level ?? "unknown",
+      summary: parsed.summary || "",
+      doctor: { ...EMPTY_RESULT.doctor, ...(parsed.doctor || {}) },
+      patient: { ...EMPTY_RESULT.patient, ...(parsed.patient || {}) },
+      prescription: { ...EMPTY_RESULT.prescription, ...(parsed.prescription || {}) },
+      medications: Array.isArray(parsed.medications) ? parsed.medications : [],
+      validation: Array.isArray(parsed.validation) ? parsed.validation : [],
+      fraud_signals: Array.isArray(parsed.fraud_signals) ? parsed.fraud_signals : [],
+      missing_fields: Array.isArray(parsed.missing_fields) ? parsed.missing_fields : [],
+    };
+
+    // Persist AI signals onto upload row (merge with heuristic score; take the higher fraud risk).
+    try {
+      const { supabase, userId } = context;
+      const aiFraud = 100 - result.trust_score;
+      const { data: existing } = await supabase
+        .from("prescription_uploads")
+        .select("fraud_score, fraud_signals")
+        .eq("id", data.uploadId)
+        .maybeSingle();
+      const prevScore = Number(existing?.fraud_score ?? 0);
+      const prevSignals = Array.isArray(existing?.fraud_signals) ? existing!.fraud_signals as any[] : [];
+      const aiSignals = result.fraud_signals.map(s => ({ label: `ai_${s.label}`.toLowerCase().replace(/\s+/g, "_"), detail: s.detail }));
+      const merged = [...prevSignals.filter((s: any) => !String(s.label).startsWith("ai_")), ...aiSignals];
+      await supabase
+        .from("prescription_uploads")
+        .update({ fraud_score: Math.max(prevScore, aiFraud), fraud_signals: merged })
+        .eq("id", data.uploadId);
+      await supabase.from("prescription_audit_log").insert({
+        prescription_upload_id: data.uploadId,
+        actor_id: userId,
+        action: "ai_verification",
+        notes: `trust ${result.trust_score}/100 · ${result.risk_level} risk · ${result.fraud_signals.length} flag(s)`,
+      });
+    } catch (e) {
+      console.error("verifyPrescription persist failed", e);
+    }
+
+    return result;
   });
