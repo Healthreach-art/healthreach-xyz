@@ -120,7 +120,7 @@ function PatientDashboard() {
         supabase.from("prescription_uploads").select("id", { count: "exact", head: true })
           .eq("patient_id", user.id).eq("status", "approved"),
         supabase.from("pharmacy_appointments").select("id", { count: "exact", head: true })
-          .eq("patient_id", user.id).gte("scheduled_at", new Date().toISOString()),
+          .eq("patient_id", user.id).gte("preferred_at", new Date().toISOString()),
       ]).catch(() => [{ count: 0 } as any, { count: 0 } as any]);
       if (cancelled) return;
       setActivePrescriptionsCount(rxCount ?? 0);
