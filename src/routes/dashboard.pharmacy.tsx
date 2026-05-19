@@ -28,6 +28,7 @@ import { customerPrice } from "@/lib/pricing";
 import { PharmacyAnalytics } from "@/components/PharmacyAnalytics";
 import { PharmacyFinance } from "@/components/PharmacyFinance";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OrderTimeline } from "@/components/OrderTimeline";
 
 import { RoleGuard } from "@/components/RoleGuard";
 
@@ -821,18 +822,10 @@ function PharmacyDashboard() {
   );
 }
 
-const DELIVERY_STAGES: { key: string; label: string }[] = [
-  { key: "assigned", label: "Assigned" },
-  { key: "picked_up", label: "Picked Up" },
-  { key: "in_transit", label: "In Transit" },
-  { key: "delivered", label: "Delivered" },
-];
-
 function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; onChat?: (orderId: string) => void }) {
-  const currentIndex = DELIVERY_STAGES.findIndex((s) => s.key === delivery.status);
-  const activeIndex = currentIndex === -1 ? 0 : currentIndex;
   const updated = new Date(delivery.updated_at);
   const minsAgo = Math.max(0, Math.round((Date.now() - updated.getTime()) / 60000));
+
 
   return (
     <div className="rounded-lg border border-border p-4 bg-card">
@@ -864,47 +857,14 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
         </div>
       )}
 
-      {/* Stage Timeline */}
+      {/* Unified real-time timeline */}
       <div className="mt-4">
-        <div className="flex items-center">
-          {DELIVERY_STAGES.map((stage, idx) => {
-            const reached = idx <= activeIndex;
-            const isCurrent = idx === activeIndex;
-            return (
-              <div key={stage.key} className="flex-1 flex items-center last:flex-none">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${
-                      reached
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    } ${isCurrent ? "ring-2 ring-primary/30 ring-offset-1 ring-offset-card animate-pulse" : ""}`}
-                  >
-                    {reached ? "✓" : idx + 1}
-                  </div>
-                  <span
-                    className={`mt-1 text-[10px] text-center leading-tight ${
-                      reached ? "text-foreground font-medium" : "text-muted-foreground"
-                    }`}
-                  >
-                    {stage.label}
-                  </span>
-                </div>
-                {idx < DELIVERY_STAGES.length - 1 && (
-                  <div
-                    className={`flex-1 h-0.5 mx-1 mb-4 transition-colors ${
-                      idx < activeIndex ? "bg-primary" : "bg-muted"
-                    }`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} compact />
         <p className="text-[10px] text-muted-foreground mt-2 text-right">
-          Updated {minsAgo === 0 ? "just now" : `${minsAgo}m ago`}
+          Last change {minsAgo === 0 ? "just now" : `${minsAgo}m ago`}
         </p>
       </div>
+
     </div>
   );
 }
