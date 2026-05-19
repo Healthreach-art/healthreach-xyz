@@ -256,6 +256,44 @@ function HomePage() {
         </div>
       </section>
 
+      {/* Become a Partner */}
+      <section className="section-padding bg-healthcare-light/40">
+        <div className="container-narrow">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground">Become a Partner</h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+              Grow your pharmacy or earn on the road — join the HEALTHREACH network.
+            </p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 max-w-3xl mx-auto">
+            <div className="healthcare-card p-6 flex flex-col items-start">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-healthcare-green/15 text-healthcare-green">
+                <Pill className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Become a Pharmacy</h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed flex-1">
+                Reach more patients, manage inventory, and fulfill orders with our pharmacy dashboard.
+              </p>
+              <Link to="/signup" search={{ role: "pharmacy" } as any} className="mt-4">
+                <Button variant="default">Apply as Pharmacy</Button>
+              </Link>
+            </div>
+            <div className="healthcare-card p-6 flex flex-col items-start">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-healthcare-teal/20 text-healthcare-teal">
+                <Truck className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Become a Driver</h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed flex-1">
+                Deliver medication across your area, set your own hours, and get paid weekly.
+              </p>
+              <Link to="/signup" search={{ role: "driver" } as any} className="mt-4">
+                <Button variant="default">Apply as Driver</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="section-padding healthcare-gradient">
         <div className="container-narrow text-center">
