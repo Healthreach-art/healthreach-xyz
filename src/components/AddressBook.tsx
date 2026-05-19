@@ -69,20 +69,7 @@ export function AddressBook() {
     load();
   }
 
-  function detect() {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      toast.error("Location not supported on this device"); return;
-    }
-    toast.message("Detecting location...");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm((f) => ({ ...f, lat: pos.coords.latitude, lng: pos.coords.longitude }));
-        toast.success(`Pinned ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
-      },
-      (err) => toast.error(err.message || "Could not get location"),
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }
+  // Address picker now handles geolocation + autocomplete.
 
   return (
     <div className="healthcare-card p-6">
