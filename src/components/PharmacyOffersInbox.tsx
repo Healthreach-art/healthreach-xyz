@@ -49,7 +49,7 @@ export function PharmacyOffersInbox() {
     const t = setInterval(() => setNow(Date.now()), 1000);
     const poll = setInterval(load, 5000);
     if (!user) return () => { clearInterval(t); clearInterval(poll); };
-    const ch = supabase.channel(`pharmacy_offers_${user.id}`)
+    const ch = supabase.channel(`pharmacy_offers_${user.id}_${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes",
         { event: "*", schema: "public", table: "pharmacy_offers", filter: `pharmacy_id=eq.${user.id}` },
         () => load())
