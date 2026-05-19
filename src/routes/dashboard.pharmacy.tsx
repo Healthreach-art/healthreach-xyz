@@ -464,7 +464,13 @@ function PharmacyDashboard() {
                 <p className="text-xs text-muted-foreground">{stat.label}</p>
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
-            </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 mb-6">
+        <PharmacyOffersInbox />
+        <PharmacyLocationCard />
+      </div>
+
           </a>
         ))}
       </div>
