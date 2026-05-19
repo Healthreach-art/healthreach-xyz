@@ -314,6 +314,7 @@ function AdminDashboard() {
     { id: "prescriptions", label: "Prescriptions", icon: Stethoscope },
     { id: "complaints", label: "Complaints", icon: MessageSquare, badge: complaints.filter((c) => c.status === "open").length },
     { id: "users", label: "Users", icon: Users },
+    { id: "broadcasts", label: "Broadcasts", icon: Megaphone },
     { id: "reports", label: "Reports", icon: FileText },
   ];
 
