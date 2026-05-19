@@ -28,6 +28,7 @@ import { customerPrice } from "@/lib/pricing";
 import { PharmacyAnalytics } from "@/components/PharmacyAnalytics";
 import { PharmacyFinance } from "@/components/PharmacyFinance";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OrderTimeline } from "@/components/OrderTimeline";
 
 import { RoleGuard } from "@/components/RoleGuard";
 
