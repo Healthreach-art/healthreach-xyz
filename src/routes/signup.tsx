@@ -44,13 +44,20 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [orgName, setOrgName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState<PickedAddress | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const saveLocation = useServerFn(setSignupLocation);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!address || !address.lat || !address.lng) {
+      setError("Please pick your address from the suggestions or use 'current location' so it's verified on the map.");
+      return;
+    }
     setLoading(true);
 
     const { error: authError } = await supabase.auth.signUp({
@@ -68,16 +75,26 @@ function SignupPage() {
       return;
     }
 
-    if (needsOrg && orgName) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("profiles").update({ organization_name: orgName }).eq("user_id", user.id);
-      }
+    // Auto-confirm is on, so we already have a session. Write address+coords.
+    try {
+      await saveLocation({
+        data: {
+          address: address.address,
+          lat: address.lat,
+          lng: address.lng,
+          organizationName: needsOrg ? orgName : undefined,
+          phone: phone || undefined,
+        },
+      });
+    } catch (err) {
+      // Profile update failure is non-fatal for the signup flow; surface a soft warning.
+      console.warn("Saving signup location failed:", err);
     }
 
     setSuccess(true);
     setLoading(false);
   };
+
 
   if (success) {
     return (
