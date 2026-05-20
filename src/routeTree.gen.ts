@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackRouteImport } from './routes/track'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -56,6 +57,11 @@ import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public
 const TrackRoute = TrackRouteImport.update({
   id: '/track',
   path: '/track',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -295,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
@@ -340,6 +347,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
@@ -386,6 +394,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
@@ -433,6 +442,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/track'
     | '/api/demo-advance'
     | '/api/mock-pay'
@@ -478,6 +488,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/track'
     | '/api/demo-advance'
     | '/api/mock-pay'
@@ -523,6 +534,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/track'
     | '/api/demo-advance'
     | '/api/mock-pay'
@@ -569,6 +581,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   TrackRoute: typeof TrackRoute
   ApiDemoAdvanceRoute: typeof ApiDemoAdvanceRoute
   ApiMockPayRoute: typeof ApiMockPayRoute
@@ -604,6 +617,13 @@ declare module '@tanstack/react-router' {
       path: '/track'
       fullPath: '/track'
       preLoaderRoute: typeof TrackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -931,6 +951,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   TrackRoute: TrackRoute,
   ApiDemoAdvanceRoute: ApiDemoAdvanceRoute,
   ApiMockPayRoute: ApiMockPayRoute,
