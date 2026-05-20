@@ -13,6 +13,7 @@ import { Route as TrackRouteImport } from './routes/track'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PaymentRouteImport } from './routes/payment'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkAccountRouteImport } from './routes/link-account'
@@ -70,6 +71,11 @@ const SignupRoute = SignupRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaymentRoute = PaymentRouteImport.update({
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -329,6 +336,7 @@ export interface FileRoutesByTo {
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -374,6 +382,7 @@ export interface FileRoutesById {
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -420,6 +429,7 @@ export interface FileRouteTypes {
     | '/link-account'
     | '/login'
     | '/payment'
+    | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
@@ -464,6 +474,7 @@ export interface FileRouteTypes {
     | '/link-account'
     | '/login'
     | '/payment'
+    | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
@@ -508,6 +519,7 @@ export interface FileRouteTypes {
     | '/link-account'
     | '/login'
     | '/payment'
+    | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
@@ -553,6 +565,7 @@ export interface RootRouteChildren {
   LinkAccountRoute: typeof LinkAccountRoute
   LoginRoute: typeof LoginRoute
   PaymentRoute: typeof PaymentRoute
+  PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -612,6 +625,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/payment': {
@@ -907,6 +927,7 @@ const rootRouteChildren: RootRouteChildren = {
   LinkAccountRoute: LinkAccountRoute,
   LoginRoute: LoginRoute,
   PaymentRoute: PaymentRoute,
+  PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
