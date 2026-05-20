@@ -17,7 +17,9 @@ import { Route as PaymentRouteImport } from './routes/payment'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkAccountRouteImport } from './routes/link-account'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ForPharmaciesRouteImport } from './routes/for-pharmacies'
 import { Route as ForPatientsRouteImport } from './routes/for-patients'
+import { Route as ForDriversRouteImport } from './routes/for-drivers'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -90,9 +92,19 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForPharmaciesRoute = ForPharmaciesRouteImport.update({
+  id: '/for-pharmacies',
+  path: '/for-pharmacies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ForPatientsRoute = ForPatientsRouteImport.update({
   id: '/for-patients',
   path: '/for-patients',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForDriversRoute = ForDriversRouteImport.update({
+  id: '/for-drivers',
+  path: '/for-drivers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -266,7 +278,9 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/for-drivers': typeof ForDriversRoute
   '/for-patients': typeof ForPatientsRoute
+  '/for-pharmacies': typeof ForPharmaciesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
@@ -308,7 +322,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/for-drivers': typeof ForDriversRoute
   '/for-patients': typeof ForPatientsRoute
+  '/for-pharmacies': typeof ForPharmaciesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
@@ -351,7 +367,9 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/for-drivers': typeof ForDriversRoute
   '/for-patients': typeof ForPatientsRoute
+  '/for-pharmacies': typeof ForPharmaciesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
@@ -395,7 +413,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/for-drivers'
     | '/for-patients'
+    | '/for-pharmacies'
     | '/forgot-password'
     | '/link-account'
     | '/login'
@@ -437,7 +457,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/for-drivers'
     | '/for-patients'
+    | '/for-pharmacies'
     | '/forgot-password'
     | '/link-account'
     | '/login'
@@ -479,7 +501,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/for-drivers'
     | '/for-patients'
+    | '/for-pharmacies'
     | '/forgot-password'
     | '/link-account'
     | '/login'
@@ -522,7 +546,9 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   CheckoutRoute: typeof CheckoutRoute
   ContactRoute: typeof ContactRoute
+  ForDriversRoute: typeof ForDriversRoute
   ForPatientsRoute: typeof ForPatientsRoute
+  ForPharmaciesRoute: typeof ForPharmaciesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LinkAccountRoute: typeof LinkAccountRoute
   LoginRoute: typeof LoginRoute
@@ -616,11 +642,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/for-pharmacies': {
+      id: '/for-pharmacies'
+      path: '/for-pharmacies'
+      fullPath: '/for-pharmacies'
+      preLoaderRoute: typeof ForPharmaciesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/for-patients': {
       id: '/for-patients'
       path: '/for-patients'
       fullPath: '/for-patients'
       preLoaderRoute: typeof ForPatientsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-drivers': {
+      id: '/for-drivers'
+      path: '/for-drivers'
+      fullPath: '/for-drivers'
+      preLoaderRoute: typeof ForDriversRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -860,7 +900,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   CheckoutRoute: CheckoutRoute,
   ContactRoute: ContactRoute,
+  ForDriversRoute: ForDriversRoute,
   ForPatientsRoute: ForPatientsRoute,
+  ForPharmaciesRoute: ForPharmaciesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LinkAccountRoute: LinkAccountRoute,
   LoginRoute: LoginRoute,
