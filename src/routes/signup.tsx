@@ -5,9 +5,13 @@ import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { useServerFn } from "@tanstack/react-start";
+import { setSignupLocation } from "@/lib/dispatch.functions";
+import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, CheckCircle, Truck, Store, ArrowLeft } from "lucide-react";
 
 type SignupSearch = { role?: "patient" | "pharmacy" | "driver" };
+
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>): SignupSearch => {
