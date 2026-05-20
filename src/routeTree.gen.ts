@@ -10,13 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackRouteImport } from './routes/track'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PaymentRouteImport } from './routes/payment'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkAccountRouteImport } from './routes/link-account'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ForPharmaciesRouteImport } from './routes/for-pharmacies'
+import { Route as ForPatientsRouteImport } from './routes/for-patients'
+import { Route as ForDriversRouteImport } from './routes/for-drivers'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -54,6 +59,11 @@ const TrackRoute = TrackRouteImport.update({
   path: '/track',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -67,6 +77,11 @@ const SignupRoute = SignupRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaymentRoute = PaymentRouteImport.update({
@@ -87,6 +102,21 @@ const LinkAccountRoute = LinkAccountRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForPharmaciesRoute = ForPharmaciesRouteImport.update({
+  id: '/for-pharmacies',
+  path: '/for-pharmacies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForPatientsRoute = ForPatientsRouteImport.update({
+  id: '/for-patients',
+  path: '/for-patients',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForDriversRoute = ForDriversRouteImport.update({
+  id: '/for-drivers',
+  path: '/for-drivers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -260,13 +290,18 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/for-drivers': typeof ForDriversRoute
+  '/for-patients': typeof ForPatientsRoute
+  '/for-pharmacies': typeof ForPharmaciesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
@@ -301,13 +336,18 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/for-drivers': typeof ForDriversRoute
+  '/for-patients': typeof ForPatientsRoute
+  '/for-pharmacies': typeof ForPharmaciesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
@@ -343,13 +383,18 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/for-drivers': typeof ForDriversRoute
+  '/for-patients': typeof ForPatientsRoute
+  '/for-pharmacies': typeof ForPharmaciesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/payment': typeof PaymentRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
@@ -386,13 +431,18 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/for-drivers'
+    | '/for-patients'
+    | '/for-pharmacies'
     | '/forgot-password'
     | '/link-account'
     | '/login'
     | '/payment'
+    | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/track'
     | '/api/demo-advance'
     | '/api/mock-pay'
@@ -427,13 +477,18 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/for-drivers'
+    | '/for-patients'
+    | '/for-pharmacies'
     | '/forgot-password'
     | '/link-account'
     | '/login'
     | '/payment'
+    | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/track'
     | '/api/demo-advance'
     | '/api/mock-pay'
@@ -468,13 +523,18 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/for-drivers'
+    | '/for-patients'
+    | '/for-pharmacies'
     | '/forgot-password'
     | '/link-account'
     | '/login'
     | '/payment'
+    | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/track'
     | '/api/demo-advance'
     | '/api/mock-pay'
@@ -510,13 +570,18 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   CheckoutRoute: typeof CheckoutRoute
   ContactRoute: typeof ContactRoute
+  ForDriversRoute: typeof ForDriversRoute
+  ForPatientsRoute: typeof ForPatientsRoute
+  ForPharmaciesRoute: typeof ForPharmaciesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LinkAccountRoute: typeof LinkAccountRoute
   LoginRoute: typeof LoginRoute
   PaymentRoute: typeof PaymentRoute
+  PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   TrackRoute: typeof TrackRoute
   ApiDemoAdvanceRoute: typeof ApiDemoAdvanceRoute
   ApiMockPayRoute: typeof ApiMockPayRoute
@@ -554,6 +619,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -573,6 +645,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/payment': {
@@ -601,6 +680,27 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-pharmacies': {
+      id: '/for-pharmacies'
+      path: '/for-pharmacies'
+      fullPath: '/for-pharmacies'
+      preLoaderRoute: typeof ForPharmaciesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-patients': {
+      id: '/for-patients'
+      path: '/for-patients'
+      fullPath: '/for-patients'
+      preLoaderRoute: typeof ForPatientsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-drivers': {
+      id: '/for-drivers'
+      path: '/for-drivers'
+      fullPath: '/for-drivers'
+      preLoaderRoute: typeof ForDriversRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -840,13 +940,18 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   CheckoutRoute: CheckoutRoute,
   ContactRoute: ContactRoute,
+  ForDriversRoute: ForDriversRoute,
+  ForPatientsRoute: ForPatientsRoute,
+  ForPharmaciesRoute: ForPharmaciesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LinkAccountRoute: LinkAccountRoute,
   LoginRoute: LoginRoute,
   PaymentRoute: PaymentRoute,
+  PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   TrackRoute: TrackRoute,
   ApiDemoAdvanceRoute: ApiDemoAdvanceRoute,
   ApiMockPayRoute: ApiMockPayRoute,
