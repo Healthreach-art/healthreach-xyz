@@ -17,6 +17,7 @@ import { Route as PaymentRouteImport } from './routes/payment'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkAccountRouteImport } from './routes/link-account'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ForPatientsRouteImport } from './routes/for-patients'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -87,6 +88,11 @@ const LinkAccountRoute = LinkAccountRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForPatientsRoute = ForPatientsRouteImport.update({
+  id: '/for-patients',
+  path: '/for-patients',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/for-patients': typeof ForPatientsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
@@ -301,6 +308,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/for-patients': typeof ForPatientsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
@@ -343,6 +351,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/for-patients': typeof ForPatientsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
@@ -386,6 +395,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/for-patients'
     | '/forgot-password'
     | '/link-account'
     | '/login'
@@ -427,6 +437,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/for-patients'
     | '/forgot-password'
     | '/link-account'
     | '/login'
@@ -468,6 +479,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/for-patients'
     | '/forgot-password'
     | '/link-account'
     | '/login'
@@ -510,6 +522,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   CheckoutRoute: typeof CheckoutRoute
   ContactRoute: typeof ContactRoute
+  ForPatientsRoute: typeof ForPatientsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LinkAccountRoute: typeof LinkAccountRoute
   LoginRoute: typeof LoginRoute
@@ -601,6 +614,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-patients': {
+      id: '/for-patients'
+      path: '/for-patients'
+      fullPath: '/for-patients'
+      preLoaderRoute: typeof ForPatientsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -840,6 +860,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   CheckoutRoute: CheckoutRoute,
   ContactRoute: ContactRoute,
+  ForPatientsRoute: ForPatientsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LinkAccountRoute: LinkAccountRoute,
   LoginRoute: LoginRoute,
