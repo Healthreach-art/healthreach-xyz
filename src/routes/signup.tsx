@@ -169,6 +169,23 @@ function SignupPage() {
               </div>
             )}
 
+            <div className="space-y-2">
+              <Label htmlFor="phone">Mobile number</Label>
+              <Input id="phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+27 71 123 4567" maxLength={40} />
+            </div>
+
+            <div className="space-y-1">
+              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : "Delivery address"}</Label>
+              <AddressPicker
+                value={address}
+                onChange={setAddress}
+                placeholder="Start typing your real street address…"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Pick from the suggestions or tap the location icon — we verify it on Google Maps so deliveries land at a real place.
+              </p>
+            </div>
+
             {needsApproval && (
               <div className="rounded-lg bg-accent p-3 text-xs text-muted-foreground">
                 ⚠️ This role requires admin approval before you can access the platform.
