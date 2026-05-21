@@ -31,6 +31,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { PharmacyOffersInbox } from "@/components/PharmacyOffersInbox";
 import { PharmacyLocationCard } from "@/components/PharmacyLocationCard";
+import { BulkMedicineImportDialog } from "@/components/BulkMedicineImportDialog";
+import { LiveETACard } from "@/components/LiveETACard";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MEDICINE_CATEGORIES } from "@/lib/categories";
+
 
 import { RoleGuard } from "@/components/RoleGuard";
 
@@ -587,10 +592,14 @@ function PharmacyDashboard() {
 
         {/* Inventory */}
         <div id="inventory-section" className="healthcare-card p-6 scroll-mt-20">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <h2 className="text-lg font-semibold text-foreground">Inventory</h2>
-            <Button size="sm" variant="outline" onClick={openAddMedication}>+ Add Item</Button>
+            <div className="flex items-center gap-2">
+              <BulkMedicineImportDialog onImported={loadData} />
+              <Button size="sm" variant="outline" onClick={openAddMedication}>+ Add Item</Button>
+            </div>
           </div>
+
           {!loading && inventory.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center">Your inventory is empty. Click "+ Add Item" to add medications.</p>
           )}
@@ -728,8 +737,14 @@ function PharmacyDashboard() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Input id="category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Antibiotics" />
+              <Select value={form.category || "Other"} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <SelectTrigger id="category"><SelectValue placeholder="Choose a category" /></SelectTrigger>
+                <SelectContent>
+                  {MEDICINE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="batch">Batch number</Label>
@@ -891,6 +906,13 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
             <p className="text-2xl font-bold font-mono text-primary tracking-[0.4em]">{delivery.pickup_code}</p>
           </div>
           <p className="text-[10px] text-muted-foreground max-w-[120px] text-right leading-tight">Share with the driver to confirm pickup</p>
+        </div>
+      )}
+
+      {/* Auto-updating ETA from driver's live location */}
+      {delivery.driver_id && delivery.status !== "delivered" && (
+        <div className="mt-3">
+          <LiveETACard orderId={delivery.order_id} deliveryStatus={delivery.status} />
         </div>
       )}
 

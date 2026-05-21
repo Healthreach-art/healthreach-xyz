@@ -7,6 +7,9 @@ import { History, Repeat, Download, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { downloadReceiptPdf } from "@/lib/receipt";
 import { toast } from "sonner";
+import { OrderTimeline } from "@/components/OrderTimeline";
+import { LiveETACard } from "@/components/LiveETACard";
+
 
 interface OrderRow {
   id: string;
@@ -173,7 +176,16 @@ export function OrderHistory() {
                   </Button>
                 </div>
               </div>
+              {active && (
+                <div className="mt-3 space-y-2 pt-3 border-t border-border/60">
+                  <OrderTimeline orderId={o.id} initialOrderStatus={o.status} compact />
+                  {["ready", "out_for_delivery"].includes(o.status) && (
+                    <LiveETACard orderId={o.id} deliveryStatus={o.status === "ready" ? "assigned" : "in_transit"} />
+                  )}
+                </div>
+              )}
             </div>
+
             );
           })}
         </div>
