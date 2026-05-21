@@ -29,14 +29,23 @@ function SearchPage() {
 
   useEffect(() => {
     (async () => {
-      const [{ data: m }, { data: roles }] = await Promise.all([
-        supabase.from("medications").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription").gt("stock_quantity", 0).order("name"),
-        supabase.from("user_roles").select("user_id").eq("role", "pharmacy"),
-      ]);
-      setMeds((m ?? []) as Med[]);
-      const ids = (roles ?? []).map((r: any) => r.user_id);
+      // Fetch meds first (RLS allows authenticated browse), then load the
+      // pharmacy profiles for those pharmacy_ids. Querying user_roles directly
+      // returns 0 rows for non-admins due to RLS.
+      const { data: m } = await supabase
+        .from("medications")
+        .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription")
+        .gt("stock_quantity", 0)
+        .order("name");
+      const medsList = (m ?? []) as Med[];
+      setMeds(medsList);
+      const ids = Array.from(new Set(medsList.map((x) => x.pharmacy_id)));
       if (ids.length) {
-        const { data: profs } = await supabase.from("profiles").select("user_id, organization_name, full_name, approval_status").in("user_id", ids).eq("approval_status", "approved");
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("user_id, organization_name, full_name, approval_status")
+          .in("user_id", ids)
+          .eq("approval_status", "approved");
         setPharmacies((profs ?? []) as Ph[]);
       }
       setLoading(false);
