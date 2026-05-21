@@ -52,6 +52,7 @@ import { Route as DashboardPatientAssistantRouteImport } from './routes/dashboar
 import { Route as DashboardPatientAppointmentsRouteImport } from './routes/dashboard.patient.appointments'
 import { Route as DashboardPatientAddressesRouteImport } from './routes/dashboard.patient.addresses'
 import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard.patient.activity'
+import { Route as DashboardAdminLiveRouteImport } from './routes/dashboard.admin.live'
 import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
 
 const TrackRoute = TrackRouteImport.update({
@@ -278,6 +279,11 @@ const DashboardPatientActivityRoute =
     path: '/dashboard/patient/activity',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DashboardAdminLiveRoute = DashboardAdminLiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => DashboardAdminRoute,
+} as any)
 const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
   id: '/api/public/payment-webhook',
   path: '/api/public/payment-webhook',
@@ -306,7 +312,7 @@ export interface FileRoutesByFullPath {
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/dashboard/admin': typeof DashboardAdminRoute
+  '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
@@ -315,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/pharmacy/$id': typeof PharmacyIdRoute
   '/signup/admin': typeof SignupAdminRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/appointments': typeof DashboardPatientAppointmentsRoute
@@ -352,7 +359,7 @@ export interface FileRoutesByTo {
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/dashboard/admin': typeof DashboardAdminRoute
+  '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
@@ -361,6 +368,7 @@ export interface FileRoutesByTo {
   '/pharmacy/$id': typeof PharmacyIdRoute
   '/signup/admin': typeof SignupAdminRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/appointments': typeof DashboardPatientAppointmentsRoute
@@ -399,7 +407,7 @@ export interface FileRoutesById {
   '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/dashboard/admin': typeof DashboardAdminRoute
+  '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
@@ -408,6 +416,7 @@ export interface FileRoutesById {
   '/pharmacy/$id': typeof PharmacyIdRoute
   '/signup/admin': typeof SignupAdminRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/appointments': typeof DashboardPatientAppointmentsRoute
@@ -456,6 +465,7 @@ export interface FileRouteTypes {
     | '/pharmacy/$id'
     | '/signup/admin'
     | '/api/public/payment-webhook'
+    | '/dashboard/admin/live'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/appointments'
@@ -502,6 +512,7 @@ export interface FileRouteTypes {
     | '/pharmacy/$id'
     | '/signup/admin'
     | '/api/public/payment-webhook'
+    | '/dashboard/admin/live'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/appointments'
@@ -548,6 +559,7 @@ export interface FileRouteTypes {
     | '/pharmacy/$id'
     | '/signup/admin'
     | '/api/public/payment-webhook'
+    | '/dashboard/admin/live'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/appointments'
@@ -586,7 +598,7 @@ export interface RootRouteChildren {
   ApiDemoAdvanceRoute: typeof ApiDemoAdvanceRoute
   ApiMockPayRoute: typeof ApiMockPayRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
-  DashboardAdminRoute: typeof DashboardAdminRoute
+  DashboardAdminRoute: typeof DashboardAdminRouteWithChildren
   DashboardDriverRoute: typeof DashboardDriverRoute
   DashboardHospitalRoute: typeof DashboardHospitalRoute
   DashboardPharmacyRoute: typeof DashboardPharmacyRoute
@@ -913,6 +925,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/admin/live': {
+      id: '/dashboard/admin/live'
+      path: '/live'
+      fullPath: '/dashboard/admin/live'
+      preLoaderRoute: typeof DashboardAdminLiveRouteImport
+      parentRoute: typeof DashboardAdminRoute
+    }
     '/api/public/payment-webhook': {
       id: '/api/public/payment-webhook'
       path: '/api/public/payment-webhook'
@@ -933,6 +952,18 @@ const SignupRouteChildren: SignupRouteChildren = {
 
 const SignupRouteWithChildren =
   SignupRoute._addFileChildren(SignupRouteChildren)
+
+interface DashboardAdminRouteChildren {
+  DashboardAdminLiveRoute: typeof DashboardAdminLiveRoute
+}
+
+const DashboardAdminRouteChildren: DashboardAdminRouteChildren = {
+  DashboardAdminLiveRoute: DashboardAdminLiveRoute,
+}
+
+const DashboardAdminRouteWithChildren = DashboardAdminRoute._addFileChildren(
+  DashboardAdminRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -956,7 +987,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDemoAdvanceRoute: ApiDemoAdvanceRoute,
   ApiMockPayRoute: ApiMockPayRoute,
   AuthCallbackRoute: AuthCallbackRoute,
-  DashboardAdminRoute: DashboardAdminRoute,
+  DashboardAdminRoute: DashboardAdminRouteWithChildren,
   DashboardDriverRoute: DashboardDriverRoute,
   DashboardHospitalRoute: DashboardHospitalRoute,
   DashboardPharmacyRoute: DashboardPharmacyRoute,
