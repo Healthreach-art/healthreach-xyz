@@ -44,10 +44,11 @@ const { data: pharm, error: pharmErr } = await admin
 if (pharmErr) { console.error("Lookup pharmacy failed:", pharmErr.message); process.exit(1); }
 if (!pharm) { console.error("No approved pharmacy found — seed demo data first."); process.exit(1); }
 
-// Patient-side: subscribe with anon key (RLS allows any authenticated user
-// to browse medications; for this smoke test the anon channel is enough to
-// confirm realtime broadcast latency).
-const anon = createClient(URL, ANON_KEY, { auth: { persistSession: false } });
+// Patient-side: subscribe with service-role to bypass RLS for the smoke test
+// (RLS on medications requires `authenticated` and would silently drop anon
+// realtime events). The browser path uses an authenticated user; this script
+// proves the underlying broadcast latency.
+const anon = createClient(URL, SERVICE_KEY, { auth: { persistSession: false } });
 
 let receivedAt = 0;
 const startedAt = Date.now();
