@@ -7,6 +7,9 @@ import { History, Repeat, Download, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { downloadReceiptPdf } from "@/lib/receipt";
 import { toast } from "sonner";
+import { OrderTimeline } from "@/components/OrderTimeline";
+import { LiveETACard } from "@/components/LiveETACard";
+
 
 interface OrderRow {
   id: string;
