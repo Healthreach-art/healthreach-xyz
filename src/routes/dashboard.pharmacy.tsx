@@ -592,10 +592,14 @@ function PharmacyDashboard() {
 
         {/* Inventory */}
         <div id="inventory-section" className="healthcare-card p-6 scroll-mt-20">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <h2 className="text-lg font-semibold text-foreground">Inventory</h2>
-            <Button size="sm" variant="outline" onClick={openAddMedication}>+ Add Item</Button>
+            <div className="flex items-center gap-2">
+              <BulkMedicineImportDialog onImported={loadData} />
+              <Button size="sm" variant="outline" onClick={openAddMedication}>+ Add Item</Button>
+            </div>
           </div>
+
           {!loading && inventory.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center">Your inventory is empty. Click "+ Add Item" to add medications.</p>
           )}
@@ -733,8 +737,14 @@ function PharmacyDashboard() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Input id="category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Antibiotics" />
+              <Select value={form.category || "Other"} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <SelectTrigger id="category"><SelectValue placeholder="Choose a category" /></SelectTrigger>
+                <SelectContent>
+                  {MEDICINE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="batch">Batch number</Label>
