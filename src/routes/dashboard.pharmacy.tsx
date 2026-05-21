@@ -909,6 +909,13 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
         </div>
       )}
 
+      {/* Auto-updating ETA from driver's live location */}
+      {delivery.driver_id && delivery.status !== "delivered" && (
+        <div className="mt-3">
+          <LiveETACard orderId={delivery.order_id} deliveryStatus={delivery.status} />
+        </div>
+      )}
+
       {/* Unified real-time timeline */}
       <div className="mt-4">
         <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} compact />
