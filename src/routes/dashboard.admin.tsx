@@ -159,6 +159,19 @@ function AdminDashboard() {
   const [broadcastBody, setBroadcastBody] = useState("");
   const [broadcastSending, setBroadcastSending] = useState(false);
   const broadcastFn = useServerFn(broadcastNotification);
+  const seedFn = useServerFn(seedJohannesburgDemo);
+  const [seeding, setSeeding] = useState(false);
+
+  async function runSeed() {
+    setSeeding(true);
+    try {
+      const res = await seedFn({} as never);
+      toast.success(`Seeded ${res.pharmacies} pharmacies, ${res.drivers} drivers, +${res.medications} medications. Demo password: ${res.password}`);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || "Seed failed");
+    } finally { setSeeding(false); }
+  }
 
   useEffect(() => {
     if (authLoading) return;
