@@ -67,7 +67,10 @@ interface LiveDelivery {
   id: string;
   order_id: string;
   status: string;
+  driver_id: string | null;
   driver_name: string | null;
+  driver_avatar: string | null;
+  driver_phone: string | null;
   medication_name: string;
   delivery_address: string | null;
   updated_at: string;
