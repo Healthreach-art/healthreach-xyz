@@ -163,12 +163,21 @@ function MedicineMarketplace() {
     for (const m of meds) {
       const ph = phById[m.pharmacy_id];
       if (!ph) continue;
-      const dist = distanceFor(m.pharmacy_id);
+      let km: number;
+      if (myLoc && ph.latitude != null && ph.longitude != null) {
+        km = Number(haversineKm(myLoc.lat, myLoc.lng, ph.latitude, ph.longitude).toFixed(1));
+      } else {
+        // No coords on either side — push to the bottom with a sentinel distance
+        km = 999;
+      }
+      const { etaMin, etaMax } = etaFromKm(km === 999 ? 5 : km);
       const offer: Offer = {
         ...m,
         pharmacyName: ph.organization_name || ph.full_name || "Pharmacy",
         address: ph.address || "Johannesburg",
-        distanceKm: dist.km, etaMin: dist.etaMin, etaMax: dist.etaMax, rating: dist.rating, isOpen: dist.isOpen,
+        distanceKm: km, etaMin, etaMax,
+        rating: ratingFor(m.pharmacy_id),
+        isOpen: true,
       };
       const key = m.name.trim().toLowerCase();
       const g = map.get(key);
@@ -183,7 +192,7 @@ function MedicineMarketplace() {
         });
       }
     }
-    // Sort offers in each group: locked pharmacy first, then closest
+    // Sort offers in each group: locked pharmacy first, then closest by real distance
     for (const g of map.values()) {
       g.offers.sort((a, b) => {
         if (lockedPharmacy) {
@@ -194,7 +203,7 @@ function MedicineMarketplace() {
       });
     }
     return Array.from(map.values());
-  }, [meds, phById, lockedPharmacy]);
+  }, [meds, phById, lockedPharmacy, myLoc]);
 
   const search = q.trim().toLowerCase();
   const byCat = activeCat === "All" ? groups : groups.filter((g) => (g.offers[0]?.category || "Other") === activeCat);
