@@ -136,10 +136,10 @@ function MedicineMarketplace() {
       if (pharmIds.length) {
         const { data: profs } = await supabase
           .from("profiles")
-          .select("user_id, organization_name, full_name, address, phone, approval_status")
+          .select("user_id, organization_name, full_name, address, phone, latitude, longitude, approval_status")
           .in("user_id", pharmIds)
           .eq("approval_status", "approved");
-        setPharmacies((profs ?? []) as Ph[]);
+        setPharmacies((profs ?? []) as unknown as Ph[]);
       }
       if (user) {
         const { data: orders } = await supabase.from("orders").select("medication_name, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(20);
