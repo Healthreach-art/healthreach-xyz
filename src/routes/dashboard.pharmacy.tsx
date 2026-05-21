@@ -387,6 +387,8 @@ function PharmacyDashboard() {
       order_id: order.id,
       pharmacy_id: user.id,
       message: `${order.medication_name} × ${order.quantity}`,
+      // 60-second window for a driver to accept before it expires
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Request sent to all available drivers");
