@@ -15,7 +15,7 @@ import {
 import {
   Package, AlertTriangle, ShoppingCart, DollarSign,
   CheckCircle, XCircle, Clock, Pill, TrendingDown, Loader2,
-  Pencil, Trash2, Plus, Minus, Truck, Radio, MessageCircle, Settings,
+  Pencil, Trash2, Plus, Minus, Truck, Radio, MessageCircle, Settings, Phone,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,7 +67,10 @@ interface LiveDelivery {
   id: string;
   order_id: string;
   status: string;
+  driver_id: string | null;
   driver_name: string | null;
+  driver_avatar: string | null;
+  driver_phone: string | null;
   medication_name: string;
   delivery_address: string | null;
   updated_at: string;
@@ -120,22 +123,32 @@ function PharmacyDashboard() {
         .in("order_id", myOrderIds)
         .in("status", ["assigned", "picked_up", "in_transit"])
         .order("updated_at", { ascending: false });
-      const driverIds = Array.from(new Set((dels ?? []).map((d) => d.driver_id).filter(Boolean) as string[]));
-      const { data: driverProfs } = driverIds.length > 0
-        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", driverIds)
-        : { data: [] as { user_id: string; full_name: string }[] };
-      const nameMap = new Map((driverProfs ?? []).map((p) => [p.user_id, p.full_name]));
       const orderNameMap = new Map((ordersRes.data ?? []).map((o) => [o.id, o.medication_name]));
-      setLiveDeliveries((dels ?? []).map((d) => ({
-        id: d.id,
-        order_id: d.order_id,
-        status: d.status,
-        driver_name: d.driver_id ? (nameMap.get(d.driver_id) || "Driver") : null,
-        medication_name: orderNameMap.get(d.order_id) || "Order",
-        delivery_address: d.delivery_address,
-        updated_at: d.updated_at,
-        pickup_code: (d as { pickup_code?: string | null }).pickup_code ?? null,
-      })));
+      // Fetch driver contact info (name/avatar/phone) for each order via secure RPC
+      const contacts = await Promise.all(
+        (dels ?? []).map(async (d) => {
+          if (!d.driver_id) return null;
+          const { data: c } = await supabase.rpc("get_order_driver_contact", { _order_id: d.order_id });
+          const row = Array.isArray(c) ? c[0] : null;
+          return row as { user_id: string; full_name: string; avatar_url: string; phone: string } | null;
+        })
+      );
+      setLiveDeliveries((dels ?? []).map((d, i) => {
+        const c = contacts[i];
+        return {
+          id: d.id,
+          order_id: d.order_id,
+          status: d.status,
+          driver_id: d.driver_id ?? null,
+          driver_name: c?.full_name || (d.driver_id ? "Driver" : null),
+          driver_avatar: c?.avatar_url || null,
+          driver_phone: c?.phone || null,
+          medication_name: orderNameMap.get(d.order_id) || "Order",
+          delivery_address: d.delivery_address,
+          updated_at: d.updated_at,
+          pickup_code: (d as { pickup_code?: string | null }).pickup_code ?? null,
+        };
+      }));
     } else {
       setLiveDeliveries([]);
     }
@@ -387,6 +400,8 @@ function PharmacyDashboard() {
       order_id: order.id,
       pharmacy_id: user.id,
       message: `${order.medication_name} × ${order.quantity}`,
+      // 60-second window for a driver to accept before it expires
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Request sent to all available drivers");
@@ -850,9 +865,24 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
         </div>
       </div>
       <p className="text-sm font-medium text-foreground">{delivery.medication_name}</p>
-      <p className="text-xs text-muted-foreground">Driver: {delivery.driver_name || "Unassigned"}</p>
+      <div className="flex items-center gap-2 mt-2">
+        {delivery.driver_avatar ? (
+          <img src={delivery.driver_avatar} alt={delivery.driver_name || "Driver"} className="h-9 w-9 rounded-full object-cover ring-1 ring-border" />
+        ) : (
+          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">{(delivery.driver_name || "D").slice(0,1)}</div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-foreground truncate">{delivery.driver_name || "Unassigned"}</p>
+          {delivery.driver_phone && <p className="text-[10px] text-muted-foreground truncate">{delivery.driver_phone}</p>}
+        </div>
+        {delivery.driver_phone && (
+          <Button asChild size="sm" variant="outline" className="h-7 gap-1 text-xs">
+            <a href={`tel:${delivery.driver_phone}`}><Phone className="h-3 w-3" /> Call</a>
+          </Button>
+        )}
+      </div>
       {delivery.delivery_address && (
-        <p className="text-xs text-muted-foreground truncate mt-0.5">→ {delivery.delivery_address}</p>
+        <p className="text-xs text-muted-foreground truncate mt-2">→ {delivery.delivery_address}</p>
       )}
       {delivery.status === "assigned" && delivery.pickup_code && (
         <div className="mt-3 rounded-lg bg-primary/5 border border-primary/30 p-3 flex items-center justify-between">

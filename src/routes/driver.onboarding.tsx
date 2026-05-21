@@ -6,8 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload, ShieldCheck, Camera, FileText, Car, IdCard, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, Upload, ShieldCheck, Camera, FileText, Car, IdCard, CheckCircle2, Clock, User } from "lucide-react";
 import { toast } from "sonner";
+import { CameraCapture } from "@/components/CameraCapture";
 
 export const Route = createFileRoute("/driver/onboarding")({
   head: () => ({ meta: [{ title: "Driver Onboarding — HEALTHREACH" }] }),
@@ -16,12 +17,20 @@ export const Route = createFileRoute("/driver/onboarding")({
 
 type DocKey = "id_document_path" | "license_path" | "selfie_path" | "vehicle_photo_path";
 
-interface DocSpec { key: DocKey; label: string; icon: typeof IdCard; hint: string; capture?: "user" | "environment" }
+interface DocSpec {
+  key: DocKey;
+  label: string;
+  icon: typeof IdCard;
+  hint: string;
+  capture?: "user" | "environment";
+  /** If true, force the in-app live camera (no file upload fallback in the UI). */
+  liveOnly?: boolean;
+}
 
 const DOCS: DocSpec[] = [
-  { key: "id_document_path", label: "ID / Passport", icon: IdCard, hint: "Clear photo of your ID or passport." },
+  { key: "id_document_path", label: "ID / Passport", icon: IdCard, hint: "Clear photo of your ID or passport (you can upload an existing file).", capture: "environment" },
   { key: "license_path", label: "Driver's License", icon: FileText, hint: "Front of your valid driver's license." },
-  { key: "selfie_path", label: "Selfie", icon: Camera, hint: "Take a selfie holding your ID.", capture: "user" },
+  { key: "selfie_path", label: "Selfie holding ID", icon: Camera, hint: "Use the in-app camera. Hold your ID/passport next to your face.", capture: "user", liveOnly: true },
   { key: "vehicle_photo_path", label: "Vehicle Photo", icon: Car, hint: "Photo showing your vehicle and plate.", capture: "environment" },
 ];
 
@@ -43,16 +52,23 @@ function Onboarding() {
   const navigate = useNavigate();
   const [docs, setDocs] = useState<DriverDocs>({});
   const [loading, setLoading] = useState(true);
-  const [uploadingKey, setUploadingKey] = useState<DocKey | null>(null);
+  const [uploadingKey, setUploadingKey] = useState<DocKey | "avatar" | null>(null);
   const [vehicleType, setVehicleType] = useState("Motorbike");
   const [vehicleReg, setVehicleReg] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [cameraFor, setCameraFor] = useState<DocSpec | null>(null);
+  const [avatarCameraOpen, setAvatarCameraOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase.from("driver_documents").select("*").eq("driver_id", user.id).maybeSingle();
+      const [{ data }, { data: prof }] = await Promise.all([
+        supabase.from("driver_documents").select("*").eq("driver_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("avatar_url").eq("user_id", user.id).maybeSingle(),
+      ]);
+      if (prof?.avatar_url) setAvatarUrl(prof.avatar_url);
       if (data) {
         setDocs(data);
         setVehicleType(data.vehicle_type || "Motorbike");
@@ -93,8 +109,25 @@ function Onboarding() {
     toast.success("Uploaded");
   }
 
+  async function handleAvatarUpload(file: File) {
+    if (!user) return;
+    setUploadingKey("avatar");
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+    if (error) { toast.error(error.message); setUploadingKey(null); return; }
+    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+    const url = pub.publicUrl;
+    const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: url }).eq("user_id", user.id);
+    setUploadingKey(null);
+    if (dbErr) { toast.error(dbErr.message); return; }
+    setAvatarUrl(url);
+    toast.success("Profile photo saved");
+  }
+
   async function submitForReview() {
     if (!user) return;
+    if (!avatarUrl) { toast.error("Add a profile photo so patients can recognise you."); return; }
     const allUploaded = DOCS.every((d) => (docs as any)[d.key]);
     if (!allUploaded) { toast.error("Please upload all documents."); return; }
     if (!vehicleReg.trim()) { toast.error("Enter your vehicle registration."); return; }
@@ -135,6 +168,29 @@ function Onboarding() {
         </div>
       )}
 
+      {/* Profile photo — shown to patients and pharmacies */}
+      <div className="healthcare-card p-5 mb-6">
+        <h2 className="font-semibold mb-3 flex items-center gap-2"><User className="h-4 w-4" /> Profile photo
+          <span className="text-[10px] uppercase tracking-wide text-destructive">Required</span>
+        </h2>
+        <div className="flex items-center gap-4">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="You" className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/40" />
+          ) : (
+            <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+              <User className="h-8 w-8" />
+            </div>
+          )}
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground mb-2">Patients and pharmacies see this photo so they know who's coming. Use a clear face shot.</p>
+            <Button size="sm" variant="outline" onClick={() => setAvatarCameraOpen(true)} disabled={uploadingKey === "avatar"} className="gap-1">
+              {uploadingKey === "avatar" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+              {avatarUrl ? "Retake photo" : "Take photo"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="healthcare-card p-5 mb-6">
         <h2 className="font-semibold mb-3 flex items-center gap-2"><Car className="h-4 w-4" /> Vehicle</h2>
         <div className="grid sm:grid-cols-2 gap-3">
@@ -168,7 +224,21 @@ function Onboarding() {
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{spec.hint}</p>
                   {preview && <img src={preview} alt={spec.label} className="mt-3 h-24 w-24 object-cover rounded-md border border-border" />}
-                  <FileButton spec={spec} uploading={uploadingKey === spec.key} onFile={(f) => handleUpload(spec.key, f)} hasFile={uploaded} />
+                  <div className="mt-3 flex gap-2 flex-wrap">
+                    {spec.liveOnly ? (
+                      <Button size="sm" variant="outline" onClick={() => setCameraFor(spec)} disabled={uploadingKey === spec.key} className="gap-2">
+                        {uploadingKey === spec.key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                        {uploaded ? "Retake" : "Open camera"}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => setCameraFor(spec)} disabled={uploadingKey === spec.key} className="gap-2">
+                          <Camera className="h-3 w-3" /> Camera
+                        </Button>
+                        <FileButton spec={spec} uploading={uploadingKey === spec.key} onFile={(f) => handleUpload(spec.key, f)} hasFile={uploaded} />
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -177,12 +247,32 @@ function Onboarding() {
       </div>
 
       <div className="flex items-center justify-between gap-3 sticky bottom-4 bg-background/80 backdrop-blur p-3 rounded-lg border border-border">
-        <span className="text-xs text-muted-foreground">{completed}/{DOCS.length} uploaded</span>
-        <Button onClick={submitForReview} disabled={submitting || completed < DOCS.length} className="gap-2">
+        <span className="text-xs text-muted-foreground">{completed}/{DOCS.length} docs · {avatarUrl ? "photo ✓" : "photo missing"}</span>
+        <Button onClick={submitForReview} disabled={submitting || completed < DOCS.length || !avatarUrl} className="gap-2">
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           {submitted ? "Re-submit for Review" : "Submit for Review"}
         </Button>
       </div>
+
+      {/* In-app camera */}
+      <CameraCapture
+        open={!!cameraFor}
+        onClose={() => setCameraFor(null)}
+        onCapture={async (f) => { if (cameraFor) await handleUpload(cameraFor.key, f); }}
+        title={cameraFor?.label || "Take photo"}
+        hint={cameraFor?.hint}
+        facing={cameraFor?.capture || "environment"}
+        filenamePrefix={cameraFor?.key || "doc"}
+      />
+      <CameraCapture
+        open={avatarCameraOpen}
+        onClose={() => setAvatarCameraOpen(false)}
+        onCapture={handleAvatarUpload}
+        title="Profile photo"
+        hint="A clear photo of your face. Patients will see this when you're delivering."
+        facing="user"
+        filenamePrefix="avatar"
+      />
     </div>
   );
 }
@@ -190,7 +280,7 @@ function Onboarding() {
 function FileButton({ spec, uploading, onFile, hasFile }: { spec: DocSpec; uploading: boolean; onFile: (f: File) => void; hasFile: boolean }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
-    <div className="mt-3">
+    <>
       <input
         ref={ref} type="file" accept="image/*,application/pdf" {...(spec.capture ? { capture: spec.capture } : {})}
         className="hidden"
@@ -198,8 +288,8 @@ function FileButton({ spec, uploading, onFile, hasFile }: { spec: DocSpec; uploa
       />
       <Button size="sm" variant="outline" onClick={() => ref.current?.click()} disabled={uploading} className="gap-2">
         {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-        {hasFile ? "Replace" : "Upload"}
+        {hasFile ? "Replace file" : "Upload file"}
       </Button>
-    </div>
+    </>
   );
 }
