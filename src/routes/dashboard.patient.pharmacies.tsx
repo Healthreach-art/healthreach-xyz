@@ -11,14 +11,16 @@ import { customerPrice } from "@/lib/pricing";
 import { PrescriptionUploader } from "@/components/PrescriptionVerification";
 import { toast } from "sonner";
 import medGeneric from "@/assets/med-generic.jpg";
+import { Crosshair } from "lucide-react";
 
-interface Ph { user_id: string; organization_name: string | null; full_name: string; address: string | null; phone: string | null; }
+interface Ph { user_id: string; organization_name: string | null; full_name: string; address: string | null; phone: string | null; latitude: number | null; longitude: number | null; }
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; image_url?: string | null; description?: string | null; category?: string | null; }
 interface Offer extends Med { pharmacyName: string; address: string; distanceKm: number; etaMin: number; etaMax: number; rating: number; isOpen: boolean; }
 interface Group { key: string; name: string; image: string; requiresRx: boolean; offers: Offer[]; minPrice: number; }
 
 const FULFILL_KEY = "hr.fulfillment";
 const LOCK_KEY = "hr.lockedPharmacy";
+const MYLOC_KEY = "hr.patientLoc";
 
 const CATEGORIES: { key: string; label: string; icon: any; tone: string; iconColor: string }[] = [
   { key: "All", label: "All", icon: Grid3x3, tone: "bg-primary/10", iconColor: "text-primary" },
@@ -33,13 +35,16 @@ const CATEGORIES: { key: string; label: string; icon: any; tone: string; iconCol
   { key: "Other", label: "Other", icon: StoreIcon, tone: "bg-muted", iconColor: "text-muted-foreground" },
 ];
 
-function hashOf(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
-function distanceFor(id: string) {
-  const h = hashOf(id);
-  const km = Number((0.8 + (h % 90) / 10).toFixed(1)); // 0.8 – 9.7 km
-  const etaMin = 15 + Math.round(km * 2);
-  return { km, etaMin, etaMax: etaMin + 15, rating: Number((4.0 + ((h % 90) / 100)).toFixed(1)), isOpen: (h % 9) !== 0 };
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(s));
 }
+function hashOf(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+function ratingFor(id: string) { return Number((4.0 + ((hashOf(id) % 90) / 100)).toFixed(1)); }
+function etaFromKm(km: number) { const etaMin = 15 + Math.max(5, Math.round(km * 2)); return { etaMin, etaMax: etaMin + 15 }; }
 
 export const Route = createFileRoute("/dashboard/patient/pharmacies")({
   head: () => ({ meta: [{ title: "Order Medication — HEALTHREACH" }] }),
