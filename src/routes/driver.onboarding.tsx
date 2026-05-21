@@ -258,7 +258,7 @@ function Onboarding() {
       <CameraCapture
         open={!!cameraFor}
         onClose={() => setCameraFor(null)}
-        onCapture={(f) => cameraFor && handleUpload(cameraFor.key, f)}
+        onCapture={async (f) => { if (cameraFor) await handleUpload(cameraFor.key, f); }}
         title={cameraFor?.label || "Take photo"}
         hint={cameraFor?.hint}
         facing={cameraFor?.capture || "environment"}
