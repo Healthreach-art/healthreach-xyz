@@ -65,12 +65,43 @@ function MedicineMarketplace() {
   const [rxFor, setRxFor] = useState<{ med: Offer } | null>(null);
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
   const [lockedPharmacy, setLockedPharmacy] = useState<string | null>(null);
+  const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [locBusy, setLocBusy] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setFulfillment((localStorage.getItem(FULFILL_KEY) as any) || "delivery");
     setLockedPharmacy(localStorage.getItem(LOCK_KEY));
+    try {
+      const raw = localStorage.getItem(MYLOC_KEY);
+      if (raw) setMyLoc(JSON.parse(raw));
+    } catch { /* ignore */ }
   }, []);
+
+  // Fall back to profile's saved address if no override location is set
+  useEffect(() => {
+    if (myLoc || !user) return;
+    supabase.from("profiles").select("latitude, longitude").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => {
+        if (data?.latitude && data?.longitude) setMyLoc({ lat: data.latitude, lng: data.longitude });
+      });
+  }, [user, myLoc]);
+
+  function useMyLocation() {
+    if (!navigator.geolocation) { toast.error("Geolocation not supported in this browser"); return; }
+    setLocBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setMyLoc(loc);
+        try { localStorage.setItem(MYLOC_KEY, JSON.stringify(loc)); } catch { /* ignore */ }
+        toast.success("Pinned your location — pharmacies sorted by closest");
+        setLocBusy(false);
+      },
+      (err) => { toast.error(err.message || "Could not get your location"); setLocBusy(false); },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
 
   // Realtime: refresh medication stock/price as pharmacies update
   useEffect(() => {
