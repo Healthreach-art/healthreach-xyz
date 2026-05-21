@@ -39,11 +39,10 @@ const { data: pharm, error: pharmErr } = await admin
   .from("profiles")
   .select("user_id")
   .eq("approval_status", "approved")
-  .not("latitude", "is", null)
   .limit(1)
   .maybeSingle();
 if (pharmErr) { console.error("Lookup pharmacy failed:", pharmErr.message); process.exit(1); }
-if (!pharm) { console.error("No approved pharmacy with coordinates — seed demo data first."); process.exit(1); }
+if (!pharm) { console.error("No approved pharmacy found — seed demo data first."); process.exit(1); }
 
 // Patient-side: subscribe with anon key (RLS allows any authenticated user
 // to browse medications; for this smoke test the anon channel is enough to
