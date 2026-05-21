@@ -436,7 +436,7 @@ function PharmacyDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {[
           { icon: ShoppingCart, label: "Pending Orders", value: String(pendingCount), color: "text-primary", target: "orders-section" },
           { icon: Package, label: "Total Products", value: String(inventory.length), color: "text-healthcare-teal", target: "inventory-section" },
@@ -464,15 +464,14 @@ function PharmacyDashboard() {
                 <p className="text-xs text-muted-foreground">{stat.label}</p>
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
+            </div>
+          </a>
+        ))}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 mb-6">
         <PharmacyOffersInbox />
         <PharmacyLocationCard />
-      </div>
-
-          </a>
-        ))}
       </div>
 
       {lowStockItems.length > 0 && (
