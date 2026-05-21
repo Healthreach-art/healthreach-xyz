@@ -12,7 +12,7 @@ import { FailedDeliveryDialog } from "@/components/FailedDeliveryDialog";
 import { useDriverPresence } from "@/hooks/useDriverPresence";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
 import { Switch } from "@/components/ui/switch";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getMapboxDistance } from "@/utils/mapbox.functions";
