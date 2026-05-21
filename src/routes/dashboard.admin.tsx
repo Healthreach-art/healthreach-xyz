@@ -351,7 +351,14 @@ function AdminDashboard() {
           <h1 className="text-2xl font-bold text-foreground">Admin Master Control</h1>
           <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Administrator"}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => navigate({ to: "/dashboard/admin/live" as any })}>
+            <Activity className="h-4 w-4 mr-1" /> Live map
+          </Button>
+          <Button variant="outline" size="sm" onClick={runSeed} disabled={seeding}>
+            {seeding ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Pill className="h-4 w-4 mr-1" />}
+            {seeding ? "Seeding…" : "Seed JHB demo"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4 mr-1" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
