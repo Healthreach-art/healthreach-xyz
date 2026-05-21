@@ -1279,6 +1279,15 @@ export type Database = {
           pharmacy_id: string
         }[]
       }
+      get_order_driver_contact: {
+        Args: { _order_id: string }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          phone: string
+          user_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
