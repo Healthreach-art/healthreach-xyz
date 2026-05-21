@@ -264,6 +264,21 @@ function MedicineMarketplace() {
         </div>
       </div>
 
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button variant={myLoc ? "outline" : "default"} size="sm" onClick={useMyLocation} disabled={locBusy} className="rounded-full">
+          {locBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crosshair className="h-3.5 w-3.5" />}
+          {myLoc ? "Update my location" : "Use my location"}
+        </Button>
+        {myLoc && (
+          <span className="text-[11px] text-muted-foreground">
+            📍 Sorting by closest to {myLoc.lat.toFixed(4)}, {myLoc.lng.toFixed(4)}
+          </span>
+        )}
+        {!myLoc && (
+          <span className="text-[11px] text-muted-foreground">Pin your location for accurate distance &amp; ETA.</span>
+        )}
+      </div>
+
       {lockedPharmacy && phById[lockedPharmacy] && (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-2">
           <div className="flex items-center gap-2 text-sm">
