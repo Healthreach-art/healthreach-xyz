@@ -865,10 +865,22 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
         </div>
       </div>
       <p className="text-sm font-medium text-foreground">{delivery.medication_name}</p>
-      <p className="text-xs text-muted-foreground">Driver: {delivery.driver_name || "Unassigned"}</p>
-      {delivery.delivery_address && (
-        <p className="text-xs text-muted-foreground truncate mt-0.5">→ {delivery.delivery_address}</p>
-      )}
+      <div className="flex items-center gap-2 mt-2">
+        {delivery.driver_avatar ? (
+          <img src={delivery.driver_avatar} alt={delivery.driver_name || "Driver"} className="h-9 w-9 rounded-full object-cover ring-1 ring-border" />
+        ) : (
+          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">{(delivery.driver_name || "D").slice(0,1)}</div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-foreground truncate">{delivery.driver_name || "Unassigned"}</p>
+          {delivery.driver_phone && <p className="text-[10px] text-muted-foreground truncate">{delivery.driver_phone}</p>}
+        </div>
+        {delivery.driver_phone && (
+          <Button asChild size="sm" variant="outline" className="h-7 gap-1 text-xs">
+            <a href={`tel:${delivery.driver_phone}`}><Phone className="h-3 w-3" /> Call</a>
+          </Button>
+        )}
+      </div>
       {delivery.status === "assigned" && delivery.pickup_code && (
         <div className="mt-3 rounded-lg bg-primary/5 border border-primary/30 p-3 flex items-center justify-between">
           <div>
