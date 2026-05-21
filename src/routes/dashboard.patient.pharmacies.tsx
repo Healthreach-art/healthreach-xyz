@@ -11,14 +11,16 @@ import { customerPrice } from "@/lib/pricing";
 import { PrescriptionUploader } from "@/components/PrescriptionVerification";
 import { toast } from "sonner";
 import medGeneric from "@/assets/med-generic.jpg";
+import { Crosshair } from "lucide-react";
 
-interface Ph { user_id: string; organization_name: string | null; full_name: string; address: string | null; phone: string | null; }
+interface Ph { user_id: string; organization_name: string | null; full_name: string; address: string | null; phone: string | null; latitude: number | null; longitude: number | null; }
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; image_url?: string | null; description?: string | null; category?: string | null; }
 interface Offer extends Med { pharmacyName: string; address: string; distanceKm: number; etaMin: number; etaMax: number; rating: number; isOpen: boolean; }
 interface Group { key: string; name: string; image: string; requiresRx: boolean; offers: Offer[]; minPrice: number; }
 
 const FULFILL_KEY = "hr.fulfillment";
 const LOCK_KEY = "hr.lockedPharmacy";
+const MYLOC_KEY = "hr.patientLoc";
 
 const CATEGORIES: { key: string; label: string; icon: any; tone: string; iconColor: string }[] = [
   { key: "All", label: "All", icon: Grid3x3, tone: "bg-primary/10", iconColor: "text-primary" },
@@ -33,13 +35,16 @@ const CATEGORIES: { key: string; label: string; icon: any; tone: string; iconCol
   { key: "Other", label: "Other", icon: StoreIcon, tone: "bg-muted", iconColor: "text-muted-foreground" },
 ];
 
-function hashOf(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
-function distanceFor(id: string) {
-  const h = hashOf(id);
-  const km = Number((0.8 + (h % 90) / 10).toFixed(1)); // 0.8 – 9.7 km
-  const etaMin = 15 + Math.round(km * 2);
-  return { km, etaMin, etaMax: etaMin + 15, rating: Number((4.0 + ((h % 90) / 100)).toFixed(1)), isOpen: (h % 9) !== 0 };
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(s));
 }
+function hashOf(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+function ratingFor(id: string) { return Number((4.0 + ((hashOf(id) % 90) / 100)).toFixed(1)); }
+function etaFromKm(km: number) { const etaMin = 15 + Math.max(5, Math.round(km * 2)); return { etaMin, etaMax: etaMin + 15 }; }
 
 export const Route = createFileRoute("/dashboard/patient/pharmacies")({
   head: () => ({ meta: [{ title: "Order Medication — HEALTHREACH" }] }),
@@ -60,12 +65,43 @@ function MedicineMarketplace() {
   const [rxFor, setRxFor] = useState<{ med: Offer } | null>(null);
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
   const [lockedPharmacy, setLockedPharmacy] = useState<string | null>(null);
+  const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [locBusy, setLocBusy] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setFulfillment((localStorage.getItem(FULFILL_KEY) as any) || "delivery");
     setLockedPharmacy(localStorage.getItem(LOCK_KEY));
+    try {
+      const raw = localStorage.getItem(MYLOC_KEY);
+      if (raw) setMyLoc(JSON.parse(raw));
+    } catch { /* ignore */ }
   }, []);
+
+  // Fall back to profile's saved address if no override location is set
+  useEffect(() => {
+    if (myLoc || !user) return;
+    supabase.from("profiles").select("latitude, longitude").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => {
+        if (data?.latitude && data?.longitude) setMyLoc({ lat: data.latitude, lng: data.longitude });
+      });
+  }, [user, myLoc]);
+
+  function useMyLocation() {
+    if (!navigator.geolocation) { toast.error("Geolocation not supported in this browser"); return; }
+    setLocBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setMyLoc(loc);
+        try { localStorage.setItem(MYLOC_KEY, JSON.stringify(loc)); } catch { /* ignore */ }
+        toast.success("Pinned your location — pharmacies sorted by closest");
+        setLocBusy(false);
+      },
+      (err) => { toast.error(err.message || "Could not get your location"); setLocBusy(false); },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
 
   // Realtime: refresh medication stock/price as pharmacies update
   useEffect(() => {
@@ -100,10 +136,10 @@ function MedicineMarketplace() {
       if (pharmIds.length) {
         const { data: profs } = await supabase
           .from("profiles")
-          .select("user_id, organization_name, full_name, address, phone, approval_status")
+          .select("user_id, organization_name, full_name, address, phone, latitude, longitude, approval_status")
           .in("user_id", pharmIds)
           .eq("approval_status", "approved");
-        setPharmacies((profs ?? []) as Ph[]);
+        setPharmacies((profs ?? []) as unknown as Ph[]);
       }
       if (user) {
         const { data: orders } = await supabase.from("orders").select("medication_name, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(20);
@@ -127,12 +163,21 @@ function MedicineMarketplace() {
     for (const m of meds) {
       const ph = phById[m.pharmacy_id];
       if (!ph) continue;
-      const dist = distanceFor(m.pharmacy_id);
+      let km: number;
+      if (myLoc && ph.latitude != null && ph.longitude != null) {
+        km = Number(haversineKm(myLoc.lat, myLoc.lng, ph.latitude, ph.longitude).toFixed(1));
+      } else {
+        // No coords on either side — push to the bottom with a sentinel distance
+        km = 999;
+      }
+      const { etaMin, etaMax } = etaFromKm(km === 999 ? 5 : km);
       const offer: Offer = {
         ...m,
         pharmacyName: ph.organization_name || ph.full_name || "Pharmacy",
         address: ph.address || "Johannesburg",
-        distanceKm: dist.km, etaMin: dist.etaMin, etaMax: dist.etaMax, rating: dist.rating, isOpen: dist.isOpen,
+        distanceKm: km, etaMin, etaMax,
+        rating: ratingFor(m.pharmacy_id),
+        isOpen: true,
       };
       const key = m.name.trim().toLowerCase();
       const g = map.get(key);
@@ -147,7 +192,7 @@ function MedicineMarketplace() {
         });
       }
     }
-    // Sort offers in each group: locked pharmacy first, then closest
+    // Sort offers in each group: locked pharmacy first, then closest by real distance
     for (const g of map.values()) {
       g.offers.sort((a, b) => {
         if (lockedPharmacy) {
@@ -158,7 +203,7 @@ function MedicineMarketplace() {
       });
     }
     return Array.from(map.values());
-  }, [meds, phById, lockedPharmacy]);
+  }, [meds, phById, lockedPharmacy, myLoc]);
 
   const search = q.trim().toLowerCase();
   const byCat = activeCat === "All" ? groups : groups.filter((g) => (g.offers[0]?.category || "Other") === activeCat);
@@ -217,6 +262,21 @@ function MedicineMarketplace() {
             <StoreIcon className="h-3.5 w-3.5" /> Pickup
           </button>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button variant={myLoc ? "outline" : "default"} size="sm" onClick={useMyLocation} disabled={locBusy} className="rounded-full">
+          {locBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crosshair className="h-3.5 w-3.5" />}
+          {myLoc ? "Update my location" : "Use my location"}
+        </Button>
+        {myLoc && (
+          <span className="text-[11px] text-muted-foreground">
+            📍 Sorting by closest to {myLoc.lat.toFixed(4)}, {myLoc.lng.toFixed(4)}
+          </span>
+        )}
+        {!myLoc && (
+          <span className="text-[11px] text-muted-foreground">Pin your location for accurate distance &amp; ETA.</span>
+        )}
       </div>
 
       {lockedPharmacy && phById[lockedPharmacy] && (
