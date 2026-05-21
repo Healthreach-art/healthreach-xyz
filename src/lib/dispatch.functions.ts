@@ -174,3 +174,39 @@ export const setPharmacyLocation = createServerFn({ method: "POST" })
     }).eq("user_id", context.userId);
     return { ok: true };
   });
+
+/**
+ * Writes the verified address+coords to the signed-in user's profile right
+ * after signup. Also seeds driver_locations for drivers so they appear on the
+ * live map immediately.
+ */
+export const setSignupLocation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({
+    address: z.string().min(3).max(500),
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    organizationName: z.string().max(200).optional(),
+    phone: z.string().max(40).optional(),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    const patch: Record<string, unknown> = {
+      address: data.address,
+      latitude: data.lat,
+      longitude: data.lng,
+    };
+    if (data.organizationName) patch.organization_name = data.organizationName;
+    if (data.phone) patch.phone = data.phone;
+    await supabaseAdmin.from("profiles").update(patch as never).eq("user_id", userId);
+
+    const { data: roleRow } = await supabaseAdmin
+      .from("user_roles").select("role").eq("user_id", userId).maybeSingle();
+    if (roleRow?.role === "driver") {
+      await supabaseAdmin.from("driver_locations").upsert({
+        driver_id: userId, lat: data.lat, lng: data.lng,
+        updated_at: new Date().toISOString(),
+      } as never, { onConflict: "driver_id" });
+    }
+    return { ok: true };
+  });

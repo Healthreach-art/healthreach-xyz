@@ -5,9 +5,13 @@ import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { useServerFn } from "@tanstack/react-start";
+import { setSignupLocation } from "@/lib/dispatch.functions";
+import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, CheckCircle, Truck, Store, ArrowLeft } from "lucide-react";
 
 type SignupSearch = { role?: "patient" | "pharmacy" | "driver" };
+
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>): SignupSearch => {
@@ -40,13 +44,20 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [orgName, setOrgName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState<PickedAddress | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const saveLocation = useServerFn(setSignupLocation);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!address || !address.lat || !address.lng) {
+      setError("Please pick your address from the suggestions or use 'current location' so it's verified on the map.");
+      return;
+    }
     setLoading(true);
 
     const { error: authError } = await supabase.auth.signUp({
@@ -64,16 +75,26 @@ function SignupPage() {
       return;
     }
 
-    if (needsOrg && orgName) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("profiles").update({ organization_name: orgName }).eq("user_id", user.id);
-      }
+    // Auto-confirm is on, so we already have a session. Write address+coords.
+    try {
+      await saveLocation({
+        data: {
+          address: address.address,
+          lat: address.lat,
+          lng: address.lng,
+          organizationName: needsOrg ? orgName : undefined,
+          phone: phone || undefined,
+        },
+      });
+    } catch (err) {
+      // Profile update failure is non-fatal for the signup flow; surface a soft warning.
+      console.warn("Saving signup location failed:", err);
     }
 
     setSuccess(true);
     setLoading(false);
   };
+
 
   if (success) {
     return (
@@ -147,6 +168,23 @@ function SignupPage() {
                 <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="e.g. City Pharmacy" required maxLength={200} />
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Mobile number</Label>
+              <Input id="phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+27 71 123 4567" maxLength={40} />
+            </div>
+
+            <div className="space-y-1">
+              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : "Delivery address"}</Label>
+              <AddressPicker
+                value={address}
+                onChange={setAddress}
+                placeholder="Start typing your real street address…"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Pick from the suggestions or tap the location icon — we verify it on Google Maps so deliveries land at a real place.
+              </p>
+            </div>
 
             {needsApproval && (
               <div className="rounded-lg bg-accent p-3 text-xs text-muted-foreground">
