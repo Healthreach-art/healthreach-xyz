@@ -87,15 +87,23 @@ function MedicineMarketplace() {
 
   useEffect(() => {
     (async () => {
-      const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "pharmacy");
-      const ids = (roles ?? []).map((r: any) => r.user_id);
-      if (ids.length) {
-        const [{ data: profs }, { data: medsData }] = await Promise.all([
-          supabase.from("profiles").select("user_id, organization_name, full_name, address, phone, approval_status").in("user_id", ids).eq("approval_status", "approved"),
-          supabase.from("medications").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category").in("pharmacy_id", ids).gt("stock_quantity", 0),
-        ]);
+      // Fetch all in-stock meds first (RLS: any authenticated user can browse),
+      // then resolve their pharmacy profiles. Avoids querying user_roles which
+      // RLS scopes to the caller's own row.
+      const { data: medsData } = await supabase
+        .from("medications")
+        .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category")
+        .gt("stock_quantity", 0);
+      const medsList = (medsData ?? []) as Med[];
+      setMeds(medsList);
+      const pharmIds = Array.from(new Set(medsList.map((m) => m.pharmacy_id)));
+      if (pharmIds.length) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("user_id, organization_name, full_name, address, phone, approval_status")
+          .in("user_id", pharmIds)
+          .eq("approval_status", "approved");
         setPharmacies((profs ?? []) as Ph[]);
-        setMeds((medsData ?? []) as Med[]);
       }
       if (user) {
         const { data: orders } = await supabase.from("orders").select("medication_name, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(20);
