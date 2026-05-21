@@ -123,22 +123,32 @@ function PharmacyDashboard() {
         .in("order_id", myOrderIds)
         .in("status", ["assigned", "picked_up", "in_transit"])
         .order("updated_at", { ascending: false });
-      const driverIds = Array.from(new Set((dels ?? []).map((d) => d.driver_id).filter(Boolean) as string[]));
-      const { data: driverProfs } = driverIds.length > 0
-        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", driverIds)
-        : { data: [] as { user_id: string; full_name: string }[] };
-      const nameMap = new Map((driverProfs ?? []).map((p) => [p.user_id, p.full_name]));
       const orderNameMap = new Map((ordersRes.data ?? []).map((o) => [o.id, o.medication_name]));
-      setLiveDeliveries((dels ?? []).map((d) => ({
-        id: d.id,
-        order_id: d.order_id,
-        status: d.status,
-        driver_name: d.driver_id ? (nameMap.get(d.driver_id) || "Driver") : null,
-        medication_name: orderNameMap.get(d.order_id) || "Order",
-        delivery_address: d.delivery_address,
-        updated_at: d.updated_at,
-        pickup_code: (d as { pickup_code?: string | null }).pickup_code ?? null,
-      })));
+      // Fetch driver contact info (name/avatar/phone) for each order via secure RPC
+      const contacts = await Promise.all(
+        (dels ?? []).map(async (d) => {
+          if (!d.driver_id) return null;
+          const { data: c } = await supabase.rpc("get_order_driver_contact", { _order_id: d.order_id });
+          const row = Array.isArray(c) ? c[0] : null;
+          return row as { user_id: string; full_name: string; avatar_url: string; phone: string } | null;
+        })
+      );
+      setLiveDeliveries((dels ?? []).map((d, i) => {
+        const c = contacts[i];
+        return {
+          id: d.id,
+          order_id: d.order_id,
+          status: d.status,
+          driver_id: d.driver_id ?? null,
+          driver_name: c?.full_name || (d.driver_id ? "Driver" : null),
+          driver_avatar: c?.avatar_url || null,
+          driver_phone: c?.phone || null,
+          medication_name: orderNameMap.get(d.order_id) || "Order",
+          delivery_address: d.delivery_address,
+          updated_at: d.updated_at,
+          pickup_code: (d as { pickup_code?: string | null }).pickup_code ?? null,
+        };
+      }));
     } else {
       setLiveDeliveries([]);
     }
