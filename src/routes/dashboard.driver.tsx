@@ -172,6 +172,50 @@ function DriverDashboard() {
     setOffers((prev) => prev.filter((o) => new Date(o.expires_at).getTime() > now));
   }, [now]);
 
+  // 🔔 Play a ticking beep while offers are pending (1s interval).
+  // Uses Web Audio so no asset file needed.
+  useEffect(() => {
+    if (offers.length === 0) return;
+    let ctx: AudioContext | null = null;
+    function beep() {
+      try {
+        if (!ctx) ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.value = 880;
+        g.gain.value = 0.0001;
+        o.connect(g); g.connect(ctx.destination);
+        const t = ctx.currentTime;
+        g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+        o.start(t); o.stop(t + 0.18);
+      } catch { /* ignore */ }
+    }
+    beep();
+    const id = setInterval(beep, 1000);
+    return () => { clearInterval(id); ctx?.close().catch(() => {}); };
+  }, [offers.length]);
+
+  // Browser notification on brand-new incoming offers
+  const prevOfferIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    const ids = offers.map((o) => o.id);
+    const fresh = ids.filter((id) => !prevOfferIdsRef.current.includes(id));
+    if (fresh.length > 0 && prevOfferIdsRef.current.length > 0) {
+      const f = offers.find((o) => o.id === fresh[0]);
+      toast.info("🚚 New delivery — 60s to accept", { description: f?.message ?? "" });
+      if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "granted") {
+          try { new Notification("New delivery request", { body: "Tap to accept within 60 seconds", icon: "/favicon.ico" }); } catch { /* noop */ }
+        } else if (Notification.permission === "default") {
+          Notification.requestPermission().catch(() => {});
+        }
+      }
+    }
+    prevOfferIdsRef.current = ids;
+  }, [offers]);
+
   useEffect(() => {
     if (!user) return;
 
