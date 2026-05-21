@@ -881,6 +881,9 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
           </Button>
         )}
       </div>
+      {delivery.delivery_address && (
+        <p className="text-xs text-muted-foreground truncate mt-2">→ {delivery.delivery_address}</p>
+      )}
       {delivery.status === "assigned" && delivery.pickup_code && (
         <div className="mt-3 rounded-lg bg-primary/5 border border-primary/30 p-3 flex items-center justify-between">
           <div>
