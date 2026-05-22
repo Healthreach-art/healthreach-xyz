@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Search, Clock, MapPin, Pill, Plus, Stethoscope, Zap, Lock, Unlock, History, Truck, Store as StoreIcon, Star, Heart, Baby, Thermometer, Sparkles, Bandage, ShieldPlus, Activity, Grid3x3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { customerPrice } from "@/lib/pricing";
+import { listPatientMarketplace } from "@/lib/patient-marketplace.functions";
 import { PrescriptionUploader } from "@/components/PrescriptionVerification";
 import { toast } from "sonner";
 import medGeneric from "@/assets/med-generic.jpg";
@@ -55,6 +57,7 @@ function MedicineMarketplace() {
   const cart = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const loadMarketplace = useServerFn(listPatientMarketplace);
   const [pharmacies, setPharmacies] = useState<Ph[]>([]);
   const [meds, setMeds] = useState<Med[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
@@ -103,19 +106,18 @@ function MedicineMarketplace() {
     );
   }
 
+  async function refreshMarketplace() {
+    const data = await loadMarketplace();
+    setMeds(data.meds as Med[]);
+    setPharmacies(data.pharmacies as Ph[]);
+  }
+
   // Realtime: refresh medication stock/price as pharmacies update
   useEffect(() => {
     const channel = supabase
       .channel("meds-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "medications" }, (payload: any) => {
-        setMeds((prev) => {
-          if (payload.eventType === "DELETE") return prev.filter((m) => m.id !== payload.old.id);
-          const row = payload.new as Med;
-          const idx = prev.findIndex((m) => m.id === row.id);
-          if (idx === -1) return row.stock_quantity > 0 ? [...prev, row] : prev;
-          const next = [...prev]; next[idx] = row;
-          return next.filter((m) => m.stock_quantity > 0);
-        });
+      .on("postgres_changes", { event: "*", schema: "public", table: "medications" }, () => {
+        refreshMarketplace().catch(() => toast.error("Could not refresh medicine stock"));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -123,24 +125,7 @@ function MedicineMarketplace() {
 
   useEffect(() => {
     (async () => {
-      // Fetch all in-stock meds first (RLS: any authenticated user can browse),
-      // then resolve their pharmacy profiles. Avoids querying user_roles which
-      // RLS scopes to the caller's own row.
-      const { data: medsData } = await supabase
-        .from("medications")
-        .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category")
-        .gt("stock_quantity", 0);
-      const medsList = (medsData ?? []) as Med[];
-      setMeds(medsList);
-      const pharmIds = Array.from(new Set(medsList.map((m) => m.pharmacy_id)));
-      if (pharmIds.length) {
-        const { data: profs } = await supabase
-          .from("profiles")
-          .select("user_id, organization_name, full_name, address, phone, latitude, longitude, approval_status")
-          .in("user_id", pharmIds)
-          .eq("approval_status", "approved");
-        setPharmacies((profs ?? []) as unknown as Ph[]);
-      }
+      await refreshMarketplace();
       if (user) {
         const { data: orders } = await supabase.from("orders").select("medication_name, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(20);
         const seen = new Set<string>();
