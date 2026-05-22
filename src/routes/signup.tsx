@@ -35,7 +35,7 @@ const ROLE_META = {
 
 function SignupPage() {
   const navigate = useNavigate();
-  const { role = "patient" } = useSearch({ from: "/signup" });
+  const { role = "patient" } = useSearch({ from: "/signup" }) as SignupSearch;
   const meta = ROLE_META[role];
   const needsOrg = role === "pharmacy";
   const needsApproval = role === "pharmacy" || role === "driver";
