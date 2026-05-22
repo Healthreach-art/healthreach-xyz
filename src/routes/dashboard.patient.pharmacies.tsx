@@ -192,8 +192,7 @@ function MedicineMarketplace() {
 
   const search = q.trim().toLowerCase();
   const byCat = activeCat === "All" ? groups : groups.filter((g) => (g.offers[0]?.category || "Other") === activeCat);
-  // "All" never lists the full catalogue — user must search or pick a category.
-  const showGrid = activeCat !== "All" || !!search;
+  const showGrid = groups.length > 0 || !!search || activeCat !== "All";
   const filtered = search
     ? byCat.filter((g) => g.name.toLowerCase().includes(search) || g.offers.some((o) => o.pharmacyName.toLowerCase().includes(search)))
     : byCat;
