@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Loader2, Plus, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { useCart } from "@/hooks/useCart";
 import { customerPrice } from "@/lib/pricing";
 import { toast } from "sonner";
 import medGeneric from "@/assets/med-generic.jpg";
+import { listPatientMarketplace } from "@/lib/patient-marketplace.functions";
 
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; }
 interface Ph { user_id: string; organization_name: string | null; full_name: string; }
@@ -21,6 +23,7 @@ export const Route = createFileRoute("/dashboard/patient/search")({
 
 function SearchPage() {
   const cart = useCart();
+  const loadMarketplace = useServerFn(listPatientMarketplace);
   const [meds, setMeds] = useState<Med[]>([]);
   const [pharmacies, setPharmacies] = useState<Ph[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,29 +31,30 @@ function SearchPage() {
   const [rxFor, setRxFor] = useState<Med | null>(null);
 
   useEffect(() => {
-    (async () => {
-      // Fetch meds first (RLS allows authenticated browse), then load the
-      // pharmacy profiles for those pharmacy_ids. Querying user_roles directly
-      // returns 0 rows for non-admins due to RLS.
-      const { data: m } = await supabase
-        .from("medications")
-        .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription")
-        .gt("stock_quantity", 0)
-        .order("name");
-      const medsList = (m ?? []) as Med[];
-      setMeds(medsList);
-      const ids = Array.from(new Set(medsList.map((x) => x.pharmacy_id)));
-      if (ids.length) {
-        const { data: profs } = await supabase
-          .from("profiles")
-          .select("user_id, organization_name, full_name, approval_status")
-          .in("user_id", ids)
-          .eq("approval_status", "approved");
-        setPharmacies((profs ?? []) as Ph[]);
+    let cancelled = false;
+    async function refresh() {
+      try {
+        const data = await loadMarketplace();
+        if (cancelled) return;
+        setMeds(data.meds as Med[]);
+        setPharmacies(data.pharmacies as Ph[]);
+      } catch {
+        if (!cancelled) toast.error("Could not load medicines");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
-    })();
-  }, []);
+    }
+    refresh();
+
+    // Realtime: refresh whenever any pharmacy updates stock/price.
+    const channel = supabase
+      .channel("search-meds-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "medications" }, () => { refresh(); })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [loadMarketplace]);
+
+
 
   const filtered = meds.filter((m) => !q || m.name.toLowerCase().includes(q.toLowerCase()));
 
