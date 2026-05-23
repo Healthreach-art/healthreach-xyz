@@ -238,28 +238,18 @@ function CheckoutPage() {
           </div>
 
 
-          <div className="healthcare-card p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-primary" /> Card details
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="cn">Card number</Label>
-                <Input id="cn" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="4242 4242 4242 4242" required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label htmlFor="ex">Expiry</Label><Input id="ex" value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="MM/YY" required /></div>
-                <div><Label htmlFor="cv">CVV</Label><Input id="cv" value={cvv} onChange={(e) => setCvv(e.target.value)} placeholder="123" required /></div>
-              </div>
-              <div><Label htmlFor="cnm">Name on card</Label><Input id="cnm" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="John Doe" required /></div>
-              <p className="text-[11px] text-muted-foreground">
-                Test mode — <span className="font-mono">4242…</span> approves, <span className="font-mono">4000…</span> declines.
+          <div className="healthcare-card p-6 flex items-start gap-3">
+            <Lock className="h-5 w-5 text-primary mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold">Secure payment via Paystack</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You'll enter your card on Paystack's secure popup. We never see your card details. Test card: <span className="font-mono">4084 0840 8408 4081</span> · CVV <span className="font-mono">408</span> · any future expiry · PIN <span className="font-mono">0000</span> · OTP <span className="font-mono">123456</span>.
               </p>
             </div>
           </div>
 
           <Button type="submit" size="lg" className="w-full rounded-xl" disabled={processing}>
-            {processing ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)}</>}
+            {processing ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)} with Paystack</>}
           </Button>
         </form>
 
