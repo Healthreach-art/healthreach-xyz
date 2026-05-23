@@ -16,7 +16,46 @@ import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
 import { validateCartPrescriptions, consumePrescription, claimPrescriptionForPharmacy } from "@/lib/prescription.functions";
 import { placeOrderWithRouting } from "@/lib/dispatch.functions";
+import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
+
+const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
+
+declare global {
+  interface Window {
+    PaystackPop?: {
+      setup: (opts: {
+        key: string;
+        email: string;
+        amount: number;
+        currency?: string;
+        ref?: string;
+        callback: (resp: { reference: string }) => void;
+        onClose: () => void;
+      }) => { openIframe: () => void };
+    };
+  }
+}
+
+function loadPaystackScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return resolve();
+    if (window.PaystackPop) return resolve();
+    const existing = document.querySelector<HTMLScriptElement>('script[data-paystack="1"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Failed to load Paystack")), { once: true });
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://js.paystack.co/v1/inline.js";
+    s.async = true;
+    s.dataset.paystack = "1";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load Paystack"));
+    document.head.appendChild(s);
+  });
+}
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
@@ -29,14 +68,13 @@ function CheckoutPage() {
   const { items, clear, setQty, remove } = useCart();
   const validateRx = useServerFn(validateCartPrescriptions);
   const placeOrder = useServerFn(placeOrderWithRouting);
+  const verifyPaystack = useServerFn(verifyPaystackTransaction);
   const [delivery, setDelivery] = useState<PickedAddress | null>(null);
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [cardName, setCardName] = useState("");
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [rxIssues, setRxIssues] = useState<{ medId: string; message: string }[]>([]);
+
+  useEffect(() => { loadPaystackScript().catch(() => {}); }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -49,19 +87,42 @@ function CheckoutPage() {
 
   const subtotal = items.reduce((s, i) => s + customerPrice(i.price) * i.qty, 0);
   const deliveryFee = customerDeliveryFee(BASE_DELIVERY_FEE);
-  const total = subtotal + deliveryFee;
+  const total = Math.round((subtotal + deliveryFee) * 100) / 100;
 
+  async function finalizeOrder() {
+    const res = await placeOrder({
+      data: {
+        items: items.map((i) => ({
+          medicationId: i.medId,
+          medicationName: i.name,
+          quantity: i.qty,
+          pharmacyIdHint: i.pharmacyId,
+        })),
+        delivery: { address: delivery!.address, lat: delivery!.lat!, lng: delivery!.lng! },
+        notes: "Paid via Paystack",
+      },
+    });
+    const matched = res.orders.filter((o) => o.matched).length;
+    if (matched === 0) {
+      toast.error("Payment received, but no pharmacies are available within 60 km. Support will contact you.");
+      return;
+    }
+    clear();
+    setSuccess(true);
+    toast.success(`${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`);
+    setTimeout(() => navigate({ to: "/track" }), 1500);
+  }
 
   const handlePay = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) { navigate({ to: "/login" }); return; }
     if (items.length === 0) { toast.error("Your cart is empty."); return; }
     if (!delivery || !delivery.lat || !delivery.lng) { toast.error("Pick a delivery address."); return; }
+    if (!user.email) { toast.error("Your account has no email — required for payment."); return; }
 
     setProcessing(true);
     setRxIssues([]);
 
-    // Backend Rx validity + refill eligibility enforcement
     try {
       const result = await validateRx({
         data: {
@@ -85,41 +146,45 @@ function CheckoutPage() {
     }
 
     try {
-      const digits = cardNumber.replace(/\D/g, "");
-      if (!digits.startsWith("4242")) {
-        toast.error("Test mode: card declined. Use 4242…");
-        setProcessing(false);
-        return;
-      }
-
-      // Auto-route order to nearest pharmacy (10→20→30→45→60km tiers)
-      const res = await placeOrder({
-        data: {
-          items: items.map((i) => ({
-            medicationId: i.medId,
-            medicationName: i.name,
-            quantity: i.qty,
-            pharmacyIdHint: i.pharmacyId,
-          })),
-          delivery: { address: delivery.address, lat: delivery.lat, lng: delivery.lng },
-          notes: "Paid via card",
-        },
-      });
-
-      const matched = res.orders.filter((o) => o.matched).length;
-      if (matched === 0) {
-        toast.error("No pharmacies available within 60 km. Please try again later.");
-        setProcessing(false);
-        return;
-      }
-      clear();
-      setSuccess(true);
-      toast.success(`${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`);
-      setTimeout(() => navigate({ to: "/track" }), 1500);
-    } finally {
+      await loadPaystackScript();
+    } catch {
+      toast.error("Could not load Paystack. Check your connection.");
       setProcessing(false);
+      return;
     }
 
+    if (!window.PaystackPop) {
+      toast.error("Paystack not available.");
+      setProcessing(false);
+      return;
+    }
+
+    const handler = window.PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: user.email,
+      amount: Math.round(total * 100),
+      currency: "ZAR",
+      ref: `HR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      callback: (resp) => {
+        // Paystack runs this in its own context — handle async outside.
+        (async () => {
+          try {
+            const v = await verifyPaystack({ data: { reference: resp.reference } });
+            if (!v.verified) { toast.error("Payment could not be verified."); setProcessing(false); return; }
+            await finalizeOrder();
+          } catch (err: any) {
+            toast.error(err?.message || "Payment verification failed.");
+          } finally {
+            setProcessing(false);
+          }
+        })();
+      },
+      onClose: () => {
+        toast.info("Payment cancelled.");
+        setProcessing(false);
+      },
+    });
+    handler.openIframe();
   };
 
   if (items.length === 0 && !success) {
@@ -173,28 +238,18 @@ function CheckoutPage() {
           </div>
 
 
-          <div className="healthcare-card p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-primary" /> Card details
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="cn">Card number</Label>
-                <Input id="cn" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="4242 4242 4242 4242" required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label htmlFor="ex">Expiry</Label><Input id="ex" value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="MM/YY" required /></div>
-                <div><Label htmlFor="cv">CVV</Label><Input id="cv" value={cvv} onChange={(e) => setCvv(e.target.value)} placeholder="123" required /></div>
-              </div>
-              <div><Label htmlFor="cnm">Name on card</Label><Input id="cnm" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="John Doe" required /></div>
-              <p className="text-[11px] text-muted-foreground">
-                Test mode — <span className="font-mono">4242…</span> approves, <span className="font-mono">4000…</span> declines.
+          <div className="healthcare-card p-6 flex items-start gap-3">
+            <Lock className="h-5 w-5 text-primary mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold">Secure payment via Paystack</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You'll enter your card on Paystack's secure popup. We never see your card details. Test card: <span className="font-mono">4084 0840 8408 4081</span> · CVV <span className="font-mono">408</span> · any future expiry · PIN <span className="font-mono">0000</span> · OTP <span className="font-mono">123456</span>.
               </p>
             </div>
           </div>
 
           <Button type="submit" size="lg" className="w-full rounded-xl" disabled={processing}>
-            {processing ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)}</>}
+            {processing ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)} with Paystack</>}
           </Button>
         </form>
 
