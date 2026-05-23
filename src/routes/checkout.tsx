@@ -117,7 +117,7 @@ function CheckoutPage() {
     e.preventDefault();
     if (!user) { navigate({ to: "/login" }); return; }
     if (items.length === 0) { toast.error("Your cart is empty."); return; }
-    const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+    const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
     const bad = items.find((i) => !i.pharmacyId || !UUID_RE.test(i.pharmacyId));
     if (bad) {
       toast.error(`"${bad.name}" is missing pharmacy info — removed. Please re-add it from the marketplace.`);
