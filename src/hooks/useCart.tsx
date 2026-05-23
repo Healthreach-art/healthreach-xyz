@@ -27,7 +27,7 @@ interface CartCtx {
 
 const Ctx = createContext<CartCtx | null>(null);
 const KEY = "healthreach_cart_v1";
-const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const isValidItem = (it: any): it is CartItem =>
   it && typeof it.medId === "string" && UUID_RE.test(it.medId) &&
   typeof it.pharmacyId === "string" && UUID_RE.test(it.pharmacyId);
