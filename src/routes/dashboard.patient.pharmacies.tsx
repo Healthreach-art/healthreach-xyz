@@ -192,6 +192,8 @@ function MedicineMarketplace() {
 
   const search = q.trim().toLowerCase();
   const byCat = activeCat === "All" ? groups : groups.filter((g) => (g.offers[0]?.category || "Other") === activeCat);
+  // Always show the product grid whenever any approved-pharmacy stock exists,
+  // even before the patient picks a category or types a search.
   const showGrid = groups.length > 0 || !!search || activeCat !== "All";
   const filtered = search
     ? byCat.filter((g) => g.name.toLowerCase().includes(search) || g.offers.some((o) => o.pharmacyName.toLowerCase().includes(search)))
