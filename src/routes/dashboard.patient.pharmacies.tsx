@@ -107,9 +107,15 @@ function MedicineMarketplace() {
   }
 
   async function refreshMarketplace() {
-    const data = await loadMarketplace();
-    setMeds(data.meds as Med[]);
-    setPharmacies(data.pharmacies as Ph[]);
+    try {
+      const data = await loadMarketplace();
+      setMeds(Array.isArray(data?.meds) ? (data.meds as Med[]) : []);
+      setPharmacies(Array.isArray(data?.pharmacies) ? (data.pharmacies as Ph[]) : []);
+    } catch {
+      setMeds([]);
+      setPharmacies([]);
+      toast.error("Could not load medicines");
+    }
   }
 
   // Realtime: refresh medication stock/price as pharmacies update
