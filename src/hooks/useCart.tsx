@@ -56,6 +56,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items]);
 
   const add: CartCtx["add"] = (item, qty = 1) => {
+    if (!item.pharmacyId || !UUID_RE.test(item.pharmacyId)) {
+      toast.error(`Cannot add "${item.name}" — pharmacy info is missing. Please refresh the page and try again.`);
+      return;
+    }
+    if (!item.medId || !UUID_RE.test(item.medId)) {
+      toast.error(`Cannot add "${item.name}" — invalid medication id.`);
+      return;
+    }
     setItems((prev) => {
       const idx = prev.findIndex((p) => p.medId === item.medId);
       if (idx >= 0) {
