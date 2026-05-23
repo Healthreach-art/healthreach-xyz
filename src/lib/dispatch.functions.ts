@@ -6,12 +6,15 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const TIERS = [10, 20, 30, 45, 60] as const;
 const MAX_RADIUS_KM = 60;
 
+const UUID_LOOSE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+const uuidLoose = z.string().regex(UUID_LOOSE, "Invalid UUID");
+
 const placeOrderSchema = z.object({
   items: z.array(z.object({
-    medicationId: z.string().uuid(),
+    medicationId: uuidLoose,
     medicationName: z.string().min(1),
     quantity: z.number().int().min(1).max(20),
-    pharmacyIdHint: z.string().uuid().optional(),
+    pharmacyIdHint: uuidLoose.optional(),
   })).min(1).max(20),
   delivery: z.object({
     address: z.string().min(3).max(500),
