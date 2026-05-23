@@ -27,6 +27,10 @@ interface CartCtx {
 
 const Ctx = createContext<CartCtx | null>(null);
 const KEY = "healthreach_cart_v1";
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+const isValidItem = (it: any): it is CartItem =>
+  it && typeof it.medId === "string" && UUID_RE.test(it.medId) &&
+  typeof it.pharmacyId === "string" && UUID_RE.test(it.pharmacyId);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -35,7 +39,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
     try {
       const raw = window.localStorage.getItem(KEY);
-      if (raw) setItems(JSON.parse(raw));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const clean = Array.isArray(parsed) ? parsed.filter(isValidItem) : [];
+        setItems(clean);
+        if (Array.isArray(parsed) && clean.length !== parsed.length) {
+          toast.message("Some old cart items were removed — please re-add them.");
+        }
+      }
     } catch { /* ignore */ }
   }, []);
 
