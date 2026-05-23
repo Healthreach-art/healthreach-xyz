@@ -16,7 +16,46 @@ import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
 import { validateCartPrescriptions, consumePrescription, claimPrescriptionForPharmacy } from "@/lib/prescription.functions";
 import { placeOrderWithRouting } from "@/lib/dispatch.functions";
+import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
+
+const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
+
+declare global {
+  interface Window {
+    PaystackPop?: {
+      setup: (opts: {
+        key: string;
+        email: string;
+        amount: number;
+        currency?: string;
+        ref?: string;
+        callback: (resp: { reference: string }) => void;
+        onClose: () => void;
+      }) => { openIframe: () => void };
+    };
+  }
+}
+
+function loadPaystackScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return resolve();
+    if (window.PaystackPop) return resolve();
+    const existing = document.querySelector<HTMLScriptElement>('script[data-paystack="1"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Failed to load Paystack")), { once: true });
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://js.paystack.co/v1/inline.js";
+    s.async = true;
+    s.dataset.paystack = "1";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load Paystack"));
+    document.head.appendChild(s);
+  });
+}
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
