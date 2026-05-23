@@ -3,13 +3,16 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
+const UUID_LOOSE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+const uuidLoose = z.string().regex(UUID_LOOSE, "Invalid UUID");
+
 const cartSchema = z.object({
   items: z
     .array(
       z.object({
-        medId: z.string().uuid(),
-        pharmacyId: z.string().uuid(),
-        prescriptionUploadId: z.string().uuid().optional().nullable(),
+        medId: uuidLoose,
+        pharmacyId: uuidLoose,
+        prescriptionUploadId: uuidLoose.optional().nullable(),
       })
     )
     .min(1)
