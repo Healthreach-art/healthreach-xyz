@@ -493,6 +493,7 @@ function PharmacyDashboard() {
       <div className="grid gap-4 md:grid-cols-2 mb-6">
         <PharmacyOffersInbox />
         <PharmacyLocationCard />
+        <PharmacyBranchesManager />
       </div>
 
       {lowStockItems.length > 0 && (
