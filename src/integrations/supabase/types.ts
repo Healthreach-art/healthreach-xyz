@@ -848,6 +848,51 @@ export type Database = {
           },
         ]
       }
+      pharmacy_branches: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_primary: boolean
+          latitude: number
+          longitude: number
+          name: string
+          pharmacy_id: string
+          phone: string | null
+          service_radius_km: number
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          latitude: number
+          longitude: number
+          name?: string
+          pharmacy_id: string
+          phone?: string | null
+          service_radius_km?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          latitude?: number
+          longitude?: number
+          name?: string
+          pharmacy_id?: string
+          phone?: string | null
+          service_radius_km?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pharmacy_offers: {
         Row: {
           created_at: string
