@@ -36,10 +36,13 @@ function SearchPage() {
       try {
         const data = await loadMarketplace();
         if (cancelled) return;
-        setMeds(data.meds as Med[]);
-        setPharmacies(data.pharmacies as Ph[]);
+        setMeds(Array.isArray(data?.meds) ? (data.meds as Med[]) : []);
+        setPharmacies(Array.isArray(data?.pharmacies) ? (data.pharmacies as Ph[]) : []);
       } catch {
-        if (!cancelled) toast.error("Could not load medicines");
+        if (cancelled) return;
+        setMeds([]);
+        setPharmacies([]);
+        toast.error("Could not load medicines");
       } finally {
         if (!cancelled) setLoading(false);
       }
