@@ -100,7 +100,64 @@ function CheckoutPage() {
     setProcessing(true);
     setRxIssues([]);
 
-    // Backend Rx validity + refill eligibility enforcement
+  const { items, clear, setQty, remove } = useCart();
+  const validateRx = useServerFn(validateCartPrescriptions);
+  const placeOrder = useServerFn(placeOrderWithRouting);
+  const verifyPaystack = useServerFn(verifyPaystackTransaction);
+  const [delivery, setDelivery] = useState<PickedAddress | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [rxIssues, setRxIssues] = useState<{ medId: string; message: string }[]>([]);
+
+  useEffect(() => { loadPaystackScript().catch(() => {}); }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("user_addresses").select("street, lat, lng, is_default").eq("user_id", user.id).order("is_default", { ascending: false }).limit(1)
+      .then(({ data }) => {
+        const a = data?.[0];
+        if (a?.lat && a?.lng) setDelivery({ address: a.street, lat: a.lat, lng: a.lng });
+      });
+  }, [user]);
+
+  const subtotal = items.reduce((s, i) => s + customerPrice(i.price) * i.qty, 0);
+  const deliveryFee = customerDeliveryFee(BASE_DELIVERY_FEE);
+  const total = Math.round((subtotal + deliveryFee) * 100) / 100;
+
+  async function finalizeOrder() {
+    const res = await placeOrder({
+      data: {
+        items: items.map((i) => ({
+          medicationId: i.medId,
+          medicationName: i.name,
+          quantity: i.qty,
+          pharmacyIdHint: i.pharmacyId,
+        })),
+        delivery: { address: delivery!.address, lat: delivery!.lat!, lng: delivery!.lng! },
+        notes: "Paid via Paystack",
+      },
+    });
+    const matched = res.orders.filter((o) => o.matched).length;
+    if (matched === 0) {
+      toast.error("Payment received, but no pharmacies are available within 60 km. Support will contact you.");
+      return;
+    }
+    clear();
+    setSuccess(true);
+    toast.success(`${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`);
+    setTimeout(() => navigate({ to: "/track" }), 1500);
+  }
+
+  const handlePay = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) { navigate({ to: "/login" }); return; }
+    if (items.length === 0) { toast.error("Your cart is empty."); return; }
+    if (!delivery || !delivery.lat || !delivery.lng) { toast.error("Pick a delivery address."); return; }
+    if (!user.email) { toast.error("Your account has no email — required for payment."); return; }
+
+    setProcessing(true);
+    setRxIssues([]);
+
     try {
       const result = await validateRx({
         data: {
@@ -124,41 +181,45 @@ function CheckoutPage() {
     }
 
     try {
-      const digits = cardNumber.replace(/\D/g, "");
-      if (!digits.startsWith("4242")) {
-        toast.error("Test mode: card declined. Use 4242…");
-        setProcessing(false);
-        return;
-      }
-
-      // Auto-route order to nearest pharmacy (10→20→30→45→60km tiers)
-      const res = await placeOrder({
-        data: {
-          items: items.map((i) => ({
-            medicationId: i.medId,
-            medicationName: i.name,
-            quantity: i.qty,
-            pharmacyIdHint: i.pharmacyId,
-          })),
-          delivery: { address: delivery.address, lat: delivery.lat, lng: delivery.lng },
-          notes: "Paid via card",
-        },
-      });
-
-      const matched = res.orders.filter((o) => o.matched).length;
-      if (matched === 0) {
-        toast.error("No pharmacies available within 60 km. Please try again later.");
-        setProcessing(false);
-        return;
-      }
-      clear();
-      setSuccess(true);
-      toast.success(`${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`);
-      setTimeout(() => navigate({ to: "/track" }), 1500);
-    } finally {
+      await loadPaystackScript();
+    } catch {
+      toast.error("Could not load Paystack. Check your connection.");
       setProcessing(false);
+      return;
     }
 
+    if (!window.PaystackPop) {
+      toast.error("Paystack not available.");
+      setProcessing(false);
+      return;
+    }
+
+    const handler = window.PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: user.email,
+      amount: Math.round(total * 100),
+      currency: "ZAR",
+      ref: `HR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      callback: (resp) => {
+        // Paystack runs this in its own context — handle async outside.
+        (async () => {
+          try {
+            const v = await verifyPaystack({ data: { reference: resp.reference } });
+            if (!v.verified) { toast.error("Payment could not be verified."); setProcessing(false); return; }
+            await finalizeOrder();
+          } catch (err: any) {
+            toast.error(err?.message || "Payment verification failed.");
+          } finally {
+            setProcessing(false);
+          }
+        })();
+      },
+      onClose: () => {
+        toast.info("Payment cancelled.");
+        setProcessing(false);
+      },
+    });
+    handler.openIframe();
   };
 
   if (items.length === 0 && !success) {
