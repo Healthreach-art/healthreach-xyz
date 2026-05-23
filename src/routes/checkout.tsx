@@ -68,41 +68,6 @@ function CheckoutPage() {
   const { items, clear, setQty, remove } = useCart();
   const validateRx = useServerFn(validateCartPrescriptions);
   const placeOrder = useServerFn(placeOrderWithRouting);
-  const [delivery, setDelivery] = useState<PickedAddress | null>(null);
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [processing, setProcessing] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [rxIssues, setRxIssues] = useState<{ medId: string; message: string }[]>([]);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("user_addresses").select("street, lat, lng, is_default").eq("user_id", user.id).order("is_default", { ascending: false }).limit(1)
-      .then(({ data }) => {
-        const a = data?.[0];
-        if (a?.lat && a?.lng) setDelivery({ address: a.street, lat: a.lat, lng: a.lng });
-      });
-  }, [user]);
-
-  const subtotal = items.reduce((s, i) => s + customerPrice(i.price) * i.qty, 0);
-  const deliveryFee = customerDeliveryFee(BASE_DELIVERY_FEE);
-  const total = subtotal + deliveryFee;
-
-
-  const handlePay = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user) { navigate({ to: "/login" }); return; }
-    if (items.length === 0) { toast.error("Your cart is empty."); return; }
-    if (!delivery || !delivery.lat || !delivery.lng) { toast.error("Pick a delivery address."); return; }
-
-    setProcessing(true);
-    setRxIssues([]);
-
-  const { items, clear, setQty, remove } = useCart();
-  const validateRx = useServerFn(validateCartPrescriptions);
-  const placeOrder = useServerFn(placeOrderWithRouting);
   const verifyPaystack = useServerFn(verifyPaystackTransaction);
   const [delivery, setDelivery] = useState<PickedAddress | null>(null);
   const [processing, setProcessing] = useState(false);
