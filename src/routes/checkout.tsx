@@ -217,17 +217,20 @@ function CheckoutPage() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8">
-      <h1 className="text-2xl font-bold mb-6">Checkout</h1>
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Checkout</h1>
+        <p className="text-sm text-muted-foreground mt-1">Review your order, confirm delivery, and pay securely.</p>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-5 lg:items-start">
         <form onSubmit={handlePay} className="lg:col-span-3 space-y-6">
           <CheckoutAIStatus
             hasRx={items.some((i) => i.requiresPrescription)}
             medications={items.map((i) => i.name)}
           />
           {rxIssues.length > 0 && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-1">
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-1.5">
               <p className="text-sm font-semibold text-destructive">Prescription issues</p>
-              <ul className="text-xs text-destructive list-disc pl-5">
+              <ul className="text-xs text-destructive list-disc pl-5 space-y-0.5">
                 {rxIssues.map((i, idx) => <li key={idx}>{i.message}</li>)}
               </ul>
               <p className="text-xs text-muted-foreground pt-1">
@@ -239,54 +242,61 @@ function CheckoutPage() {
             <DrugInteractionPanel medications={items.map(i => i.name)} />
           )}
           <div className="healthcare-card p-6">
-            <h2 className="text-lg font-semibold mb-4">Delivery address</h2>
-            <p className="text-xs text-muted-foreground mb-2">We'll auto-route your order to the closest pharmacy (10 → 60 km).</p>
+            <h2 className="text-lg font-semibold">Delivery address</h2>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">We'll auto-route your order to the closest pharmacy (10 → 60 km).</p>
             <AddressPicker value={delivery} onChange={setDelivery} placeholder="Street, suburb, city…" />
           </div>
 
-
-          <div className="healthcare-card p-6 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-primary mt-0.5" />
-            <div className="text-sm">
+          <div className="healthcare-card p-5 flex items-start gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Lock className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-sm min-w-0">
               <p className="font-semibold">Secure payment via Paystack</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                You'll enter your card on Paystack's secure popup. We never see your card details. Test card: <span className="font-mono">4084 0840 8408 4081</span> · CVV <span className="font-mono">408</span> · any future expiry · PIN <span className="font-mono">0000</span> · OTP <span className="font-mono">123456</span>.
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                You'll enter your card on Paystack's secure popup — we never see your card details.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                Test card <span className="font-mono">4084 0840 8408 4081</span> · CVV <span className="font-mono">408</span> · any future expiry · PIN <span className="font-mono">0000</span> · OTP <span className="font-mono">123456</span>.
               </p>
             </div>
           </div>
 
-          <Button type="submit" size="lg" className="w-full rounded-xl" disabled={processing}>
+          <Button type="submit" size="lg" className="w-full rounded-xl h-12" disabled={processing}>
             {processing ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)} with Paystack</>}
           </Button>
         </form>
 
         <div className="lg:col-span-2">
-          <div className="healthcare-card p-6 sticky top-16">
-            <h2 className="text-lg font-semibold mb-4">Order summary</h2>
-            <div className="space-y-3 mb-4">
+          <div className="healthcare-card p-6 lg:sticky lg:top-20">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Order summary</h2>
+              <span className="text-xs text-muted-foreground">{items.length} item{items.length === 1 ? "" : "s"}</span>
+            </div>
+            <ul className="divide-y divide-border mb-4">
               {items.map((it) => (
-                <div key={it.medId} className="flex items-start gap-2 text-sm">
+                <li key={it.medId} className="flex items-start gap-3 py-3 text-sm">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium line-clamp-1">{it.name}</p>
-                    <p className="text-xs text-muted-foreground">{it.pharmacyName}</p>
-                    <div className="flex items-center gap-2 mt-1">
+                    <p className="font-medium truncate">{it.name}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{it.pharmacyName}</p>
+                    <div className="flex items-center gap-2 mt-2">
                       <label htmlFor={`qty-${it.medId}`} className="sr-only">Quantity for {it.name}</label>
-                      <select id={`qty-${it.medId}`} value={it.qty} onChange={(e) => setQty(it.medId, Number(e.target.value))} className="text-xs rounded border border-border bg-background px-1 py-0.5">
+                      <select id={`qty-${it.medId}`} value={it.qty} onChange={(e) => setQty(it.medId, Number(e.target.value))} className="text-xs rounded-md border border-border bg-background px-2 py-1">
                         {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>Qty {n}</option>)}
                       </select>
-                      <button type="button" aria-label={`Remove ${it.name} from cart`} onClick={() => remove(it.medId)} className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-3 w-3" />
+                      <button type="button" aria-label={`Remove ${it.name} from cart`} onClick={() => remove(it.medId)} className="text-muted-foreground hover:text-destructive p-1 rounded-md hover:bg-destructive/5">
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
-                  <span className="font-semibold">R{(customerPrice(it.price) * it.qty).toFixed(2)}</span>
-                </div>
+                  <span className="font-semibold tabular-nums shrink-0">R{(customerPrice(it.price) * it.qty).toFixed(2)}</span>
+                </li>
               ))}
-            </div>
-            <div className="border-t border-border pt-3 space-y-1.5 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>R{subtotal.toFixed(2)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>R{deliveryFee.toFixed(2)}</span></div>
-              <div className="flex justify-between text-base font-bold pt-1.5 border-t border-border"><span>Total</span><span>R{total.toFixed(2)}</span></div>
+            </ul>
+            <div className="border-t border-border pt-4 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">R{subtotal.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span className="tabular-nums">R{deliveryFee.toFixed(2)}</span></div>
+              <div className="flex justify-between text-base font-bold pt-3 mt-1 border-t border-border"><span>Total</span><span className="tabular-nums">R{total.toFixed(2)}</span></div>
             </div>
           </div>
         </div>
