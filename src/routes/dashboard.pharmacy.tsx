@@ -31,6 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { PharmacyOffersInbox } from "@/components/PharmacyOffersInbox";
 import { PharmacyLocationCard } from "@/components/PharmacyLocationCard";
+import { PharmacyBranchesManager } from "@/components/PharmacyBranchesManager";
 import { BulkMedicineImportDialog } from "@/components/BulkMedicineImportDialog";
 import { LiveETACard } from "@/components/LiveETACard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
