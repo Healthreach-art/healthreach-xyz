@@ -28,6 +28,8 @@ export interface PatientMarketplacePharmacy {
 export const listPatientMarketplace = createServerFn({ method: "GET" })
   .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .handler(async () => {
+    const empty = { meds: [] as PatientMarketplaceMedication[], pharmacies: [] as PatientMarketplacePharmacy[] };
+
     const { data: meds, error: medsError } = await supabaseAdmin
       .from("medications")
       .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category")
@@ -37,14 +39,23 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
     if (medsError) throw new Error(medsError.message);
 
     const pharmacyIds = Array.from(new Set((meds ?? []).map((m) => m.pharmacy_id)));
-    if (pharmacyIds.length === 0) {
-      return { meds: [] as PatientMarketplaceMedication[], pharmacies: [] as PatientMarketplacePharmacy[] };
-    }
+    if (pharmacyIds.length === 0) return empty;
+
+    // Only users who actually hold the `pharmacy` role — never admins/drivers/patients.
+    const { data: roles, error: rolesError } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "pharmacy")
+      .in("user_id", pharmacyIds);
+
+    if (rolesError) throw new Error(rolesError.message);
+    const pharmacyRoleIds = new Set((roles ?? []).map((r) => r.user_id));
+    if (pharmacyRoleIds.size === 0) return empty;
 
     const { data: pharmacies, error: pharmaciesError } = await supabaseAdmin
       .from("profiles")
       .select("user_id, organization_name, full_name, address, phone, latitude, longitude")
-      .in("user_id", pharmacyIds)
+      .in("user_id", Array.from(pharmacyRoleIds))
       .eq("approval_status", "approved");
 
     if (pharmaciesError) throw new Error(pharmaciesError.message);
