@@ -410,7 +410,7 @@ function MedicineMarketplace() {
                             {!o.isOpen && <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[9px] font-bold">CLOSED</span>}
                           </div>
                           <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap">
-                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{o.distanceKm} km</span>
+                            <span className="flex items-center gap-1" title={o.nearestBranchName ? `Closest: ${o.nearestBranchName}` : undefined}><MapPin className="h-3 w-3" />{o.distanceKm} km{o.nearestBranchName ? ` · ${o.nearestBranchName}` : ""}</span>
                             <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{o.etaMin}–{o.etaMax} min</span>
                             <span className="flex items-center gap-1"><Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />{o.rating}</span>
                             <span>Stock: {o.stock_quantity}</span>
