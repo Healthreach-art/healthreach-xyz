@@ -36,7 +36,7 @@ export const Route = createFileRoute("/")({
           name: "HEALTHREACH",
           url: "https://healthreachhub.lovable.app/",
           email: "info@healthreach.co.za",
-          telephone: "+27-11-000-0000",
+          telephone: "+27-79-728-5078",
           address: {
             "@type": "PostalAddress",
             addressLocality: "Johannesburg",
