@@ -229,7 +229,7 @@ function PharmacyDashboard() {
 
   function openAddMedication() {
     setEditingMed(null);
-    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "" });
+    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "", description: "" });
     setMedDialogOpen(true);
   }
 
