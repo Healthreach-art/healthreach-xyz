@@ -296,7 +296,7 @@ function DriverDashboard() {
       // driver's live location (driver_locations table).
       try {
         const result = await getNearbyOffersForDriver({ data: { maxKm: DRIVER_OFFER_RADIUS_KM } });
-        const enriched: Offer[] = (result.offers ?? []).map((o) => ({
+        const enriched: Offer[] = (result.offers ?? []).map((o: NearbyOffer) => ({
           id: o.id,
           order_id: o.order_id,
           message: o.message,
