@@ -244,6 +244,7 @@ function PharmacyDashboard() {
       image_url: med.image_url ?? "",
       expiry_date: med.expiry_date ?? "",
       batch_number: med.batch_number ?? "",
+      description: (med as any).description ?? "",
     });
     setMedDialogOpen(true);
   }
