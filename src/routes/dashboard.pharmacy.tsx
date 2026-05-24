@@ -95,7 +95,7 @@ function PharmacyDashboard() {
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [savingMed, setSavingMed] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "" });
+  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "", description: "" });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [pxQueue, setPxQueue] = useState<PrescriptionUpload[]>([]);
   const [pxFilter, setPxFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
