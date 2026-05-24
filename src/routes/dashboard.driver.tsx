@@ -291,56 +291,30 @@ function DriverDashboard() {
     }
 
     async function loadOffers() {
-      const { data } = await supabase
-        .from("delivery_offers")
-        .select("id, order_id, message, created_at, declined_by, expires_at")
-        .eq("status", "open")
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false });
-      const visible = (data ?? []).filter((o) => !(o.declined_by ?? []).includes(user!.id));
-      const orderIds = visible.map((o) => o.order_id);
-      const addressMap = new Map<string, { pickup: string | null; dropoff: string | null }>();
-      if (orderIds.length > 0) {
-        const [{ data: dels }, { data: ords }] = await Promise.all([
-          supabase.from("deliveries").select("order_id, pickup_address, delivery_address").in("order_id", orderIds),
-          supabase.from("orders").select("id, delivery_address").in("id", orderIds),
-        ]);
-        (dels ?? []).forEach((d) => {
-          addressMap.set(d.order_id, { pickup: d.pickup_address, dropoff: d.delivery_address });
-        });
-        (ords ?? []).forEach((o) => {
-          const existing = addressMap.get(o.id);
-          if (!existing?.dropoff) {
-            addressMap.set(o.id, { pickup: existing?.pickup ?? null, dropoff: o.delivery_address });
-          }
-        });
+      // Uber-style: server filters offers to those within 20 km of the
+      // driver's live location (driver_locations table).
+      try {
+        const result = await getNearbyOffersForDriver({ data: { maxKm: DRIVER_OFFER_RADIUS_KM } });
+        const enriched: Offer[] = (result.offers ?? []).map((o) => ({
+          id: o.id,
+          order_id: o.order_id,
+          message: o.message,
+          created_at: o.created_at,
+          declined_by: o.declined_by,
+          expires_at: o.expires_at,
+          pickup_address: o.pickup_address,
+          delivery_address: o.delivery_address,
+          distance_km: o.distance_km,
+          earnings: o.delivery_fee > 0 ? o.delivery_fee : estimateEarnings(o.distance_km),
+        }));
+        setOffers(enriched);
+      } catch (e) {
+        console.error("loadOffers failed", e);
+        setOffers([]);
       }
-      const enriched: Offer[] = await Promise.all(
-        visible.map(async (o) => {
-          const addr = addressMap.get(o.order_id);
-          let distance_km = estimateDistanceKm(o.order_id);
-          if (addr?.pickup && addr?.dropoff) {
-            try {
-              const result = await getMapboxDistance({ data: { pickup: addr.pickup, dropoff: addr.dropoff } });
-              if (result.distance_km != null) distance_km = result.distance_km;
-            } catch { /* keep fallback */ }
-          }
-          return {
-            id: o.id,
-            order_id: o.order_id,
-            message: o.message,
-            created_at: o.created_at,
-            declined_by: o.declined_by,
-            expires_at: o.expires_at,
-            pickup_address: addr?.pickup ?? null,
-            delivery_address: addr?.dropoff ?? null,
-            distance_km,
-            earnings: estimateEarnings(distance_km),
-          };
-        })
-      );
-      setOffers(enriched);
     }
+
+
 
     Promise.all([loadDeliveries(), loadOffers(), loadRatings(), loadStats()]).finally(() => setLoading(false));
 
