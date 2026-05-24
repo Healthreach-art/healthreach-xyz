@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getMapboxDistance } from "@/utils/mapbox.functions";
+
 import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
