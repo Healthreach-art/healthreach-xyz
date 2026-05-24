@@ -113,9 +113,11 @@ function MedicineMarketplace() {
       const data = await loadMarketplace();
       setMeds(Array.isArray(data?.meds) ? (data.meds as Med[]) : []);
       setPharmacies(Array.isArray(data?.pharmacies) ? (data.pharmacies as Ph[]) : []);
+      setBranches(Array.isArray((data as any)?.branches) ? ((data as any).branches as Branch[]) : []);
     } catch {
       setMeds([]);
       setPharmacies([]);
+      setBranches([]);
       toast.error("Could not load medicines");
     }
   }
