@@ -36,7 +36,7 @@ export const Route = createFileRoute("/")({
           name: "HEALTHREACH",
           url: "https://healthreachhub.lovable.app/",
           email: "info@healthreach.co.za",
-          telephone: "+27-11-000-0000",
+          telephone: "+27-79-728-5078",
           address: {
             "@type": "PostalAddress",
             addressLocality: "Johannesburg",
@@ -163,14 +163,14 @@ function HomePage() {
               Connecting patients, pharmacies, hospitals, and delivery services in one seamless platform. Order medication, coordinate care, and track everything in real-time.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Link to="/signup">
+              <Link to="/login">
                 <Button variant="hero" size="xl">
-                  Get Started
+                  Sign In
                 </Button>
               </Link>
-              <Link to="/about">
+              <Link to="/signup">
                 <Button variant="heroOutline" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                  Learn about our healthcare mission
+                  Create an account
                 </Button>
               </Link>
             </div>

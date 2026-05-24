@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
@@ -95,7 +96,7 @@ function PharmacyDashboard() {
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [savingMed, setSavingMed] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "" });
+  const [form, setForm] = useState({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "", description: "" });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [pxQueue, setPxQueue] = useState<PrescriptionUpload[]>([]);
   const [pxFilter, setPxFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
@@ -229,7 +230,7 @@ function PharmacyDashboard() {
 
   function openAddMedication() {
     setEditingMed(null);
-    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "" });
+    setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "", description: "" });
     setMedDialogOpen(true);
   }
 
@@ -244,6 +245,7 @@ function PharmacyDashboard() {
       image_url: med.image_url ?? "",
       expiry_date: med.expiry_date ?? "",
       batch_number: med.batch_number ?? "",
+      description: (med as any).description ?? "",
     });
     setMedDialogOpen(true);
   }
@@ -271,6 +273,11 @@ function PharmacyDashboard() {
   async function handleSaveMedication(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const desc = form.description.trim();
+    if (desc.length < 30) {
+      toast.error("A full medicine description is required by law (min 30 characters). Include indications, dosage, ingredients, side effects, and warnings.");
+      return;
+    }
     setSavingMed(true);
     const payload = {
       pharmacy_id: user.id,
@@ -282,6 +289,7 @@ function PharmacyDashboard() {
       image_url: form.image_url || null,
       expiry_date: form.expiry_date || null,
       batch_number: form.batch_number || null,
+      description: desc,
     };
     const { error } = editingMed
       ? await supabase.from("medications").update(payload).eq("id", editingMed.id)
@@ -726,6 +734,24 @@ function PharmacyDashboard() {
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">
+                Full description <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="description"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                required
+                minLength={30}
+                maxLength={4000}
+                rows={6}
+                placeholder="Active ingredient(s), strength, indications (what it treats), dosage & directions, contraindications, common side effects, warnings, storage. Regulated by the SAHPRA Medicines Act."
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Required by law (Medicines & Related Substances Act). Include active ingredient, strength, indications, dosage, side effects, warnings & storage. Min 30 characters.
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">

@@ -16,8 +16,9 @@ import medGeneric from "@/assets/med-generic.jpg";
 import { Crosshair } from "lucide-react";
 
 interface Ph { user_id: string; organization_name: string | null; full_name: string; address: string | null; phone: string | null; latitude: number | null; longitude: number | null; }
+interface Branch { id: string; pharmacy_id: string; name: string; address: string; latitude: number; longitude: number; is_primary: boolean; }
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; image_url?: string | null; description?: string | null; category?: string | null; }
-interface Offer extends Med { pharmacyName: string; address: string; distanceKm: number; etaMin: number; etaMax: number; rating: number; isOpen: boolean; }
+interface Offer extends Med { pharmacyName: string; address: string; distanceKm: number; nearestBranchName?: string; etaMin: number; etaMax: number; rating: number; isOpen: boolean; }
 interface Group { key: string; name: string; image: string; requiresRx: boolean; offers: Offer[]; minPrice: number; }
 
 const FULFILL_KEY = "hr.fulfillment";
@@ -59,6 +60,7 @@ function MedicineMarketplace() {
   const navigate = useNavigate();
   const loadMarketplace = useServerFn(listPatientMarketplace);
   const [pharmacies, setPharmacies] = useState<Ph[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [meds, setMeds] = useState<Med[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,9 +113,11 @@ function MedicineMarketplace() {
       const data = await loadMarketplace();
       setMeds(Array.isArray(data?.meds) ? (data.meds as Med[]) : []);
       setPharmacies(Array.isArray(data?.pharmacies) ? (data.pharmacies as Ph[]) : []);
+      setBranches(Array.isArray((data as any)?.branches) ? ((data as any).branches as Branch[]) : []);
     } catch {
       setMeds([]);
       setPharmacies([]);
+      setBranches([]);
       toast.error("Could not load medicines");
     }
   }
@@ -149,16 +153,40 @@ function MedicineMarketplace() {
 
   const phById = useMemo(() => Object.fromEntries(pharmacies.map((p) => [p.user_id, p])), [pharmacies]);
 
+  const branchesByPharmacy = useMemo(() => {
+    const m = new Map<string, Branch[]>();
+    for (const b of branches) {
+      const arr = m.get(b.pharmacy_id) ?? [];
+      arr.push(b);
+      m.set(b.pharmacy_id, arr);
+    }
+    return m;
+  }, [branches]);
+
   const groups: Group[] = useMemo(() => {
     const map = new Map<string, Group>();
     for (const m of meds) {
       const ph = phById[m.pharmacy_id];
       if (!ph) continue;
+      // Build candidate locations: main pharmacy + every active branch
+      const candidates: { lat: number; lng: number; name: string }[] = [];
+      if (ph.latitude != null && ph.longitude != null) {
+        candidates.push({ lat: ph.latitude, lng: ph.longitude, name: "Main store" });
+      }
+      for (const b of branchesByPharmacy.get(m.pharmacy_id) ?? []) {
+        candidates.push({ lat: b.latitude, lng: b.longitude, name: b.name });
+      }
       let km: number;
-      if (myLoc && ph.latitude != null && ph.longitude != null) {
-        km = Number(haversineKm(myLoc.lat, myLoc.lng, ph.latitude, ph.longitude).toFixed(1));
+      let nearestBranchName: string | undefined;
+      if (myLoc && candidates.length) {
+        let best = { d: Infinity, name: candidates[0].name };
+        for (const c of candidates) {
+          const d = haversineKm(myLoc.lat, myLoc.lng, c.lat, c.lng);
+          if (d < best.d) best = { d, name: c.name };
+        }
+        km = Number(best.d.toFixed(1));
+        nearestBranchName = best.name;
       } else {
-        // No coords on either side — push to the bottom with a sentinel distance
         km = 999;
       }
       const { etaMin, etaMax } = etaFromKm(km === 999 ? 5 : km);
@@ -166,7 +194,7 @@ function MedicineMarketplace() {
         ...m,
         pharmacyName: ph.organization_name || ph.full_name || "Pharmacy",
         address: ph.address || "Johannesburg",
-        distanceKm: km, etaMin, etaMax,
+        distanceKm: km, nearestBranchName, etaMin, etaMax,
         rating: ratingFor(m.pharmacy_id),
         isOpen: true,
       };
@@ -194,7 +222,7 @@ function MedicineMarketplace() {
       });
     }
     return Array.from(map.values());
-  }, [meds, phById, lockedPharmacy, myLoc]);
+  }, [meds, phById, lockedPharmacy, myLoc, branchesByPharmacy]);
 
   const search = q.trim().toLowerCase();
   const byCat = activeCat === "All" ? groups : groups.filter((g) => (g.offers[0]?.category || "Other") === activeCat);
@@ -382,7 +410,7 @@ function MedicineMarketplace() {
                             {!o.isOpen && <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[9px] font-bold">CLOSED</span>}
                           </div>
                           <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap">
-                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{o.distanceKm} km</span>
+                            <span className="flex items-center gap-1" title={o.nearestBranchName ? `Closest: ${o.nearestBranchName}` : undefined}><MapPin className="h-3 w-3" />{o.distanceKm} km{o.nearestBranchName ? ` · ${o.nearestBranchName}` : ""}</span>
                             <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{o.etaMin}–{o.etaMax} min</span>
                             <span className="flex items-center gap-1"><Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />{o.rating}</span>
                             <span>Stock: {o.stock_quantity}</span>
