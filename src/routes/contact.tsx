@@ -100,17 +100,26 @@ function ContactPage() {
                 Reach out to us through any of the channels below and our team will respond promptly.
               </p>
               <div className="space-y-4">
-                {contactInfo.map((item) => (
-                  <div key={item.label} className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <item.icon className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-foreground">{item.label}</div>
-                      <div className="text-sm text-muted-foreground">{item.value}</div>
-                    </div>
-                  </div>
-                ))}
+                {contactInfo.map((item) => {
+                  const inner = (
+                    <>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                        <item.icon className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-foreground">{item.label}</div>
+                        <div className="text-sm text-muted-foreground">{item.value}</div>
+                      </div>
+                    </>
+                  );
+                  return item.href ? (
+                    <a key={item.label} href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer" className="flex items-start gap-4 group hover:opacity-80 transition">
+                      {inner}
+                    </a>
+                  ) : (
+                    <div key={item.label} className="flex items-start gap-4">{inner}</div>
+                  );
+                })}
               </div>
             </div>
           </div>
