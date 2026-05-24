@@ -153,16 +153,40 @@ function MedicineMarketplace() {
 
   const phById = useMemo(() => Object.fromEntries(pharmacies.map((p) => [p.user_id, p])), [pharmacies]);
 
+  const branchesByPharmacy = useMemo(() => {
+    const m = new Map<string, Branch[]>();
+    for (const b of branches) {
+      const arr = m.get(b.pharmacy_id) ?? [];
+      arr.push(b);
+      m.set(b.pharmacy_id, arr);
+    }
+    return m;
+  }, [branches]);
+
   const groups: Group[] = useMemo(() => {
     const map = new Map<string, Group>();
     for (const m of meds) {
       const ph = phById[m.pharmacy_id];
       if (!ph) continue;
+      // Build candidate locations: main pharmacy + every active branch
+      const candidates: { lat: number; lng: number; name: string }[] = [];
+      if (ph.latitude != null && ph.longitude != null) {
+        candidates.push({ lat: ph.latitude, lng: ph.longitude, name: "Main store" });
+      }
+      for (const b of branchesByPharmacy.get(m.pharmacy_id) ?? []) {
+        candidates.push({ lat: b.latitude, lng: b.longitude, name: b.name });
+      }
       let km: number;
-      if (myLoc && ph.latitude != null && ph.longitude != null) {
-        km = Number(haversineKm(myLoc.lat, myLoc.lng, ph.latitude, ph.longitude).toFixed(1));
+      let nearestBranchName: string | undefined;
+      if (myLoc && candidates.length) {
+        let best = { d: Infinity, name: candidates[0].name };
+        for (const c of candidates) {
+          const d = haversineKm(myLoc.lat, myLoc.lng, c.lat, c.lng);
+          if (d < best.d) best = { d, name: c.name };
+        }
+        km = Number(best.d.toFixed(1));
+        nearestBranchName = best.name;
       } else {
-        // No coords on either side — push to the bottom with a sentinel distance
         km = 999;
       }
       const { etaMin, etaMax } = etaFromKm(km === 999 ? 5 : km);
@@ -170,7 +194,7 @@ function MedicineMarketplace() {
         ...m,
         pharmacyName: ph.organization_name || ph.full_name || "Pharmacy",
         address: ph.address || "Johannesburg",
-        distanceKm: km, etaMin, etaMax,
+        distanceKm: km, nearestBranchName, etaMin, etaMax,
         rating: ratingFor(m.pharmacy_id),
         isOpen: true,
       };
