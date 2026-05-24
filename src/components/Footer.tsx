@@ -1,4 +1,8 @@
 import { Link } from "@tanstack/react-router";
+import { MessageCircle, Phone, Mail } from "lucide-react";
+
+const WA_NUMBER = "27797285078";
+const WA_LINK = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi HEALTHREACH, I'd like to ask a quick question.")}`;
 
 export function Footer() {
   return (
@@ -41,8 +45,9 @@ export function Footer() {
           <div>
             <h3 className="mb-3 text-sm font-semibold text-foreground">Contact</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>info@healthreach.co.za</li>
-              <li>+27 (0) 11 000 0000</li>
+              <li><a href="mailto:info@healthreach.co.za" className="inline-flex items-center gap-2 hover:text-foreground"><Mail className="h-3.5 w-3.5" /> info@healthreach.co.za</a></li>
+              <li><a href="tel:+27797285078" className="inline-flex items-center gap-2 hover:text-foreground"><Phone className="h-3.5 w-3.5" /> +27 79 728 5078</a></li>
+              <li><a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp us</a></li>
               <li>Johannesburg, South Africa</li>
             </ul>
           </div>
@@ -52,6 +57,17 @@ export function Footer() {
           © {new Date().getFullYear()} HEALTHREACH. All rights reserved.
         </div>
       </div>
+
+      {/* Floating WhatsApp button — quick message */}
+      <a
+        href={WA_LINK}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Chat on WhatsApp"
+        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xl hover:bg-emerald-600 transition hover:scale-105"
+      >
+        <MessageCircle className="h-6 w-6" />
+      </a>
     </footer>
   );
 }
