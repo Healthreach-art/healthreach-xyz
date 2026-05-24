@@ -735,6 +735,24 @@ function PharmacyDashboard() {
               <Label htmlFor="name">Name</Label>
               <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">
+                Full description <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="description"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                required
+                minLength={30}
+                maxLength={4000}
+                rows={6}
+                placeholder="Active ingredient(s), strength, indications (what it treats), dosage & directions, contraindications, common side effects, warnings, storage. Regulated by the SAHPRA Medicines Act."
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Required by law (Medicines & Related Substances Act). Include active ingredient, strength, indications, dosage, side effects, warnings & storage. Min 30 characters.
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="price">Price (R)</Label>
