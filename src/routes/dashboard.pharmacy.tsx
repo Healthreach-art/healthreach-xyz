@@ -272,6 +272,11 @@ function PharmacyDashboard() {
   async function handleSaveMedication(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const desc = form.description.trim();
+    if (desc.length < 30) {
+      toast.error("A full medicine description is required by law (min 30 characters). Include indications, dosage, ingredients, side effects, and warnings.");
+      return;
+    }
     setSavingMed(true);
     const payload = {
       pharmacy_id: user.id,
@@ -283,6 +288,7 @@ function PharmacyDashboard() {
       image_url: form.image_url || null,
       expiry_date: form.expiry_date || null,
       batch_number: form.batch_number || null,
+      description: desc,
     };
     const { error } = editingMed
       ? await supabase.from("medications").update(payload).eq("id", editingMed.id)
