@@ -16,8 +16,9 @@ import medGeneric from "@/assets/med-generic.jpg";
 import { Crosshair } from "lucide-react";
 
 interface Ph { user_id: string; organization_name: string | null; full_name: string; address: string | null; phone: string | null; latitude: number | null; longitude: number | null; }
+interface Branch { id: string; pharmacy_id: string; name: string; address: string; latitude: number; longitude: number; is_primary: boolean; }
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; image_url?: string | null; description?: string | null; category?: string | null; }
-interface Offer extends Med { pharmacyName: string; address: string; distanceKm: number; etaMin: number; etaMax: number; rating: number; isOpen: boolean; }
+interface Offer extends Med { pharmacyName: string; address: string; distanceKm: number; nearestBranchName?: string; etaMin: number; etaMax: number; rating: number; isOpen: boolean; }
 interface Group { key: string; name: string; image: string; requiresRx: boolean; offers: Offer[]; minPrice: number; }
 
 const FULFILL_KEY = "hr.fulfillment";
