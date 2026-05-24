@@ -25,10 +25,24 @@ export interface PatientMarketplacePharmacy {
   longitude: number | null;
 }
 
+export interface PatientMarketplaceBranch {
+  id: string;
+  pharmacy_id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  is_primary: boolean;
+}
+
 export const listPatientMarketplace = createServerFn({ method: "GET" })
   .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .handler(async () => {
-    const empty = { meds: [] as PatientMarketplaceMedication[], pharmacies: [] as PatientMarketplacePharmacy[] };
+    const empty = {
+      meds: [] as PatientMarketplaceMedication[],
+      pharmacies: [] as PatientMarketplacePharmacy[],
+      branches: [] as PatientMarketplaceBranch[],
+    };
 
     const { data: meds, error: medsError } = await supabaseAdmin
       .from("medications")
@@ -41,7 +55,6 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
     const pharmacyIds = Array.from(new Set((meds ?? []).map((m) => m.pharmacy_id)));
     if (pharmacyIds.length === 0) return empty;
 
-    // Only users who actually hold the `pharmacy` role — never admins/drivers/patients.
     const { data: roles, error: rolesError } = await supabaseAdmin
       .from("user_roles")
       .select("user_id")
@@ -61,8 +74,19 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
     if (pharmaciesError) throw new Error(pharmaciesError.message);
 
     const approvedIds = new Set((pharmacies ?? []).map((p) => p.user_id));
+
+    const { data: branches } = await supabaseAdmin
+      .from("pharmacy_branches")
+      .select("id, pharmacy_id, name, address, latitude, longitude, is_primary, is_active")
+      .in("pharmacy_id", Array.from(approvedIds))
+      .eq("is_active", true);
+
     return {
       meds: ((meds ?? []).filter((m) => approvedIds.has(m.pharmacy_id)) as PatientMarketplaceMedication[]),
       pharmacies: (pharmacies ?? []) as PatientMarketplacePharmacy[],
+      branches: ((branches ?? []) as any[]).map((b) => ({
+        id: b.id, pharmacy_id: b.pharmacy_id, name: b.name, address: b.address,
+        latitude: b.latitude, longitude: b.longitude, is_primary: !!b.is_primary,
+      })) as PatientMarketplaceBranch[],
     };
   });
