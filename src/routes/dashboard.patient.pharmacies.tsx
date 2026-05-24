@@ -222,7 +222,7 @@ function MedicineMarketplace() {
       });
     }
     return Array.from(map.values());
-  }, [meds, phById, lockedPharmacy, myLoc]);
+  }, [meds, phById, lockedPharmacy, myLoc, branchesByPharmacy]);
 
   const search = q.trim().toLowerCase();
   const byCat = activeCat === "All" ? groups : groups.filter((g) => (g.offers[0]?.category || "Other") === activeCat);
