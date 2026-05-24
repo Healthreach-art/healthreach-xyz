@@ -60,6 +60,7 @@ function MedicineMarketplace() {
   const navigate = useNavigate();
   const loadMarketplace = useServerFn(listPatientMarketplace);
   const [pharmacies, setPharmacies] = useState<Ph[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [meds, setMeds] = useState<Med[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
