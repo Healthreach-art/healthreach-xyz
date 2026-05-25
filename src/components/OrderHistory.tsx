@@ -61,12 +61,25 @@ export function OrderHistory() {
 
   useEffect(() => {
     if (!user) return;
-    const load = () => supabase
-      .from("orders")
-      .select("id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at")
-      .eq("patient_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setOrders((data ?? []) as OrderRow[]));
+    const load = async () => {
+      const { data: ords } = await supabase
+        .from("orders")
+        .select("id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at")
+        .eq("patient_id", user.id)
+        .order("created_at", { ascending: false });
+      const rows = (ords ?? []) as OrderRow[];
+      setOrders(rows);
+      const ids = rows.map((o) => o.id);
+      if (ids.length === 0) return;
+      const [{ data: dels }, { data: revs }] = await Promise.all([
+        supabase.from("deliveries").select("order_id, driver_id").in("order_id", ids),
+        supabase.from("ratings").select("order_id").eq("patient_id", user.id).in("order_id", ids),
+      ]);
+      const dmap: Record<string, string | null> = {};
+      for (const d of (dels ?? [])) dmap[d.order_id] = (d as { driver_id: string | null }).driver_id;
+      setDriverByOrder(dmap);
+      setReviewedOrders(new Set((revs ?? []).map((r) => (r as { order_id: string }).order_id)));
+    };
     load();
 
     const channel = supabase
@@ -86,16 +99,37 @@ export function OrderHistory() {
               toast.success(statusLabels[row.status] ?? row.status, { description: row.medication_name });
               setPulseId(row.id);
               setTimeout(() => setPulseId(null), 1500);
+              if (row.status === "delivered") load();
             }
           } else if (payload.eventType === "DELETE") {
             setOrders((prev) => prev.filter((o) => o.id !== (payload.old as any).id));
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "deliveries" },
+        () => load(),
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [user]);
+
+  async function handleCancel(orderId: string) {
+    if (!confirm("Cancel this order? You'll be refunded if you've already paid.")) return;
+    setCancellingId(orderId);
+    try {
+      const res = await cancelFn({ data: { orderId } });
+      if (!res.ok) {
+        if (res.reason === "driver_assigned") toast.error("A driver is on the way — contact support to cancel.");
+        else if (res.reason === "stage") toast.error("This order can no longer be cancelled.");
+        else toast.error("Could not cancel order");
+        return;
+      }
+      toast.success("Order cancelled");
+    } finally { setCancellingId(null); }
+  }
 
   async function downloadInvoice(o: OrderRow) {
     const { data: payment } = await supabase
