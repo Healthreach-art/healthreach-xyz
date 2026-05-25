@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { BadgeCheck, IdCard, Camera, Loader2, ShieldAlert, ShieldCheck, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { CameraCapture } from "@/components/CameraCapture";
 
 export interface PatientVerification {
   user_id: string;
@@ -33,6 +34,7 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
   const [v, setV] = useState<PatientVerification | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<"id" | "selfie" | null>(null);
+  const [liveSelfieOpen, setLiveSelfieOpen] = useState(false);
 
   async function reload() {
     if (!user) return;
@@ -111,18 +113,31 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
               accept="image/*,application/pdf"
               onFile={(f) => uploadDoc("id", f)}
             />
-            <DocSlot
-              label="Selfie"
-              icon={<Camera className="h-4 w-4" />}
-              done={hasSelfie}
-              busy={busy === "selfie"}
-              accept="image/*"
-              capture="user"
-              onFile={(f) => uploadDoc("selfie", f)}
-            />
+            <div className="rounded-xl border border-dashed border-border bg-card px-3 py-2.5 flex items-center gap-2">
+              <span className={`h-7 w-7 rounded-md flex items-center justify-center ${hasSelfie ? "bg-healthcare-green/20 text-healthcare-green" : "bg-muted text-muted-foreground"}`}>
+                {busy === "selfie" ? <Loader2 className="h-4 w-4 animate-spin" /> : hasSelfie ? <BadgeCheck className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-foreground">Live Selfie</p>
+                <p className="text-[11px] text-muted-foreground truncate">{hasSelfie ? "Captured — retake" : "Open camera and take live photo"}</p>
+              </div>
+              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setLiveSelfieOpen(true)}>
+                <Camera className="h-3.5 w-3.5" /> {hasSelfie ? "Retake" : "Start"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
+
+      <CameraCapture
+        open={liveSelfieOpen}
+        onClose={() => setLiveSelfieOpen(false)}
+        onCapture={(f) => uploadDoc("selfie", f)}
+        title="Live identity selfie"
+        hint="Hold your phone at eye level. Make sure your face is clearly lit."
+        facing="user"
+        filenamePrefix="live-selfie"
+      />
     </div>
   );
 }

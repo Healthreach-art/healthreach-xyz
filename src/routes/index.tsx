@@ -39,7 +39,7 @@ export const Route = createFileRoute("/")({
           telephone: "+27-79-728-5078",
           address: {
             "@type": "PostalAddress",
-            addressLocality: "Johannesburg",
+            addressLocality: "Cape Town",
             addressCountry: "ZA",
           },
         }),

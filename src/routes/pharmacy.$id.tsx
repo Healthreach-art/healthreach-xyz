@@ -82,7 +82,7 @@ export const Route = createFileRoute("/pharmacy/$id")({
             address: {
               "@type": "PostalAddress",
               streetAddress: loaderData?.address ?? undefined,
-              addressLocality: "Johannesburg",
+              addressLocality: "Cape Town",
               addressCountry: "ZA",
             },
             aggregateRating: {
@@ -176,7 +176,7 @@ function Storefront() {
             <span>{m.fee === 0 ? "Free delivery" : `R${m.fee} delivery`}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-            <MapPin className="h-3 w-3" /> {pharmacy.address || "Johannesburg"}
+            <MapPin className="h-3 w-3" /> {pharmacy.address || "Cape Town"}
           </p>
         </div>
       </div>

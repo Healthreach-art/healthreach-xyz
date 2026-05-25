@@ -27,7 +27,7 @@ const contactInfo = [
   { icon: Mail, label: "Email", value: "info@healthreach.co.za", href: "mailto:info@healthreach.co.za" },
   { icon: Phone, label: "Phone", value: PHONE_DISPLAY, href: "tel:+27797285078" },
   { icon: MessageCircle, label: "WhatsApp", value: `Chat on WhatsApp (${PHONE_DISPLAY})`, href: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi HEALTHREACH, I'd like to ask a quick question.")}` },
-  { icon: MapPin, label: "Address", value: "Johannesburg, South Africa" },
+  { icon: MapPin, label: "Address", value: "Cape Town, South Africa" },
 ];
 
 function ContactPage() {

@@ -193,7 +193,7 @@ function MedicineMarketplace() {
       const offer: Offer = {
         ...m,
         pharmacyName: ph.organization_name || ph.full_name || "Pharmacy",
-        address: ph.address || "Johannesburg",
+        address: ph.address || "Cape Town",
         distanceKm: km, nearestBranchName, etaMin, etaMax,
         rating: ratingFor(m.pharmacy_id),
         isOpen: true,

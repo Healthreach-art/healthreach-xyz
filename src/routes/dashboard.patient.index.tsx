@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { usePatientLocationBroadcaster } from "@/hooks/usePatientLocationBroadcaster";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +43,8 @@ const ACTION_CARDS = [
 function PatientDashboard() {
   const { user, profile } = useAuth();
   const firstName = profile?.full_name?.split(" ")[0] || "";
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  usePatientLocationBroadcaster({ userId: user?.id });
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
   const [driverName, setDriverName] = useState<string>("");

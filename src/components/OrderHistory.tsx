@@ -3,12 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { History, Repeat, Download, Search } from "lucide-react";
+import { History, Repeat, Download, Search, X, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { downloadReceiptPdf } from "@/lib/receipt";
 import { toast } from "sonner";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { LiveETACard } from "@/components/LiveETACard";
+import { useServerFn } from "@tanstack/react-start";
+import { cancelOrder } from "@/lib/orders.functions";
+import { ReviewDialog } from "@/components/ReviewDialog";
 
 
 interface OrderRow {
@@ -50,15 +53,33 @@ export function OrderHistory() {
   const [filter, setFilter] = useState<"all" | "active" | "delivered">("all");
   const [q, setQ] = useState("");
   const [pulseId, setPulseId] = useState<string | null>(null);
+  const [driverByOrder, setDriverByOrder] = useState<Record<string, string | null>>({});
+  const [reviewedOrders, setReviewedOrders] = useState<Set<string>>(new Set());
+  const [reviewFor, setReviewFor] = useState<OrderRow | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const cancelFn = useServerFn(cancelOrder);
 
   useEffect(() => {
     if (!user) return;
-    const load = () => supabase
-      .from("orders")
-      .select("id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at")
-      .eq("patient_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setOrders((data ?? []) as OrderRow[]));
+    const load = async () => {
+      const { data: ords } = await supabase
+        .from("orders")
+        .select("id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at")
+        .eq("patient_id", user.id)
+        .order("created_at", { ascending: false });
+      const rows = (ords ?? []) as OrderRow[];
+      setOrders(rows);
+      const ids = rows.map((o) => o.id);
+      if (ids.length === 0) return;
+      const [{ data: dels }, { data: revs }] = await Promise.all([
+        supabase.from("deliveries").select("order_id, driver_id").in("order_id", ids),
+        supabase.from("ratings").select("order_id").eq("patient_id", user.id).in("order_id", ids),
+      ]);
+      const dmap: Record<string, string | null> = {};
+      for (const d of (dels ?? [])) dmap[d.order_id] = (d as { driver_id: string | null }).driver_id;
+      setDriverByOrder(dmap);
+      setReviewedOrders(new Set((revs ?? []).map((r) => (r as { order_id: string }).order_id)));
+    };
     load();
 
     const channel = supabase
@@ -78,16 +99,37 @@ export function OrderHistory() {
               toast.success(statusLabels[row.status] ?? row.status, { description: row.medication_name });
               setPulseId(row.id);
               setTimeout(() => setPulseId(null), 1500);
+              if (row.status === "delivered") load();
             }
           } else if (payload.eventType === "DELETE") {
             setOrders((prev) => prev.filter((o) => o.id !== (payload.old as any).id));
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "deliveries" },
+        () => load(),
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [user]);
+
+  async function handleCancel(orderId: string) {
+    if (!confirm("Cancel this order? You'll be refunded if you've already paid.")) return;
+    setCancellingId(orderId);
+    try {
+      const res = await cancelFn({ data: { orderId } });
+      if (!res.ok) {
+        if (res.reason === "driver_assigned") toast.error("A driver is on the way — contact support to cancel.");
+        else if (res.reason === "stage") toast.error("This order can no longer be cancelled.");
+        else toast.error("Could not cancel order");
+        return;
+      }
+      toast.success("Order cancelled");
+    } finally { setCancellingId(null); }
+  }
 
   async function downloadInvoice(o: OrderRow) {
     const { data: payment } = await supabase
@@ -160,10 +202,20 @@ export function OrderHistory() {
                   <span>Qty {o.quantity}</span>
                   <span>R {Number(o.total_amount).toFixed(2)}</span>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                   {active && (
                     <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
                       <Link to="/track">Track</Link>
+                    </Button>
+                  )}
+                  {active && !driverByOrder[o.id] && o.status !== "out_for_delivery" && (
+                    <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={() => handleCancel(o.id)} disabled={cancellingId === o.id}>
+                      <X className="h-3 w-3" /> {cancellingId === o.id ? "Cancelling…" : "Cancel"}
+                    </Button>
+                  )}
+                  {o.status === "delivered" && !reviewedOrders.has(o.id) && (
+                    <Button size="sm" variant="default" className="h-7 text-xs gap-1 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setReviewFor(o)}>
+                      <Star className="h-3 w-3" /> Rate
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => downloadInvoice(o)}>
@@ -182,6 +234,12 @@ export function OrderHistory() {
                   {["ready", "out_for_delivery"].includes(o.status) && (
                     <LiveETACard orderId={o.id} deliveryStatus={o.status === "ready" ? "assigned" : "in_transit"} />
                   )}
+                  {active && !driverByOrder[o.id] && (
+                    <p className="text-[11px] text-muted-foreground">You can still cancel this order — no driver has been assigned yet.</p>
+                  )}
+                  {active && driverByOrder[o.id] && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400">Driver assigned — cancellation now requires contacting support.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -190,6 +248,12 @@ export function OrderHistory() {
           })}
         </div>
       )}
+      <ReviewDialog
+        orderId={reviewFor?.id ?? null}
+        hasDriver={!!(reviewFor && driverByOrder[reviewFor.id])}
+        onClose={() => setReviewFor(null)}
+        onSubmitted={() => setReviewedOrders((prev) => new Set([...prev, reviewFor!.id]))}
+      />
     </div>
   );
 }
