@@ -35,6 +35,8 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<"id" | "selfie" | null>(null);
   const [liveSelfieOpen, setLiveSelfieOpen] = useState(false);
+
+  async function reload() {
     if (!user) return;
     const row = await fetchVerification(user.id);
     setV(row);
