@@ -65,7 +65,7 @@ function TermsPage() {
           </Section>
 
           <Section title="11. Governing law">
-            These terms are governed by the laws of the Republic of South Africa. Disputes are subject to the jurisdiction of the courts of Johannesburg.
+            These terms are governed by the laws of the Republic of South Africa. Disputes are subject to the jurisdiction of the courts of Cape Town.
           </Section>
 
           <Section title="12. Contact">
