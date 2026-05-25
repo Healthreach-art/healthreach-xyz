@@ -202,10 +202,20 @@ export function OrderHistory() {
                   <span>Qty {o.quantity}</span>
                   <span>R {Number(o.total_amount).toFixed(2)}</span>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                   {active && (
                     <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
                       <Link to="/track">Track</Link>
+                    </Button>
+                  )}
+                  {active && !driverByOrder[o.id] && o.status !== "out_for_delivery" && (
+                    <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={() => handleCancel(o.id)} disabled={cancellingId === o.id}>
+                      <X className="h-3 w-3" /> {cancellingId === o.id ? "Cancelling…" : "Cancel"}
+                    </Button>
+                  )}
+                  {o.status === "delivered" && !reviewedOrders.has(o.id) && (
+                    <Button size="sm" variant="default" className="h-7 text-xs gap-1 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setReviewFor(o)}>
+                      <Star className="h-3 w-3" /> Rate
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => downloadInvoice(o)}>
@@ -224,6 +234,12 @@ export function OrderHistory() {
                   {["ready", "out_for_delivery"].includes(o.status) && (
                     <LiveETACard orderId={o.id} deliveryStatus={o.status === "ready" ? "assigned" : "in_transit"} />
                   )}
+                  {active && !driverByOrder[o.id] && (
+                    <p className="text-[11px] text-muted-foreground">You can still cancel this order — no driver has been assigned yet.</p>
+                  )}
+                  {active && driverByOrder[o.id] && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400">Driver assigned — cancellation now requires contacting support.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -232,6 +248,12 @@ export function OrderHistory() {
           })}
         </div>
       )}
+      <ReviewDialog
+        orderId={reviewFor?.id ?? null}
+        hasDriver={!!(reviewFor && driverByOrder[reviewFor.id])}
+        onClose={() => setReviewFor(null)}
+        onSubmitted={() => setReviewedOrders((prev) => new Set([...prev, reviewFor!.id]))}
+      />
     </div>
   );
 }
