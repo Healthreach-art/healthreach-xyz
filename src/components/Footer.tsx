@@ -48,7 +48,7 @@ export function Footer() {
               <li><a href="mailto:info@healthreach.co.za" className="inline-flex items-center gap-2 hover:text-foreground"><Mail className="h-3.5 w-3.5" /> info@healthreach.co.za</a></li>
               <li><a href="tel:+27797285078" className="inline-flex items-center gap-2 hover:text-foreground"><Phone className="h-3.5 w-3.5" /> +27 79 728 5078</a></li>
               <li><a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp us</a></li>
-              <li>Johannesburg, South Africa</li>
+              <li>Cape Town, South Africa</li>
             </ul>
           </div>
         </div>

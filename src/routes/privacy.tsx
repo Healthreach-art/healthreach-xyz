@@ -63,7 +63,7 @@ function PrivacyPage() {
           </Section>
 
           <Section title="8. Contact">
-            Information Officer — <a className="text-primary" href="mailto:privacy@healthreach.co.za">privacy@healthreach.co.za</a> · Johannesburg, South Africa.
+            Information Officer — <a className="text-primary" href="mailto:privacy@healthreach.co.za">privacy@healthreach.co.za</a> · Cape Town, South Africa.
           </Section>
         </article>
       </main>

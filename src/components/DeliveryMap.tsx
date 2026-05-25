@@ -14,7 +14,7 @@ interface Props {
   className?: string;
 }
 
-const DEFAULT_CENTER: Coords = [-26.2041, 28.0473]; // Johannesburg
+const DEFAULT_CENTER: Coords = [-33.9249, 18.4241]; // Cape Town
 
 async function geocode(address: string): Promise<Coords | null> {
   try {
