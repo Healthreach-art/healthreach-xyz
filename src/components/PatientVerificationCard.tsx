@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { BadgeCheck, IdCard, Camera, Loader2, ShieldAlert, ShieldCheck, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { CameraCapture } from "@/components/CameraCapture";
 
 export interface PatientVerification {
   user_id: string;
