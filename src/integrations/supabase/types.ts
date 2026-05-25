@@ -607,6 +607,9 @@ export type Database = {
       orders: {
         Row: {
           assignment_radius_km: number
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           delivery_address: string | null
           delivery_fee: number
@@ -628,6 +631,9 @@ export type Database = {
         }
         Insert: {
           assignment_radius_km?: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           delivery_address?: string | null
           delivery_fee?: number
@@ -649,6 +655,9 @@ export type Database = {
         }
         Update: {
           assignment_radius_km?: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           delivery_address?: string | null
           delivery_fee?: number
@@ -1303,6 +1312,10 @@ export type Database = {
     }
     Functions: {
       accept_pharmacy_offer: { Args: { _offer_id: string }; Returns: string }
+      cancel_order_safely: {
+        Args: { _order_id: string; _reason?: string }
+        Returns: Json
+      }
       claim_prescription_for_pharmacy: {
         Args: { _pharmacy_id: string; _upload_id: string }
         Returns: undefined
