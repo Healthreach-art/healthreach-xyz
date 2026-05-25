@@ -3,12 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { History, Repeat, Download, Search } from "lucide-react";
+import { History, Repeat, Download, Search, X, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { downloadReceiptPdf } from "@/lib/receipt";
 import { toast } from "sonner";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { LiveETACard } from "@/components/LiveETACard";
+import { useServerFn } from "@tanstack/react-start";
+import { cancelOrder } from "@/lib/orders.functions";
+import { ReviewDialog } from "@/components/ReviewDialog";
 
 
 interface OrderRow {
@@ -50,6 +53,11 @@ export function OrderHistory() {
   const [filter, setFilter] = useState<"all" | "active" | "delivered">("all");
   const [q, setQ] = useState("");
   const [pulseId, setPulseId] = useState<string | null>(null);
+  const [driverByOrder, setDriverByOrder] = useState<Record<string, string | null>>({});
+  const [reviewedOrders, setReviewedOrders] = useState<Set<string>>(new Set());
+  const [reviewFor, setReviewFor] = useState<OrderRow | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const cancelFn = useServerFn(cancelOrder);
 
   useEffect(() => {
     if (!user) return;
