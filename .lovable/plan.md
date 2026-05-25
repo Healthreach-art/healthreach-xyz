@@ -1,36 +1,65 @@
-## What I'll build
+# Plan — Healthreach follow-ups
 
-### 1. Enforce real address at signup (no fake/free-text addresses)
-- Add the existing `AddressPicker` (Google Places + lat/lng) to `src/routes/signup.tsx` as a **required** field for every role (patient, pharmacy, driver, hospital).
-- The form will block submission unless the user picks a Google-verified address (must have `lat`/`lng`) OR clicks "Use current location".
-- On successful signup, the picked `address` + `lat` + `lng` are written to `profiles` via a new server function `setSignupLocation` so the dispatcher/driver-routing can use them immediately.
-- For drivers, the same address seeds their starting position in `driver_locations`.
-- For pharmacies, this replaces the separate "set pharmacy location" step — they're routable the moment admin approves them.
+Grouped by area. Each item is small and independent.
 
-### 2. Seed real Johannesburg demo data (admin-triggered, idempotent)
-- New admin-only server function `seedJohannesburgDemo` in `src/lib/admin.functions.ts` that, when called, creates:
-  - **4 real Johannesburg pharmacies** at real addresses (Clicks Sandton City, Dis-Chem Rosebank, Alpha Pharm Melville, Medirite Braamfontein) — each as an auth user via `supabaseAdmin.auth.admin.createUser`, with `profiles` row (lat/lng/address/approval_status='approved') and `pharmacy` role.
-  - **2 real demo drivers** with Johannesburg starting locations + approved status.
-  - **~12 common SA medications** (Panado, Allergex, Ventolin, Adco-Dol, etc.) stocked across all 4 pharmacies with real ZAR prices.
-- A small "Seed demo data" button on the admin dashboard that calls it. Safe to re-run (checks for existing demo emails before insert).
+## 1. Orders — cancel before driver assigned
 
-### 3. Live tracking map
-- **Patient side** (`src/routes/dashboard.patient.orders.tsx`): when an order is `out_for_delivery`, expand the row to show the existing `DeliveryMap` with the driver's live position from `driver_locations` (already realtime-enabled).
-- **Admin side**: new route `src/routes/dashboard.admin.live.tsx` showing a single Google Map with all online drivers (green pins), all approved pharmacies (blue pins), and all active orders (orange pins). Subscribes to `driver_locations` realtime updates.
+- Add `cancelled_at`, `cancelled_by`, `cancellation_reason` to `orders` (migration).
+- Server fn `cancelOrder({ orderId })`:
+  - Allowed if `status in ('pending','accepted','preparing','ready_for_pickup')` AND no `deliveries` row exists for the order with a non-null `driver_id`.
+  - Sets `status='cancelled'`, refunds the payment row if it was paid (mock provider → mark `refund_status='refunded'`).
+- Patient orders UI: show "Cancel order" button only when the rule allows; hide once a driver is assigned and show "Driver assigned — contact support to cancel".
 
-## Technical notes
+## 2. Live location on login
 
-- `AddressPicker.tsx`, `useDriverLocationBroadcaster`, `find_pharmacies_near` RPC, and `setPharmacyLocation` server fn already exist — I'll reuse them.
-- Migration needed: enable realtime on `driver_locations` (`ALTER PUBLICATION supabase_realtime ADD TABLE public.driver_locations;`) if not already enabled.
-- No new secrets needed — Google Maps connector is already wired (`VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY`).
-- Demo pharmacy auth users use password `Demo!2026` and emails like `demo-clicks-sandton@healthreach.co.za` — admin can share or rotate.
+- New hook `usePatientLocationBroadcaster` (mirrors driver one) that, on patient login, asks for geolocation permission once, then upserts into `user_addresses` a row labelled "Current location" with `is_default=true` and refreshes lat/lng every 60s while the tab is open.
+- Reuse this on driver dashboard so drivers go online + share location automatically as soon as they log in (already partial — make it auto-start on mount instead of waiting for the toggle).
+- Address card: show a "Live" badge next to the Current location row; the static `-33.90321, 18.59066` row is replaced by a reverse-geocoded address (Google Geocoding via connector).
 
-## Files touched
+## 3. Chat (customer ↔ pharmacy ↔ driver)
 
-- `src/routes/signup.tsx` — add required AddressPicker
-- `src/lib/dispatch.functions.ts` — add `setSignupLocation`
-- `src/lib/admin.functions.ts` — add `seedJohannesburgDemo`
-- `src/routes/dashboard.admin.tsx` — add "Seed demo data" button
-- `src/routes/dashboard.admin.live.tsx` — NEW live map
-- `src/routes/dashboard.patient.orders.tsx` — inline live tracking map
-- `supabase/migrations/...` — enable realtime on driver_locations (if missing)
+- `order_messages` table + RLS already exists. Issue is the dialog only wires patient↔pharmacy.
+- Update `OrderChatDialog`:
+  - Determine `sender_role` from the viewer's role.
+  - Show all messages on the order, colour-coded by role (patient / pharmacy / driver).
+  - Realtime subscribe to `postgres_changes` on `order_messages` filtered by `order_id`.
+- Add chat entry points in driver dashboard (active order card) and pharmacy order row.
+
+## 4. Reviews after delivery
+
+- `ratings` table already exists. Add a `ReviewDialog` shown on patient orders list when `status='delivered'` and no rating exists yet for that order.
+- Two stars groups: pharmacy + driver. Insert one `ratings` row per target.
+
+## 5. Driver dispatch speed parity
+
+- Today: pharmacy offers fan out instantly; driver `delivery_offers` are created only when pharmacy accepts.
+- Change: as soon as pharmacy accepts the order, the dispatcher immediately creates `delivery_offers` for ALL online drivers within 20 km (one row per driver in `declined_by` filter sense — actually one broadcast offer, drivers see it via the existing nearby-offers fn).
+- Add realtime subscription on the driver dashboard to `delivery_offers` inserts so new offers appear in <1s without polling.
+
+## 6. WhatsApp + phone consistency
+
+- Audit `+27` strings — make a `WHATSAPP_NUMBER = '27797285078'` constant in `src/lib/platform-rules.ts` and a helper `whatsappLink(message?)` returning `https://wa.me/27797285078?text=...`.
+- Replace all hardcoded numbers/links across Footer, Contact, Home JSON-LD, floating WhatsApp button.
+- The floating button opens WhatsApp with a pre-filled message: "Hi Healthreach, I need help with…".
+
+## 7. Cape Town
+
+- Replace `"Johannesburg, South Africa"` with `"Cape Town, South Africa"` in JSON-LD on `src/routes/index.tsx`, About page, Footer, and any seeded copy.
+
+## 8. Real-time live selfie
+
+- `PatientVerificationCard` currently uploads a file. Replace with `CameraCapture` component (already exists) used in "live" mode: opens the front camera, captures a still on a 3-2-1 countdown, watermarks with a server-issued nonce + timestamp, uploads.
+- Same treatment for driver onboarding selfie step.
+
+## Technical details
+
+- **Migration** (single file): add cancellation columns to orders; add unique constraint `(order_id, target_type, patient_id)` on `ratings` so we don't double-rate; enable realtime on `order_messages` and `delivery_offers` (`ALTER PUBLICATION supabase_realtime ADD TABLE ...`).
+- **Server fns** added in `src/lib/orders.functions.ts` (cancelOrder), `src/lib/reviews.functions.ts` (submitReview, hasReviewed), `src/lib/dispatch.functions.ts` (extend `acceptPharmacyOffer` to fan out driver offers immediately).
+- **Components**: `ReviewDialog`, updated `OrderChatDialog`, `LiveSelfieCapture` wrapper around existing `CameraCapture`, `usePatientLocationBroadcaster` hook.
+- **Constants**: `WHATSAPP_NUMBER` + `whatsappLink()` in `platform-rules.ts`; sweep all phone strings.
+
+## Out of scope for this turn (already shipped previously)
+
+Distance-per-branch, login-first hero, AI sanity check, medicine description requirement, WhatsApp floating button presence — those landed in the previous turn. If any are still broken, tell me which and I'll patch surgically rather than redo.
+
+Approve and I'll ship it in one pass.
