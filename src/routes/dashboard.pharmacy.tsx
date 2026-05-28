@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import pharmacyHero from "@/assets/pharmacy-1.jpg";
 import medGeneric from "@/assets/med-generic.jpg";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,6 +38,7 @@ import { BulkMedicineImportDialog } from "@/components/BulkMedicineImportDialog"
 import { LiveETACard } from "@/components/LiveETACard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
+import { dispatchOrderToNearbyDrivers } from "@/lib/driver-dispatch.functions";
 
 
 import { RoleGuard } from "@/components/RoleGuard";
@@ -86,6 +88,7 @@ interface LiveDelivery {
 
 function PharmacyDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
+  const dispatchDrivers = useServerFn(dispatchOrderToNearbyDrivers);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -402,23 +405,15 @@ function PharmacyDashboard() {
   async function broadcastToDrivers(order: Order) {
 
     if (!user) return;
-    // Avoid duplicate open offers for same order
-    const { data: existing } = await supabase
-      .from("delivery_offers")
-      .select("id")
-      .eq("order_id", order.id)
-      .eq("status", "open")
-      .maybeSingle();
-    if (existing) { toast.info("Request already broadcast — waiting for a driver."); return; }
-    const { error } = await supabase.from("delivery_offers").insert({
-      order_id: order.id,
-      pharmacy_id: user.id,
-      message: `${order.medication_name} × ${order.quantity}`,
-      // 60-second window for a driver to accept before it expires
-      expires_at: new Date(Date.now() + 60_000).toISOString(),
-    });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Request sent to all available drivers");
+    try {
+      const result = await dispatchDrivers({ data: { orderId: order.id } });
+      if (result.assigned) toast.info("A driver is already assigned to this order.");
+      else if (result.waiting) toast.info("Request already broadcast — waiting for a driver.");
+      else if ((result.inserted ?? 0) > 0) toast.success(`Request sent to ${result.inserted} nearby driver${result.inserted === 1 ? "" : "s"}`);
+      else toast.warning("No online drivers within 20 km yet. It will rebroadcast when drivers come online.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Driver broadcast failed");
+    }
   }
 
   if (approvalStatus === "pending") {
