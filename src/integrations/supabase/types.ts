@@ -1320,6 +1320,10 @@ export type Database = {
       }
     }
     Functions: {
+      accept_delivery_offer_for_driver: {
+        Args: { _driver_id: string; _offer_id: string }
+        Returns: Json
+      }
       accept_delivery_offer_safely: {
         Args: { _offer_id: string }
         Returns: Json
@@ -1336,6 +1340,10 @@ export type Database = {
       consume_prescription_repeat: {
         Args: { _upload_id: string }
         Returns: string
+      }
+      decline_delivery_offer_for_driver: {
+        Args: { _driver_id: string; _offer_id: string }
+        Returns: Json
       }
       decline_delivery_offer_safely: {
         Args: { _offer_id: string }
