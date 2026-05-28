@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export const DRIVER_OFFER_RADIUS_KM = 20;
+const DRIVER_OFFER_BATCH = 30;
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -38,14 +39,15 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
 
     const { data: openOffers } = await supabaseAdmin
       .from("delivery_offers")
-      .select("id, order_id, pharmacy_id, message, created_at, declined_by, expires_at, status")
+      .select("id, order_id, pharmacy_id, message, created_at, declined_by, expires_at, status, target_driver_id, distance_km, offer_round")
       .eq("status", "open")
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false });
 
-    const visible = (openOffers ?? []).filter(
-      (o) => !((o.declined_by as string[] | null) ?? []).includes(userId),
-    );
+    const visible = (openOffers ?? []).filter((o) => {
+      const declined = (o.declined_by as string[] | null) ?? [];
+      return !declined.includes(userId) && (!o.target_driver_id || o.target_driver_id === userId);
+    });
     if (visible.length === 0) return { offers: [] as Array<NearbyOffer> };
 
     const pharmacyIds = Array.from(new Set(visible.map((o) => o.pharmacy_id)));
@@ -77,7 +79,7 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
       const pickupLat = ord?.pickup_lat ?? phar?.latitude ?? null;
       const pickupLng = ord?.pickup_lng ?? phar?.longitude ?? null;
       if (pickupLat == null || pickupLng == null) continue;
-      const distance_km = haversineKm(loc.lat, loc.lng, pickupLat, pickupLng);
+      const distance_km = Number(o.distance_km ?? haversineKm(loc.lat, loc.lng, pickupLat, pickupLng));
       if (distance_km > data.maxKm) continue;
       const del = delMap.get(o.order_id);
       enriched.push({
@@ -92,6 +94,7 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
         pharmacy_name: phar?.organization_name || phar?.full_name || "Pharmacy",
         distance_km: Math.round(distance_km * 10) / 10,
         delivery_fee: Number(ord?.delivery_fee ?? 0),
+        offer_round: Number(o.offer_round ?? 1),
       });
     }
     enriched.sort((a, b) => a.distance_km - b.distance_km);
@@ -110,4 +113,55 @@ export type NearbyOffer = {
   pharmacy_name: string;
   distance_km: number;
   delivery_fee: number;
+  offer_round: number;
 };
+
+export const dispatchOrderToNearbyDrivers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ orderId: z.string().uuid() }).parse(i))
+  .handler(async ({ data }) => {
+    const { data: result, error } = await (supabaseAdmin as any).rpc("dispatch_ready_order_to_drivers", {
+      _order_id: data.orderId,
+      _max_drivers: DRIVER_OFFER_BATCH,
+      _radius_km: DRIVER_OFFER_RADIUS_KM,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; inserted?: number; waiting?: boolean; assigned?: boolean; round?: number; reason?: string };
+  });
+
+export const rebroadcastUnacceptedDriverOrders = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ maxOrders: z.number().int().min(1).max(50).default(25) }).parse(i ?? {}))
+  .handler(async ({ data }) => {
+    const { data: result, error } = await (supabaseAdmin as any).rpc("rebroadcast_unaccepted_delivery_orders", {
+      _max_orders: data.maxOrders,
+      _max_drivers: DRIVER_OFFER_BATCH,
+      _radius_km: DRIVER_OFFER_RADIUS_KM,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; processed?: number; inserted?: number };
+  });
+
+export const acceptDeliveryOffer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ offerId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await (supabaseAdmin as any).rpc("accept_delivery_offer_for_driver", {
+      _offer_id: data.offerId,
+      _driver_id: context.userId,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; order_id?: string };
+  });
+
+export const declineDeliveryOffer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ offerId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await (supabaseAdmin as any).rpc("decline_delivery_offer_for_driver", {
+      _offer_id: data.offerId,
+      _driver_id: context.userId,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean };
+  });
