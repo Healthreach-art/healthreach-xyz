@@ -125,17 +125,20 @@ export function CameraCapture({
         <div className="relative aspect-[4/3] bg-black rounded-lg overflow-hidden">
           {snapshot ? (
             <img src={snapshot} alt="preview" className="absolute inset-0 h-full w-full object-cover" />
-          ) : !cameraStarted ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-5 text-center text-xs text-white bg-black/80">
-              <Camera className="h-8 w-8" />
-              <span>Start the live camera from this button for reliable iPhone permission handling.</span>
-            </div>
           ) : (
-            <video
-              ref={videoRef}
-              playsInline muted
-              className={`absolute inset-0 h-full w-full object-cover ${facing === "user" ? "scale-x-[-1]" : ""}`}
-            />
+            <>
+              <video
+                ref={videoRef}
+                playsInline muted
+                className={`absolute inset-0 h-full w-full object-cover ${facing === "user" ? "scale-x-[-1]" : ""}`}
+              />
+              {!cameraStarted && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-5 text-center text-xs text-white bg-black/80">
+                  <Camera className="h-8 w-8" />
+                  <span>Start the live camera from this button for reliable iPhone permission handling.</span>
+                </div>
+              )}
+            </>
           )}
           {error && !snapshot && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center text-xs text-white bg-black/70">
