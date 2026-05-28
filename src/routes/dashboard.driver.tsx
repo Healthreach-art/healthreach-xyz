@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useDriverLocationBroadcaster } from "@/hooks/useDriverLocationBroadcaster";
 import { OrderTimeline } from "@/components/OrderTimeline";
-import { getNearbyOffersForDriver, DRIVER_OFFER_RADIUS_KM, type NearbyOffer } from "@/lib/driver-dispatch.functions";
+import { acceptDeliveryOffer, declineDeliveryOffer, getNearbyOffersForDriver, rebroadcastUnacceptedDriverOrders, DRIVER_OFFER_RADIUS_KM, type NearbyOffer } from "@/lib/driver-dispatch.functions";
 
 type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered" | "failed";
 
@@ -60,6 +61,7 @@ interface Offer {
   delivery_address: string | null;
   distance_km: number;
   earnings: number;
+  offer_round: number;
 }
 
 const STAGE_ORDER: DStatus[] = ["assigned", "picked_up", "in_transit", "delivered"];
@@ -126,6 +128,10 @@ function DriverDashboard() {
   const [netOnline, setNetOnline] = useState<boolean>(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [acceptance, setAcceptance] = useState<{ accepted: number; offered: number; cancelled: number; late: number }>({ accepted: 0, offered: 0, cancelled: 0, late: 0 });
   const vehicleType = (typeof window !== "undefined" && localStorage.getItem("driver:vehicle")) || "Motorbike";
+  const loadNearbyOffers = useServerFn(getNearbyOffersForDriver);
+  const acceptOfferSafely = useServerFn(acceptDeliveryOffer);
+  const declineOfferSafely = useServerFn(declineDeliveryOffer);
+  const rebroadcastOrders = useServerFn(rebroadcastUnacceptedDriverOrders);
 
   const presenceStatus: "online" | "offline" | "break" = !netOnline || !online ? "offline" : onBreak ? "break" : "online";
   useDriverPresence(user?.id ?? null, presenceStatus);
@@ -295,7 +301,7 @@ function DriverDashboard() {
       // Uber-style: server filters offers to those within 20 km of the
       // driver's live location (driver_locations table).
       try {
-        const result = await getNearbyOffersForDriver({ data: { maxKm: DRIVER_OFFER_RADIUS_KM } });
+        const result = await loadNearbyOffers({ data: { maxKm: DRIVER_OFFER_RADIUS_KM } });
         const enriched: Offer[] = (result.offers ?? []).map((o: NearbyOffer) => ({
           id: o.id,
           order_id: o.order_id,
@@ -307,6 +313,7 @@ function DriverDashboard() {
           delivery_address: o.delivery_address,
           distance_km: o.distance_km,
           earnings: o.delivery_fee > 0 ? o.delivery_fee : estimateEarnings(o.distance_km),
+          offer_round: o.offer_round,
         }));
         setOffers(enriched);
       } catch (e) {
@@ -317,7 +324,7 @@ function DriverDashboard() {
 
 
 
-    Promise.all([loadDeliveries(), loadOffers(), loadRatings(), loadStats()]).finally(() => setLoading(false));
+    Promise.all([loadDeliveries(), rebroadcastOrders({ data: { maxOrders: 25 } }).catch(() => null).then(loadOffers), loadRatings(), loadStats()]).finally(() => setLoading(false));
 
     async function loadStats() {
       const since = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
@@ -364,46 +371,18 @@ function DriverDashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "ratings", filter: `target_id=eq.${user.id}` }, () => loadRatings())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, loadNearbyOffers, rebroadcastOrders]);
 
   async function acceptOffer(offer: Offer) {
     if (!user) return;
     setRespondingId(offer.id);
-    // Race-safe: only update if still open
-    const { data: claimed, error } = await supabase
-      .from("delivery_offers")
-      .update({ status: "accepted", accepted_by: user.id })
-      .eq("id", offer.id)
-      .eq("status", "open")
-      .select()
-      .maybeSingle();
-    if (error || !claimed) {
+    try {
+      await acceptOfferSafely({ data: { offerId: offer.id } });
+    } catch {
       setRespondingId(null);
       toast.error("Too late — another driver took it.");
       setOffers((prev) => prev.filter((o) => o.id !== offer.id));
       return;
-    }
-
-    // Auto-create delivery row if not present, otherwise assign existing
-    const { data: existing } = await supabase
-      .from("deliveries")
-      .select("id")
-      .eq("order_id", offer.order_id)
-      .maybeSingle();
-
-    // Create or claim the deliveries row. Order status was already moved to
-    // 'ready' by the pharmacy when they broadcast the offer, so we don't
-    // touch orders.status here.
-    if (existing) {
-      await supabase.from("deliveries").update({ driver_id: user.id, status: "assigned" }).eq("order_id", offer.order_id);
-    } else {
-      await supabase.from("deliveries").insert({
-        order_id: offer.order_id,
-        driver_id: user.id,
-        status: "assigned",
-        pickup_address: offer.pickup_address ?? "",
-        delivery_address: offer.delivery_address ?? "",
-      });
     }
 
     setRespondingId(null);
@@ -414,8 +393,7 @@ function DriverDashboard() {
   async function declineOffer(offer: Offer) {
     if (!user) return;
     setRespondingId(offer.id);
-    const newDeclined = [...(offer.declined_by ?? []), user.id];
-    await supabase.from("delivery_offers").update({ declined_by: newDeclined }).eq("id", offer.id);
+    await declineOfferSafely({ data: { offerId: offer.id } });
     setOffers((prev) => prev.filter((o) => o.id !== offer.id));
     setRespondingId(null);
   }

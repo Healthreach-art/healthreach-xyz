@@ -156,36 +156,45 @@ export type Database = {
           accepted_by: string | null
           created_at: string
           declined_by: string[]
+          distance_km: number | null
           expires_at: string
           id: string
           message: string | null
+          offer_round: number
           order_id: string
           pharmacy_id: string
           status: Database["public"]["Enums"]["offer_status"]
+          target_driver_id: string | null
           updated_at: string
         }
         Insert: {
           accepted_by?: string | null
           created_at?: string
           declined_by?: string[]
+          distance_km?: number | null
           expires_at?: string
           id?: string
           message?: string | null
+          offer_round?: number
           order_id: string
           pharmacy_id: string
           status?: Database["public"]["Enums"]["offer_status"]
+          target_driver_id?: string | null
           updated_at?: string
         }
         Update: {
           accepted_by?: string | null
           created_at?: string
           declined_by?: string[]
+          distance_km?: number | null
           expires_at?: string
           id?: string
           message?: string | null
+          offer_round?: number
           order_id?: string
           pharmacy_id?: string
           status?: Database["public"]["Enums"]["offer_status"]
+          target_driver_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1311,6 +1320,14 @@ export type Database = {
       }
     }
     Functions: {
+      accept_delivery_offer_for_driver: {
+        Args: { _driver_id: string; _offer_id: string }
+        Returns: Json
+      }
+      accept_delivery_offer_safely: {
+        Args: { _offer_id: string }
+        Returns: Json
+      }
       accept_pharmacy_offer: { Args: { _offer_id: string }; Returns: string }
       cancel_order_safely: {
         Args: { _order_id: string; _reason?: string }
@@ -1324,9 +1341,21 @@ export type Database = {
         Args: { _upload_id: string }
         Returns: string
       }
+      decline_delivery_offer_for_driver: {
+        Args: { _driver_id: string; _offer_id: string }
+        Returns: Json
+      }
+      decline_delivery_offer_safely: {
+        Args: { _offer_id: string }
+        Returns: Json
+      }
       decline_pharmacy_offer: {
         Args: { _offer_id: string }
         Returns: undefined
+      }
+      dispatch_ready_order_to_drivers: {
+        Args: { _max_drivers?: number; _order_id: string; _radius_km?: number }
+        Returns: Json
       }
       expire_stale_offers: { Args: never; Returns: undefined }
       find_pharmacies_near: {
@@ -1357,6 +1386,14 @@ export type Database = {
       is_order_participant: {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
+      }
+      rebroadcast_unaccepted_delivery_orders: {
+        Args: {
+          _max_drivers?: number
+          _max_orders?: number
+          _radius_km?: number
+        }
+        Returns: Json
       }
     }
     Enums: {
