@@ -29,38 +29,68 @@ export function CameraCapture({
   const [error, setError] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cameraStarted, setCameraStarted] = useState(false);
+
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCameraStarted(false);
+  }
+
+  function cameraErrorMessage(e: unknown) {
+    const name = e instanceof DOMException ? e.name : "";
+    if (name === "NotAllowedError" || name === "SecurityError") return "Camera permission is blocked. Allow camera access in Safari/Chrome settings, or use Upload instead.";
+    if (name === "NotFoundError" || name === "OverconstrainedError") return "Requested device not found. Try Start camera again, switch browser permissions, or use Upload instead.";
+    if (name === "NotReadableError") return "Camera is being used by another app. Close it and try again, or use Upload instead.";
+    return e instanceof Error ? e.message : "Camera unavailable. You can upload a photo instead.";
+  }
+
+  async function startCamera() {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setError("Camera capture is not available in this browser. Use Upload instead.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    stopCamera();
+    try {
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 960 } },
+          audio: false,
+        });
+      } catch (firstError) {
+        if (firstError instanceof DOMException && (firstError.name === "NotFoundError" || firstError.name === "OverconstrainedError")) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } else {
+          throw firstError;
+        }
+      }
+      streamRef.current = stream;
+      setCameraStarted(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+    } catch (e) {
+      setError(cameraErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!open) {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+      stopCamera();
       setSnapshot(null);
       setError(null);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 960 } },
-          audio: false,
-        });
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-        }
-      } catch (e: any) {
-        setError(e?.message || "Camera unavailable. You can upload a photo instead.");
-      }
-    })();
     return () => {
-      cancelled = true;
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+      stopCamera();
     };
-  }, [open, facing]);
+  }, [open]);
 
   function takeShot() {
     const v = videoRef.current;
@@ -95,6 +125,11 @@ export function CameraCapture({
         <div className="relative aspect-[4/3] bg-black rounded-lg overflow-hidden">
           {snapshot ? (
             <img src={snapshot} alt="preview" className="absolute inset-0 h-full w-full object-cover" />
+          ) : !cameraStarted ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-5 text-center text-xs text-white bg-black/80">
+              <Camera className="h-8 w-8" />
+              <span>Start the live camera from this button for reliable iPhone permission handling.</span>
+            </div>
           ) : (
             <video
               ref={videoRef}
@@ -138,9 +173,15 @@ export function CameraCapture({
                   Upload instead
                 </Button>
               )}
-              <Button onClick={takeShot} disabled={!!error || busy} className="gap-1">
-                <Camera className="h-4 w-4" /> Capture
+              {!cameraStarted ? (
+                <Button onClick={startCamera} disabled={busy} className="gap-1">
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />} Start camera
+                </Button>
+              ) : (
+              <Button onClick={takeShot} disabled={busy} className="gap-1">
+                <Camera className="h-4 w-4" /> Capture selfie
               </Button>
+              )}
             </>
           )}
         </div>
