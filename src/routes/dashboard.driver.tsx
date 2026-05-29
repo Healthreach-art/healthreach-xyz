@@ -524,6 +524,12 @@ function DriverDashboard() {
         </div>
       )}
 
+      <div className="mb-6">
+        <DemoControls role="driver" />
+      </div>
+
+
+
       {/* Performance summary */}
       <div className="grid gap-3 sm:grid-cols-4 mb-6">
         <PerfCard label="Acceptance" value={`${acceptance.offered ? Math.round((acceptance.accepted / acceptance.offered) * 100) : 100}%`} sub={`${acceptance.accepted}/${acceptance.offered} offers`} tone="text-healthcare-green" icon={CheckCircle} />
