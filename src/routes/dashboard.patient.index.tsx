@@ -163,6 +163,8 @@ function PatientDashboard() {
               </p>
             </div>
 
+            <DemoControls role="patient" />
+
             {/* Action cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {ACTION_CARDS.map((c) => (
