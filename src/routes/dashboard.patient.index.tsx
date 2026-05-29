@@ -13,6 +13,8 @@ import {
   Package, Bike, Star, Siren, Pill,
   CalendarCheck, FileText, MessageSquare, PhoneCall,
 } from "lucide-react";
+import { DemoControls } from "@/components/DemoControls";
+import { useDemoTicker } from "@/hooks/useDemoTicker";
 
 export const Route = createFileRoute("/dashboard/patient/")({
   head: () => ({ meta: [{ title: "Dashboard — Healthreach" }] }),
@@ -45,6 +47,7 @@ function PatientDashboard() {
   const firstName = profile?.full_name?.split(" ")[0] || "";
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   usePatientLocationBroadcaster({ userId: user?.id });
+  useDemoTicker(true);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
   const [driverName, setDriverName] = useState<string>("");
@@ -159,6 +162,8 @@ function PatientDashboard() {
                 Your health is our priority. Let's take care of it today.
               </p>
             </div>
+
+            <DemoControls role="patient" />
 
             {/* Action cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">

@@ -23,6 +23,8 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { useDriverLocationBroadcaster } from "@/hooks/useDriverLocationBroadcaster";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { acceptDeliveryOffer, declineDeliveryOffer, getNearbyOffersForDriver, rebroadcastUnacceptedDriverOrders, DRIVER_OFFER_RADIUS_KM, type NearbyOffer } from "@/lib/driver-dispatch.functions";
+import { DemoControls } from "@/components/DemoControls";
+import { useDemoTicker } from "@/hooks/useDemoTicker";
 
 type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered" | "failed";
 
@@ -135,6 +137,7 @@ function DriverDashboard() {
 
   const presenceStatus: "online" | "offline" | "break" = !netOnline || !online ? "offline" : onBreak ? "break" : "online";
   useDriverPresence(user?.id ?? null, presenceStatus);
+  useDemoTicker(true);
 
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem("driver:online", String(online));
@@ -520,6 +523,12 @@ function DriverDashboard() {
           <Coffee className="h-4 w-4" /> Break mode — you stay logged in but won't receive new requests.
         </div>
       )}
+
+      <div className="mb-6">
+        <DemoControls role="driver" />
+      </div>
+
+
 
       {/* Performance summary */}
       <div className="grid gap-3 sm:grid-cols-4 mb-6">

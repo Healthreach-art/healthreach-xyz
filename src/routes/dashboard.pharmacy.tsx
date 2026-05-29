@@ -39,6 +39,8 @@ import { LiveETACard } from "@/components/LiveETACard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
 import { dispatchOrderToNearbyDrivers } from "@/lib/driver-dispatch.functions";
+import { DemoControls } from "@/components/DemoControls";
+import { useDemoTicker } from "@/hooks/useDemoTicker";
 
 
 import { RoleGuard } from "@/components/RoleGuard";
@@ -89,6 +91,7 @@ interface LiveDelivery {
 function PharmacyDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
   const dispatchDrivers = useServerFn(dispatchOrderToNearbyDrivers);
+  useDemoTicker(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -491,6 +494,10 @@ function PharmacyDashboard() {
             </div>
           </a>
         ))}
+      </div>
+
+      <div className="mb-6">
+        <DemoControls role="pharmacy" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 mb-6">

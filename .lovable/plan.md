@@ -1,65 +1,65 @@
-# Plan — Healthreach follow-ups
+# Why the driver isn't seeing orders
 
-Grouped by area. Each item is small and independent.
+After tracing the flow, the driver dashboard stays empty because the chain breaks before a `delivery_offer` is ever inserted:
 
-## 1. Orders — cancel before driver assigned
+1. **No driver location row** — `getNearbyOffersForDriver` returns `{ reason: "no_location" }` whenever `driver_locations` has no row for the signed-in driver. Geolocation in the preview iframe is often blocked, so the driver looks "offline" to the dispatcher even after toggling online.
+2. **No drivers in radius** — `dispatch_ready_order_to_drivers` only inserts offers for drivers whose `driver_status='online'` AND who have a `driver_locations` row within 20 km of the pickup. With zero seeded drivers in Cape Town, the SQL returns `inserted: 0` and the offer never appears.
+3. **Pharmacy never reaches "ready"** — dispatch only fires when an order is `ready_for_pickup`. In testing flows the pharmacy account is logged out, so the order sits at `pending` forever and nothing fans out to drivers.
+4. **Cross-account testing is hard** — one browser session = one role, so the patient places an order but no pharmacy/driver is signed in to advance it.
 
-- Add `cancelled_at`, `cancelled_by`, `cancellation_reason` to `orders` (migration).
-- Server fn `cancelOrder({ orderId })`:
-  - Allowed if `status in ('pending','accepted','preparing','ready_for_pickup')` AND no `deliveries` row exists for the order with a non-null `driver_id`.
-  - Sets `status='cancelled'`, refunds the payment row if it was paid (mock provider → mark `refund_status='refunded'`).
-- Patient orders UI: show "Cancel order" button only when the rule allows; hide once a driver is assigned and show "Driver assigned — contact support to cancel".
+The fix is a Cape Town **mock pipeline** that simulates the missing participants so a single logged-in user can see the whole loop on their dashboard.
 
-## 2. Live location on login
+# Plan — Cape Town demo pipeline for all 3 dashboards
 
-- New hook `usePatientLocationBroadcaster` (mirrors driver one) that, on patient login, asks for geolocation permission once, then upserts into `user_addresses` a row labelled "Current location" with `is_default=true` and refreshes lat/lng every 60s while the tab is open.
-- Reuse this on driver dashboard so drivers go online + share location automatically as soon as they log in (already partial — make it auto-start on mount instead of waiting for the toggle).
-- Address card: show a "Live" badge next to the Current location row; the static `-33.90321, 18.59066` row is replaced by a reverse-geocoded address (Google Geocoding via connector).
+## 1. Seed a Cape Town mock world (one-time, idempotent)
 
-## 3. Chat (customer ↔ pharmacy ↔ driver)
+Server fn `seedCapeTownDemo()` (admin-callable + auto-runs on first dashboard load if empty):
+- 3 mock pharmacies around Cape Town CBD, Sea Point, Claremont (profiles + `pharmacy_branches` rows with real lat/lng, `service_radius_km=25`).
+- 6 mock drivers spread across the city, each with:
+  - `driver_status` row → `online`
+  - `driver_locations` row with realistic lat/lng (V&A Waterfront, Observatory, Rondebosch, Bellville, Mowbray, Greenpoint)
+  - `driver_documents` approved
+- 1 mock patient in Gardens.
+- A small medication catalogue per pharmacy (Panado, Allergex, Adco-Dol, etc.) with full SAHPRA-style descriptions.
 
-- `order_messages` table + RLS already exists. Issue is the dialog only wires patient↔pharmacy.
-- Update `OrderChatDialog`:
-  - Determine `sender_role` from the viewer's role.
-  - Show all messages on the order, colour-coded by role (patient / pharmacy / driver).
-  - Realtime subscribe to `postgres_changes` on `order_messages` filtered by `order_id`.
-- Add chat entry points in driver dashboard (active order card) and pharmacy order row.
+## 2. Auto-advance demo orders ("Uber simulator")
 
-## 4. Reviews after delivery
+New server fn `tickDemoDispatch()` invoked every 4s by a lightweight hook on each dashboard:
+- Any `pending` order older than 8s where pharmacy is a mock → auto-accept, set `preparing`.
+- Any `preparing` mock order older than 12s → `ready_for_pickup` and call `dispatch_ready_order_to_drivers`.
+- Any open `delivery_offer` targeting a mock driver older than 6s → mock driver accepts → creates `deliveries` row, status `assigned` → `picked_up` → `out_for_delivery` → `delivered` on a 30s timeline.
+- Driver location row of the assigned mock driver is interpolated toward the patient every tick so the live map animates.
 
-- `ratings` table already exists. Add a `ReviewDialog` shown on patient orders list when `status='delivered'` and no rating exists yet for that order.
-- Two stars groups: pharmacy + driver. Insert one `ratings` row per target.
+This makes the **real** logged-in driver see incoming offers from real patients too (because dispatch now actually runs), and the **real** patient sees their order progress without needing a second browser.
 
-## 5. Driver dispatch speed parity
+## 3. Force-pin live location fallback
 
-- Today: pharmacy offers fan out instantly; driver `delivery_offers` are created only when pharmacy accepts.
-- Change: as soon as pharmacy accepts the order, the dispatcher immediately creates `delivery_offers` for ALL online drivers within 20 km (one row per driver in `declined_by` filter sense — actually one broadcast offer, drivers see it via the existing nearby-offers fn).
-- Add realtime subscription on the driver dashboard to `delivery_offers` inserts so new offers appear in <1s without polling.
+- `useDriverLocationBroadcaster` and `usePatientLocationBroadcaster` already exist. Add a "Use demo Cape Town location" button on each dashboard that writes a fixed lat/lng (CBD for patient, V&A for driver) when the browser blocks geolocation — guarantees the radius math works in the preview iframe.
+- On driver login, immediately upsert `driver_locations` with the last known or demo coordinates so `getNearbyOffersForDriver` never returns `no_location`.
 
-## 6. WhatsApp + phone consistency
+## 4. Driver dashboard — "Incoming offers" reliability
 
-- Audit `+27` strings — make a `WHATSAPP_NUMBER = '27797285078'` constant in `src/lib/platform-rules.ts` and a helper `whatsappLink(message?)` returning `https://wa.me/27797285078?text=...`.
-- Replace all hardcoded numbers/links across Footer, Contact, Home JSON-LD, floating WhatsApp button.
-- The floating button opens WhatsApp with a pre-filled message: "Hi Healthreach, I need help with…".
+- Subscribe to `delivery_offers` realtime inserts AND poll every 3s as a fallback (Workers preview occasionally drops the socket).
+- On render, if `offers.length === 0` AND no `driver_locations` row exists, show a clear "You're offline — share location" CTA instead of an empty card.
+- Show distance to pickup + ETA + earnings on each offer card (already partly wired — confirm the row renders).
 
-## 7. Cape Town
+## 5. Patient + Pharmacy mock visibility
 
-- Replace `"Johannesburg, South Africa"` with `"Cape Town, South Africa"` in JSON-LD on `src/routes/index.tsx`, About page, Footer, and any seeded copy.
+- **Patient dashboard**: an "Active order" card that mirrors `orders.status` with live driver pin on the existing `DeliveryMap`.
+- **Pharmacy dashboard**: existing `PharmacyOffersInbox` already polls — add a "Demo: place test order from a mock patient" button so a logged-in pharmacy can trigger the loop without a second account.
 
-## 8. Real-time live selfie
+## 6. Out of scope
 
-- `PatientVerificationCard` currently uploads a file. Replace with `CameraCapture` component (already exists) used in "live" mode: opens the front camera, captures a still on a 3-2-1 countdown, watermarks with a server-issued nonce + timestamp, uploads.
-- Same treatment for driver onboarding selfie step.
+- No schema changes — only seed data + new server fns + 2 small UI buttons.
+- No changes to chat, reviews, selfie, or payments (already shipped).
+- No email — still needs sender domain (separate request).
 
 ## Technical details
 
-- **Migration** (single file): add cancellation columns to orders; add unique constraint `(order_id, target_type, patient_id)` on `ratings` so we don't double-rate; enable realtime on `order_messages` and `delivery_offers` (`ALTER PUBLICATION supabase_realtime ADD TABLE ...`).
-- **Server fns** added in `src/lib/orders.functions.ts` (cancelOrder), `src/lib/reviews.functions.ts` (submitReview, hasReviewed), `src/lib/dispatch.functions.ts` (extend `acceptPharmacyOffer` to fan out driver offers immediately).
-- **Components**: `ReviewDialog`, updated `OrderChatDialog`, `LiveSelfieCapture` wrapper around existing `CameraCapture`, `usePatientLocationBroadcaster` hook.
-- **Constants**: `WHATSAPP_NUMBER` + `whatsappLink()` in `platform-rules.ts`; sweep all phone strings.
-
-## Out of scope for this turn (already shipped previously)
-
-Distance-per-branch, login-first hero, AI sanity check, medicine description requirement, WhatsApp floating button presence — those landed in the previous turn. If any are still broken, tell me which and I'll patch surgically rather than redo.
+- New files: `src/lib/demo-pipeline.functions.ts` (`seedCapeTownDemo`, `tickDemoDispatch`, `placeMockPatientOrder`), `src/hooks/useDemoTicker.ts`.
+- New migration: only an `is_demo boolean default false` flag on `profiles`, `orders`, `delivery_offers`, `deliveries` so the ticker only touches mock rows and never disturbs real users. + GRANTs.
+- Mock driver "accept" is performed by `supabaseAdmin` inside the server fn (bypasses RLS) — never exposed to clients.
+- Cape Town center `[-33.9249, 18.4241]` already set in `DeliveryMap`.
+- Demo ticker is throttled (one server call per dashboard every 4s) and bails out instantly if no demo rows exist, so production cost is ~zero.
 
 Approve and I'll ship it in one pass.
