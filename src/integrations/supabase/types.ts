@@ -87,6 +87,7 @@ export type Database = {
           failure_photo_path: string | null
           failure_reason: string | null
           id: string
+          is_demo: boolean
           order_id: string
           peak_bonus: number | null
           pickup_address: string | null
@@ -109,6 +110,7 @@ export type Database = {
           failure_photo_path?: string | null
           failure_reason?: string | null
           id?: string
+          is_demo?: boolean
           order_id: string
           peak_bonus?: number | null
           pickup_address?: string | null
@@ -131,6 +133,7 @@ export type Database = {
           failure_photo_path?: string | null
           failure_reason?: string | null
           id?: string
+          is_demo?: boolean
           order_id?: string
           peak_bonus?: number | null
           pickup_address?: string | null
@@ -159,6 +162,7 @@ export type Database = {
           distance_km: number | null
           expires_at: string
           id: string
+          is_demo: boolean
           message: string | null
           offer_round: number
           order_id: string
@@ -174,6 +178,7 @@ export type Database = {
           distance_km?: number | null
           expires_at?: string
           id?: string
+          is_demo?: boolean
           message?: string | null
           offer_round?: number
           order_id: string
@@ -189,6 +194,7 @@ export type Database = {
           distance_km?: number | null
           expires_at?: string
           id?: string
+          is_demo?: boolean
           message?: string | null
           offer_round?: number
           order_id?: string
@@ -481,6 +487,7 @@ export type Database = {
           expiry_date: string | null
           id: string
           image_url: string | null
+          is_demo: boolean
           name: string
           pharmacy_id: string
           price: number
@@ -496,6 +503,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           image_url?: string | null
+          is_demo?: boolean
           name: string
           pharmacy_id: string
           price?: number
@@ -511,6 +519,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           image_url?: string | null
+          is_demo?: boolean
           name?: string
           pharmacy_id?: string
           price?: number
@@ -625,6 +634,7 @@ export type Database = {
           delivery_lat: number | null
           delivery_lng: number | null
           id: string
+          is_demo: boolean
           medication_id: string | null
           medication_name: string
           notes: string | null
@@ -649,6 +659,7 @@ export type Database = {
           delivery_lat?: number | null
           delivery_lng?: number | null
           id?: string
+          is_demo?: boolean
           medication_id?: string | null
           medication_name: string
           notes?: string | null
@@ -673,6 +684,7 @@ export type Database = {
           delivery_lat?: number | null
           delivery_lng?: number | null
           id?: string
+          is_demo?: boolean
           medication_id?: string | null
           medication_name?: string
           notes?: string | null
@@ -1108,6 +1120,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_demo: boolean
           latitude: number | null
           longitude: number | null
           organization_name: string | null
@@ -1126,6 +1139,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          is_demo?: boolean
           latitude?: number | null
           longitude?: number | null
           organization_name?: string | null
@@ -1144,6 +1158,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          is_demo?: boolean
           latitude?: number | null
           longitude?: number | null
           organization_name?: string | null
