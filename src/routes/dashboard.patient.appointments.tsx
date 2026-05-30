@@ -19,7 +19,7 @@ export const Route = createFileRoute("/dashboard/patient/appointments")({
   component: () => (<RoleGuard allow="patient"><Page /></RoleGuard>),
 });
 
-interface Match { pharmacy_id: string; name: string; address: string; match_reason: string; confidence: number }
+interface Match { pharmacy_id: string; name: string; address: string; match_reason: string; confidence: number; relevant_meds?: { name: string; price: number; requires_prescription: boolean }[] }
 interface Appt {
   id: string; pharmacy_id: string; reason: string; preferred_at: string;
   status: string; mode: string; pharmacist_notes: string;
@@ -145,6 +145,15 @@ function Page() {
                   <p className="font-bold text-foreground">{m.name}</p>
                   {m.address && <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5"><MapPin className="h-3 w-3" />{m.address}</p>}
                   <p className="text-xs text-foreground/80 mt-1">{m.match_reason}</p>
+                  {m.relevant_meds && m.relevant_meds.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {m.relevant_meds.map((rm) => (
+                        <span key={rm.name} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-healthcare-sky/15 text-healthcare-sky">
+                          {rm.name}{rm.requires_prescription ? " (Rx)" : ""} · R{rm.price.toFixed(0)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-healthcare-green/15 text-healthcare-green">{m.confidence}% match</span>
