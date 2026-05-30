@@ -89,12 +89,18 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
       const { data: med } = await supabaseAdmin
         .from("medications").select("price, pharmacy_id").eq("id", item.medicationId).maybeSingle();
       if (!med) continue;
+      const pharmacyId = item.pharmacyIdHint ?? med.pharmacy_id;
+      const { data: pharmacy } = await supabaseAdmin
+        .from("profiles")
+        .select("latitude, longitude")
+        .eq("user_id", pharmacyId)
+        .maybeSingle();
 
       const { data: order, error: orderErr } = await supabaseAdmin
         .from("orders")
         .insert({
           patient_id: userId,
-          pharmacy_id: null, // unassigned — pharmacy chosen via offers
+          pharmacy_id: pharmacyId,
           medication_id: item.medicationId,
           medication_name: item.medicationName,
           quantity: item.quantity,
@@ -104,6 +110,8 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
           delivery_address: data.delivery.address,
           delivery_lat: data.delivery.lat,
           delivery_lng: data.delivery.lng,
+          pickup_lat: pharmacy?.latitude ?? null,
+          pickup_lng: pharmacy?.longitude ?? null,
           assignment_radius_km: 10,
           notes: data.notes ?? "",
         })
@@ -114,8 +122,14 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
         continue;
       }
 
-      const result = await createOfferForTier(order.id, userId, item.medicationName, data.delivery.lat, data.delivery.lng, 10);
-      created.push({ orderId: order.id, matched: result.matched });
+      await supabaseAdmin.from("notifications").insert({
+        user_id: pharmacyId,
+        category: "order",
+        title: "New patient order",
+        body: `${item.medicationName} × ${item.quantity} is waiting in Incoming Orders.`,
+        link: "/dashboard/pharmacy#orders-section",
+      });
+      created.push({ orderId: order.id, matched: true });
     }
 
     return { orders: created };

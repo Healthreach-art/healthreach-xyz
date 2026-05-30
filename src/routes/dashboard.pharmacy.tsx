@@ -39,8 +39,6 @@ import { LiveETACard } from "@/components/LiveETACard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
 import { dispatchOrderToNearbyDrivers } from "@/lib/driver-dispatch.functions";
-import { DemoControls } from "@/components/DemoControls";
-import { useDemoTicker } from "@/hooks/useDemoTicker";
 
 
 import { RoleGuard } from "@/components/RoleGuard";
@@ -91,7 +89,6 @@ interface LiveDelivery {
 function PharmacyDashboard() {
   const { user, profile, approvalStatus, signOut } = useAuth();
   const dispatchDrivers = useServerFn(dispatchOrderToNearbyDrivers);
-  useDemoTicker(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -335,6 +332,13 @@ function PharmacyDashboard() {
     loadData();
   }
 
+  async function acceptOrder(orderId: string) {
+    const { error } = await supabase.from("orders").update({ status: "accepted" }).eq("id", orderId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Order accepted — prepare it when ready");
+    loadData();
+  }
+
   async function markPreparing(orderId: string) {
 
     const { error } = await supabase.from("orders").update({ status: "preparing" }).eq("id", orderId);
@@ -373,20 +377,15 @@ function PharmacyDashboard() {
     return true;
   }
 
-  // Marks order ready and broadcasts a delivery offer to all approved drivers.
-  // First driver to accept wins — they become driver_id on the delivery row.
-  async function markReadyAndAutoAssign(orderId: string) {
+  // Marks order ready and broadcasts driver offers. The delivery row is only
+  // created when a driver manually accepts, so tracking does not jump ahead.
+  async function markReadyAndBroadcast(orderId: string) {
     if (!user) return;
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
-    // Ensure a delivery row exists (no driver yet) so patient tracking can render immediately.
-    const ok = await ensureDeliveryRow(orderId, null);
-    if (!ok) return;
     const { error: orderErr } = await supabase.from("orders").update({ status: "ready" }).eq("id", orderId);
     if (orderErr) { toast.error(orderErr.message); return; }
-    // Broadcast offer to all drivers (no-op if one is already open).
     await broadcastToDrivers(order);
-    toast.success("Order ready — sent to nearby drivers");
     loadData();
   }
 
@@ -496,10 +495,6 @@ function PharmacyDashboard() {
         ))}
       </div>
 
-      <div className="mb-6">
-        <DemoControls role="pharmacy" />
-      </div>
-
       <div className="grid gap-4 md:grid-cols-2 mb-6">
         <PharmacyOffersInbox />
         <PharmacyLocationCard />
@@ -570,11 +565,8 @@ function PharmacyDashboard() {
 
                 {order.status === "pending" && (
                   <div className="flex flex-wrap gap-2 mt-3">
-                    <Button size="sm" variant="default" className="gap-1" onClick={() => setAssignOrder(order)}>
-                      <CheckCircle className="h-3 w-3" /> Accept & Assign
-                    </Button>
-                    <Button size="sm" variant="secondary" className="gap-1" onClick={() => broadcastToDrivers(order)}>
-                      <Radio className="h-3 w-3" /> Broadcast to Drivers
+                    <Button size="sm" variant="default" className="gap-1" onClick={() => acceptOrder(order.id)}>
+                      <CheckCircle className="h-3 w-3" /> Accept Order
                     </Button>
                     <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectOrder(order.id)}>
                       <XCircle className="h-3 w-3" /> Reject
@@ -589,7 +581,7 @@ function PharmacyDashboard() {
                 )}
 
                 {order.status === "preparing" && (
-                  <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markReadyAndAutoAssign(order.id)}>
+                  <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markReadyAndBroadcast(order.id)}>
                     <Truck className="h-3 w-3" /> Mark Ready & Broadcast to Drivers
                   </Button>
                 )}

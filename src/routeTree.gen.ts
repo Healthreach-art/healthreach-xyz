@@ -37,7 +37,6 @@ import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
-import { Route as ApiDemoAdvanceRouteImport } from './routes/api/demo-advance'
 import { Route as DashboardPatientIndexRouteImport } from './routes/dashboard.patient.index'
 import { Route as DashboardPatientTransactionsRouteImport } from './routes/dashboard.patient.transactions'
 import { Route as DashboardPatientSupportRouteImport } from './routes/dashboard.patient.support'
@@ -195,11 +194,6 @@ const ApiMockPayRoute = ApiMockPayRouteImport.update({
   path: '/api/mock-pay',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDemoAdvanceRoute = ApiDemoAdvanceRouteImport.update({
-  id: '/api/demo-advance',
-  path: '/api/demo-advance',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DashboardPatientIndexRoute = DashboardPatientIndexRouteImport.update({
   id: '/dashboard/patient/',
   path: '/dashboard/patient/',
@@ -309,7 +303,6 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
-  '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
@@ -356,7 +349,6 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
-  '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
@@ -404,7 +396,6 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
-  '/api/demo-advance': typeof ApiDemoAdvanceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
@@ -453,7 +444,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/track'
-    | '/api/demo-advance'
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
@@ -500,7 +490,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/track'
-    | '/api/demo-advance'
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
@@ -547,7 +536,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/track'
-    | '/api/demo-advance'
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
@@ -595,7 +583,6 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   TrackRoute: typeof TrackRoute
-  ApiDemoAdvanceRoute: typeof ApiDemoAdvanceRoute
   ApiMockPayRoute: typeof ApiMockPayRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   DashboardAdminRoute: typeof DashboardAdminRouteWithChildren
@@ -820,13 +807,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMockPayRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/demo-advance': {
-      id: '/api/demo-advance'
-      path: '/api/demo-advance'
-      fullPath: '/api/demo-advance'
-      preLoaderRoute: typeof ApiDemoAdvanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dashboard/patient/': {
       id: '/dashboard/patient/'
       path: '/dashboard/patient'
@@ -984,7 +964,6 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   TrackRoute: TrackRoute,
-  ApiDemoAdvanceRoute: ApiDemoAdvanceRoute,
   ApiMockPayRoute: ApiMockPayRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   DashboardAdminRoute: DashboardAdminRouteWithChildren,
