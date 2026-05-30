@@ -249,6 +249,25 @@ function PatientDashboard() {
                   </div>
                 </div>
               </div>
+
+              {activeOrderId && (pickupCode || deliveryCode) && (
+                <div className="mt-5 grid sm:grid-cols-2 gap-3">
+                  {pickupCode && (
+                    <div className="rounded-2xl border border-healthcare-sky/30 bg-healthcare-sky/10 p-4">
+                      <p className="text-[10px] uppercase tracking-widest font-bold text-healthcare-sky">Pharmacy Pickup Code</p>
+                      <p className="text-3xl font-bold font-mono text-foreground tracking-[0.4em] mt-1">{pickupCode}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Share with the driver at pickup.</p>
+                    </div>
+                  )}
+                  {deliveryCode && (
+                    <div className="rounded-2xl border border-healthcare-green/30 bg-healthcare-green/10 p-4">
+                      <p className="text-[10px] uppercase tracking-widest font-bold text-healthcare-green">Your Delivery Code</p>
+                      <p className="text-3xl font-bold font-mono text-foreground tracking-[0.4em] mt-1">{deliveryCode}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Give this to the driver on arrival.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Recent Orders */}
