@@ -8,7 +8,7 @@ import { lovable } from "@/integrations/lovable";
 import { useServerFn } from "@tanstack/react-start";
 import { setSignupLocation } from "@/lib/dispatch.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
-import { UserPlus, AlertCircle, CheckCircle, Truck, Store, ArrowLeft } from "lucide-react";
+import { UserPlus, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
 
 type SignupSearch = { role?: "patient" | "pharmacy" | "driver" };
 
@@ -225,24 +225,6 @@ function SignupPage() {
             </svg>
             Continue with Google
           </Button>
-
-          {role === "patient" && (
-            <div className="mt-6 space-y-2">
-              <p className="text-center text-xs uppercase tracking-wide text-muted-foreground">Join as a partner</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Link to="/signup" search={{ role: "pharmacy" }}>
-                  <Button type="button" variant="outline" className="w-full">
-                    <Store className="mr-2 h-4 w-4" /> Become a Pharmacy
-                  </Button>
-                </Link>
-                <Link to="/signup" search={{ role: "driver" }}>
-                  <Button type="button" variant="outline" className="w-full">
-                    <Truck className="mr-2 h-4 w-4" /> Become a Driver
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
