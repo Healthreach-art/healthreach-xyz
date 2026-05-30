@@ -9,6 +9,7 @@ import {
   Coffee, AlertTriangle, TrendingUp, WifiOff,
 } from "lucide-react";
 import { PickupCodeDialog } from "@/components/PickupCodeDialog";
+import { DeliveryCodeDialog } from "@/components/DeliveryCodeDialog";
 import { FailedDeliveryDialog } from "@/components/FailedDeliveryDialog";
 import { useDriverPresence } from "@/hooks/useDriverPresence";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
