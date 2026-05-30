@@ -51,6 +51,8 @@ function PatientDashboard() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [mapPickup, setMapPickup] = useState<string | null>(null);
   const [mapDropoff, setMapDropoff] = useState<string | null>(null);
+  const [pickupCode, setPickupCode] = useState<string | null>(null);
+  const [deliveryCode, setDeliveryCode] = useState<string | null>(null);
   const [activePrescriptionsCount, setActivePrescriptionsCount] = useState(0);
   const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
 
