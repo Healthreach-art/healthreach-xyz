@@ -22,9 +22,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useDriverLocationBroadcaster } from "@/hooks/useDriverLocationBroadcaster";
 import { OrderTimeline } from "@/components/OrderTimeline";
-import { acceptDeliveryOffer, declineDeliveryOffer, getNearbyOffersForDriver, rebroadcastUnacceptedDriverOrders, DRIVER_OFFER_RADIUS_KM, type NearbyOffer } from "@/lib/driver-dispatch.functions";
-import { DemoControls } from "@/components/DemoControls";
-import { useDemoTicker } from "@/hooks/useDemoTicker";
+import { acceptDeliveryOffer, declineDeliveryOffer, getNearbyOffersForDriver, DRIVER_OFFER_RADIUS_KM, type NearbyOffer } from "@/lib/driver-dispatch.functions";
 
 type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered" | "failed";
 
@@ -133,11 +131,9 @@ function DriverDashboard() {
   const loadNearbyOffers = useServerFn(getNearbyOffersForDriver);
   const acceptOfferSafely = useServerFn(acceptDeliveryOffer);
   const declineOfferSafely = useServerFn(declineDeliveryOffer);
-  const rebroadcastOrders = useServerFn(rebroadcastUnacceptedDriverOrders);
 
   const presenceStatus: "online" | "offline" | "break" = !netOnline || !online ? "offline" : onBreak ? "break" : "online";
   useDriverPresence(user?.id ?? null, presenceStatus);
-  useDemoTicker(true);
 
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem("driver:online", String(online));
@@ -329,12 +325,10 @@ function DriverDashboard() {
       }
     }
 
-
-
-    Promise.all([loadDeliveries(), rebroadcastOrders({ data: { maxOrders: 25 } }).catch(() => null).then(loadOffers), loadRatings(), loadStats()]).finally(() => setLoading(false));
+    Promise.all([loadDeliveries(), loadOffers(), loadRatings(), loadStats()]).finally(() => setLoading(false));
     const poll = setInterval(() => {
       loadDeliveries();
-      if (available) rebroadcastOrders({ data: { maxOrders: 25 } }).catch(() => null).then(loadOffers);
+      if (available) loadOffers();
     }, 3000);
 
     async function loadStats() {
@@ -382,7 +376,7 @@ function DriverDashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "ratings", filter: `target_id=eq.${user.id}` }, () => loadRatings())
       .subscribe();
     return () => { clearInterval(poll); supabase.removeChannel(channel); };
-  }, [user, loadNearbyOffers, rebroadcastOrders, available]);
+  }, [user, loadNearbyOffers, available]);
 
   async function acceptOffer(offer: Offer) {
     if (!user) return;
@@ -531,12 +525,6 @@ function DriverDashboard() {
           <Coffee className="h-4 w-4" /> Break mode — you stay logged in but won't receive new requests.
         </div>
       )}
-
-      <div className="mb-6">
-        <DemoControls role="driver" />
-      </div>
-
-
 
       {/* Performance summary */}
       <div className="grid gap-3 sm:grid-cols-4 mb-6">
