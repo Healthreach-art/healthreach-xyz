@@ -62,6 +62,7 @@ function PatientDashboard() {
         .from("orders")
         .select("id, status, total_amount, created_at, pharmacy_id")
         .eq("patient_id", user!.id)
+        .eq("is_demo", false)
         .order("created_at", { ascending: false })
         .limit(5);
       if (cancelled) return;
