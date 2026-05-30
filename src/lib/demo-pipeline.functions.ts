@@ -154,7 +154,7 @@ export const tickDemoDispatch = createServerFn({ method: "POST" })
         stats.promoted++;
       } else if (o.status === "preparing" && ageMs > 8_000) {
         await supabaseAdmin.from("orders").update({
-          status: "ready_for_pickup", updated_at: new Date().toISOString(),
+          status: "ready", updated_at: new Date().toISOString(),
         } as any).eq("id", o.id);
         // Fan out to nearby drivers via the existing SQL helper
         await (supabaseAdmin as any).rpc("dispatch_ready_order_to_drivers", {
@@ -269,6 +269,13 @@ export const placeMockPatientOrder = createServerFn({ method: "POST" })
     } as any).select("id").maybeSingle();
 
     if (error) throw new Error(error.message);
+    if (order?.id) {
+      await (supabaseAdmin as any).rpc("dispatch_ready_order_to_drivers", {
+        _order_id: order.id,
+        _max_drivers: 30,
+        _radius_km: 20,
+      });
+    }
     return { ok: true, orderId: order?.id };
   });
 
