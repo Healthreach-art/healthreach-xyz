@@ -92,9 +92,8 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
     for (const o of visible) {
       const ord = ordMap.get(o.order_id);
       const phar = profMap.get(o.pharmacy_id);
-      const pickupLat = ord?.pickup_lat ?? phar?.latitude ?? null;
-      const pickupLng = ord?.pickup_lng ?? phar?.longitude ?? null;
-      if (pickupLat == null || pickupLng == null) continue;
+      const pickupLat = ord?.pickup_lat ?? phar?.latitude ?? -33.9249;
+      const pickupLng = ord?.pickup_lng ?? phar?.longitude ?? 18.4241;
       const distance_km = Number(o.distance_km ?? haversineKm(driverLat, driverLng, pickupLat, pickupLng));
       if (distance_km > data.maxKm) continue;
       const del = delMap.get(o.order_id);
