@@ -90,11 +90,13 @@ function PatientDashboard() {
       // Driver name + map endpoints for active order
       if (active?.id) {
         const [{ data: del }, { data: ordRow }] = await Promise.all([
-          supabase.from("deliveries").select("driver_id, delivery_address").eq("order_id", active.id).maybeSingle(),
+          supabase.from("deliveries").select("driver_id, delivery_address, pickup_code, delivery_code").eq("order_id", active.id).maybeSingle(),
           supabase.from("orders").select("delivery_address, pharmacy_id").eq("id", active.id).maybeSingle(),
         ]);
         if (cancelled) return;
         setMapDropoff((ordRow?.delivery_address as string) || (del?.delivery_address as string) || null);
+        setPickupCode((del as { pickup_code?: string | null } | null)?.pickup_code ?? null);
+        setDeliveryCode((del as { delivery_code?: string | null } | null)?.delivery_code ?? null);
         if (ordRow?.pharmacy_id) {
           const { data: pharm } = await supabase.from("profiles").select("address").eq("user_id", ordRow.pharmacy_id).maybeSingle();
           if (!cancelled) setMapPickup((pharm?.address as string) || null);
@@ -106,7 +108,7 @@ function PatientDashboard() {
           setDriverName("");
         }
       } else if (!cancelled) {
-        setDriverName(""); setMapPickup(null); setMapDropoff(null);
+        setDriverName(""); setMapPickup(null); setMapDropoff(null); setPickupCode(null); setDeliveryCode(null);
       }
     }
     load();
