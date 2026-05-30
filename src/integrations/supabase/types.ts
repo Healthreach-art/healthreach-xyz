@@ -79,6 +79,8 @@ export type Database = {
           base_pay: number | null
           created_at: string
           delivery_address: string | null
+          delivery_code: string | null
+          delivery_verified_at: string | null
           distance_pay: number | null
           driver_id: string | null
           estimated_time: string | null
@@ -102,6 +104,8 @@ export type Database = {
           base_pay?: number | null
           created_at?: string
           delivery_address?: string | null
+          delivery_code?: string | null
+          delivery_verified_at?: string | null
           distance_pay?: number | null
           driver_id?: string | null
           estimated_time?: string | null
@@ -125,6 +129,8 @@ export type Database = {
           base_pay?: number | null
           created_at?: string
           delivery_address?: string | null
+          delivery_code?: string | null
+          delivery_verified_at?: string | null
           distance_pay?: number | null
           driver_id?: string | null
           estimated_time?: string | null

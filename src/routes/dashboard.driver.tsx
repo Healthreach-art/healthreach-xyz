@@ -6,9 +6,10 @@ import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
   Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
-  Coffee, AlertTriangle, TrendingUp, WifiOff,
+  Coffee, AlertTriangle, TrendingUp, WifiOff, RefreshCw,
 } from "lucide-react";
 import { PickupCodeDialog } from "@/components/PickupCodeDialog";
+import { DeliveryCodeDialog } from "@/components/DeliveryCodeDialog";
 import { FailedDeliveryDialog } from "@/components/FailedDeliveryDialog";
 import { useDriverPresence } from "@/hooks/useDriverPresence";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
@@ -113,6 +114,9 @@ function DriverDashboard() {
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [pickupForDelivery, setPickupForDelivery] = useState<LiveDelivery | null>(null);
   const [failForDelivery, setFailForDelivery] = useState<LiveDelivery | null>(null);
+  const [deliverForDelivery, setDeliverForDelivery] = useState<LiveDelivery | null>(null);
+  const [refreshingOffers, setRefreshingOffers] = useState(false);
+  const loadOffersRef = useRef<(() => Promise<void>) | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -324,6 +328,7 @@ function DriverDashboard() {
         setOffers([]);
       }
     }
+    loadOffersRef.current = loadOffers;
 
     Promise.all([loadDeliveries(), loadOffers(), loadRatings(), loadStats()]).finally(() => setLoading(false));
     const poll = setInterval(() => {
@@ -425,7 +430,18 @@ function DriverDashboard() {
       setPickupForDelivery(d);
       return;
     }
+    if (d.status === "in_transit" && next === "delivered") {
+      setDeliverForDelivery(d);
+      return;
+    }
     await setDeliveryStatus(d, next);
+  }
+
+  async function manualRefreshOffers() {
+    if (!loadOffersRef.current) return;
+    setRefreshingOffers(true);
+    try { await loadOffersRef.current(); toast.success("Offers refreshed"); }
+    finally { setRefreshingOffers(false); }
   }
 
   async function revert(d: LiveDelivery) {
@@ -563,14 +579,20 @@ function DriverDashboard() {
         ))}
       </div>
 
-      {/* Incoming Requests (Uber-style broadcast) */}
-      {available && offers.length > 0 && (
+      {/* Incoming Requests (Uber-style broadcast) — always rendered so the refresh button is visible */}
+      {available && (
         <div className="mb-8 rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
             <Radio className="h-5 w-5 text-primary animate-pulse" />
-            Incoming Delivery Requests
+            Offers Inbox
             <span className="ml-auto text-xs font-normal text-muted-foreground">{offers.length} available</span>
+            <Button size="sm" variant="outline" className="gap-1" disabled={refreshingOffers} onClick={manualRefreshOffers}>
+              <RefreshCw className={`h-3 w-3 ${refreshingOffers ? "animate-spin" : ""}`} /> Refresh
+            </Button>
           </h2>
+          {offers.length === 0 && (
+            <p className="text-sm text-muted-foreground py-3 text-center">No incoming requests right now. Tap Refresh to check again.</p>
+          )}
           <div className="space-y-3">
             {offers.map((offer) => {
               const msLeft = Math.max(0, new Date(offer.expires_at).getTime() - now);
@@ -586,7 +608,9 @@ function DriverDashboard() {
                       ⏱ {mm}:{ss}
                     </span>
                   </div>
+                  <p className="text-[10px] text-muted-foreground mb-2">Broadcast {new Date(offer.created_at).toLocaleTimeString()}</p>
                   <p className="text-sm font-medium text-foreground mb-3">{offer.message || "New delivery request"}</p>
+
 
                   <div className="space-y-1.5 text-xs mb-3">
                     <div className="flex items-start gap-2">
