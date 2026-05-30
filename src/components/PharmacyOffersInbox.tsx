@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Bell, Check, X, Clock, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import { dispatchOrderToNearbyDrivers } from "@/lib/driver-dispatch.functions";
 
 interface Offer {
   id: string;
@@ -18,6 +20,7 @@ interface Offer {
 
 export function PharmacyOffersInbox() {
   const { user } = useAuth();
+  const dispatchDrivers = useServerFn(dispatchOrderToNearbyDrivers);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [now, setNow] = useState(Date.now());
 
@@ -76,7 +79,14 @@ export function PharmacyOffersInbox() {
   async function accept(id: string) {
     const { data, error } = await supabase.rpc("accept_pharmacy_offer", { _offer_id: id });
     if (error) { toast.error(error.message); load(); return; }
-    toast.success("Order accepted — prepare for dispatch");
+    try {
+      const orderId = String(data);
+      const result = await dispatchDrivers({ data: { orderId } });
+      if ((result.inserted ?? 0) > 0) toast.success(`Order accepted — sent to ${result.inserted} nearby driver${result.inserted === 1 ? "" : "s"}`);
+      else toast.success("Order accepted — it will rebroadcast when drivers are online");
+    } catch {
+      toast.success("Order accepted — prepare for dispatch");
+    }
     load();
   }
   async function decline(id: string) {
