@@ -608,7 +608,9 @@ function DriverDashboard() {
                       ⏱ {mm}:{ss}
                     </span>
                   </div>
+                  <p className="text-[10px] text-muted-foreground mb-2">Broadcast {new Date(offer.created_at).toLocaleTimeString()}</p>
                   <p className="text-sm font-medium text-foreground mb-3">{offer.message || "New delivery request"}</p>
+
 
                   <div className="space-y-1.5 text-xs mb-3">
                     <div className="flex items-start gap-2">
