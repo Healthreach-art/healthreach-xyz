@@ -332,6 +332,13 @@ function PharmacyDashboard() {
     loadData();
   }
 
+  async function acceptOrder(orderId: string) {
+    const { error } = await supabase.from("orders").update({ status: "accepted" }).eq("id", orderId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Order accepted — prepare it when ready");
+    loadData();
+  }
+
   async function markPreparing(orderId: string) {
 
     const { error } = await supabase.from("orders").update({ status: "preparing" }).eq("id", orderId);
@@ -558,11 +565,8 @@ function PharmacyDashboard() {
 
                 {order.status === "pending" && (
                   <div className="flex flex-wrap gap-2 mt-3">
-                    <Button size="sm" variant="default" className="gap-1" onClick={() => setAssignOrder(order)}>
-                      <CheckCircle className="h-3 w-3" /> Accept & Assign
-                    </Button>
-                    <Button size="sm" variant="secondary" className="gap-1" onClick={() => broadcastToDrivers(order)}>
-                      <Radio className="h-3 w-3" /> Broadcast to Drivers
+                    <Button size="sm" variant="default" className="gap-1" onClick={() => acceptOrder(order.id)}>
+                      <CheckCircle className="h-3 w-3" /> Accept Order
                     </Button>
                     <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectOrder(order.id)}>
                       <XCircle className="h-3 w-3" /> Reject
