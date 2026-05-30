@@ -155,8 +155,8 @@ export function AddressPicker({ value, onChange, placeholder = "Start typing you
           </div>
         )}
       </div>
-      {value?.lat && value?.lng && (
-        <p className="text-[11px] text-healthcare-green">📍 {value.lat.toFixed(5)}, {value.lng.toFixed(5)}</p>
+      {value?.address && (
+        <p className="text-[11px] text-healthcare-green">📍 {value.address}</p>
       )}
     </div>
   );
