@@ -119,8 +119,8 @@ function PharmacyDashboard() {
     if (!user) return;
     setLoading(true);
     const [medsRes, ordersRes] = await Promise.all([
-      supabase.from("medications").select("*").eq("pharmacy_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("orders").select("*").eq("pharmacy_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("medications").select("*").eq("pharmacy_id", user.id).eq("is_demo", false).order("created_at", { ascending: false }),
+      supabase.from("orders").select("*").eq("pharmacy_id", user.id).eq("is_demo", false).order("created_at", { ascending: false }),
     ]);
     setInventory((medsRes.data ?? []) as Medication[]);
     setOrders((ordersRes.data ?? []) as Order[]);
@@ -213,7 +213,27 @@ function PharmacyDashboard() {
     if (!user) return;
     const channel = supabase
       .channel(`pharmacy-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => loadData())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, (payload) => {
+        loadData();
+        const ord = payload.new as { medication_name?: string; quantity?: number };
+        toast.success("🔔 New incoming order", { description: `${ord?.medication_name ?? "Order"} × ${ord?.quantity ?? 1}` });
+        try {
+          const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          const ctx = new Ctor();
+          [880, 660, 990].forEach((freq, i) => {
+            const o = ctx.createOscillator(); const g = ctx.createGain();
+            o.type = "sine"; o.frequency.value = freq;
+            o.connect(g); g.connect(ctx.destination);
+            const t = ctx.currentTime + i * 0.18;
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+            o.start(t); o.stop(t + 0.18);
+          });
+          setTimeout(() => ctx.close().catch(() => {}), 1200);
+        } catch { /* ignore */ }
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => loadData())
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, async (payload) => {
         loadData();
         const newRow = payload.new as { order_id?: string; status?: string };

@@ -51,6 +51,8 @@ function PatientDashboard() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [mapPickup, setMapPickup] = useState<string | null>(null);
   const [mapDropoff, setMapDropoff] = useState<string | null>(null);
+  const [pickupCode, setPickupCode] = useState<string | null>(null);
+  const [deliveryCode, setDeliveryCode] = useState<string | null>(null);
   const [activePrescriptionsCount, setActivePrescriptionsCount] = useState(0);
   const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
 
@@ -62,6 +64,7 @@ function PatientDashboard() {
         .from("orders")
         .select("id, status, total_amount, created_at, pharmacy_id")
         .eq("patient_id", user!.id)
+        .eq("is_demo", false)
         .order("created_at", { ascending: false })
         .limit(5);
       if (cancelled) return;
@@ -87,11 +90,13 @@ function PatientDashboard() {
       // Driver name + map endpoints for active order
       if (active?.id) {
         const [{ data: del }, { data: ordRow }] = await Promise.all([
-          supabase.from("deliveries").select("driver_id, delivery_address").eq("order_id", active.id).maybeSingle(),
+          supabase.from("deliveries").select("driver_id, delivery_address, pickup_code, delivery_code").eq("order_id", active.id).maybeSingle(),
           supabase.from("orders").select("delivery_address, pharmacy_id").eq("id", active.id).maybeSingle(),
         ]);
         if (cancelled) return;
         setMapDropoff((ordRow?.delivery_address as string) || (del?.delivery_address as string) || null);
+        setPickupCode((del as { pickup_code?: string | null } | null)?.pickup_code ?? null);
+        setDeliveryCode((del as { delivery_code?: string | null } | null)?.delivery_code ?? null);
         if (ordRow?.pharmacy_id) {
           const { data: pharm } = await supabase.from("profiles").select("address").eq("user_id", ordRow.pharmacy_id).maybeSingle();
           if (!cancelled) setMapPickup((pharm?.address as string) || null);
@@ -103,7 +108,7 @@ function PatientDashboard() {
           setDriverName("");
         }
       } else if (!cancelled) {
-        setDriverName(""); setMapPickup(null); setMapDropoff(null);
+        setDriverName(""); setMapPickup(null); setMapDropoff(null); setPickupCode(null); setDeliveryCode(null);
       }
     }
     load();
@@ -244,6 +249,25 @@ function PatientDashboard() {
                   </div>
                 </div>
               </div>
+
+              {activeOrderId && (pickupCode || deliveryCode) && (
+                <div className="mt-5 grid sm:grid-cols-2 gap-3">
+                  {pickupCode && (
+                    <div className="rounded-2xl border border-healthcare-sky/30 bg-healthcare-sky/10 p-4">
+                      <p className="text-[10px] uppercase tracking-widest font-bold text-healthcare-sky">Pharmacy Pickup Code</p>
+                      <p className="text-3xl font-bold font-mono text-foreground tracking-[0.4em] mt-1">{pickupCode}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Share with the driver at pickup.</p>
+                    </div>
+                  )}
+                  {deliveryCode && (
+                    <div className="rounded-2xl border border-healthcare-green/30 bg-healthcare-green/10 p-4">
+                      <p className="text-[10px] uppercase tracking-widest font-bold text-healthcare-green">Your Delivery Code</p>
+                      <p className="text-3xl font-bold font-mono text-foreground tracking-[0.4em] mt-1">{deliveryCode}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Give this to the driver on arrival.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Recent Orders */}

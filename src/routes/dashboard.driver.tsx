@@ -235,6 +235,7 @@ function DriverDashboard() {
         .from("deliveries")
         .select("id, order_id, status, pickup_address, delivery_address, estimated_time, created_at, updated_at")
         .eq("driver_id", user!.id)
+        .eq("is_demo", false)
         .order("updated_at", { ascending: false });
       const all = (data ?? []) as LiveDelivery[];
       const active = all.filter((d) => d.status !== "delivered");
