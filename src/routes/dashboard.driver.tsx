@@ -114,6 +114,8 @@ function DriverDashboard() {
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
   const [pickupForDelivery, setPickupForDelivery] = useState<LiveDelivery | null>(null);
   const [failForDelivery, setFailForDelivery] = useState<LiveDelivery | null>(null);
+  const [deliverForDelivery, setDeliverForDelivery] = useState<LiveDelivery | null>(null);
+  const [refreshingOffers, setRefreshingOffers] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
