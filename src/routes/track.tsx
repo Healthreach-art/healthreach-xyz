@@ -1,10 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Package, Truck, MapPin, Clock, Phone, Loader2, PlayCircle } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, Package, Truck, MapPin, Clock, Phone, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
 import { DeliveryMap } from "@/components/DeliveryMap";
 
 export const Route = createFileRoute("/track")({
@@ -65,29 +64,6 @@ function TrackPage() {
   const [loading, setLoading] = useState(true);
   const [pulse, setPulse] = useState(false);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number; speed: number | null; updated_at: string } | null>(null);
-  const [simulating, setSimulating] = useState(false);
-  const autoStartedRef = useRef<string | null>(null);
-
-  async function runSimulation(orderId: string) {
-    if (simulating) return;
-    setSimulating(true);
-    const steps: Array<"preparing" | "ready" | "assigned" | "picked_up" | "in_transit" | "delivered"> =
-      ["preparing", "ready", "assigned", "picked_up", "in_transit", "delivered"];
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      for (const step of steps) {
-        await new Promise((r) => setTimeout(r, 3500));
-        const res = await fetch("/api/demo-advance", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token ?? ""}` },
-          body: JSON.stringify({ order_id: orderId, step }),
-        });
-        if (!res.ok) { toast.error(`Demo step "${step}" failed`); break; }
-      }
-    } finally {
-      setSimulating(false);
-    }
-  }
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -113,12 +89,6 @@ function TrackPage() {
         .from("driver_locations").select("lat, lng, speed, updated_at")
         .eq("order_id", o.id).maybeSingle();
       if (loc) setDriverLoc(loc as any);
-
-      // Auto-start the demo simulation the first time we see a freshly placed order.
-      if (autoStartedRef.current !== o.id && (o.status === "pending" || o.status === "preparing") && !del) {
-        autoStartedRef.current = o.id;
-        runSimulation(o.id);
-      }
 
       setLoading(false);
     }
@@ -186,11 +156,6 @@ function TrackPage() {
           {order && <p className="text-sm text-muted-foreground">Order <span className="font-mono">{order.id.slice(0, 8)}</span> · {order.medication_name}</p>}
         </div>
         <div className="flex items-center gap-2">
-          {order && order.status !== "delivered" && (
-            <Button variant="outline" size="sm" onClick={() => runSimulation(order.id)} disabled={simulating}>
-              {simulating ? <><Loader2 className="h-4 w-4 animate-spin" /> Simulating…</> : <><PlayCircle className="h-4 w-4" /> Run demo</>}
-            </Button>
-          )}
           <Button variant="outline" size="sm" asChild>
             <Link to="/dashboard/patient">← Dashboard</Link>
           </Button>
