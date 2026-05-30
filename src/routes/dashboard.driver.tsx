@@ -327,6 +327,7 @@ function DriverDashboard() {
         setOffers([]);
       }
     }
+    loadOffersRef.current = loadOffers;
 
     Promise.all([loadDeliveries(), loadOffers(), loadRatings(), loadStats()]).finally(() => setLoading(false));
     const poll = setInterval(() => {
