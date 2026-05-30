@@ -430,7 +430,18 @@ function DriverDashboard() {
       setPickupForDelivery(d);
       return;
     }
+    if (d.status === "in_transit" && next === "delivered") {
+      setDeliverForDelivery(d);
+      return;
+    }
     await setDeliveryStatus(d, next);
+  }
+
+  async function manualRefreshOffers() {
+    if (!loadOffersRef.current) return;
+    setRefreshingOffers(true);
+    try { await loadOffersRef.current(); toast.success("Offers refreshed"); }
+    finally { setRefreshingOffers(false); }
   }
 
   async function revert(d: LiveDelivery) {
