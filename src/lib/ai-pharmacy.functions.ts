@@ -138,9 +138,9 @@ Never give a diagnosis. Never recommend prescription-only meds as a self-treatme
           if (!ph) return null;
           const wantedNames: string[] = Array.isArray(m.med_names) ? m.med_names : [];
           const relevant_meds = ph.meds
-            .filter((med) => wantedNames.some((n) => n.toLowerCase() === med.name.toLowerCase()))
+            .filter((med: { name: string }) => wantedNames.some((n) => n.toLowerCase() === med.name.toLowerCase()))
             .slice(0, 3)
-            .map((med) => ({ name: med.name, price: med.price, requires_prescription: med.rx }));
+            .map((med: { name: string; price: number; rx: boolean }) => ({ name: med.name, price: med.price, requires_prescription: med.rx }));
           return {
             pharmacy_id: ph.id,
             name: ph.name,
