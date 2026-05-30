@@ -116,6 +116,7 @@ function DriverDashboard() {
   const [failForDelivery, setFailForDelivery] = useState<LiveDelivery | null>(null);
   const [deliverForDelivery, setDeliverForDelivery] = useState<LiveDelivery | null>(null);
   const [refreshingOffers, setRefreshingOffers] = useState(false);
+  const loadOffersRef = useRef<(() => Promise<void>) | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
