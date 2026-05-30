@@ -6,7 +6,7 @@ import {
   Truck, MapPin, Clock, CheckCircle, Package,
   DollarSign, Navigation, Radio, X, Loader2, MessageCircle, Settings,
   Power, ShieldCheck, Bike, Car, BadgeCheck, Wallet, Star, IdCard, KeyRound,
-  Coffee, AlertTriangle, TrendingUp, WifiOff,
+  Coffee, AlertTriangle, TrendingUp, WifiOff, RefreshCw,
 } from "lucide-react";
 import { PickupCodeDialog } from "@/components/PickupCodeDialog";
 import { DeliveryCodeDialog } from "@/components/DeliveryCodeDialog";
