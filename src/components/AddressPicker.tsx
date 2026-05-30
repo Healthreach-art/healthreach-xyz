@@ -102,12 +102,12 @@ export function AddressPicker({ value, onChange, placeholder = "Start typing you
           await loadGoogleMaps();
           const geocoder = new (window as any).google.maps.Geocoder();
           const res = await geocoder.geocode({ location: { lat, lng } });
-          const address = res.results?.[0]?.formatted_address ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+          const address = res.results?.[0]?.formatted_address ?? "Current location";
           setText(address);
           onChange({ address, lat, lng });
           toast.success("Current location pinned");
         } catch {
-          const fallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+          const fallback = "Current location";
           setText(fallback);
           onChange({ address: fallback, lat, lng });
         } finally { setBusy(false); }
