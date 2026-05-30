@@ -303,6 +303,10 @@ function DriverDashboard() {
     async function loadOffers() {
       // Uber-style: server filters offers to those within 20 km of the
       // driver's live location (driver_locations table).
+      if (!available) {
+        setOffers([]);
+        return;
+      }
       try {
         const result = await loadNearbyOffers({ data: { maxKm: DRIVER_OFFER_RADIUS_KM } });
         const enriched: Offer[] = (result.offers ?? []).map((o: NearbyOffer) => ({
@@ -328,6 +332,10 @@ function DriverDashboard() {
 
 
     Promise.all([loadDeliveries(), rebroadcastOrders({ data: { maxOrders: 25 } }).catch(() => null).then(loadOffers), loadRatings(), loadStats()]).finally(() => setLoading(false));
+    const poll = setInterval(() => {
+      loadDeliveries();
+      if (available) rebroadcastOrders({ data: { maxOrders: 25 } }).catch(() => null).then(loadOffers);
+    }, 3000);
 
     async function loadStats() {
       const since = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
@@ -373,8 +381,8 @@ function DriverDashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "delivery_offers" }, () => loadOffers())
       .on("postgres_changes", { event: "*", schema: "public", table: "ratings", filter: `target_id=eq.${user.id}` }, () => loadRatings())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, loadNearbyOffers, rebroadcastOrders]);
+    return () => { clearInterval(poll); supabase.removeChannel(channel); };
+  }, [user, loadNearbyOffers, rebroadcastOrders, available]);
 
   async function acceptOffer(offer: Offer) {
     if (!user) return;
