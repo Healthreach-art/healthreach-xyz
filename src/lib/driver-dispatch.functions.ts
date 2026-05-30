@@ -28,14 +28,32 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const userId = context.userId;
 
-    const { data: loc } = await supabaseAdmin
-      .from("driver_locations")
-      .select("lat, lng")
-      .eq("driver_id", userId)
-      .maybeSingle();
-    if (!loc?.lat || !loc?.lng) {
+    const [{ data: loc }, { data: profile }] = await Promise.all([
+      supabaseAdmin
+        .from("driver_locations")
+        .select("lat, lng")
+        .eq("driver_id", userId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("profiles")
+        .select("latitude, longitude")
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
+    const driverLat = loc?.lat ?? profile?.latitude ?? null;
+    const driverLng = loc?.lng ?? profile?.longitude ?? null;
+    if (driverLat == null || driverLng == null) {
       return { offers: [], reason: "no_location" as const };
     }
+
+    await Promise.all([
+      supabaseAdmin
+        .from("driver_status")
+        .upsert({ driver_id: userId, status: "online", last_ping_at: new Date().toISOString() }, { onConflict: "driver_id" }),
+      supabaseAdmin
+        .from("driver_locations")
+        .upsert({ driver_id: userId, lat: driverLat, lng: driverLng, updated_at: new Date().toISOString() } as never, { onConflict: "driver_id" }),
+    ]);
 
     const { data: openOffers } = await supabaseAdmin
       .from("delivery_offers")
@@ -79,7 +97,7 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
       const pickupLat = ord?.pickup_lat ?? phar?.latitude ?? null;
       const pickupLng = ord?.pickup_lng ?? phar?.longitude ?? null;
       if (pickupLat == null || pickupLng == null) continue;
-      const distance_km = Number(o.distance_km ?? haversineKm(loc.lat, loc.lng, pickupLat, pickupLng));
+      const distance_km = Number(o.distance_km ?? haversineKm(driverLat, driverLng, pickupLat, pickupLng));
       if (distance_km > data.maxKm) continue;
       const del = delMap.get(o.order_id);
       enriched.push({
@@ -98,7 +116,7 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
       });
     }
     enriched.sort((a, b) => a.distance_km - b.distance_km);
-    return { offers: enriched, driverLat: loc.lat, driverLng: loc.lng };
+    return { offers: enriched, driverLat, driverLng };
   });
 
 export type NearbyOffer = {
