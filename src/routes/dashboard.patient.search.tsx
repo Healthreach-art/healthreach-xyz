@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import medGeneric from "@/assets/med-generic.jpg";
 import { listPatientMarketplace } from "@/lib/patient-marketplace.functions";
 
-interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; }
+interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; description?: string | null; category?: string | null; }
 interface Ph { user_id: string; organization_name: string | null; full_name: string; }
 
 export const Route = createFileRoute("/dashboard/patient/search")({
@@ -59,7 +59,15 @@ function SearchPage() {
 
 
 
-  const filtered = meds.filter((m) => !q || m.name.toLowerCase().includes(q.toLowerCase()));
+  const filtered = meds.filter((m) => {
+    if (!q) return true;
+    const needle = q.toLowerCase();
+    return (
+      m.name.toLowerCase().includes(needle) ||
+      (m.description ?? "").toLowerCase().includes(needle) ||
+      (m.category ?? "").toLowerCase().includes(needle)
+    );
+  });
 
   const addToCart = (med: Med) => {
     if (med.requires_prescription) { setRxFor(med); return; }
@@ -81,7 +89,7 @@ function SearchPage() {
       <div className="relative">
         <label htmlFor="med-search" className="sr-only">Search medicines</label>
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <input id="med-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a medicine name…" autoFocus aria-label="Search medicines"
+        <input id="med-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, symptom, ingredient, category…" autoFocus aria-label="Search medicines"
           className="w-full h-12 rounded-2xl border border-border bg-card pl-12 pr-4 text-sm shadow focus:outline-none focus:ring-2 focus:ring-primary" />
       </div>
       {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
@@ -103,6 +111,9 @@ function SearchPage() {
                 <div>
                   <p className="text-sm font-semibold line-clamp-1">{med.name}</p>
                   <p className="text-[11px] text-muted-foreground line-clamp-1">{ph?.organization_name || ph?.full_name || "Pharmacy"}</p>
+                  {med.description && (
+                    <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{med.description}</p>
+                  )}
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-base font-bold">R{customerPrice(med.price).toFixed(0)}</span>

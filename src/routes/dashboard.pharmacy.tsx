@@ -35,6 +35,7 @@ import { PharmacyOffersInbox } from "@/components/PharmacyOffersInbox";
 import { PharmacyLocationCard } from "@/components/PharmacyLocationCard";
 import { PharmacyBranchesManager } from "@/components/PharmacyBranchesManager";
 import { BulkMedicineImportDialog } from "@/components/BulkMedicineImportDialog";
+import { PharmacyAppointments } from "@/components/PharmacyAppointments";
 import { LiveETACard } from "@/components/LiveETACard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
@@ -868,10 +869,12 @@ function PharmacyDashboard() {
         <Tabs defaultValue="analytics" className="w-full">
           <TabsList>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="appointments">Appointments</TabsTrigger>
             <TabsTrigger value="finance">Finance</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
           </TabsList>
           <TabsContent value="analytics" className="mt-4"><PharmacyAnalytics /></TabsContent>
+          <TabsContent value="appointments" className="mt-4"><PharmacyAppointments /></TabsContent>
           <TabsContent value="finance" className="mt-4"><PharmacyFinance /></TabsContent>
           <TabsContent value="transactions" className="mt-4"><TransactionHistory role="pharmacy" /></TabsContent>
         </Tabs>
