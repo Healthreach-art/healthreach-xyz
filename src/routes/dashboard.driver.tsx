@@ -579,14 +579,20 @@ function DriverDashboard() {
         ))}
       </div>
 
-      {/* Incoming Requests (Uber-style broadcast) */}
-      {available && offers.length > 0 && (
+      {/* Incoming Requests (Uber-style broadcast) — always rendered so the refresh button is visible */}
+      {available && (
         <div className="mb-8 rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
             <Radio className="h-5 w-5 text-primary animate-pulse" />
-            Incoming Delivery Requests
+            Offers Inbox
             <span className="ml-auto text-xs font-normal text-muted-foreground">{offers.length} available</span>
+            <Button size="sm" variant="outline" className="gap-1" disabled={refreshingOffers} onClick={manualRefreshOffers}>
+              <RefreshCw className={`h-3 w-3 ${refreshingOffers ? "animate-spin" : ""}`} /> Refresh
+            </Button>
           </h2>
+          {offers.length === 0 && (
+            <p className="text-sm text-muted-foreground py-3 text-center">No incoming requests right now. Tap Refresh to check again.</p>
+          )}
           <div className="space-y-3">
             {offers.map((offer) => {
               const msLeft = Math.max(0, new Date(offer.expires_at).getTime() - now);
