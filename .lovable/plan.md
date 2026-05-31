@@ -1,65 +1,88 @@
-# Why the driver isn't seeing orders
+# Plan
 
-After tracing the flow, the driver dashboard stays empty because the chain breaks before a `delivery_offer` is ever inserted:
+## 1. Pricing rework (R26 base + R10/km, 15% admin top-up)
 
-1. **No driver location row** — `getNearbyOffersForDriver` returns `{ reason: "no_location" }` whenever `driver_locations` has no row for the signed-in driver. Geolocation in the preview iframe is often blocked, so the driver looks "offline" to the dispatcher even after toggling online.
-2. **No drivers in radius** — `dispatch_ready_order_to_drivers` only inserts offers for drivers whose `driver_status='online'` AND who have a `driver_locations` row within 20 km of the pickup. With zero seeded drivers in Cape Town, the SQL returns `inserted: 0` and the offer never appears.
-3. **Pharmacy never reaches "ready"** — dispatch only fires when an order is `ready_for_pickup`. In testing flows the pharmacy account is logged out, so the order sits at `pending` forever and nothing fans out to drivers.
-4. **Cross-account testing is hard** — one browser session = one role, so the patient places an order but no pharmacy/driver is signed in to advance it.
+**Formula** (in `src/lib/pricing.ts`):
+- `customerMedPrice = basePrice * 1.15` (pharmacy keeps 100% of base, admin gets the 15% markup)
+- `deliveryFeeCustomer = 26 + 10 * km` (charged even when km < 0.5)
+- `driverEarning = deliveryFeeCustomer * 0.85`
+- `adminEarning = (basePrice * 0.15) + (deliveryFeeCustomer * 0.15)` (plus transaction/processing fee captured on payments)
+- New helper `estimateDeliveryFee(km)` + ETA `etaForDistance(km)` already exists.
 
-The fix is a Cape Town **mock pipeline** that simulates the missing participants so a single logged-in user can see the whole loop on their dashboard.
+**DB-side** (`validate_order_pricing`, `split_payment_amounts`):
+- Update both triggers to use the new formula so server is authoritative.
+- Store `delivery_km` on orders (new column) so split is deterministic.
+- `split_payment_amounts`: driver = delivery_fee × 0.85, admin = subtotal_med × (0.15/1.15) + delivery_fee × 0.15 + transaction_fee, pharmacy = base medicine cost.
+- Add `transaction_fee` numeric column on `payments` (default 0; for mock provider use 2.9% + R1).
 
-# Plan — Cape Town demo pipeline for all 3 dashboards
+**UI**:
+- Driver dashboard wallet: show "Your earnings (85% of delivery)".
+- Pharmacy finance: show "Medicine revenue" only.
+- Admin dashboard: new "Platform revenue" panel with total, breakdown (med markup, delivery cut, transaction fees), and per-order table.
 
-## 1. Seed a Cape Town mock world (one-time, idempotent)
+## 2. Cancel fix
+- `cancel_order_safely`: drop the "driver assigned" block. Always allow cancel before `delivered`. If a driver was assigned, mark their delivery `cancelled`, free them up, notify them.
 
-Server fn `seedCapeTownDemo()` (admin-callable + auto-runs on first dashboard load if empty):
-- 3 mock pharmacies around Cape Town CBD, Sea Point, Claremont (profiles + `pharmacy_branches` rows with real lat/lng, `service_radius_km=25`).
-- 6 mock drivers spread across the city, each with:
-  - `driver_status` row → `online`
-  - `driver_locations` row with realistic lat/lng (V&A Waterfront, Observatory, Rondebosch, Bellville, Mowbray, Greenpoint)
-  - `driver_documents` approved
-- 1 mock patient in Gardens.
-- A small medication catalogue per pharmacy (Panado, Allergex, Adco-Dol, etc.) with full SAHPRA-style descriptions.
+## 3. Scheduled delivery
+- Add `scheduled_for timestamptz` nullable on `orders`.
+- Checkout: optional "Deliver later" datetime picker.
+- New cron job `release-scheduled-orders` runs every minute via pg_cron + `/api/public/hooks/release-scheduled`. It flips orders where `scheduled_for <= now()` and `status='scheduled'` to `pending` so the normal flow takes over.
+- Add `scheduled` to `order_status` enum.
+- Pharmacy dashboard: show scheduled orders in a separate "Upcoming" tab; no alarm until release.
 
-## 2. Auto-advance demo orders ("Uber simulator")
+## 4. Priority alert mode
+- Add `priority boolean default false` on `orders`. Patient checkbox "Urgent / critical" at checkout (e.g. emergency medication).
+- Pharmacy alarm: when any pending order has `priority=true`, switch to "critical" tone (higher pitch, faster loop, no cap). Otherwise current standard alarm.
+- Driver new-offer ping: same — louder/longer for priority orders until accept/decline.
 
-New server fn `tickDemoDispatch()` invoked every 4s by a lightweight hook on each dashboard:
-- Any `pending` order older than 8s where pharmacy is a mock → auto-accept, set `preparing`.
-- Any `preparing` mock order older than 12s → `ready_for_pickup` and call `dispatch_ready_order_to_drivers`.
-- Any open `delivery_offer` targeting a mock driver older than 6s → mock driver accepts → creates `deliveries` row, status `assigned` → `picked_up` → `out_for_delivery` → `delivered` on a 30s timeline.
-- Driver location row of the assigned mock driver is interpolated toward the patient every tick so the live map animates.
+## 5. Patient stage notifications with per-stage toggles
+- Extend `notification_preferences` with columns: `push_order_placed`, `push_preparing`, `push_ready`, `push_picked_up`, `push_out_for_delivery`, `push_delivered` (all default true).
+- New "Notification preferences" section on patient settings — switches per stage.
+- Update `notify_order_status_change` trigger to respect the per-stage flag.
 
-This makes the **real** logged-in driver see incoming offers from real patients too (because dispatch now actually runs), and the **real** patient sees their order progress without needing a second browser.
+## 6. Device vibration (pharmacy)
+- In `dashboard.pharmacy.tsx` alarm loop, call `navigator.vibrate([400, 200, 400])` each tick when supported and not muted.
+- Add a separate `hr_pharmacy_vibrate` localStorage toggle next to the mute button.
 
-## 3. Force-pin live location fallback
+## 7. In-app chat fix
+- `OrderChatDialog` already exists. Add realtime subscription on `order_messages` filtered by `order_id`. Ensure `order_messages` is in `supabase_realtime` publication.
+- Wire chat button on patient orders, pharmacy orders, driver orders to open the dialog for the same order (3-way thread).
+- Add unread badge counter using `read_at`.
 
-- `useDriverLocationBroadcaster` and `usePatientLocationBroadcaster` already exist. Add a "Use demo Cape Town location" button on each dashboard that writes a fixed lat/lng (CBD for patient, V&A for driver) when the browser blocks geolocation — guarantees the radius math works in the preview iframe.
-- On driver login, immediately upsert `driver_locations` with the last known or demo coordinates so `getNearbyOffersForDriver` never returns `no_location`.
+## Files
 
-## 4. Driver dashboard — "Incoming offers" reliability
+**DB migration**:
+- `orders`: + `scheduled_for`, `priority`, `delivery_km` columns; enum value `scheduled`.
+- `payments`: + `transaction_fee`.
+- `notification_preferences`: + 6 per-stage push flags.
+- Rewrite `cancel_order_safely`, `validate_order_pricing`, `split_payment_amounts`, `notify_order_status_change`.
+- Add `release_scheduled_orders()` function.
+- Enable realtime on `order_messages`.
 
-- Subscribe to `delivery_offers` realtime inserts AND poll every 3s as a fallback (Workers preview occasionally drops the socket).
-- On render, if `offers.length === 0` AND no `driver_locations` row exists, show a clear "You're offline — share location" CTA instead of an empty card.
-- Show distance to pickup + ETA + earnings on each offer card (already partly wired — confirm the row renders).
+**Code**:
+- `src/lib/pricing.ts` — new formula + helpers
+- `src/routes/checkout.tsx` — priority checkbox, scheduled picker, km-based fee preview
+- `src/routes/dashboard.pharmacy.tsx` — vibration, priority alarm tier, scheduled tab
+- `src/routes/dashboard.driver.tsx` — priority offer alarm
+- `src/routes/dashboard.patient.index.tsx` (or settings) — per-stage preference switches
+- `src/routes/dashboard.admin.tsx` — revenue panel
+- `src/components/OrderChatDialog.tsx` — realtime + unread
+- `src/routes/api/public/hooks/release-scheduled.ts` — cron endpoint
+- pg_cron schedule via insert tool
 
-## 5. Patient + Pharmacy mock visibility
+## Order of execution
+1. Migration (schema + new triggers + cancel/release functions) — needs approval.
+2. Pricing lib + checkout + admin revenue UI.
+3. Pharmacy alarm priority + vibration.
+4. Driver alarm priority.
+5. Patient per-stage prefs UI.
+6. Chat realtime.
+7. Cron hook + pg_cron job for scheduled release.
 
-- **Patient dashboard**: an "Active order" card that mirrors `orders.status` with live driver pin on the existing `DeliveryMap`.
-- **Pharmacy dashboard**: existing `PharmacyOffersInbox` already polls — add a "Demo: place test order from a mock patient" button so a logged-in pharmacy can trigger the loop without a second account.
-
-## 6. Out of scope
-
-- No schema changes — only seed data + new server fns + 2 small UI buttons.
-- No changes to chat, reviews, selfie, or payments (already shipped).
-- No email — still needs sender domain (separate request).
-
-## Technical details
-
-- New files: `src/lib/demo-pipeline.functions.ts` (`seedCapeTownDemo`, `tickDemoDispatch`, `placeMockPatientOrder`), `src/hooks/useDemoTicker.ts`.
-- New migration: only an `is_demo boolean default false` flag on `profiles`, `orders`, `delivery_offers`, `deliveries` so the ticker only touches mock rows and never disturbs real users. + GRANTs.
-- Mock driver "accept" is performed by `supabaseAdmin` inside the server fn (bypasses RLS) — never exposed to clients.
-- Cape Town center `[-33.9249, 18.4241]` already set in `DeliveryMap`.
-- Demo ticker is throttled (one server call per dashboard every 4s) and bails out instantly if no demo rows exist, so production cost is ~zero.
-
-Approve and I'll ship it in one pass.
+## Technical notes
+- Pricing trigger override: server recalculates `total_amount` from `medication.price`, `quantity`, `delivery_km`. Client value ignored.
+- Pricing tolerance widened to R0.01 since both sides use same formula.
+- Cron auth: `apikey` header with anon key; route validates apikey only.
+- Vibration API: feature-detect `navigator.vibrate`.
+- Priority alarm: separate oscillator pattern (1200 → 880 → 1200 Hz, every 1s).
+- Cancel notifies driver/pharmacy and closes open offers.

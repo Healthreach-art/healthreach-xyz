@@ -70,6 +70,8 @@ interface Order {
   status: string;
   total_amount: number;
   created_at: string;
+  priority?: boolean | null;
+  scheduled_for?: string | null;
 }
 
 const LOW_STOCK_THRESHOLD = 10;
@@ -116,11 +118,15 @@ function PharmacyDashboard() {
   const [assigning, setAssigning] = useState(false);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
 
-  // New-order alarm (looping ringtone with mute toggle)
-  const alarmRef = useRef<{ stop: () => void } | null>(null);
+  // New-order alarm (looping ringtone + optional vibration + priority mode)
+  const alarmRef = useRef<{ stop: () => void; priority: boolean } | null>(null);
   const [alarmMuted, setAlarmMuted] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("hr_pharmacy_alarm_muted") === "1";
+  });
+  const [vibrateEnabled, setVibrateEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("hr_pharmacy_vibrate") !== "0";
   });
   const [alarmActive, setAlarmActive] = useState(false);
 
@@ -128,9 +134,12 @@ function PharmacyDashboard() {
     alarmRef.current?.stop();
     alarmRef.current = null;
     setAlarmActive(false);
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try { navigator.vibrate(0); } catch { /* noop */ }
+    }
   }
 
-  function startAlarm() {
+  function startAlarm(priority: boolean = false) {
     if (alarmMuted) return;
     stopAlarm();
     try {
@@ -138,22 +147,34 @@ function PharmacyDashboard() {
       if (!Ctor) return;
       const ctx = new Ctor();
       let stopped = false;
+      // Priority pattern: faster, louder, higher pitch.
+      const freqs = priority ? [1320, 990, 1480, 990] : [880, 660, 990];
+      const peak = priority ? 0.7 : 0.4;
+      const noteLen = priority ? 0.14 : 0.18;
+      const cycleMs = priority ? 900 : 2000;
+      const vibratePattern: number[] = priority ? [600, 150, 600, 150, 600] : [400, 200, 400];
+
       const burst = () => {
         if (stopped) return;
-        [880, 660, 990].forEach((freq, i) => {
+        freqs.forEach((freq, i) => {
           const o = ctx.createOscillator(); const g = ctx.createGain();
-          o.type = "sine"; o.frequency.value = freq;
+          o.type = priority ? "square" : "sine";
+          o.frequency.value = freq;
           o.connect(g); g.connect(ctx.destination);
-          const t = ctx.currentTime + i * 0.18;
+          const t = ctx.currentTime + i * (noteLen - 0.02);
           g.gain.setValueAtTime(0.0001, t);
-          g.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-          o.start(t); o.stop(t + 0.18);
+          g.gain.exponentialRampToValueAtTime(peak, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + noteLen);
+          o.start(t); o.stop(t + noteLen);
         });
+        if (vibrateEnabled && typeof navigator !== "undefined" && "vibrate" in navigator) {
+          try { navigator.vibrate(vibratePattern); } catch { /* noop */ }
+        }
       };
       burst();
-      const interval = window.setInterval(burst, 2000);
+      const interval = window.setInterval(burst, cycleMs);
       alarmRef.current = {
+        priority,
         stop: () => {
           stopped = true;
           window.clearInterval(interval);
@@ -161,7 +182,6 @@ function PharmacyDashboard() {
         },
       };
       setAlarmActive(true);
-
     } catch { /* ignore */ }
   }
 
@@ -172,17 +192,31 @@ function PharmacyDashboard() {
     if (next) stopAlarm();
   }
 
+  function toggleVibrate() {
+    const next = !vibrateEnabled;
+    setVibrateEnabled(next);
+    window.localStorage.setItem("hr_pharmacy_vibrate", next ? "1" : "0");
+    if (!next && typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try { navigator.vibrate(0); } catch { /* noop */ }
+    }
+  }
+
   useEffect(() => () => stopAlarm(), []);
 
   // Keep the alarm ringing as long as there is at least one pending order.
-  // Stops automatically once the pharmacy accepts or rejects every pending order.
-  const pendingOrdersCount = orders.filter((o) => o.status === "pending").length;
+  // Switches to "priority" pattern when any pending order is flagged critical.
+  const pendingOrders = orders.filter((o) => o.status === "pending");
+  const pendingOrdersCount = pendingOrders.length;
+  const hasPriorityPending = pendingOrders.some((o) => o.priority === true);
   useEffect(() => {
     if (alarmMuted) { stopAlarm(); return; }
-    if (pendingOrdersCount > 0 && !alarmRef.current) startAlarm();
-    if (pendingOrdersCount === 0 && alarmRef.current) stopAlarm();
+    if (pendingOrdersCount === 0) { if (alarmRef.current) stopAlarm(); return; }
+    // Restart if priority state changed
+    if (!alarmRef.current || alarmRef.current.priority !== hasPriorityPending) {
+      startAlarm(hasPriorityPending);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingOrdersCount, alarmMuted]);
+  }, [pendingOrdersCount, hasPriorityPending, alarmMuted]);
 
   async function loadData() {
     if (!user) return;
@@ -284,9 +318,10 @@ function PharmacyDashboard() {
       .channel(`pharmacy-${user.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, (payload) => {
         loadData();
-        const ord = payload.new as { medication_name?: string; quantity?: number };
-        startAlarm();
-        toast.success("🔔 New incoming order", {
+        const ord = payload.new as { medication_name?: string; quantity?: number; priority?: boolean; status?: string };
+        if (ord?.status === "scheduled") return; // hold scheduled — no alarm yet
+        startAlarm(!!ord?.priority);
+        toast.success(ord?.priority ? "🚨 PRIORITY new order" : "🔔 New incoming order", {
           description: `${ord?.medication_name ?? "Order"} × ${ord?.quantity ?? 1}`,
           duration: 30_000,
           action: { label: "Stop alarm", onClick: () => stopAlarm() },
@@ -524,15 +559,26 @@ function PharmacyDashboard() {
           <h1 className="text-2xl font-bold text-foreground">Pharmacy Dashboard</h1>
           <p className="text-sm text-muted-foreground">{profile?.organization_name || "My Pharmacy"}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant={alarmActive ? "default" : "outline"}
             size="sm"
             onClick={alarmActive ? stopAlarm : toggleAlarmMute}
             title={alarmActive ? "Stop alarm" : alarmMuted ? "Unmute new-order alarm" : "Mute new-order alarm"}
+            className={alarmActive && alarmRef.current?.priority ? "animate-pulse bg-destructive hover:bg-destructive/90" : ""}
           >
             {alarmMuted && !alarmActive ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            {alarmActive ? "Stop alarm" : alarmMuted ? "Alarm off" : "Alarm on"}
+            {alarmActive
+              ? (alarmRef.current?.priority ? "Stop PRIORITY alarm" : "Stop alarm")
+              : alarmMuted ? "Alarm off" : "Alarm on"}
+          </Button>
+          <Button
+            variant={vibrateEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={toggleVibrate}
+            title="Toggle device vibration (mobile only)"
+          >
+            📳 {vibrateEnabled ? "Vibrate on" : "Vibrate off"}
           </Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>

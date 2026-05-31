@@ -22,7 +22,18 @@ const placeOrderSchema = z.object({
     lng: z.number(),
   }),
   notes: z.string().max(500).optional(),
+  priority: z.boolean().optional(),
+  scheduledFor: z.string().datetime().optional(),
 });
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (x: number) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
 
 async function findNearbyPharmaciesWithMed(medName: string, lat: number, lng: number, maxKm: number, excludeIds: string[]) {
   const { data: rows } = await supabaseAdmin.rpc("find_pharmacies_near", {
@@ -96,6 +107,12 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
         .eq("user_id", pharmacyId)
         .maybeSingle();
 
+      const km = pharmacy?.latitude && pharmacy?.longitude
+        ? Number(haversineKm(pharmacy.latitude, pharmacy.longitude, data.delivery.lat, data.delivery.lng).toFixed(2))
+        : 5;
+
+      const isScheduled = !!data.scheduledFor;
+
       const { data: order, error: orderErr } = await supabaseAdmin
         .from("orders")
         .insert({
@@ -104,9 +121,12 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
           medication_id: item.medicationId,
           medication_name: item.medicationName,
           quantity: item.quantity,
-          delivery_fee: 50,
-          total_amount: 0, // trigger validate_order_pricing overrides
-          status: "pending",
+          delivery_fee: 0,           // trigger sets to 26 + 10*km
+          total_amount: 0,           // trigger overrides
+          delivery_km: km,
+          priority: !!data.priority,
+          scheduled_for: data.scheduledFor ?? null,
+          status: isScheduled ? "scheduled" : "pending",
           delivery_address: data.delivery.address,
           delivery_lat: data.delivery.lat,
           delivery_lng: data.delivery.lng,
@@ -125,8 +145,8 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
       await supabaseAdmin.from("notifications").insert({
         user_id: pharmacyId,
         category: "order",
-        title: "New patient order",
-        body: `${item.medicationName} × ${item.quantity} is waiting in Incoming Orders.`,
+        title: isScheduled ? "Scheduled order received" : (data.priority ? "🚨 PRIORITY new order" : "New patient order"),
+        body: `${item.medicationName} × ${item.quantity}${isScheduled ? ` (deliver by ${new Date(data.scheduledFor!).toLocaleString()})` : ""}`,
         link: "/dashboard/pharmacy#orders-section",
       });
       created.push({ orderId: order.id, matched: true });

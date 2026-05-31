@@ -10,7 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { CreditCard, Lock, CheckCircle2, ShoppingCart, Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE, paymentBreakdown } from "@/lib/pricing";
+import { customerPrice, deliveryFeeForKm, etaMinutesForKm } from "@/lib/pricing";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertTriangle, CalendarClock } from "lucide-react";
 import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
@@ -73,6 +75,10 @@ function CheckoutPage() {
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [rxIssues, setRxIssues] = useState<{ medId: string; message: string }[]>([]);
+  const [priority, setPriority] = useState(false);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState<string>("");
+  const [pharmacyCoords, setPharmacyCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => { loadPaystackScript().catch(() => {}); }, []);
 
@@ -85,9 +91,34 @@ function CheckoutPage() {
       });
   }, [user]);
 
+  // Load the first cart pharmacy's coords for live km-based delivery fee preview.
+  useEffect(() => {
+    const pid = items[0]?.pharmacyId;
+    if (!pid) { setPharmacyCoords(null); return; }
+    supabase.from("profiles").select("latitude, longitude").eq("user_id", pid).maybeSingle()
+      .then(({ data }) => {
+        if (data?.latitude && data?.longitude) setPharmacyCoords({ lat: data.latitude, lng: data.longitude });
+        else setPharmacyCoords(null);
+      });
+  }, [items]);
+
+  function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  const km = pharmacyCoords && delivery?.lat && delivery?.lng
+    ? haversineKm(pharmacyCoords.lat, pharmacyCoords.lng, delivery.lat, delivery.lng)
+    : null;
+
   const subtotal = items.reduce((s, i) => s + customerPrice(i.price) * i.qty, 0);
-  const deliveryFee = customerDeliveryFee(BASE_DELIVERY_FEE);
+  const deliveryFee = deliveryFeeForKm(km ?? 5);
   const total = Math.round((subtotal + deliveryFee) * 100) / 100;
+  const eta = km !== null ? etaMinutesForKm(km) : null;
 
   async function finalizeOrder() {
     const res = await placeOrder({
@@ -100,6 +131,8 @@ function CheckoutPage() {
         })),
         delivery: { address: delivery!.address, lat: delivery!.lat!, lng: delivery!.lng! },
         notes: "Paid via Paystack",
+        priority,
+        scheduledFor: scheduleEnabled && scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
       },
     });
     const matched = res.orders.filter((o) => o.matched).length;
@@ -109,7 +142,11 @@ function CheckoutPage() {
     }
     clear();
     setSuccess(true);
-    toast.success(`${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`);
+    toast.success(
+      scheduleEnabled && scheduledFor
+        ? `Scheduled ${matched} order(s) for ${new Date(scheduledFor).toLocaleString()}.`
+        : `${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`
+    );
     setTimeout(() => navigate({ to: "/track" }), 1500);
   }
 
@@ -247,6 +284,34 @@ function CheckoutPage() {
             <AddressPicker value={delivery} onChange={setDelivery} placeholder="Street, suburb, city…" />
           </div>
 
+          <div className="healthcare-card p-5 space-y-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox checked={priority} onCheckedChange={(v) => setPriority(!!v)} />
+              <span className="text-sm">
+                <span className="font-semibold flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-destructive" /> Critical / urgent order</span>
+                <span className="text-xs text-muted-foreground block mt-0.5">Pharmacy gets a louder, faster priority alarm until accepted.</span>
+              </span>
+            </label>
+            <div className="border-t border-border pt-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox checked={scheduleEnabled} onCheckedChange={(v) => setScheduleEnabled(!!v)} />
+                <span className="text-sm">
+                  <span className="font-semibold flex items-center gap-1.5"><CalendarClock className="h-4 w-4 text-primary" /> Schedule for later</span>
+                  <span className="text-xs text-muted-foreground block mt-0.5">Pharmacy & driver are notified only when the scheduled time arrives.</span>
+                </span>
+              </label>
+              {scheduleEnabled && (
+                <Input
+                  type="datetime-local"
+                  className="mt-3"
+                  value={scheduledFor}
+                  min={new Date(Date.now() + 30 * 60 * 1000).toISOString().slice(0, 16)}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                />
+              )}
+            </div>
+          </div>
+
           <div className="healthcare-card p-5 flex items-start gap-3">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Lock className="h-4 w-4 text-primary" />
@@ -295,7 +360,11 @@ function CheckoutPage() {
             </ul>
             <div className="border-t border-border pt-4 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">R{subtotal.toFixed(2)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span className="tabular-nums">R{deliveryFee.toFixed(2)}</span></div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Delivery {km !== null ? `(${km.toFixed(1)} km · R26 + R10/km)` : "(estimated)"}</span>
+                <span className="tabular-nums">R{deliveryFee.toFixed(2)}</span>
+              </div>
+              {eta && <div className="flex justify-between text-xs text-muted-foreground"><span>ETA</span><span>{eta.label}</span></div>}
               <div className="flex justify-between text-base font-bold pt-3 mt-1 border-t border-border"><span>Total</span><span className="tabular-nums">R{total.toFixed(2)}</span></div>
             </div>
           </div>
