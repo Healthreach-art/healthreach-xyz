@@ -971,6 +971,57 @@ export type Database = {
         }
         Relationships: []
       }
+      pharmacy_documents: {
+        Row: {
+          bank_confirmation_path: string | null
+          business_reg_path: string | null
+          created_at: string
+          id: string
+          license_path: string | null
+          pharmacist_cert_path: string | null
+          pharmacy_id: string
+          proof_of_address_path: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          submitted_at: string | null
+          tax_cert_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          bank_confirmation_path?: string | null
+          business_reg_path?: string | null
+          created_at?: string
+          id?: string
+          license_path?: string | null
+          pharmacist_cert_path?: string | null
+          pharmacy_id: string
+          proof_of_address_path?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          submitted_at?: string | null
+          tax_cert_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bank_confirmation_path?: string | null
+          business_reg_path?: string | null
+          created_at?: string
+          id?: string
+          license_path?: string | null
+          pharmacist_cert_path?: string | null
+          pharmacy_id?: string
+          proof_of_address_path?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          submitted_at?: string | null
+          tax_cert_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pharmacy_offers: {
         Row: {
           created_at: string
@@ -1164,16 +1215,23 @@ export type Database = {
           address: string | null
           approval_status: Database["public"]["Enums"]["approval_status"] | null
           avatar_url: string | null
+          business_reg_number: string | null
           created_at: string
           email: string
           full_name: string
           id: string
           is_demo: boolean
           latitude: number | null
+          license_expires_at: string | null
+          license_number: string | null
           longitude: number | null
           organization_name: string | null
+          pharmacist_council_number: string | null
+          pharmacist_name: string | null
           phone: string | null
+          responsible_pharmacist_phone: string | null
           service_radius_km: number
+          tax_number: string | null
           updated_at: string
           user_id: string
         }
@@ -1183,16 +1241,23 @@ export type Database = {
             | Database["public"]["Enums"]["approval_status"]
             | null
           avatar_url?: string | null
+          business_reg_number?: string | null
           created_at?: string
           email?: string
           full_name?: string
           id?: string
           is_demo?: boolean
           latitude?: number | null
+          license_expires_at?: string | null
+          license_number?: string | null
           longitude?: number | null
           organization_name?: string | null
+          pharmacist_council_number?: string | null
+          pharmacist_name?: string | null
           phone?: string | null
+          responsible_pharmacist_phone?: string | null
           service_radius_km?: number
+          tax_number?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1202,16 +1267,23 @@ export type Database = {
             | Database["public"]["Enums"]["approval_status"]
             | null
           avatar_url?: string | null
+          business_reg_number?: string | null
           created_at?: string
           email?: string
           full_name?: string
           id?: string
           is_demo?: boolean
           latitude?: number | null
+          license_expires_at?: string | null
+          license_number?: string | null
           longitude?: number | null
           organization_name?: string | null
+          pharmacist_council_number?: string | null
+          pharmacist_name?: string | null
           phone?: string | null
+          responsible_pharmacist_phone?: string | null
           service_radius_km?: number
+          tax_number?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1518,6 +1590,7 @@ export type Database = {
         Args: { _max_drivers?: number; _order_id: string; _radius_km?: number }
         Returns: Json
       }
+      expire_pharmacy_licenses: { Args: never; Returns: Json }
       expire_stale_offers: { Args: never; Returns: undefined }
       find_pharmacies_near: {
         Args: { _lat: number; _lng: number; _max_km: number }
@@ -1581,7 +1654,13 @@ export type Database = {
     }
     Enums: {
       app_role: "patient" | "pharmacy" | "hospital" | "driver" | "admin"
-      approval_status: "pending" | "approved" | "rejected"
+      approval_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "suspended"
+        | "under_review"
+        | "expired"
       delivery_status:
         | "assigned"
         | "picked_up"
@@ -1733,7 +1812,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["patient", "pharmacy", "hospital", "driver", "admin"],
-      approval_status: ["pending", "approved", "rejected"],
+      approval_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "suspended",
+        "under_review",
+        "expired",
+      ],
       delivery_status: [
         "assigned",
         "picked_up",

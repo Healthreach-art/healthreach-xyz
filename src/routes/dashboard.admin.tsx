@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { RoleGuard } from "@/components/RoleGuard";
+import { PharmacyReviewDialog, type PharmacyApprovalStatus } from "@/components/PharmacyReviewDialog";
 
 export const Route = createFileRoute("/dashboard/admin")({
   head: () => ({ meta: [{ title: "Admin Dashboard — HEALTHREACH" }] }),
@@ -35,7 +36,7 @@ type TabId =
   | "overview" | "analytics" | "approvals" | "pharmacies" | "drivers"
   | "orders" | "payments" | "refunds" | "prescriptions" | "complaints" | "users" | "broadcasts" | "reports";
 type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin";
-type ApprovalStatus = "pending" | "approved" | "rejected";
+type ApprovalStatus = "pending" | "approved" | "rejected" | "suspended" | "under_review" | "expired";
 
 interface UserRow {
   user_id: string;
@@ -224,9 +225,14 @@ function AdminDashboard() {
   const userMap = useMemo(() => new Map(users.map((u) => [u.user_id, u])), [users]);
   const nameOf = (id: string) => userMap.get(id)?.full_name || userMap.get(id)?.organization_name || id.slice(0, 8);
 
-  async function updateApproval(userId: string, status: ApprovalStatus) {
+  async function updateApproval(userId: string, status: ApprovalStatus, notes?: string) {
     setUpdatingId(userId);
     const { error } = await supabase.from("profiles").update({ approval_status: status }).eq("user_id", userId);
+    if (!error && notes !== undefined) {
+      await supabase.from("pharmacy_documents" as never)
+        .update({ review_notes: notes, reviewed_at: new Date().toISOString() } as never)
+        .eq("pharmacy_id", userId);
+    }
     setUpdatingId(null);
     if (error) return toast.error(error.message);
     toast.success(`User ${status}`);
@@ -504,9 +510,14 @@ function AdminDashboard() {
                       <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(p.approval_status || "")}`}>{p.approval_status}</span></td>
                       <td className="py-2">{stats?.avgRating.toFixed(1)} ({stats?.ratingCount})</td>
                       <td className="py-2">{stats?.ordersFulfilled}</td>
-                      <td className="py-2 flex gap-1">
-                        {p.approval_status !== "approved" && <Button size="sm" variant="outline" className="h-7" onClick={() => updateApproval(p.user_id, "approved")}>Approve</Button>}
-                        {p.approval_status === "approved" && <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => updateApproval(p.user_id, "rejected")}>Suspend</Button>}
+                      <td className="py-2">
+                        <PharmacyReviewDialog
+                          pharmacyId={p.user_id}
+                          pharmacyName={p.organization_name || p.full_name}
+                          currentStatus={(p.approval_status as ApprovalStatus) || "pending"}
+                          onChanged={(status: PharmacyApprovalStatus, notes) => updateApproval(p.user_id, status, notes)}
+                          updating={updatingId === p.user_id}
+                        />
                       </td>
                     </tr>
                   );
