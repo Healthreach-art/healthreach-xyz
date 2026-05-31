@@ -59,6 +59,39 @@ export function MedicationReminders() {
     }
   }
 
+  async function testReminder() {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("This browser does not support notifications");
+      return;
+    }
+    if (Notification.permission !== "granted") {
+      const result = await requestNotificationPermission();
+      setPerm(result);
+      if (result !== "granted") {
+        toast.error("Permission not granted — can't show a test alarm");
+        return;
+      }
+    }
+    const payload = {
+      title: "🔔 Test reminder",
+      body: "If you can see and hear this, your device alarms are working.",
+      tag: `med-test-${Date.now()}`,
+      link: "/dashboard/patient/reminders",
+    };
+    try {
+      if ("serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        reg.active?.postMessage({ type: "SHOW_REMINDER", payload });
+      } else {
+        new Notification(payload.title, { body: payload.body, tag: payload.tag });
+      }
+      if ("vibrate" in navigator) navigator.vibrate?.([400, 200, 400, 200, 400]);
+      toast.success("Test notification fired — check your notification tray");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not show the test notification");
+    }
+  }
+
   async function load() {
     if (!user) return;
     const { data } = await supabase
