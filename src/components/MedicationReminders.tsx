@@ -178,6 +178,15 @@ export function MedicationReminders() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs gap-1"
+                      title="Add to your phone/PC native calendar (uses your device's built-in alarm)"
+                      onClick={() => downloadReminderIcs(r)}
+                    >
+                      <CalendarPlus className="h-3.5 w-3.5" />
+                    </Button>
                     <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => toggle(r)}>
                       {r.active ? "Pause" : "Resume"}
                     </Button>
@@ -185,6 +194,7 @@ export function MedicationReminders() {
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
+
                 </div>
               </div>
             );
