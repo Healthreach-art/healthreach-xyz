@@ -70,6 +70,8 @@ interface Order {
   status: string;
   total_amount: number;
   created_at: string;
+  priority?: boolean | null;
+  scheduled_for?: string | null;
 }
 
 const LOW_STOCK_THRESHOLD = 10;
@@ -116,11 +118,15 @@ function PharmacyDashboard() {
   const [assigning, setAssigning] = useState(false);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
 
-  // New-order alarm (looping ringtone with mute toggle)
-  const alarmRef = useRef<{ stop: () => void } | null>(null);
+  // New-order alarm (looping ringtone + optional vibration + priority mode)
+  const alarmRef = useRef<{ stop: () => void; priority: boolean } | null>(null);
   const [alarmMuted, setAlarmMuted] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("hr_pharmacy_alarm_muted") === "1";
+  });
+  const [vibrateEnabled, setVibrateEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("hr_pharmacy_vibrate") !== "0";
   });
   const [alarmActive, setAlarmActive] = useState(false);
 
@@ -128,9 +134,12 @@ function PharmacyDashboard() {
     alarmRef.current?.stop();
     alarmRef.current = null;
     setAlarmActive(false);
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try { navigator.vibrate(0); } catch { /* noop */ }
+    }
   }
 
-  function startAlarm() {
+  function startAlarm(priority: boolean = false) {
     if (alarmMuted) return;
     stopAlarm();
     try {
@@ -138,22 +147,34 @@ function PharmacyDashboard() {
       if (!Ctor) return;
       const ctx = new Ctor();
       let stopped = false;
+      // Priority pattern: faster, louder, higher pitch.
+      const freqs = priority ? [1320, 990, 1480, 990] : [880, 660, 990];
+      const peak = priority ? 0.7 : 0.4;
+      const noteLen = priority ? 0.14 : 0.18;
+      const cycleMs = priority ? 900 : 2000;
+      const vibratePattern: number[] = priority ? [600, 150, 600, 150, 600] : [400, 200, 400];
+
       const burst = () => {
         if (stopped) return;
-        [880, 660, 990].forEach((freq, i) => {
+        freqs.forEach((freq, i) => {
           const o = ctx.createOscillator(); const g = ctx.createGain();
-          o.type = "sine"; o.frequency.value = freq;
+          o.type = priority ? "square" : "sine";
+          o.frequency.value = freq;
           o.connect(g); g.connect(ctx.destination);
-          const t = ctx.currentTime + i * 0.18;
+          const t = ctx.currentTime + i * (noteLen - 0.02);
           g.gain.setValueAtTime(0.0001, t);
-          g.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-          o.start(t); o.stop(t + 0.18);
+          g.gain.exponentialRampToValueAtTime(peak, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + noteLen);
+          o.start(t); o.stop(t + noteLen);
         });
+        if (vibrateEnabled && typeof navigator !== "undefined" && "vibrate" in navigator) {
+          try { navigator.vibrate(vibratePattern); } catch { /* noop */ }
+        }
       };
       burst();
-      const interval = window.setInterval(burst, 2000);
+      const interval = window.setInterval(burst, cycleMs);
       alarmRef.current = {
+        priority,
         stop: () => {
           stopped = true;
           window.clearInterval(interval);
@@ -161,7 +182,6 @@ function PharmacyDashboard() {
         },
       };
       setAlarmActive(true);
-
     } catch { /* ignore */ }
   }
 
@@ -172,17 +192,31 @@ function PharmacyDashboard() {
     if (next) stopAlarm();
   }
 
+  function toggleVibrate() {
+    const next = !vibrateEnabled;
+    setVibrateEnabled(next);
+    window.localStorage.setItem("hr_pharmacy_vibrate", next ? "1" : "0");
+    if (!next && typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try { navigator.vibrate(0); } catch { /* noop */ }
+    }
+  }
+
   useEffect(() => () => stopAlarm(), []);
 
   // Keep the alarm ringing as long as there is at least one pending order.
-  // Stops automatically once the pharmacy accepts or rejects every pending order.
-  const pendingOrdersCount = orders.filter((o) => o.status === "pending").length;
+  // Switches to "priority" pattern when any pending order is flagged critical.
+  const pendingOrders = orders.filter((o) => o.status === "pending");
+  const pendingOrdersCount = pendingOrders.length;
+  const hasPriorityPending = pendingOrders.some((o) => o.priority === true);
   useEffect(() => {
     if (alarmMuted) { stopAlarm(); return; }
-    if (pendingOrdersCount > 0 && !alarmRef.current) startAlarm();
-    if (pendingOrdersCount === 0 && alarmRef.current) stopAlarm();
+    if (pendingOrdersCount === 0) { if (alarmRef.current) stopAlarm(); return; }
+    // Restart if priority state changed
+    if (!alarmRef.current || alarmRef.current.priority !== hasPriorityPending) {
+      startAlarm(hasPriorityPending);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingOrdersCount, alarmMuted]);
+  }, [pendingOrdersCount, hasPriorityPending, alarmMuted]);
 
   async function loadData() {
     if (!user) return;
