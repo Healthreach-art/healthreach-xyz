@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, RefreshCw, Check, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
   open: boolean;
@@ -111,6 +112,10 @@ export function CameraCapture({
       const file = new File([blob], `${filenamePrefix}-${Date.now()}.jpg`, { type: "image/jpeg" });
       await onCapture(file);
       onClose();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not save photo. Please try again.";
+      toast.error(msg);
+      // Keep dialog open with snapshot so user can retake or retry — do NOT auto-close on error
     } finally { setBusy(false); }
   }
 

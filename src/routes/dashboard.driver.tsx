@@ -120,6 +120,7 @@ function DriverDashboard() {
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [docsComplete, setDocsComplete] = useState<boolean | null>(null);
   const [ratings, setRatings] = useState<{ avg: number; count: number; recent: { stars: number; comment: string; created_at: string }[] }>({ avg: 0, count: 0, recent: [] });
   const [online, setOnline] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -166,6 +167,19 @@ function DriverDashboard() {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Check verification document completeness — drives the "no offers until verified" banner.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("driver_documents")
+        .select("id_document_path, license_path, selfie_path, submitted_at")
+        .eq("driver_id", user.id)
+        .maybeSingle();
+      setDocsComplete(!!(data?.id_document_path && data?.license_path && data?.selfie_path && data?.submitted_at));
+    })();
+  }, [user]);
 
   // Restore scroll to URL hash on load / refresh
   useEffect(() => {
@@ -542,6 +556,25 @@ function DriverDashboard() {
           <Coffee className="h-4 w-4" /> Break mode — you stay logged in but won't receive new requests.
         </div>
       )}
+      {(docsComplete === false || approvalStatus !== "approved") && (
+        <div className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm">
+            <p className="font-semibold text-amber-700 dark:text-amber-400">
+              {docsComplete === false ? "Finish your verification to start receiving orders" : "Verification under review"}
+            </p>
+            <p className="text-amber-700/80 dark:text-amber-300/80 text-xs mt-1">
+              {docsComplete === false
+                ? "Upload your ID, driver's license and selfie. You will not appear in dispatch until all documents are submitted."
+                : "Your documents are submitted. You won't get offers until an admin approves your account."}
+            </p>
+          </div>
+          {docsComplete === false && (
+            <Button size="sm" asChild><Link to="/driver/onboarding">Complete</Link></Button>
+          )}
+        </div>
+      )}
+
 
       {/* Performance summary */}
       <div className="grid gap-3 sm:grid-cols-4 mb-6">

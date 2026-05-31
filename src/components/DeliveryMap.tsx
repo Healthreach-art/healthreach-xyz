@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { getDirections } from "@/lib/directions.functions";
 
 type Coords = [number, number];
 
@@ -9,30 +11,23 @@ interface Props {
   status?: string;
   /** When provided, the map subscribes to live driver location for this order. */
   orderId?: string | null;
-  /** When provided, the map subscribes to live location for this driver (used by drivers themselves). */
+  /** When provided, the map subscribes to live location for this driver. */
   driverId?: string | null;
   className?: string;
 }
 
 const DEFAULT_CENTER: Coords = [-33.9249, 18.4241]; // Cape Town
 
-async function geocode(address: string): Promise<Coords | null> {
-  try {
-    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`);
-    const j = (await r.json()) as Array<{ lat: string; lon: string }>;
-    if (!j.length) return null;
-    return [parseFloat(j[0].lat), parseFloat(j[0].lon)];
-  } catch { return null; }
-}
-
-/** Leaflet OSM map with pickup → dropoff route + LIVE driver marker (realtime subscription). */
+/** Leaflet OSM map with REAL driving route (Mapbox) + LIVE driver marker (realtime). */
 export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, className }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const driverMarkerRef = useRef<any>(null);
-  const ptsRef = useRef<{ a: Coords | null; b: Coords | null }>({ a: null, b: null });
+  const ptsRef = useRef<{ a: Coords | null; b: Coords | null; route: Coords[] }>({ a: null, b: null, route: [] });
   const [ready, setReady] = useState(false);
   const [liveCoords, setLiveCoords] = useState<Coords | null>(null);
+  const [info, setInfo] = useState<{ km: number | null; min: number | null }>({ km: null, min: null });
+  const fetchDirections = useServerFn(getDirections);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +35,7 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
       if (typeof window === "undefined") return;
       const L = (await import("leaflet")).default;
       if (cancelled || !ref.current || mapRef.current) return;
-      const map = L.map(ref.current, { zoomControl: false, attributionControl: false }).setView(DEFAULT_CENTER, 12);
+      const map = L.map(ref.current, { zoomControl: true, attributionControl: false }).setView(DEFAULT_CENTER, 12);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
       mapRef.current = { L, map, layer: L.layerGroup().addTo(map) };
       setReady(true);
@@ -52,7 +47,6 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
   useEffect(() => {
     if (!orderId && !driverId) return;
     let active = true;
-
     async function fetchLatest() {
       let q = supabase.from("driver_locations").select("lat, lng, updated_at").limit(1);
       q = orderId ? q.eq("order_id", orderId) : q.eq("driver_id", driverId!);
@@ -60,7 +54,6 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
       if (active && data) setLiveCoords([Number(data.lat), Number(data.lng)]);
     }
     fetchLatest();
-
     const channel = supabase
       .channel(`driver-loc-${orderId || driverId}`)
       .on("postgres_changes", {
@@ -73,41 +66,53 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
         if (row?.lat != null && row?.lng != null) setLiveCoords([Number(row.lat), Number(row.lng)]);
       })
       .subscribe();
-
     return () => { active = false; supabase.removeChannel(channel); };
   }, [orderId, driverId]);
 
-  // Render route + endpoint pins on pickup/dropoff change
+  // Render real driving route + endpoint pins on pickup/dropoff change
   useEffect(() => {
-    if (!ready || !mapRef.current) return;
+    if (!ready || !mapRef.current || !pickup || !dropoff) return;
     const { L, map, layer } = mapRef.current;
-    layer.clearLayers();
-    driverMarkerRef.current = null;
+    let cancelled = false;
     (async () => {
-      const a = pickup ? await geocode(pickup) : null;
-      const b = dropoff ? await geocode(dropoff) : null;
-      ptsRef.current = { a, b };
-      const pts: Coords[] = [a, b].filter(Boolean) as Coords[];
-      if (pts.length === 0) { map.setView(DEFAULT_CENTER, 12); return; }
-      if (a) L.marker(a, { icon: pinIcon(L, "#0ea5e9", "P") }).addTo(layer).bindTooltip("Pharmacy");
-      if (b) L.marker(b, { icon: pinIcon(L, "#10b981", "D") }).addTo(layer).bindTooltip("Drop-off");
-      if (a && b) {
-        L.polyline([a, b], { color: "#3b82f6", weight: 4, opacity: 0.7, dashArray: "6 8" }).addTo(layer);
+      try {
+        const res = await fetchDirections({ data: { pickup, dropoff } });
+        if (cancelled) return;
+        layer.clearLayers();
+        driverMarkerRef.current = null;
+        const a = res.pickup as Coords | null;
+        const b = res.dropoff as Coords | null;
+        const route = (res.route as Coords[] | null) ?? (a && b ? [a, b] : []);
+        ptsRef.current = { a, b, route };
+        if (a) L.marker(a, { icon: pinIcon(L, "#0ea5e9", "P") }).addTo(layer).bindTooltip("Pharmacy (pickup)");
+        if (b) L.marker(b, { icon: pinIcon(L, "#10b981", "C") }).addTo(layer).bindTooltip("Customer (drop-off)");
+        if (route.length >= 2) {
+          L.polyline(route, { color: "#3b82f6", weight: 5, opacity: 0.85 }).addTo(layer);
+          map.fitBounds(L.latLngBounds(route), { padding: [40, 40] });
+        } else if (a) {
+          map.setView(a, 13);
+        }
+        setInfo({ km: res.distance_km ?? null, min: res.duration_min ?? null });
+      } catch (e) {
+        // Silent — keep last route
+        console.warn("getDirections failed", e);
       }
-      map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
     })();
-  }, [ready, pickup, dropoff]);
+    return () => { cancelled = true; };
+  }, [ready, pickup, dropoff, fetchDirections]);
 
-  // Update driver pin (live coords preferred, otherwise interpolate by status)
+  // Driver pin: prefer live coords; otherwise interpolate along the route
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     const { L, map, layer } = mapRef.current;
-    const { a, b } = ptsRef.current;
-
+    const { a, b, route } = ptsRef.current;
     let pos: Coords | null = liveCoords;
-    if (!pos && a && b) {
-      const t = status === "delivered" ? 1 : status === "in_transit" ? 0.65 : status === "picked_up" ? 0.15 : 0.0;
-      pos = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    if (!pos && route.length >= 2) {
+      const t = status === "delivered" ? 1 : status === "in_transit" ? 0.65 : status === "picked_up" ? 0.2 : 0.0;
+      const idx = Math.max(0, Math.min(route.length - 1, Math.floor((route.length - 1) * t)));
+      pos = route[idx];
+    } else if (!pos && a && b) {
+      pos = a;
     }
     if (!pos) return;
     if (driverMarkerRef.current) {
@@ -119,8 +124,15 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
   }, [ready, liveCoords, status, pickup, dropoff]);
 
   return (
-    <div className={className ?? "h-56 w-full rounded-xl overflow-hidden border border-border"}>
+    <div className={className ?? "h-56 w-full rounded-xl overflow-hidden border border-border relative"}>
       <div ref={ref} className="h-full w-full" />
+      {(info.km !== null || info.min !== null) && (
+        <div className="absolute top-2 left-2 z-[400] rounded-md bg-background/90 backdrop-blur px-2 py-1 text-[11px] font-medium border border-border shadow-sm">
+          {info.km !== null && <span>{info.km} km</span>}
+          {info.km !== null && info.min !== null && <span className="mx-1 text-muted-foreground">·</span>}
+          {info.min !== null && <span>{info.min} min</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -128,15 +140,15 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
 function pinIcon(L: any, color: string, label: string) {
   return L.divIcon({
     className: "",
-    html: `<div style="background:${color};color:white;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid white"><span style="transform:rotate(45deg);font-weight:700;font-size:12px">${label}</span></div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
+    html: `<div style="background:${color};color:white;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid white"><span style="transform:rotate(45deg);font-weight:700;font-size:12px">${label}</span></div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
   });
 }
 function driverIcon(L: any) {
   return L.divIcon({
     className: "",
-    html: `<div style="background:#1f2937;color:white;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px rgba(59,130,246,.3),0 2px 8px rgba(0,0,0,.4);border:2px solid white;font-size:18px">🚗</div>`,
+    html: `<div style="background:#1f2937;color:white;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px rgba(59,130,246,.35),0 2px 8px rgba(0,0,0,.4);border:2px solid white;font-size:18px">🚗</div>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
   });

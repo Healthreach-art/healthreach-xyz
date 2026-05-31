@@ -89,40 +89,46 @@ function Onboarding() {
   }, [user]);
 
   async function handleUpload(key: DocKey, file: File) {
-    if (!user) return;
+    if (!user) throw new Error("Not signed in");
     setUploadingKey(key);
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${user.id}/${key}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("driver-docs").upload(path, file, { upsert: true, contentType: file.type });
-    if (error) { toast.error(error.message); setUploadingKey(null); return; }
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${key}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("driver-docs").upload(path, file, { upsert: true, contentType: file.type });
+      if (error) throw new Error(error.message);
 
-    const update: Partial<DriverDocs> = { [key]: path };
-    const { error: dbError } = await supabase
-      .from("driver_documents")
-      .upsert({ driver_id: user.id, ...update } as any, { onConflict: "driver_id" });
-    if (dbError) { toast.error(dbError.message); setUploadingKey(null); return; }
+      const update: Partial<DriverDocs> = { [key]: path };
+      const { error: dbError } = await supabase
+        .from("driver_documents")
+        .upsert({ driver_id: user.id, ...update } as any, { onConflict: "driver_id" });
+      if (dbError) throw new Error(dbError.message);
 
-    const { data: signed } = await supabase.storage.from("driver-docs").createSignedUrl(path, 3600);
-    setDocs((p) => ({ ...p, [key]: path }));
-    if (signed?.signedUrl) setPreviews((p) => ({ ...p, [key]: signed.signedUrl }));
-    setUploadingKey(null);
-    toast.success("Uploaded");
+      const { data: signed } = await supabase.storage.from("driver-docs").createSignedUrl(path, 3600);
+      setDocs((p) => ({ ...p, [key]: path }));
+      if (signed?.signedUrl) setPreviews((p) => ({ ...p, [key]: signed.signedUrl }));
+      toast.success("Uploaded");
+    } finally {
+      setUploadingKey(null);
+    }
   }
 
   async function handleAvatarUpload(file: File) {
-    if (!user) return;
+    if (!user) throw new Error("Not signed in");
     setUploadingKey("avatar");
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
-    if (error) { toast.error(error.message); setUploadingKey(null); return; }
-    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-    const url = pub.publicUrl;
-    const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: url }).eq("user_id", user.id);
-    setUploadingKey(null);
-    if (dbErr) { toast.error(dbErr.message); return; }
-    setAvatarUrl(url);
-    toast.success("Profile photo saved");
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+      if (error) throw new Error(error.message);
+      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      const url = pub.publicUrl;
+      const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: url }).eq("user_id", user.id);
+      if (dbErr) throw new Error(dbErr.message);
+      setAvatarUrl(url);
+      toast.success("Profile photo saved");
+    } finally {
+      setUploadingKey(null);
+    }
   }
 
   async function submitForReview() {
