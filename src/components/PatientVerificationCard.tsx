@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   BadgeCheck,
   IdCard,
@@ -11,7 +10,6 @@ import {
   Loader2,
   ShieldAlert,
   ShieldCheck,
-  Upload,
   CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -59,7 +57,7 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
   const [liveSelfieOpen, setLiveSelfieOpen] = useState(false);
   const [idCameraOpen, setIdCameraOpen] = useState(false);
   const [idNumber, setIdNumber] = useState("");
-  const idFileRef = useRef<HTMLInputElement>(null);
+  
 
   async function reload() {
     if (!user) return;
@@ -214,35 +212,14 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
           busy={busy === "id"}
           icon={<IdCard className="h-4 w-4" />}
           action={
-            <div className="flex gap-1.5">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs gap-1"
-                onClick={() => setIdCameraOpen(true)}
-              >
-                <Camera className="h-3.5 w-3.5" /> Camera
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs gap-1"
-                onClick={() => idFileRef.current?.click()}
-              >
-                <Upload className="h-3.5 w-3.5" /> Upload
-              </Button>
-              <input
-                ref={idFileRef}
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) uploadDoc("id", f);
-                  e.currentTarget.value = "";
-                }}
-              />
-            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1"
+              onClick={() => setIdCameraOpen(true)}
+            >
+              <Camera className="h-3.5 w-3.5" /> {hasId ? "Retake" : "Start camera"}
+            </Button>
           }
         />
 
