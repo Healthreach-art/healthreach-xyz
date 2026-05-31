@@ -153,17 +153,15 @@ function PharmacyDashboard() {
       };
       burst();
       const interval = window.setInterval(burst, 2000);
-      // Auto-stop after 30s in case user steps away
-      const autoStop = window.setTimeout(() => { stopped = true; window.clearInterval(interval); ctx.close().catch(() => {}); setAlarmActive(false); alarmRef.current = null; }, 30_000);
       alarmRef.current = {
         stop: () => {
           stopped = true;
           window.clearInterval(interval);
-          window.clearTimeout(autoStop);
           ctx.close().catch(() => {});
         },
       };
       setAlarmActive(true);
+
     } catch { /* ignore */ }
   }
 
@@ -175,6 +173,16 @@ function PharmacyDashboard() {
   }
 
   useEffect(() => () => stopAlarm(), []);
+
+  // Keep the alarm ringing as long as there is at least one pending order.
+  // Stops automatically once the pharmacy accepts or rejects every pending order.
+  const pendingOrdersCount = orders.filter((o) => o.status === "pending").length;
+  useEffect(() => {
+    if (alarmMuted) { stopAlarm(); return; }
+    if (pendingOrdersCount > 0 && !alarmRef.current) startAlarm();
+    if (pendingOrdersCount === 0 && alarmRef.current) stopAlarm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingOrdersCount, alarmMuted]);
 
   async function loadData() {
     if (!user) return;
