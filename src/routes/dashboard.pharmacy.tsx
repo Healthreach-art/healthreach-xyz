@@ -116,6 +116,66 @@ function PharmacyDashboard() {
   const [assigning, setAssigning] = useState(false);
   const [chatOrderId, setChatOrderId] = useState<string | null>(null);
 
+  // New-order alarm (looping ringtone with mute toggle)
+  const alarmRef = useRef<{ stop: () => void } | null>(null);
+  const [alarmMuted, setAlarmMuted] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("hr_pharmacy_alarm_muted") === "1";
+  });
+  const [alarmActive, setAlarmActive] = useState(false);
+
+  function stopAlarm() {
+    alarmRef.current?.stop();
+    alarmRef.current = null;
+    setAlarmActive(false);
+  }
+
+  function startAlarm() {
+    if (alarmMuted) return;
+    stopAlarm();
+    try {
+      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return;
+      const ctx = new Ctor();
+      let stopped = false;
+      const burst = () => {
+        if (stopped) return;
+        [880, 660, 990].forEach((freq, i) => {
+          const o = ctx.createOscillator(); const g = ctx.createGain();
+          o.type = "sine"; o.frequency.value = freq;
+          o.connect(g); g.connect(ctx.destination);
+          const t = ctx.currentTime + i * 0.18;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+          o.start(t); o.stop(t + 0.18);
+        });
+      };
+      burst();
+      const interval = window.setInterval(burst, 2000);
+      // Auto-stop after 30s in case user steps away
+      const autoStop = window.setTimeout(() => { stopped = true; window.clearInterval(interval); ctx.close().catch(() => {}); setAlarmActive(false); alarmRef.current = null; }, 30_000);
+      alarmRef.current = {
+        stop: () => {
+          stopped = true;
+          window.clearInterval(interval);
+          window.clearTimeout(autoStop);
+          ctx.close().catch(() => {});
+        },
+      };
+      setAlarmActive(true);
+    } catch { /* ignore */ }
+  }
+
+  function toggleAlarmMute() {
+    const next = !alarmMuted;
+    setAlarmMuted(next);
+    window.localStorage.setItem("hr_pharmacy_alarm_muted", next ? "1" : "0");
+    if (next) stopAlarm();
+  }
+
+  useEffect(() => () => stopAlarm(), []);
+
   async function loadData() {
     if (!user) return;
     setLoading(true);
