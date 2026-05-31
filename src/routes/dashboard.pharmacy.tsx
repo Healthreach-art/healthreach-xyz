@@ -318,9 +318,10 @@ function PharmacyDashboard() {
       .channel(`pharmacy-${user.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, (payload) => {
         loadData();
-        const ord = payload.new as { medication_name?: string; quantity?: number };
-        startAlarm();
-        toast.success("🔔 New incoming order", {
+        const ord = payload.new as { medication_name?: string; quantity?: number; priority?: boolean; status?: string };
+        if (ord?.status === "scheduled") return; // hold scheduled — no alarm yet
+        startAlarm(!!ord?.priority);
+        toast.success(ord?.priority ? "🚨 PRIORITY new order" : "🔔 New incoming order", {
           description: `${ord?.medication_name ?? "Order"} × ${ord?.quantity ?? 1}`,
           duration: 30_000,
           action: { label: "Stop alarm", onClick: () => stopAlarm() },
@@ -558,15 +559,26 @@ function PharmacyDashboard() {
           <h1 className="text-2xl font-bold text-foreground">Pharmacy Dashboard</h1>
           <p className="text-sm text-muted-foreground">{profile?.organization_name || "My Pharmacy"}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant={alarmActive ? "default" : "outline"}
             size="sm"
             onClick={alarmActive ? stopAlarm : toggleAlarmMute}
             title={alarmActive ? "Stop alarm" : alarmMuted ? "Unmute new-order alarm" : "Mute new-order alarm"}
+            className={alarmActive && alarmRef.current?.priority ? "animate-pulse bg-destructive hover:bg-destructive/90" : ""}
           >
             {alarmMuted && !alarmActive ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            {alarmActive ? "Stop alarm" : alarmMuted ? "Alarm off" : "Alarm on"}
+            {alarmActive
+              ? (alarmRef.current?.priority ? "Stop PRIORITY alarm" : "Stop alarm")
+              : alarmMuted ? "Alarm off" : "Alarm on"}
+          </Button>
+          <Button
+            variant={vibrateEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={toggleVibrate}
+            title="Toggle device vibration (mobile only)"
+          >
+            📳 {vibrateEnabled ? "Vibrate on" : "Vibrate off"}
           </Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
