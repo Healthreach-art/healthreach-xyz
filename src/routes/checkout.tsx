@@ -134,6 +134,14 @@ function CheckoutPage() {
   const eta = km !== null ? etaMinutesForKm(km) : null;
 
   async function finalizeOrder() {
+    const fam = familyMembers.find((f) => f.id === recipientFamilyId);
+    const recipient = forSomeoneElse
+      ? {
+          name: (fam?.full_name || recipientName).trim() || undefined,
+          phone: recipientPhone.trim() || undefined,
+          familyMemberId: recipientFamilyId || undefined,
+        }
+      : undefined;
     const res = await placeOrder({
       data: {
         items: items.map((i) => ({
@@ -146,6 +154,7 @@ function CheckoutPage() {
         notes: "Paid via Paystack",
         priority,
         scheduledFor: scheduleEnabled && scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
+        recipient,
       },
     });
     const matched = res.orders.filter((o) => o.matched).length;
