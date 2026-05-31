@@ -4,8 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Bell, Plus, Trash2, Pill, AlarmClock, Calendar as CalendarIcon } from "lucide-react";
+import { Bell, Plus, Trash2, Pill, AlarmClock, Calendar as CalendarIcon, BellRing, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useReminderNotifications,
+  requestNotificationPermission,
+  downloadReminderIcs,
+} from "@/hooks/useReminderNotifications";
 
 interface Reminder {
   id: string;
