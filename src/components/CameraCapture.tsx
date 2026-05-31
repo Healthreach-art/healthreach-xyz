@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, RefreshCw, Check, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
   open: boolean;
