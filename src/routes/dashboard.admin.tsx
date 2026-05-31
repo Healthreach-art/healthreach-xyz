@@ -35,7 +35,7 @@ type TabId =
   | "overview" | "analytics" | "approvals" | "pharmacies" | "drivers"
   | "orders" | "payments" | "refunds" | "prescriptions" | "complaints" | "users" | "broadcasts" | "reports";
 type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin";
-type ApprovalStatus = "pending" | "approved" | "rejected";
+type ApprovalStatus = "pending" | "approved" | "rejected" | "suspended" | "under_review" | "expired";
 
 interface UserRow {
   user_id: string;
