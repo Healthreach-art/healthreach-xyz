@@ -814,6 +814,12 @@ function DriverDashboard() {
         onClose={() => setPickupForDelivery(null)}
         onVerified={() => { /* realtime will refresh */ }}
       />
+      <DeliveryCodeDialog
+        deliveryId={deliverForDelivery?.id ?? null}
+        patientName={deliverForDelivery?.patient_name}
+        onClose={() => setDeliverForDelivery(null)}
+        onVerified={() => { /* realtime will refresh */ }}
+      />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <FailedDeliveryDialog delivery={failForDelivery} onClose={() => setFailForDelivery(null)} />
     </div>
