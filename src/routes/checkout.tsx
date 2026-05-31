@@ -18,12 +18,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
 import { validateCartPrescriptions, consumePrescription, claimPrescriptionForPharmacy } from "@/lib/prescription.functions";
 import { placeOrderWithRouting } from "@/lib/dispatch.functions";
-import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { verifyPaystackTransaction, chargeSavedCard } from "@/lib/paystack.functions";
+import { getWalletSummary, payOrderFromWallet } from "@/lib/wallet.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
-import { Users } from "lucide-react";
+import { Users, Wallet as WalletIcon } from "lucide-react";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
+
+interface SavedCard { id: string; brand: string; last4: string; exp_month: number; exp_year: number; is_default: boolean; authorization_code: string | null }
 
 declare global {
   interface Window {
@@ -73,6 +76,9 @@ function CheckoutPage() {
   const validateRx = useServerFn(validateCartPrescriptions);
   const placeOrder = useServerFn(placeOrderWithRouting);
   const verifyPaystack = useServerFn(verifyPaystackTransaction);
+  const chargeCard = useServerFn(chargeSavedCard);
+  const fetchWallet = useServerFn(getWalletSummary);
+  const payWallet = useServerFn(payOrderFromWallet);
   const [delivery, setDelivery] = useState<PickedAddress | null>(null);
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -87,7 +93,29 @@ function CheckoutPage() {
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
 
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [walletCents, setWalletCents] = useState<number>(0);
+  // payMethod: "wallet" | "new" | card UUID
+  const [payMethod, setPayMethod] = useState<string>("new");
+
   useEffect(() => { loadPaystackScript().catch(() => {}); }, []);
+
+  // Load saved cards + wallet balance
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("saved_payment_methods")
+      .select("id, brand, last4, exp_month, exp_year, is_default, authorization_code")
+      .eq("user_id", user.id)
+      .order("is_default", { ascending: false })
+      .then(({ data }) => {
+        const cards = (data ?? []) as SavedCard[];
+        setSavedCards(cards);
+        const reusable = cards.find((c) => c.authorization_code);
+        // Default selection: wallet if affordable later (decided after totals), else first reusable card, else new.
+        if (reusable) setPayMethod(reusable.id);
+      });
+    fetchWallet().then((w) => setWalletCents(w.balanceCents)).catch(() => {});
+  }, [user, fetchWallet]);
 
   useEffect(() => {
     if (!user) return;
