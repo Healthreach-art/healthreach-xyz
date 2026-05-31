@@ -131,6 +131,8 @@ function CheckoutPage() {
         })),
         delivery: { address: delivery!.address, lat: delivery!.lat!, lng: delivery!.lng! },
         notes: "Paid via Paystack",
+        priority,
+        scheduledFor: scheduleEnabled && scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
       },
     });
     const matched = res.orders.filter((o) => o.matched).length;
@@ -140,7 +142,11 @@ function CheckoutPage() {
     }
     clear();
     setSuccess(true);
-    toast.success(`${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`);
+    toast.success(
+      scheduleEnabled && scheduledFor
+        ? `Scheduled ${matched} order(s) for ${new Date(scheduledFor).toLocaleString()}.`
+        : `${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`
+    );
     setTimeout(() => navigate({ to: "/track" }), 1500);
   }
 
