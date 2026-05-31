@@ -460,25 +460,81 @@ function CheckoutPage() {
             </div>
           </div>
 
-          <div className="healthcare-card p-5 flex items-start gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Lock className="h-4 w-4 text-primary" />
+          {/* Payment method picker */}
+          <div className="healthcare-card p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold flex items-center gap-2"><Lock className="h-4 w-4 text-primary" /> Payment method</h2>
+              <Link to="/dashboard/patient/wallet" className="text-xs text-primary hover:underline">Manage wallet →</Link>
             </div>
-            <div className="text-sm min-w-0">
-              <p className="font-semibold">Secure payment via Paystack</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                You'll enter your card on Paystack's secure popup — we never see your card details.
-              </p>
-              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                Test card <span className="font-mono">4084 0840 8408 4081</span> · CVV <span className="font-mono">408</span> · any future expiry · PIN <span className="font-mono">0000</span> · OTP <span className="font-mono">123456</span>.
-              </p>
-            </div>
+
+            {/* Wallet option */}
+            <label className={`flex items-center justify-between gap-3 rounded-xl border p-3 cursor-pointer transition ${payMethod === "wallet" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
+              <span className="flex items-center gap-3 min-w-0">
+                <input type="radio" name="paymethod" checked={payMethod === "wallet"} onChange={() => setPayMethod("wallet")} className="accent-primary" />
+                <span className="h-9 w-9 rounded-lg bg-healthcare-mint/30 flex items-center justify-center shrink-0">
+                  <WalletIcon className="h-4 w-4 text-healthcare-green" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">Pay from wallet</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Balance: R {(walletCents / 100).toFixed(2)}
+                    {walletCents < Math.round(total * 100) && (
+                      <span className="text-destructive"> · short R {((Math.round(total * 100) - walletCents) / 100).toFixed(2)}</span>
+                    )}
+                  </span>
+                </span>
+              </span>
+            </label>
+
+            {/* Saved card options */}
+            {savedCards.filter((c) => c.authorization_code).map((c) => (
+              <label key={c.id} className={`flex items-center justify-between gap-3 rounded-xl border p-3 cursor-pointer transition ${payMethod === c.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
+                <span className="flex items-center gap-3 min-w-0">
+                  <input type="radio" name="paymethod" checked={payMethod === c.id} onChange={() => setPayMethod(c.id)} className="accent-primary" />
+                  <span className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold capitalize">{c.brand} •••• {c.last4}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      One-tap · expires {String(c.exp_month).padStart(2, "0")}/{String(c.exp_year).slice(-2)}
+                      {c.is_default && <span className="ml-1 text-primary">· default</span>}
+                    </span>
+                  </span>
+                </span>
+              </label>
+            ))}
+
+            {/* New card option */}
+            <label className={`flex items-center justify-between gap-3 rounded-xl border p-3 cursor-pointer transition ${payMethod === "new" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
+              <span className="flex items-center gap-3 min-w-0">
+                <input type="radio" name="paymethod" checked={payMethod === "new"} onChange={() => setPayMethod("new")} className="accent-primary" />
+                <span className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{savedCards.some((c) => c.authorization_code) ? "Use a different card" : "Pay with a card"}</span>
+                  <span className="block text-xs text-muted-foreground">Paystack popup · we'll remember it for next time</span>
+                </span>
+              </span>
+            </label>
+
+            <p className="text-[11px] text-muted-foreground pt-1 flex items-center gap-1">
+              <Lock className="h-3 w-3" /> Card details stay with Paystack — never stored in HEALTHREACH.
+            </p>
           </div>
 
-          <Button type="submit" size="lg" className="w-full rounded-xl h-12" disabled={processing}>
-            {processing ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)} with Paystack</>}
+          <Button type="submit" size="lg" className="w-full rounded-xl h-12" disabled={processing || (payMethod === "wallet" && walletCents < Math.round(total * 100))}>
+            {processing
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
+              : payMethod === "wallet"
+                ? <><WalletIcon className="h-4 w-4" /> Pay R{total.toFixed(2)} from wallet</>
+                : savedCards.find((c) => c.id === payMethod && c.authorization_code)
+                  ? <><CreditCard className="h-4 w-4" /> One-tap pay R{total.toFixed(2)}</>
+                  : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)} with Paystack</>}
           </Button>
         </form>
+
 
         <div className="lg:col-span-2">
           <div className="healthcare-card p-6 lg:sticky lg:top-20">
