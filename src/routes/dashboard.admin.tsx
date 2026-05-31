@@ -504,9 +504,14 @@ function AdminDashboard() {
                       <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(p.approval_status || "")}`}>{p.approval_status}</span></td>
                       <td className="py-2">{stats?.avgRating.toFixed(1)} ({stats?.ratingCount})</td>
                       <td className="py-2">{stats?.ordersFulfilled}</td>
-                      <td className="py-2 flex gap-1">
-                        {p.approval_status !== "approved" && <Button size="sm" variant="outline" className="h-7" onClick={() => updateApproval(p.user_id, "approved")}>Approve</Button>}
-                        {p.approval_status === "approved" && <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => updateApproval(p.user_id, "rejected")}>Suspend</Button>}
+                      <td className="py-2">
+                        <PharmacyReviewDialog
+                          pharmacyId={p.user_id}
+                          pharmacyName={p.organization_name || p.full_name}
+                          currentStatus={(p.approval_status as ApprovalStatus) || "pending"}
+                          onChanged={(status) => updateApproval(p.user_id, status)}
+                          updating={updatingId === p.user_id}
+                        />
                       </td>
                     </tr>
                   );
