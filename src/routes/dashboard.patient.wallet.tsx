@@ -115,7 +115,6 @@ function WalletPage() {
       amount: cents,
       currency: "ZAR",
       ref: `WT-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      metadata: { purpose: "wallet_topup" },
       callback: (resp) => {
         (async () => {
           try {
@@ -127,7 +126,7 @@ function WalletPage() {
         })();
       },
       onClose: () => { toast.info("Top-up cancelled."); setBusy(false); },
-    });
+    } as PaystackSetupArg);
     handler.openIframe();
   }
 
