@@ -284,6 +284,34 @@ function CheckoutPage() {
             <AddressPicker value={delivery} onChange={setDelivery} placeholder="Street, suburb, city…" />
           </div>
 
+          <div className="healthcare-card p-5 space-y-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox checked={priority} onCheckedChange={(v) => setPriority(!!v)} />
+              <span className="text-sm">
+                <span className="font-semibold flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-destructive" /> Critical / urgent order</span>
+                <span className="text-xs text-muted-foreground block mt-0.5">Pharmacy gets a louder, faster priority alarm until accepted.</span>
+              </span>
+            </label>
+            <div className="border-t border-border pt-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox checked={scheduleEnabled} onCheckedChange={(v) => setScheduleEnabled(!!v)} />
+                <span className="text-sm">
+                  <span className="font-semibold flex items-center gap-1.5"><CalendarClock className="h-4 w-4 text-primary" /> Schedule for later</span>
+                  <span className="text-xs text-muted-foreground block mt-0.5">Pharmacy & driver are notified only when the scheduled time arrives.</span>
+                </span>
+              </label>
+              {scheduleEnabled && (
+                <Input
+                  type="datetime-local"
+                  className="mt-3"
+                  value={scheduledFor}
+                  min={new Date(Date.now() + 30 * 60 * 1000).toISOString().slice(0, 16)}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                />
+              )}
+            </div>
+          </div>
+
           <div className="healthcare-card p-5 flex items-start gap-3">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Lock className="h-4 w-4 text-primary" />
@@ -332,7 +360,11 @@ function CheckoutPage() {
             </ul>
             <div className="border-t border-border pt-4 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">R{subtotal.toFixed(2)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span className="tabular-nums">R{deliveryFee.toFixed(2)}</span></div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Delivery {km !== null ? `(${km.toFixed(1)} km · R26 + R10/km)` : "(estimated)"}</span>
+                <span className="tabular-nums">R{deliveryFee.toFixed(2)}</span>
+              </div>
+              {eta && <div className="flex justify-between text-xs text-muted-foreground"><span>ETA</span><span>{eta.label}</span></div>}
               <div className="flex justify-between text-base font-bold pt-3 mt-1 border-t border-border"><span>Total</span><span className="tabular-nums">R{total.toFixed(2)}</span></div>
             </div>
           </div>
