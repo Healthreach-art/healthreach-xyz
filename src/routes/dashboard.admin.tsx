@@ -515,7 +515,7 @@ function AdminDashboard() {
                           pharmacyId={p.user_id}
                           pharmacyName={p.organization_name || p.full_name}
                           currentStatus={(p.approval_status as ApprovalStatus) || "pending"}
-                          onChanged={(status) => updateApproval(p.user_id, status)}
+                          onChanged={(status: PharmacyApprovalStatus, notes) => updateApproval(p.user_id, status, notes)}
                           updating={updatingId === p.user_id}
                         />
                       </td>
