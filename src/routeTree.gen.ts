@@ -28,6 +28,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SignupAdminRouteImport } from './routes/signup.admin'
+import { Route as PharmacyOnboardingRouteImport } from './routes/pharmacy.onboarding'
 import { Route as PharmacyIdRouteImport } from './routes/pharmacy.$id'
 import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
 import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding'
@@ -149,6 +150,11 @@ const SignupAdminRoute = SignupAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => SignupRoute,
+} as any)
+const PharmacyOnboardingRoute = PharmacyOnboardingRouteImport.update({
+  id: '/pharmacy/onboarding',
+  path: '/pharmacy/onboarding',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PharmacyIdRoute = PharmacyIdRouteImport.update({
   id: '/pharmacy/$id',
@@ -318,6 +324,7 @@ export interface FileRoutesByFullPath {
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
+  '/pharmacy/onboarding': typeof PharmacyOnboardingRoute
   '/signup/admin': typeof SignupAdminRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
@@ -365,6 +372,7 @@ export interface FileRoutesByTo {
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
+  '/pharmacy/onboarding': typeof PharmacyOnboardingRoute
   '/signup/admin': typeof SignupAdminRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
@@ -413,6 +421,7 @@ export interface FileRoutesById {
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
+  '/pharmacy/onboarding': typeof PharmacyOnboardingRoute
   '/signup/admin': typeof SignupAdminRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
@@ -462,6 +471,7 @@ export interface FileRouteTypes {
     | '/driver/onboarding'
     | '/driver/wallet'
     | '/pharmacy/$id'
+    | '/pharmacy/onboarding'
     | '/signup/admin'
     | '/api/public/payment-webhook'
     | '/dashboard/admin/live'
@@ -509,6 +519,7 @@ export interface FileRouteTypes {
     | '/driver/onboarding'
     | '/driver/wallet'
     | '/pharmacy/$id'
+    | '/pharmacy/onboarding'
     | '/signup/admin'
     | '/api/public/payment-webhook'
     | '/dashboard/admin/live'
@@ -556,6 +567,7 @@ export interface FileRouteTypes {
     | '/driver/onboarding'
     | '/driver/wallet'
     | '/pharmacy/$id'
+    | '/pharmacy/onboarding'
     | '/signup/admin'
     | '/api/public/payment-webhook'
     | '/dashboard/admin/live'
@@ -604,6 +616,7 @@ export interface RootRouteChildren {
   DriverOnboardingRoute: typeof DriverOnboardingRoute
   DriverWalletRoute: typeof DriverWalletRoute
   PharmacyIdRoute: typeof PharmacyIdRoute
+  PharmacyOnboardingRoute: typeof PharmacyOnboardingRoute
   ApiPublicPaymentWebhookRoute: typeof ApiPublicPaymentWebhookRoute
   DashboardPatientActivityRoute: typeof DashboardPatientActivityRoute
   DashboardPatientAddressesRoute: typeof DashboardPatientAddressesRoute
@@ -756,6 +769,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/signup/admin'
       preLoaderRoute: typeof SignupAdminRouteImport
       parentRoute: typeof SignupRoute
+    }
+    '/pharmacy/onboarding': {
+      id: '/pharmacy/onboarding'
+      path: '/pharmacy/onboarding'
+      fullPath: '/pharmacy/onboarding'
+      preLoaderRoute: typeof PharmacyOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/pharmacy/$id': {
       id: '/pharmacy/$id'
@@ -993,6 +1013,7 @@ const rootRouteChildren: RootRouteChildren = {
   DriverOnboardingRoute: DriverOnboardingRoute,
   DriverWalletRoute: DriverWalletRoute,
   PharmacyIdRoute: PharmacyIdRoute,
+  PharmacyOnboardingRoute: PharmacyOnboardingRoute,
   ApiPublicPaymentWebhookRoute: ApiPublicPaymentWebhookRoute,
   DashboardPatientActivityRoute: DashboardPatientActivityRoute,
   DashboardPatientAddressesRoute: DashboardPatientAddressesRoute,

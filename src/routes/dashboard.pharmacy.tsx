@@ -457,14 +457,46 @@ function PharmacyDashboard() {
     }
   }
 
-  if (approvalStatus === "pending") {
+  if (approvalStatus === "pending" || approvalStatus === "rejected" || approvalStatus === "suspended" || approvalStatus === "expired") {
+    const titleMap: Record<string, string> = {
+      pending: "Complete your pharmacy verification",
+      rejected: "Application rejected",
+      suspended: "Account suspended",
+      expired: "Licence expired",
+    };
+    const descMap: Record<string, string> = {
+      pending: "Submit your licence, pharmacist credentials and supporting documents. Admins will review and approve your pharmacy.",
+      rejected: "Your application was rejected. Please update your documents and re-submit for review.",
+      suspended: "Your pharmacy is currently suspended. Contact support or update your documents.",
+      expired: "Your pharmacy licence has expired. Re-upload a valid licence to continue receiving orders.",
+    };
+    const status = approvalStatus ?? "pending";
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <div className="healthcare-card p-8 max-w-md text-center">
           <Clock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-bold text-foreground">Pending Approval</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Your pharmacy account is awaiting admin approval. You'll be notified once approved.</p>
-          <Button variant="outline" className="mt-6" onClick={signOut}>Sign Out</Button>
+          <h2 className="text-xl font-bold text-foreground">{titleMap[status]}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{descMap[status]}</p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button asChild><a href="/pharmacy/onboarding">Open verification wizard</a></Button>
+            <Button variant="outline" onClick={signOut}>Sign Out</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (approvalStatus === "under_review") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <div className="healthcare-card p-8 max-w-md text-center">
+          <Clock className="mx-auto h-12 w-12 text-primary mb-4" />
+          <h2 className="text-xl font-bold text-foreground">Under review</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Thanks — your documents are with our admin team. We'll notify you as soon as you're approved.</p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button asChild variant="outline"><a href="/pharmacy/onboarding">Review my submission</a></Button>
+            <Button variant="outline" onClick={signOut}>Sign Out</Button>
+          </div>
         </div>
       </div>
     );
