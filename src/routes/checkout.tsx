@@ -69,7 +69,7 @@ export const Route = createFileRoute("/checkout")({
 function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, clear, setQty, remove } = useCart();
+  const { items, clear, setQty, remove, update } = useCart();
   const validateRx = useServerFn(validateCartPrescriptions);
   const placeOrder = useServerFn(placeOrderWithRouting);
   const verifyPaystack = useServerFn(verifyPaystackTransaction);
@@ -81,8 +81,19 @@ function CheckoutPage() {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<string>("");
   const [pharmacyCoords, setPharmacyCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [forSomeoneElse, setForSomeoneElse] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<Array<{ id: string; full_name: string; relationship: string }>>([]);
+  const [recipientFamilyId, setRecipientFamilyId] = useState<string>("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
 
   useEffect(() => { loadPaystackScript().catch(() => {}); }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("family_members").select("id, full_name, relationship").eq("user_id", user.id)
+      .then(({ data }) => setFamilyMembers((data ?? []) as never));
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
