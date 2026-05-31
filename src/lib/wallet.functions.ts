@@ -52,7 +52,6 @@ export const topUpWithSavedCard = createServerFn({ method: "POST" })
       _user_id: userId,
       _amount_cents: data.amountCents,
       _reason: "topup",
-      _order_id: null,
       _paystack_reference: charge.reference,
       _note: "Top-up via saved card",
     });
@@ -118,7 +117,6 @@ export const confirmWalletTopUp = createServerFn({ method: "POST" })
       _user_id: userId,
       _amount_cents: cents,
       _reason: "topup",
-      _order_id: null,
       _paystack_reference: data.reference,
       _note: "Top-up via Paystack",
     });
@@ -139,7 +137,7 @@ export const payOrderFromWallet = createServerFn({ method: "POST" })
       _user_id: userId,
       _amount_cents: data.amountCents,
       _reason: "order_payment",
-      _order_id: data.orderId ?? null,
+      _order_id: data.orderId,
       _note: "Order payment",
     });
     if (error) throw new Error(error.message);

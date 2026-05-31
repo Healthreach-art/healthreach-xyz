@@ -89,7 +89,7 @@ export const verifyPaystackTransaction = createServerFn({ method: "POST" })
       reference: json.data?.reference ?? data.reference,
       amount: (json.data?.amount ?? 0) / 100,
       currency: json.data?.currency ?? "ZAR",
-      metadata: json.data?.metadata ?? {},
+      metadata: (json.data?.metadata ?? {}) as Record<string, string>,
     };
   });
 
