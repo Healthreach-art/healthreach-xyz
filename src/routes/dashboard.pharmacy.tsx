@@ -485,30 +485,11 @@ function PharmacyDashboard() {
           <p className="text-sm text-muted-foreground">{profile?.organization_name || "My Pharmacy"}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant={alarmActive ? "default" : "outline"}
-            size="sm"
-            onClick={alarmActive ? stopAlarm : toggleAlarmMute}
-            title={alarmActive ? "Stop alarm" : alarmMuted ? "Unmute new-order alarm" : "Mute new-order alarm"}
-            className={alarmActive && alarmRef.current?.priority ? "animate-pulse bg-destructive hover:bg-destructive/90" : ""}
-          >
-            {alarmMuted && !alarmActive ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            {alarmActive
-              ? (alarmRef.current?.priority ? "Stop PRIORITY alarm" : "Stop alarm")
-              : alarmMuted ? "Alarm off" : "Alarm on"}
-          </Button>
-          <Button
-            variant={vibrateEnabled ? "default" : "outline"}
-            size="sm"
-            onClick={toggleVibrate}
-            title="Toggle device vibration (mobile only)"
-          >
-            📳 {vibrateEnabled ? "Vibrate on" : "Vibrate off"}
-          </Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
       </div>
+
 
       {/* Hero banner */}
       <div className="relative overflow-hidden rounded-2xl mb-6 h-40 sm:h-52">
