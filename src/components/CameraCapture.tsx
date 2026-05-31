@@ -112,6 +112,10 @@ export function CameraCapture({
       const file = new File([blob], `${filenamePrefix}-${Date.now()}.jpg`, { type: "image/jpeg" });
       await onCapture(file);
       onClose();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not save photo. Please try again.";
+      toast.error(msg);
+      // Keep dialog open with snapshot so user can retake or retry — do NOT auto-close on error
     } finally { setBusy(false); }
   }
 
