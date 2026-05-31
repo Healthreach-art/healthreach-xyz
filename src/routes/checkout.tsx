@@ -10,7 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { CreditCard, Lock, CheckCircle2, ShoppingCart, Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE, paymentBreakdown } from "@/lib/pricing";
+import { customerPrice, deliveryFeeForKm, etaMinutesForKm } from "@/lib/pricing";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertTriangle, CalendarClock } from "lucide-react";
 import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
@@ -73,6 +75,10 @@ function CheckoutPage() {
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [rxIssues, setRxIssues] = useState<{ medId: string; message: string }[]>([]);
+  const [priority, setPriority] = useState(false);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState<string>("");
+  const [pharmacyCoords, setPharmacyCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => { loadPaystackScript().catch(() => {}); }, []);
 
@@ -85,9 +91,34 @@ function CheckoutPage() {
       });
   }, [user]);
 
+  // Load the first cart pharmacy's coords for live km-based delivery fee preview.
+  useEffect(() => {
+    const pid = items[0]?.pharmacyId;
+    if (!pid) { setPharmacyCoords(null); return; }
+    supabase.from("profiles").select("latitude, longitude").eq("user_id", pid).maybeSingle()
+      .then(({ data }) => {
+        if (data?.latitude && data?.longitude) setPharmacyCoords({ lat: data.latitude, lng: data.longitude });
+        else setPharmacyCoords(null);
+      });
+  }, [items]);
+
+  function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  const km = pharmacyCoords && delivery?.lat && delivery?.lng
+    ? haversineKm(pharmacyCoords.lat, pharmacyCoords.lng, delivery.lat, delivery.lng)
+    : null;
+
   const subtotal = items.reduce((s, i) => s + customerPrice(i.price) * i.qty, 0);
-  const deliveryFee = customerDeliveryFee(BASE_DELIVERY_FEE);
+  const deliveryFee = deliveryFeeForKm(km ?? 5);
   const total = Math.round((subtotal + deliveryFee) * 100) / 100;
+  const eta = km !== null ? etaMinutesForKm(km) : null;
 
   async function finalizeOrder() {
     const res = await placeOrder({
