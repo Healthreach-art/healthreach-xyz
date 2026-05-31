@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   BadgeCheck,
   IdCard,
@@ -11,7 +10,6 @@ import {
   Loader2,
   ShieldAlert,
   ShieldCheck,
-  Upload,
   CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
