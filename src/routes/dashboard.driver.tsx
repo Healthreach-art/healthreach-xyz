@@ -168,6 +168,19 @@ function DriverDashboard() {
     return () => clearInterval(t);
   }, []);
 
+  // Check verification document completeness — drives the "no offers until verified" banner.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("driver_documents")
+        .select("id_document_path, license_path, selfie_path, submitted_at")
+        .eq("driver_id", user.id)
+        .maybeSingle();
+      setDocsComplete(!!(data?.id_document_path && data?.license_path && data?.selfie_path && data?.submitted_at));
+    })();
+  }, [user]);
+
   // Restore scroll to URL hash on load / refresh
   useEffect(() => {
     if (typeof window === "undefined") return;
