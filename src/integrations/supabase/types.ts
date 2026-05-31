@@ -539,7 +539,13 @@ export type Database = {
         Row: {
           email_orders: boolean
           email_promotions: boolean
+          push_delivered: boolean
+          push_order_placed: boolean
           push_orders: boolean
+          push_out_for_delivery: boolean
+          push_picked_up: boolean
+          push_preparing: boolean
+          push_ready: boolean
           sms_orders: boolean
           updated_at: string
           user_id: string
@@ -547,7 +553,13 @@ export type Database = {
         Insert: {
           email_orders?: boolean
           email_promotions?: boolean
+          push_delivered?: boolean
+          push_order_placed?: boolean
           push_orders?: boolean
+          push_out_for_delivery?: boolean
+          push_picked_up?: boolean
+          push_preparing?: boolean
+          push_ready?: boolean
           sms_orders?: boolean
           updated_at?: string
           user_id: string
@@ -555,7 +567,13 @@ export type Database = {
         Update: {
           email_orders?: boolean
           email_promotions?: boolean
+          push_delivered?: boolean
+          push_order_placed?: boolean
           push_orders?: boolean
+          push_out_for_delivery?: boolean
+          push_picked_up?: boolean
+          push_preparing?: boolean
+          push_ready?: boolean
           sms_orders?: boolean
           updated_at?: string
           user_id?: string
@@ -637,6 +655,7 @@ export type Database = {
           created_at: string
           delivery_address: string | null
           delivery_fee: number
+          delivery_km: number | null
           delivery_lat: number | null
           delivery_lng: number | null
           id: string
@@ -649,7 +668,9 @@ export type Database = {
           pharmacy_id: string | null
           pickup_lat: number | null
           pickup_lng: number | null
+          priority: boolean
           quantity: number
+          scheduled_for: string | null
           status: Database["public"]["Enums"]["order_status"]
           total_amount: number
           updated_at: string
@@ -662,6 +683,7 @@ export type Database = {
           created_at?: string
           delivery_address?: string | null
           delivery_fee?: number
+          delivery_km?: number | null
           delivery_lat?: number | null
           delivery_lng?: number | null
           id?: string
@@ -674,7 +696,9 @@ export type Database = {
           pharmacy_id?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
+          priority?: boolean
           quantity?: number
+          scheduled_for?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
           updated_at?: string
@@ -687,6 +711,7 @@ export type Database = {
           created_at?: string
           delivery_address?: string | null
           delivery_fee?: number
+          delivery_km?: number | null
           delivery_lat?: number | null
           delivery_lng?: number | null
           id?: string
@@ -699,7 +724,9 @@ export type Database = {
           pharmacy_id?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
+          priority?: boolean
           quantity?: number
+          scheduled_for?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
           updated_at?: string
@@ -773,6 +800,7 @@ export type Database = {
           status: Database["public"]["Enums"]["payment_status"]
           subtotal: number | null
           total_paid: number | null
+          transaction_fee: number | null
           transaction_ref: string | null
           updated_at: string
         }
@@ -797,6 +825,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["payment_status"]
           subtotal?: number | null
           total_paid?: number | null
+          transaction_fee?: number | null
           transaction_ref?: string | null
           updated_at?: string
         }
@@ -821,6 +850,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["payment_status"]
           subtotal?: number | null
           total_paid?: number | null
+          transaction_fee?: number | null
           transaction_ref?: string | null
           updated_at?: string
         }
@@ -1416,6 +1446,7 @@ export type Database = {
         }
         Returns: Json
       }
+      release_scheduled_orders: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "patient" | "pharmacy" | "hospital" | "driver" | "admin"
@@ -1428,6 +1459,7 @@ export type Database = {
         | "failed"
       offer_status: "open" | "accepted" | "declined" | "cancelled" | "expired"
       order_status:
+        | "scheduled"
         | "pending"
         | "accepted"
         | "preparing"
@@ -1580,6 +1612,7 @@ export const Constants = {
       ],
       offer_status: ["open", "accepted", "declined", "cancelled", "expired"],
       order_status: [
+        "scheduled",
         "pending",
         "accepted",
         "preparing",
