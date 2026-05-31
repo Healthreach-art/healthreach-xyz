@@ -18,12 +18,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
 import { validateCartPrescriptions, consumePrescription, claimPrescriptionForPharmacy } from "@/lib/prescription.functions";
 import { placeOrderWithRouting } from "@/lib/dispatch.functions";
-import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { verifyPaystackTransaction, chargeSavedCard } from "@/lib/paystack.functions";
+import { getWalletSummary, payOrderFromWallet } from "@/lib/wallet.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
-import { Users } from "lucide-react";
+import { Users, Wallet as WalletIcon } from "lucide-react";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
+
+interface SavedCard { id: string; brand: string; last4: string; exp_month: number; exp_year: number; is_default: boolean; authorization_code: string | null }
 
 declare global {
   interface Window {
@@ -73,6 +76,9 @@ function CheckoutPage() {
   const validateRx = useServerFn(validateCartPrescriptions);
   const placeOrder = useServerFn(placeOrderWithRouting);
   const verifyPaystack = useServerFn(verifyPaystackTransaction);
+  const chargeCard = useServerFn(chargeSavedCard);
+  const fetchWallet = useServerFn(getWalletSummary);
+  const payWallet = useServerFn(payOrderFromWallet);
   const [delivery, setDelivery] = useState<PickedAddress | null>(null);
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -87,7 +93,29 @@ function CheckoutPage() {
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
 
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [walletCents, setWalletCents] = useState<number>(0);
+  // payMethod: "wallet" | "new" | card UUID
+  const [payMethod, setPayMethod] = useState<string>("new");
+
   useEffect(() => { loadPaystackScript().catch(() => {}); }, []);
+
+  // Load saved cards + wallet balance
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("saved_payment_methods")
+      .select("id, brand, last4, exp_month, exp_year, is_default, authorization_code")
+      .eq("user_id", user.id)
+      .order("is_default", { ascending: false })
+      .then(({ data }) => {
+        const cards = (data ?? []) as SavedCard[];
+        setSavedCards(cards);
+        const reusable = cards.find((c) => c.authorization_code);
+        // Default selection: wallet if affordable later (decided after totals), else first reusable card, else new.
+        if (reusable) setPayMethod(reusable.id);
+      });
+    fetchWallet().then((w) => setWalletCents(w.balanceCents)).catch(() => {});
+  }, [user, fetchWallet]);
 
   useEffect(() => {
     if (!user) return;
@@ -211,6 +239,44 @@ function CheckoutPage() {
       return;
     }
 
+    const totalCents = Math.round(total * 100);
+
+    // ---- Branch 1: Pay from wallet -----------------------------------------
+    if (payMethod === "wallet") {
+      if (walletCents < totalCents) {
+        toast.error(`Wallet is short by R${((totalCents - walletCents) / 100).toFixed(2)}. Top up first.`);
+        setProcessing(false);
+        return;
+      }
+      try {
+        await payWallet({ data: { amountCents: totalCents } });
+        setWalletCents((c) => c - totalCents);
+        await finalizeOrder();
+      } catch (err) {
+        toast.error((err as Error)?.message || "Wallet payment failed.");
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+
+    // ---- Branch 2: One-tap saved card --------------------------------------
+    const savedCard = savedCards.find((c) => c.id === payMethod && c.authorization_code);
+    if (savedCard) {
+      try {
+        const charge = await chargeCard({ data: { cardId: savedCard.id, amountCents: totalCents, purpose: "order_payment" } });
+        const v = await verifyPaystack({ data: { reference: charge.reference } });
+        if (!(v as { verified: boolean }).verified) { toast.error("Payment could not be verified."); setProcessing(false); return; }
+        await finalizeOrder();
+      } catch (err) {
+        toast.error((err as Error)?.message || "One-tap payment failed.");
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+
+    // ---- Branch 3: New card via Paystack popup (auto-saves authorization) --
     try {
       await loadPaystackScript();
     } catch {
@@ -218,7 +284,6 @@ function CheckoutPage() {
       setProcessing(false);
       return;
     }
-
     if (!window.PaystackPop) {
       toast.error("Paystack not available.");
       setProcessing(false);
@@ -228,18 +293,17 @@ function CheckoutPage() {
     const handler = window.PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
       email: user.email,
-      amount: Math.round(total * 100),
+      amount: totalCents,
       currency: "ZAR",
       ref: `HR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       callback: (resp) => {
-        // Paystack runs this in its own context — handle async outside.
         (async () => {
           try {
             const v = await verifyPaystack({ data: { reference: resp.reference } });
-            if (!v.verified) { toast.error("Payment could not be verified."); setProcessing(false); return; }
+            if (!(v as { verified: boolean }).verified) { toast.error("Payment could not be verified."); setProcessing(false); return; }
             await finalizeOrder();
-          } catch (err: any) {
-            toast.error(err?.message || "Payment verification failed.");
+          } catch (err) {
+            toast.error((err as Error)?.message || "Payment verification failed.");
           } finally {
             setProcessing(false);
           }
@@ -396,25 +460,81 @@ function CheckoutPage() {
             </div>
           </div>
 
-          <div className="healthcare-card p-5 flex items-start gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Lock className="h-4 w-4 text-primary" />
+          {/* Payment method picker */}
+          <div className="healthcare-card p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold flex items-center gap-2"><Lock className="h-4 w-4 text-primary" /> Payment method</h2>
+              <Link to="/dashboard/patient/wallet" className="text-xs text-primary hover:underline">Manage wallet →</Link>
             </div>
-            <div className="text-sm min-w-0">
-              <p className="font-semibold">Secure payment via Paystack</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                You'll enter your card on Paystack's secure popup — we never see your card details.
-              </p>
-              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                Test card <span className="font-mono">4084 0840 8408 4081</span> · CVV <span className="font-mono">408</span> · any future expiry · PIN <span className="font-mono">0000</span> · OTP <span className="font-mono">123456</span>.
-              </p>
-            </div>
+
+            {/* Wallet option */}
+            <label className={`flex items-center justify-between gap-3 rounded-xl border p-3 cursor-pointer transition ${payMethod === "wallet" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
+              <span className="flex items-center gap-3 min-w-0">
+                <input type="radio" name="paymethod" checked={payMethod === "wallet"} onChange={() => setPayMethod("wallet")} className="accent-primary" />
+                <span className="h-9 w-9 rounded-lg bg-healthcare-mint/30 flex items-center justify-center shrink-0">
+                  <WalletIcon className="h-4 w-4 text-healthcare-green" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">Pay from wallet</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Balance: R {(walletCents / 100).toFixed(2)}
+                    {walletCents < Math.round(total * 100) && (
+                      <span className="text-destructive"> · short R {((Math.round(total * 100) - walletCents) / 100).toFixed(2)}</span>
+                    )}
+                  </span>
+                </span>
+              </span>
+            </label>
+
+            {/* Saved card options */}
+            {savedCards.filter((c) => c.authorization_code).map((c) => (
+              <label key={c.id} className={`flex items-center justify-between gap-3 rounded-xl border p-3 cursor-pointer transition ${payMethod === c.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
+                <span className="flex items-center gap-3 min-w-0">
+                  <input type="radio" name="paymethod" checked={payMethod === c.id} onChange={() => setPayMethod(c.id)} className="accent-primary" />
+                  <span className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold capitalize">{c.brand} •••• {c.last4}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      One-tap · expires {String(c.exp_month).padStart(2, "0")}/{String(c.exp_year).slice(-2)}
+                      {c.is_default && <span className="ml-1 text-primary">· default</span>}
+                    </span>
+                  </span>
+                </span>
+              </label>
+            ))}
+
+            {/* New card option */}
+            <label className={`flex items-center justify-between gap-3 rounded-xl border p-3 cursor-pointer transition ${payMethod === "new" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
+              <span className="flex items-center gap-3 min-w-0">
+                <input type="radio" name="paymethod" checked={payMethod === "new"} onChange={() => setPayMethod("new")} className="accent-primary" />
+                <span className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{savedCards.some((c) => c.authorization_code) ? "Use a different card" : "Pay with a card"}</span>
+                  <span className="block text-xs text-muted-foreground">Paystack popup · we'll remember it for next time</span>
+                </span>
+              </span>
+            </label>
+
+            <p className="text-[11px] text-muted-foreground pt-1 flex items-center gap-1">
+              <Lock className="h-3 w-3" /> Card details stay with Paystack — never stored in HEALTHREACH.
+            </p>
           </div>
 
-          <Button type="submit" size="lg" className="w-full rounded-xl h-12" disabled={processing}>
-            {processing ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)} with Paystack</>}
+          <Button type="submit" size="lg" className="w-full rounded-xl h-12" disabled={processing || (payMethod === "wallet" && walletCents < Math.round(total * 100))}>
+            {processing
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
+              : payMethod === "wallet"
+                ? <><WalletIcon className="h-4 w-4" /> Pay R{total.toFixed(2)} from wallet</>
+                : savedCards.find((c) => c.id === payMethod && c.authorization_code)
+                  ? <><CreditCard className="h-4 w-4" /> One-tap pay R{total.toFixed(2)}</>
+                  : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)} with Paystack</>}
           </Button>
         </form>
+
 
         <div className="lg:col-span-2">
           <div className="healthcare-card p-6 lg:sticky lg:top-20">

@@ -1252,33 +1252,54 @@ export type Database = {
       }
       saved_payment_methods: {
         Row: {
+          authorization_code: string | null
+          bank: string | null
           brand: string
+          card_type: string | null
+          country_code: string | null
           created_at: string
+          email: string | null
           exp_month: number
           exp_year: number
           id: string
           is_default: boolean
           last4: string
+          reusable: boolean
+          signature: string | null
           user_id: string
         }
         Insert: {
+          authorization_code?: string | null
+          bank?: string | null
           brand: string
+          card_type?: string | null
+          country_code?: string | null
           created_at?: string
+          email?: string | null
           exp_month: number
           exp_year: number
           id?: string
           is_default?: boolean
           last4: string
+          reusable?: boolean
+          signature?: string | null
           user_id: string
         }
         Update: {
+          authorization_code?: string | null
+          bank?: string | null
           brand?: string
+          card_type?: string | null
+          country_code?: string | null
           created_at?: string
+          email?: string | null
           exp_month?: number
           exp_year?: number
           id?: string
           is_default?: boolean
           last4?: string
+          reusable?: boolean
+          signature?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1333,6 +1354,83 @@ export type Database = {
         Update: {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount_cents: number
+          balance_after_cents: number
+          created_at: string
+          direction: string
+          id: string
+          note: string | null
+          order_id: string | null
+          paystack_reference: string | null
+          reason: string
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount_cents: number
+          balance_after_cents: number
+          created_at?: string
+          direction: string
+          id?: string
+          note?: string | null
+          order_id?: string | null
+          paystack_reference?: string | null
+          reason: string
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount_cents?: number
+          balance_after_cents?: number
+          created_at?: string
+          direction?: string
+          id?: string
+          note?: string | null
+          order_id?: string | null
+          paystack_reference?: string | null
+          reason?: string
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance_cents: number
+          created_at: string
+          currency: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_cents?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_cents?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -1459,6 +1557,27 @@ export type Database = {
         Returns: Json
       }
       release_scheduled_orders: { Args: never; Returns: Json }
+      wallet_credit: {
+        Args: {
+          _amount_cents: number
+          _note?: string
+          _order_id?: string
+          _paystack_reference?: string
+          _reason: string
+          _user_id: string
+        }
+        Returns: Json
+      }
+      wallet_debit: {
+        Args: {
+          _amount_cents: number
+          _note?: string
+          _order_id?: string
+          _reason: string
+          _user_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "patient" | "pharmacy" | "hospital" | "driver" | "admin"
