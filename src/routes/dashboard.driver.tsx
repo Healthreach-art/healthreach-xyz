@@ -120,6 +120,7 @@ function DriverDashboard() {
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [docsComplete, setDocsComplete] = useState<boolean | null>(null);
   const [ratings, setRatings] = useState<{ avg: number; count: number; recent: { stars: number; comment: string; created_at: string }[] }>({ avg: 0, count: 0, recent: [] });
   const [online, setOnline] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
