@@ -20,6 +20,8 @@ import { validateCartPrescriptions, consumePrescription, claimPrescriptionForPha
 import { placeOrderWithRouting } from "@/lib/dispatch.functions";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
+import { PrescriptionPicker } from "@/components/PrescriptionPicker";
+import { Users } from "lucide-react";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
 
