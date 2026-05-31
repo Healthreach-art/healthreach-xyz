@@ -9,6 +9,8 @@ import { CardPinDialog } from "@/components/CardPinDialog";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { Wallet, CreditCard, Plus, Star, Trash2, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { deleteSavedCard } from "@/lib/paystack.functions";
 
 export const Route = createFileRoute("/dashboard/patient/payment-methods")({
   head: () => ({ meta: [{ title: "Wallet & Payments — HEALTHREACH" }] }),
@@ -24,6 +26,7 @@ function Page() {
   const [open, setOpen] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [pinDialog, setPinDialog] = useState<{ action: null | (() => void) }>({ action: null });
+  const removeCard = useServerFn(deleteSavedCard);
 
   async function load() {
     if (!user) return;
@@ -53,8 +56,12 @@ function Page() {
     load();
   }
   async function remove(id: string) {
-    await supabase.from("saved_payment_methods").delete().eq("id", id);
-    toast.success("Card removed");
+    try {
+      await removeCard({ data: { cardId: id } });
+      toast.success("Card removed");
+    } catch (e) {
+      toast.error((e as Error)?.message || "Could not remove card");
+    }
     load();
   }
 
