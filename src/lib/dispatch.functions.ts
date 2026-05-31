@@ -140,9 +140,13 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
           pickup_lng: pharmacy?.longitude ?? null,
           assignment_radius_km: 10,
           notes: data.notes ?? "",
+          recipient_name: data.recipient?.name ?? null,
+          recipient_phone: data.recipient?.phone ?? null,
+          recipient_family_member_id: data.recipient?.familyMemberId ?? null,
         })
         .select("id")
         .single();
+
       if (orderErr || !order) {
         console.error("Order insert failed:", orderErr);
         continue;
