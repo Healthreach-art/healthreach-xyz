@@ -106,7 +106,10 @@ export function OrderTimeline({
     };
   }, [orderId]);
 
-  const stepIdx = computeStep(orderStatus, deliveryStatus);
+  const fullStepIdx = computeStep(orderStatus, deliveryStatus);
+  // Driver variant: collapse to Assigned → Picked Up → On The Way → Delivered (indices 3..6 in STEPS)
+  const STEPS_VIEW = variant === "driver" ? STEPS.slice(3) : STEPS;
+  const stepIdx = variant === "driver" ? Math.max(0, fullStepIdx - 3) : fullStepIdx;
   const cancelled = orderStatus === "cancelled";
 
   if (loading) {
