@@ -517,6 +517,15 @@ function PharmacyDashboard() {
           <p className="text-sm text-muted-foreground">{profile?.organization_name || "My Pharmacy"}</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant={alarmActive ? "default" : "outline"}
+            size="sm"
+            onClick={alarmActive ? stopAlarm : toggleAlarmMute}
+            title={alarmActive ? "Stop alarm" : alarmMuted ? "Unmute new-order alarm" : "Mute new-order alarm"}
+          >
+            {alarmMuted && !alarmActive ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            {alarmActive ? "Stop alarm" : alarmMuted ? "Alarm off" : "Alarm on"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
