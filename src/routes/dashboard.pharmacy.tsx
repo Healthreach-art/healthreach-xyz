@@ -246,12 +246,10 @@ function PharmacyDashboard() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, (payload) => {
         loadData();
         const ord = payload.new as { medication_name?: string; quantity?: number; priority?: boolean; status?: string };
-        if (ord?.status === "scheduled") return; // hold scheduled — no alarm yet
-        startAlarm(!!ord?.priority);
+        if (ord?.status === "scheduled") return; // hold scheduled — no beep yet
         toast.success(ord?.priority ? "🚨 PRIORITY new order" : "🔔 New incoming order", {
           description: `${ord?.medication_name ?? "Order"} × ${ord?.quantity ?? 1}`,
           duration: 30_000,
-          action: { label: "Stop alarm", onClick: () => stopAlarm() },
         });
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => loadData())
