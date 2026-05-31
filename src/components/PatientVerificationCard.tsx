@@ -57,7 +57,7 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
   const [liveSelfieOpen, setLiveSelfieOpen] = useState(false);
   const [idCameraOpen, setIdCameraOpen] = useState(false);
   const [idNumber, setIdNumber] = useState("");
-  const idFileRef = useRef<HTMLInputElement>(null);
+  
 
   async function reload() {
     if (!user) return;
