@@ -306,6 +306,68 @@ function CheckoutPage() {
             <AddressPicker value={delivery} onChange={setDelivery} placeholder="Street, suburb, city…" />
           </div>
 
+          {/* Order for someone else */}
+          <div className="healthcare-card p-5 space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox checked={forSomeoneElse} onCheckedChange={(v) => setForSomeoneElse(!!v)} />
+              <span className="text-sm">
+                <span className="font-semibold flex items-center gap-1.5"><Users className="h-4 w-4 text-primary" /> This order is for someone else</span>
+                <span className="text-xs text-muted-foreground block mt-0.5">Pick a family member or enter their details for delivery.</span>
+              </span>
+            </label>
+            {forSomeoneElse && (
+              <div className="space-y-2 pl-7">
+                {familyMembers.length > 0 && (
+                  <div>
+                    <Label className="text-xs">Family member</Label>
+                    <select
+                      value={recipientFamilyId}
+                      onChange={(e) => {
+                        setRecipientFamilyId(e.target.value);
+                        const f = familyMembers.find((x) => x.id === e.target.value);
+                        if (f) setRecipientName(f.full_name);
+                      }}
+                      className="w-full mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="">— Select or enter manually below —</option>
+                      {familyMembers.map((f) => (
+                        <option key={f.id} value={f.id}>{f.full_name} ({f.relationship})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <Input placeholder="Recipient full name" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+                  <Input placeholder="Recipient phone" value={recipientPhone} onChange={(e) => setRecipientPhone(e.target.value)} />
+                </div>
+                <p className="text-[11px] text-muted-foreground">If they need prescription medication, attach their Rx below.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Inline prescription upload for any Rx-required cart items that don't yet have one */}
+          {items.filter((i) => i.requiresPrescription && !i.prescriptionUploadId).map((it) => (
+            <div key={`rx-${it.medId}`} className="healthcare-card p-5">
+              <h2 className="text-sm font-bold flex items-center gap-2">
+                Prescription needed for <span className="text-primary">{it.name}</span>
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1 mb-3">
+                Pick an existing prescription from your library or upload a new one — all in one place.
+              </p>
+              <PrescriptionPicker
+                pharmacyId={it.pharmacyId}
+                pharmacyName={it.pharmacyName}
+                medicationId={it.medId}
+                medicationName={it.name}
+                onPicked={(uploadId) => update(it.medId, { prescriptionUploadId: uploadId })}
+                onUploadedPending={(row) => {
+                  if (row.status === "approved") update(it.medId, { prescriptionUploadId: row.id });
+                }}
+              />
+            </div>
+          ))}
+
+
           <div className="healthcare-card p-5 space-y-4">
             <label className="flex items-start gap-3 cursor-pointer">
               <Checkbox checked={priority} onCheckedChange={(v) => setPriority(!!v)} />
