@@ -224,9 +224,14 @@ function AdminDashboard() {
   const userMap = useMemo(() => new Map(users.map((u) => [u.user_id, u])), [users]);
   const nameOf = (id: string) => userMap.get(id)?.full_name || userMap.get(id)?.organization_name || id.slice(0, 8);
 
-  async function updateApproval(userId: string, status: ApprovalStatus) {
+  async function updateApproval(userId: string, status: ApprovalStatus, notes?: string) {
     setUpdatingId(userId);
     const { error } = await supabase.from("profiles").update({ approval_status: status }).eq("user_id", userId);
+    if (!error && notes !== undefined) {
+      await supabase.from("pharmacy_documents" as never)
+        .update({ review_notes: notes, reviewed_at: new Date().toISOString() } as never)
+        .eq("pharmacy_id", userId);
+    }
     setUpdatingId(null);
     if (error) return toast.error(error.message);
     toast.success(`User ${status}`);
