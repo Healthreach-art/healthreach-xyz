@@ -123,6 +123,39 @@ export function MedicationReminders() {
         </Button>
       </div>
 
+      {/* Alarm permission banner */}
+      <div
+        className={`mb-3 rounded-lg border p-3 text-xs flex items-start gap-2 ${
+          perm === "granted"
+            ? "border-healthcare-green/40 bg-healthcare-green/5 text-healthcare-green"
+            : "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400"
+        }`}
+      >
+        <BellRing className="h-4 w-4 mt-0.5 shrink-0" />
+        <div className="flex-1 min-w-0">
+          {perm === "granted" ? (
+            <p>
+              <strong>Device alarms enabled.</strong> You'll get a real notification at each dose time
+              when this app is open or installed as a PWA. For alarms when the app is fully closed,
+              tap "Add to calendar" on a reminder to use your phone's native alarm.
+            </p>
+          ) : perm === "denied" ? (
+            <p>
+              Notifications are blocked. Enable them in your browser settings, or use
+              <strong> Add to calendar</strong> on a reminder to set a native phone/PC alarm.
+            </p>
+          ) : (
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span>Enable device alarms so your phone/PC rings at each dose time.</span>
+              <Button size="sm" className="h-7 text-xs" onClick={enableAlarms}>
+                Enable alarms
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No reminders yet. Add one to get refill alerts and dose nudges.</p>
       ) : (
