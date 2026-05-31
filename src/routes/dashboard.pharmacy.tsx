@@ -153,17 +153,15 @@ function PharmacyDashboard() {
       };
       burst();
       const interval = window.setInterval(burst, 2000);
-      // Auto-stop after 30s in case user steps away
-      const autoStop = window.setTimeout(() => { stopped = true; window.clearInterval(interval); ctx.close().catch(() => {}); setAlarmActive(false); alarmRef.current = null; }, 30_000);
       alarmRef.current = {
         stop: () => {
           stopped = true;
           window.clearInterval(interval);
-          window.clearTimeout(autoStop);
           ctx.close().catch(() => {});
         },
       };
       setAlarmActive(true);
+
     } catch { /* ignore */ }
   }
 
