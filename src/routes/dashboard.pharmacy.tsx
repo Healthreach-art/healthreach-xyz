@@ -18,7 +18,6 @@ import {
   Package, AlertTriangle, ShoppingCart, DollarSign,
   CheckCircle, XCircle, Clock, Pill, TrendingDown, Loader2,
   Pencil, Trash2, Plus, Minus, Truck, Radio, MessageCircle, Settings, Phone,
-  Volume2, VolumeX,
 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
