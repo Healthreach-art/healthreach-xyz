@@ -670,6 +670,9 @@ export type Database = {
           pickup_lng: number | null
           priority: boolean
           quantity: number
+          recipient_family_member_id: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
           scheduled_for: string | null
           status: Database["public"]["Enums"]["order_status"]
           total_amount: number
@@ -698,6 +701,9 @@ export type Database = {
           pickup_lng?: number | null
           priority?: boolean
           quantity?: number
+          recipient_family_member_id?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
           scheduled_for?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
@@ -726,6 +732,9 @@ export type Database = {
           pickup_lng?: number | null
           priority?: boolean
           quantity?: number
+          recipient_family_member_id?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
           scheduled_for?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
@@ -752,6 +761,7 @@ export type Database = {
         Row: {
           created_at: string
           id_document_path: string | null
+          id_number: string | null
           notes: string | null
           selfie_path: string | null
           status: string
@@ -761,6 +771,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id_document_path?: string | null
+          id_number?: string | null
           notes?: string | null
           selfie_path?: string | null
           status?: string
@@ -770,6 +781,7 @@ export type Database = {
         Update: {
           created_at?: string
           id_document_path?: string | null
+          id_number?: string | null
           notes?: string | null
           selfie_path?: string | null
           status?: string

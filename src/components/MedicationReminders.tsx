@@ -4,8 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Bell, Plus, Trash2, Pill, AlarmClock, Calendar as CalendarIcon } from "lucide-react";
+import { Bell, Plus, Trash2, Pill, AlarmClock, Calendar as CalendarIcon, BellRing, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useReminderNotifications,
+  requestNotificationPermission,
+  downloadReminderIcs,
+} from "@/hooks/useReminderNotifications";
 
 interface Reminder {
   id: string;
@@ -35,6 +40,24 @@ export function MedicationReminders() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ ...empty });
   const [saving, setSaving] = useState(false);
+  const [perm, setPerm] = useState<NotificationPermission>("default");
+
+  useReminderNotifications();
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    setPerm(Notification.permission);
+  }, []);
+
+  async function enableAlarms() {
+    const result = await requestNotificationPermission();
+    setPerm(result);
+    if (result === "granted") {
+      toast.success("Reminder alarms enabled on this device");
+    } else if (result === "denied") {
+      toast.error("Notifications blocked. Enable them in your browser settings, or use 'Add to calendar'.");
+    }
+  }
 
   async function load() {
     if (!user) return;
@@ -100,6 +123,39 @@ export function MedicationReminders() {
         </Button>
       </div>
 
+      {/* Alarm permission banner */}
+      <div
+        className={`mb-3 rounded-lg border p-3 text-xs flex items-start gap-2 ${
+          perm === "granted"
+            ? "border-healthcare-green/40 bg-healthcare-green/5 text-healthcare-green"
+            : "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400"
+        }`}
+      >
+        <BellRing className="h-4 w-4 mt-0.5 shrink-0" />
+        <div className="flex-1 min-w-0">
+          {perm === "granted" ? (
+            <p>
+              <strong>Device alarms enabled.</strong> You'll get a real notification at each dose time
+              when this app is open or installed as a PWA. For alarms when the app is fully closed,
+              tap "Add to calendar" on a reminder to use your phone's native alarm.
+            </p>
+          ) : perm === "denied" ? (
+            <p>
+              Notifications are blocked. Enable them in your browser settings, or use
+              <strong> Add to calendar</strong> on a reminder to set a native phone/PC alarm.
+            </p>
+          ) : (
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span>Enable device alarms so your phone/PC rings at each dose time.</span>
+              <Button size="sm" className="h-7 text-xs" onClick={enableAlarms}>
+                Enable alarms
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No reminders yet. Add one to get refill alerts and dose nudges.</p>
       ) : (
@@ -122,6 +178,15 @@ export function MedicationReminders() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs gap-1"
+                      title="Add to your phone/PC native calendar (uses your device's built-in alarm)"
+                      onClick={() => downloadReminderIcs(r)}
+                    >
+                      <CalendarPlus className="h-3.5 w-3.5" />
+                    </Button>
                     <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => toggle(r)}>
                       {r.active ? "Pause" : "Resume"}
                     </Button>
@@ -129,6 +194,7 @@ export function MedicationReminders() {
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
+
                 </div>
               </div>
             );

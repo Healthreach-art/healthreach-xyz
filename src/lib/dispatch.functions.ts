@@ -24,7 +24,13 @@ const placeOrderSchema = z.object({
   notes: z.string().max(500).optional(),
   priority: z.boolean().optional(),
   scheduledFor: z.string().datetime().optional(),
+  recipient: z.object({
+    name: z.string().min(1).max(120).optional(),
+    phone: z.string().min(3).max(40).optional(),
+    familyMemberId: uuidLoose.optional(),
+  }).optional(),
 });
+
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -134,9 +140,13 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
           pickup_lng: pharmacy?.longitude ?? null,
           assignment_radius_km: 10,
           notes: data.notes ?? "",
+          recipient_name: data.recipient?.name ?? null,
+          recipient_phone: data.recipient?.phone ?? null,
+          recipient_family_member_id: data.recipient?.familyMemberId ?? null,
         })
         .select("id")
         .single();
+
       if (orderErr || !order) {
         console.error("Order insert failed:", orderErr);
         continue;
