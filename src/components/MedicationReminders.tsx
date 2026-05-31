@@ -40,6 +40,24 @@ export function MedicationReminders() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ ...empty });
   const [saving, setSaving] = useState(false);
+  const [perm, setPerm] = useState<NotificationPermission>("default");
+
+  useReminderNotifications();
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    setPerm(Notification.permission);
+  }, []);
+
+  async function enableAlarms() {
+    const result = await requestNotificationPermission();
+    setPerm(result);
+    if (result === "granted") {
+      toast.success("Reminder alarms enabled on this device");
+    } else if (result === "denied") {
+      toast.error("Notifications blocked. Enable them in your browser settings, or use 'Add to calendar'.");
+    }
+  }
 
   async function load() {
     if (!user) return;
