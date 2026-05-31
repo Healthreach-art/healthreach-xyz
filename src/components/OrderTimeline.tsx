@@ -36,6 +36,8 @@ interface OrderTimelineProps {
   initialOrderStatus?: string | null;
   initialDeliveryStatus?: string | null;
   compact?: boolean;
+  /** "driver" shows only the 4 driver-controlled stages. */
+  variant?: "full" | "driver";
   className?: string;
 }
 
@@ -44,6 +46,7 @@ export function OrderTimeline({
   initialOrderStatus = null,
   initialDeliveryStatus = null,
   compact = false,
+  variant = "full",
   className = "",
 }: OrderTimelineProps) {
   const [orderStatus, setOrderStatus] = useState<string | null>(initialOrderStatus);
