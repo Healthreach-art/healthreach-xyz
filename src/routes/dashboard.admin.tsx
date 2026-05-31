@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { RoleGuard } from "@/components/RoleGuard";
+import { PharmacyReviewDialog, type PharmacyApprovalStatus } from "@/components/PharmacyReviewDialog";
 
 export const Route = createFileRoute("/dashboard/admin")({
   head: () => ({ meta: [{ title: "Admin Dashboard — HEALTHREACH" }] }),
