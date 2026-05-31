@@ -38,6 +38,7 @@ import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
 import { Route as DashboardPatientIndexRouteImport } from './routes/dashboard.patient.index'
+import { Route as DashboardPatientWalletRouteImport } from './routes/dashboard.patient.wallet'
 import { Route as DashboardPatientTransactionsRouteImport } from './routes/dashboard.patient.transactions'
 import { Route as DashboardPatientSupportRouteImport } from './routes/dashboard.patient.support'
 import { Route as DashboardPatientSearchRouteImport } from './routes/dashboard.patient.search'
@@ -199,6 +200,11 @@ const DashboardPatientIndexRoute = DashboardPatientIndexRouteImport.update({
   path: '/dashboard/patient/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardPatientWalletRoute = DashboardPatientWalletRouteImport.update({
+  id: '/dashboard/patient/wallet',
+  path: '/dashboard/patient/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardPatientTransactionsRoute =
   DashboardPatientTransactionsRouteImport.update({
     id: '/dashboard/patient/transactions',
@@ -328,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/patient/search': typeof DashboardPatientSearchRoute
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
+  '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
   '/dashboard/patient/': typeof DashboardPatientIndexRoute
 }
 export interface FileRoutesByTo {
@@ -374,6 +381,7 @@ export interface FileRoutesByTo {
   '/dashboard/patient/search': typeof DashboardPatientSearchRoute
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
+  '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
   '/dashboard/patient': typeof DashboardPatientIndexRoute
 }
 export interface FileRoutesById {
@@ -421,6 +429,7 @@ export interface FileRoutesById {
   '/dashboard/patient/search': typeof DashboardPatientSearchRoute
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
+  '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
   '/dashboard/patient/': typeof DashboardPatientIndexRoute
 }
 export interface FileRouteTypes {
@@ -469,6 +478,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/search'
     | '/dashboard/patient/support'
     | '/dashboard/patient/transactions'
+    | '/dashboard/patient/wallet'
     | '/dashboard/patient/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -515,6 +525,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/search'
     | '/dashboard/patient/support'
     | '/dashboard/patient/transactions'
+    | '/dashboard/patient/wallet'
     | '/dashboard/patient'
   id:
     | '__root__'
@@ -561,6 +572,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/search'
     | '/dashboard/patient/support'
     | '/dashboard/patient/transactions'
+    | '/dashboard/patient/wallet'
     | '/dashboard/patient/'
   fileRoutesById: FileRoutesById
 }
@@ -606,6 +618,7 @@ export interface RootRouteChildren {
   DashboardPatientSearchRoute: typeof DashboardPatientSearchRoute
   DashboardPatientSupportRoute: typeof DashboardPatientSupportRoute
   DashboardPatientTransactionsRoute: typeof DashboardPatientTransactionsRoute
+  DashboardPatientWalletRoute: typeof DashboardPatientWalletRoute
   DashboardPatientIndexRoute: typeof DashboardPatientIndexRoute
 }
 
@@ -814,6 +827,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/patient/wallet': {
+      id: '/dashboard/patient/wallet'
+      path: '/dashboard/patient/wallet'
+      fullPath: '/dashboard/patient/wallet'
+      preLoaderRoute: typeof DashboardPatientWalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/patient/transactions': {
       id: '/dashboard/patient/transactions'
       path: '/dashboard/patient/transactions'
@@ -987,6 +1007,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardPatientSearchRoute: DashboardPatientSearchRoute,
   DashboardPatientSupportRoute: DashboardPatientSupportRoute,
   DashboardPatientTransactionsRoute: DashboardPatientTransactionsRoute,
+  DashboardPatientWalletRoute: DashboardPatientWalletRoute,
   DashboardPatientIndexRoute: DashboardPatientIndexRoute,
 }
 export const routeTree = rootRouteImport

@@ -12,18 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
 
-declare global {
-  interface Window {
-    PaystackPop?: {
-      setup: (opts: {
-        key: string; email: string; amount: number; currency?: string; ref?: string;
-        metadata?: Record<string, unknown>;
-        callback: (resp: { reference: string }) => void;
-        onClose: () => void;
-      }) => { openIframe: () => void };
-    };
-  }
-}
+type PaystackSetupFn = NonNullable<Window["PaystackPop"]>["setup"];
+type PaystackSetupArg = Parameters<PaystackSetupFn>[0] & { metadata?: Record<string, unknown> };
 
 function loadPaystack(): Promise<void> {
   return new Promise((resolve, reject) => {
