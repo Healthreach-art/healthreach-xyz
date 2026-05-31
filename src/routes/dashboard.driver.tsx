@@ -713,7 +713,7 @@ function DriverDashboard() {
 
                 {/* Unified real-time timeline */}
                 <div className="mt-4">
-                  <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} compact />
+                  <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} variant="driver" compact />
                 </div>
 
 
@@ -812,6 +812,12 @@ function DriverDashboard() {
         deliveryId={pickupForDelivery?.id ?? null}
         pharmacyName={pickupForDelivery?.pharmacy_name}
         onClose={() => setPickupForDelivery(null)}
+        onVerified={() => { /* realtime will refresh */ }}
+      />
+      <DeliveryCodeDialog
+        deliveryId={deliverForDelivery?.id ?? null}
+        patientName={deliverForDelivery?.patient_name}
+        onClose={() => setDeliverForDelivery(null)}
         onVerified={() => { /* realtime will refresh */ }}
       />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />

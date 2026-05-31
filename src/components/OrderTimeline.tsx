@@ -36,6 +36,8 @@ interface OrderTimelineProps {
   initialOrderStatus?: string | null;
   initialDeliveryStatus?: string | null;
   compact?: boolean;
+  /** "driver" shows only the 4 driver-controlled stages. */
+  variant?: "full" | "driver";
   className?: string;
 }
 
@@ -44,6 +46,7 @@ export function OrderTimeline({
   initialOrderStatus = null,
   initialDeliveryStatus = null,
   compact = false,
+  variant = "full",
   className = "",
 }: OrderTimelineProps) {
   const [orderStatus, setOrderStatus] = useState<string | null>(initialOrderStatus);
@@ -103,7 +106,10 @@ export function OrderTimeline({
     };
   }, [orderId]);
 
-  const stepIdx = computeStep(orderStatus, deliveryStatus);
+  const fullStepIdx = computeStep(orderStatus, deliveryStatus);
+  // Driver variant: collapse to Assigned → Picked Up → On The Way → Delivered (indices 3..6 in STEPS)
+  const STEPS_VIEW = variant === "driver" ? STEPS.slice(3) : STEPS;
+  const stepIdx = variant === "driver" ? Math.max(0, fullStepIdx - 3) : fullStepIdx;
   const cancelled = orderStatus === "cancelled";
 
   if (loading) {
@@ -145,15 +151,15 @@ export function OrderTimeline({
           className="absolute left-0 h-0.5 bg-healthcare-green transition-all duration-500"
           style={{
             top: compact ? "14px" : "20px",
-            width: stepIdx <= 0 ? "0%" : `${(stepIdx / (STEPS.length - 1)) * 100}%`,
+            width: stepIdx <= 0 ? "0%" : `${(stepIdx / Math.max(1, STEPS_VIEW.length - 1)) * 100}%`,
           }}
         />
-        {STEPS.map((step, i) => {
+        {STEPS_VIEW.map((step, i) => {
           const done = i < stepIdx;
           const active = i === stepIdx;
           const Icon = step.icon;
           return (
-            <div key={step.key} className="relative z-10 flex flex-col items-center text-center" style={{ width: `${100 / STEPS.length}%` }}>
+            <div key={step.key} className="relative z-10 flex flex-col items-center text-center" style={{ width: `${100 / STEPS_VIEW.length}%` }}>
               <div
                 className={`${dotSize} rounded-full flex items-center justify-center border-2 transition-all bg-card ${
                   done
