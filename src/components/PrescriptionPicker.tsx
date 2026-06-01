@@ -112,6 +112,7 @@ export function PrescriptionPicker({
         </p>
         <PrescriptionUploader
           medicationId={medicationId ?? null}
+          familyMemberId={familyMemberId ?? null}
           onUploaded={(row) => onUploadedPending?.(row)}
         />
       </div>
