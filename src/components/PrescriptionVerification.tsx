@@ -420,3 +420,90 @@ export function FraudPanel({ row }: { row: PrescriptionUpload }) {
     </div>
   );
 }
+
+/** Pharmacist-side identity verification panel for a prescription upload.
+ *  Shows the patient's stored ID document + selfies + ID number, and — if the
+ *  upload is for a family member — the recipient's documents as well. */
+export function IdentityDocsPanel({ patientId, familyMemberId }: { patientId: string; familyMemberId?: string | null }) {
+  const [pv, setPv] = useState<any>(null);
+  const [fm, setFm] = useState<any>(null);
+  const [urls, setUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: pvRow } = await supabase
+        .from("patient_verifications")
+        .select("id_number, id_document_path, selfie_path, selfie_with_id_path")
+        .eq("user_id", patientId)
+        .maybeSingle();
+      let fmRow: any = null;
+      if (familyMemberId) {
+        const { data } = await supabase
+          .from("family_members")
+          .select("full_name, id_number, id_document_path, selfie_with_id_path")
+          .eq("id", familyMemberId)
+          .maybeSingle();
+        fmRow = data;
+      }
+      if (cancelled) return;
+      setPv(pvRow);
+      setFm(fmRow);
+      const paths: { key: string; path: string | null }[] = [
+        { key: "pv_id", path: pvRow?.id_document_path ?? null },
+        { key: "pv_selfie", path: pvRow?.selfie_path ?? null },
+        { key: "pv_selfie_id", path: pvRow?.selfie_with_id_path ?? null },
+        { key: "fm_id", path: fmRow?.id_document_path ?? null },
+        { key: "fm_selfie_id", path: fmRow?.selfie_with_id_path ?? null },
+      ];
+      const out: Record<string, string> = {};
+      await Promise.all(paths.map(async ({ key, path }) => {
+        if (!path) return;
+        const { data } = await supabase.storage.from("prescriptions").createSignedUrl(path, 60 * 10);
+        if (data?.signedUrl) out[key] = data.signedUrl;
+      }));
+      if (!cancelled) setUrls(out);
+    })();
+    return () => { cancelled = true; };
+  }, [patientId, familyMemberId]);
+
+  const Thumb = ({ src, label }: { src?: string; label: string }) => (
+    <div className="rounded-md border border-border bg-muted/30 p-1.5">
+      <p className="text-[10px] uppercase text-muted-foreground mb-1">{label}</p>
+      {src ? (
+        <a href={src} target="_blank" rel="noreferrer">
+          <img src={src} alt={label} className="h-24 w-full object-cover rounded" />
+        </a>
+      ) : (
+        <div className="h-24 flex items-center justify-center text-[11px] text-muted-foreground italic">Not on file</div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+      <p className="text-xs font-semibold flex items-center gap-1.5">
+        <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Identity documents (self-screening)
+      </p>
+      <div className="text-[11px] text-muted-foreground">
+        Patient ID #: <span className="font-mono">{pv?.id_number || "—"}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <Thumb src={urls.pv_id} label="Patient ID" />
+        <Thumb src={urls.pv_selfie} label="Patient selfie" />
+        <Thumb src={urls.pv_selfie_id} label="Selfie + ID" />
+      </div>
+      {familyMemberId && (
+        <>
+          <div className="border-t border-border pt-2">
+            <p className="text-[11px] font-semibold">Recipient: {fm?.full_name || "—"} · ID #: <span className="font-mono">{fm?.id_number || "—"}</span></p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Thumb src={urls.fm_id} label="Recipient ID" />
+            <Thumb src={urls.fm_selfie_id} label="Recipient selfie + ID" />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
