@@ -305,6 +305,7 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
   const isPdf = row.mime_type === "application/pdf";
   return (
     <div className="space-y-3">
+      <IdentityDocsPanel patientId={row.patient_id} familyMemberId={(row as any).family_member_id ?? null} />
       {row.flagged && (
         <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           <Flag className="h-3 w-3" /> This prescription is flagged as suspicious.
