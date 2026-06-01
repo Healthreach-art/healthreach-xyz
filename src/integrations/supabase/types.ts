@@ -211,6 +211,192 @@ export type Database = {
         }
         Relationships: []
       }
+      doctor_appointments: {
+        Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          completed_at: string | null
+          consultation_fee: number
+          created_at: string
+          doctor_id: string
+          doctor_notes: string
+          family_member_id: string | null
+          hospital_id: string
+          id: string
+          medical_aid_member_number: string | null
+          medical_aid_provider: string | null
+          mode: string
+          patient_id: string
+          payment_reference: string | null
+          payment_status: string
+          platform_fee: number
+          reason: string
+          scheduled_at: string
+          status: string
+          total_paid: number
+          updated_at: string
+          use_medical_aid: boolean
+        }
+        Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          consultation_fee?: number
+          created_at?: string
+          doctor_id: string
+          doctor_notes?: string
+          family_member_id?: string | null
+          hospital_id: string
+          id?: string
+          medical_aid_member_number?: string | null
+          medical_aid_provider?: string | null
+          mode?: string
+          patient_id: string
+          payment_reference?: string | null
+          payment_status?: string
+          platform_fee?: number
+          reason?: string
+          scheduled_at: string
+          status?: string
+          total_paid?: number
+          updated_at?: string
+          use_medical_aid?: boolean
+        }
+        Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          consultation_fee?: number
+          created_at?: string
+          doctor_id?: string
+          doctor_notes?: string
+          family_member_id?: string | null
+          hospital_id?: string
+          id?: string
+          medical_aid_member_number?: string | null
+          medical_aid_provider?: string | null
+          mode?: string
+          patient_id?: string
+          payment_reference?: string | null
+          payment_status?: string
+          platform_fee?: number
+          reason?: string
+          scheduled_at?: string
+          status?: string
+          total_paid?: number
+          updated_at?: string
+          use_medical_aid?: boolean
+        }
+        Relationships: []
+      }
+      doctor_reviews: {
+        Row: {
+          appointment_id: string | null
+          comment: string
+          created_at: string
+          doctor_id: string
+          id: string
+          patient_id: string
+          stars: number
+        }
+        Insert: {
+          appointment_id?: string | null
+          comment?: string
+          created_at?: string
+          doctor_id: string
+          id?: string
+          patient_id: string
+          stars: number
+        }
+        Update: {
+          appointment_id?: string | null
+          comment?: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          patient_id?: string
+          stars?: number
+        }
+        Relationships: []
+      }
+      doctors: {
+        Row: {
+          accepted_medical_aids: string[]
+          address: string
+          bio: string
+          city: string
+          consultation_fee: number
+          created_at: string
+          full_name: string
+          hospital_id: string
+          id: string
+          in_person_available: boolean
+          is_active: boolean
+          languages: string[]
+          latitude: number | null
+          longitude: number | null
+          online_available: boolean
+          phone_available: boolean
+          photo_url: string
+          practice_number: string
+          qualifications: string
+          rating_avg: number
+          rating_count: number
+          specialty: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_medical_aids?: string[]
+          address?: string
+          bio?: string
+          city?: string
+          consultation_fee?: number
+          created_at?: string
+          full_name: string
+          hospital_id: string
+          id?: string
+          in_person_available?: boolean
+          is_active?: boolean
+          languages?: string[]
+          latitude?: number | null
+          longitude?: number | null
+          online_available?: boolean
+          phone_available?: boolean
+          photo_url?: string
+          practice_number?: string
+          qualifications?: string
+          rating_avg?: number
+          rating_count?: number
+          specialty?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_medical_aids?: string[]
+          address?: string
+          bio?: string
+          city?: string
+          consultation_fee?: number
+          created_at?: string
+          full_name?: string
+          hospital_id?: string
+          id?: string
+          in_person_available?: boolean
+          is_active?: boolean
+          languages?: string[]
+          latitude?: number | null
+          longitude?: number | null
+          online_available?: boolean
+          phone_available?: boolean
+          photo_url?: string
+          practice_number?: string
+          qualifications?: string
+          rating_avg?: number
+          rating_count?: number
+          specialty?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       driver_bank_accounts: {
         Row: {
           account_holder: string
@@ -391,6 +577,57 @@ export type Database = {
           last_ping_at?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      e_prescriptions: {
+        Row: {
+          appointment_id: string
+          body: string
+          created_at: string
+          doctor_id: string
+          dosage: string | null
+          hospital_id: string
+          id: string
+          instructions: string | null
+          kind: string
+          medication_name: string | null
+          patient_id: string
+          title: string
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          appointment_id: string
+          body?: string
+          created_at?: string
+          doctor_id: string
+          dosage?: string | null
+          hospital_id: string
+          id?: string
+          instructions?: string | null
+          kind?: string
+          medication_name?: string | null
+          patient_id: string
+          title?: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          appointment_id?: string
+          body?: string
+          created_at?: string
+          doctor_id?: string
+          dosage?: string | null
+          hospital_id?: string
+          id?: string
+          instructions?: string | null
+          kind?: string
+          medication_name?: string | null
+          patient_id?: string
+          title?: string
+          updated_at?: string
+          valid_until?: string | null
         }
         Relationships: []
       }
@@ -1240,14 +1477,24 @@ export type Database = {
           avatar_url: string | null
           business_reg_number: string | null
           created_at: string
+          date_of_birth: string | null
           email: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           full_name: string
           id: string
+          id_number: string | null
           is_demo: boolean
           latitude: number | null
           license_expires_at: string | null
           license_number: string | null
           longitude: number | null
+          medical_aid_member_number: string | null
+          medical_aid_notes: string | null
+          medical_aid_plan: string | null
+          medical_aid_provider: string | null
+          medical_aid_verification_status: string
+          medical_aid_verified_at: string | null
           organization_name: string | null
           pharmacist_council_number: string | null
           pharmacist_name: string | null
@@ -1266,14 +1513,24 @@ export type Database = {
           avatar_url?: string | null
           business_reg_number?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string
           id?: string
+          id_number?: string | null
           is_demo?: boolean
           latitude?: number | null
           license_expires_at?: string | null
           license_number?: string | null
           longitude?: number | null
+          medical_aid_member_number?: string | null
+          medical_aid_notes?: string | null
+          medical_aid_plan?: string | null
+          medical_aid_provider?: string | null
+          medical_aid_verification_status?: string
+          medical_aid_verified_at?: string | null
           organization_name?: string | null
           pharmacist_council_number?: string | null
           pharmacist_name?: string | null
@@ -1292,14 +1549,24 @@ export type Database = {
           avatar_url?: string | null
           business_reg_number?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string
           id?: string
+          id_number?: string | null
           is_demo?: boolean
           latitude?: number | null
           license_expires_at?: string | null
           license_number?: string | null
           longitude?: number | null
+          medical_aid_member_number?: string | null
+          medical_aid_notes?: string | null
+          medical_aid_plan?: string | null
+          medical_aid_provider?: string | null
+          medical_aid_verification_status?: string
+          medical_aid_verified_at?: string | null
           organization_name?: string | null
           pharmacist_council_number?: string | null
           pharmacist_name?: string | null

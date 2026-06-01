@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
   FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin, CalendarCheck,
+  Stethoscope,
 } from "lucide-react";
 
 type Item = { title: string; url: string; icon: any };
@@ -26,7 +27,10 @@ export function AppSidebar() {
     { title: "Orders", url: "/dashboard/patient/orders", icon: ShoppingBag },
     { title: "Prescriptions & Documents", url: "/dashboard/patient/prescriptions", icon: Pill },
     { title: "Deliveries", url: "/track", icon: Truck },
-    { title: "Appointments", url: "/dashboard/patient/appointments", icon: CalendarCheck },
+    { title: "Find a Doctor", url: "/dashboard/patient/doctors", icon: Stethoscope },
+    { title: "My Consultations", url: "/dashboard/patient/consultations", icon: FileText },
+    { title: "Medical Aid", url: "/dashboard/patient/medical-aid", icon: ShieldCheck },
+    { title: "Pharmacy Appointments", url: "/dashboard/patient/appointments", icon: CalendarCheck },
     { title: "Reminders", url: "/dashboard/patient/reminders", icon: Bell },
     { title: "Health Records", url: "/dashboard/patient/activity", icon: ClipboardList },
     { title: "Family Profiles", url: "/dashboard/patient/family", icon: Users },
