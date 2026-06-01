@@ -14,6 +14,8 @@ interface Props {
   pharmacyName?: string;
   medicationId?: string | null;
   medicationName?: string | null;
+  /** Optional — when set, scope library + new uploads to a specific family member. */
+  familyMemberId?: string | null;
   onPicked: (uploadId: string) => void;
   onUploadedPending?: (upload: PrescriptionUpload) => void;
 }
