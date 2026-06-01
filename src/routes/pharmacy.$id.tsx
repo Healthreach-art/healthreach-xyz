@@ -2,12 +2,17 @@ import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-r
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Search, Star, Clock, MapPin, Stethoscope, Loader2, ArrowLeft, Plus,
-  Heart, Thermometer, Sparkles, Repeat, Baby, Bandage,
+  Heart, Thermometer, Sparkles, Repeat, Baby, Bandage, CalendarPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCart } from "@/hooks/useCart";
 import { customerPrice } from "@/lib/pricing";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
