@@ -24,8 +24,7 @@ export function AppSidebar() {
   const patientItems: Item[] = [
     { title: "Dashboard", url: "/dashboard/patient", icon: Home },
     { title: "Orders", url: "/dashboard/patient/orders", icon: ShoppingBag },
-    { title: "Prescriptions", url: "/dashboard/patient/prescriptions", icon: Pill },
-    { title: "My documents", url: "/dashboard/patient/documents", icon: IdCard },
+    { title: "Prescriptions & Documents", url: "/dashboard/patient/prescriptions", icon: Pill },
     { title: "Deliveries", url: "/track", icon: Truck },
     { title: "Appointments", url: "/dashboard/patient/appointments", icon: CalendarCheck },
     { title: "Reminders", url: "/dashboard/patient/reminders", icon: Bell },
