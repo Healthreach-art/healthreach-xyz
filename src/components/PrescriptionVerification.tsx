@@ -114,10 +114,11 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, family
             pharmacy_id: pharmacyId ?? null,
             medication_id: medicationId ?? null,
             order_id: orderId ?? null,
+            family_member_id: familyMemberId ?? null,
             file_path: path,
             mime_type: file.type,
             status: "pending",
-          })
+          } as never)
           .select()
           .single();
         if (error) throw error;
