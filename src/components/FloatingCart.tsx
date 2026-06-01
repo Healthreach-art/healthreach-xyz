@@ -92,7 +92,7 @@ export function FloatingCart() {
             <span className="font-medium">R{customerSubtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Delivery fee</span>
+            <span className="text-muted-foreground">Delivery fee (est.)</span>
             <span className="font-medium">R{deliveryFee.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-base font-bold pt-1">
