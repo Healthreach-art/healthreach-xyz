@@ -15,6 +15,7 @@ export interface PrescriptionUpload {
   patient_id: string;
   pharmacy_id: string;
   order_id: string | null;
+  family_member_id?: string | null;
   medication_id: string | null;
   file_path: string;
   mime_type: string;
