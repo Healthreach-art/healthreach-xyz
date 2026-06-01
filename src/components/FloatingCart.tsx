@@ -15,7 +15,8 @@ export function FloatingCart() {
   if (role !== "patient" || itemCount === 0) return null;
 
   const customerSubtotal = items.reduce((s, i) => s + customerPrice(i.price) * i.qty, 0);
-  const deliveryFee = customerDeliveryFee(BASE_DELIVERY_FEE);
+  // Estimate using checkout's default 5 km until exact pickup/drop distance is known at checkout.
+  const deliveryFee = deliveryFeeForKm(5);
   const total = customerSubtotal + deliveryFee;
 
   return (
