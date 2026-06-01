@@ -58,13 +58,15 @@ interface UploadProps {
   pharmacyId?: string | null;
   medicationId?: string | null;
   orderId?: string | null;
+  /** Optional — when set, the upload is tagged to a specific family member's library. */
+  familyMemberId?: string | null;
   onUploaded?: (row: PrescriptionUpload) => void;
 }
 
 
 
 /** Upload a prescription image/PDF into private bucket and create a verification row. */
-export function PrescriptionUploader({ pharmacyId, medicationId, orderId, onUploaded }: UploadProps) {
+export function PrescriptionUploader({ pharmacyId, medicationId, orderId, familyMemberId, onUploaded }: UploadProps) {
   const { user } = useAuth();
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
