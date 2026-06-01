@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   CheckCircle2,
+  ScanFace,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CameraCapture } from "@/components/CameraCapture";
@@ -19,6 +20,7 @@ export interface PatientVerification {
   user_id: string;
   id_document_path: string | null;
   selfie_path: string | null;
+  selfie_with_id_path: string | null;
   id_number: string | null;
   status: "pending" | "approved" | "rejected";
   notes: string | null;
@@ -33,12 +35,13 @@ export async function fetchVerification(userId: string): Promise<PatientVerifica
   return (data as PatientVerification | null) ?? null;
 }
 
-/** Complete = selfie + ID photo + valid-looking ID number. */
+/** Complete = selfie + ID photo + selfie-with-ID + valid-looking ID number. */
 export function isVerificationComplete(v: PatientVerification | null) {
   return !!(
     v &&
     v.id_document_path &&
     v.selfie_path &&
+    v.selfie_with_id_path &&
     v.id_number &&
     v.id_number.replace(/\D/g, "").length >= 6
   );
@@ -53,11 +56,11 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
   const { user } = useAuth();
   const [v, setV] = useState<PatientVerification | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<"id" | "selfie" | "save" | null>(null);
+  const [busy, setBusy] = useState<"id" | "selfie" | "selfie_id" | "save" | null>(null);
   const [liveSelfieOpen, setLiveSelfieOpen] = useState(false);
   const [idCameraOpen, setIdCameraOpen] = useState(false);
+  const [selfieIdOpen, setSelfieIdOpen] = useState(false);
   const [idNumber, setIdNumber] = useState("");
-  
 
   async function reload() {
     if (!user) return;
@@ -76,7 +79,7 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  async function uploadDoc(kind: "id" | "selfie", file: File) {
+  async function uploadDoc(kind: "id" | "selfie" | "selfie_id", file: File) {
     if (!user) return;
     if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) {
       toast.error("Use JPG, PNG, WEBP or PDF");
@@ -96,12 +99,17 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
       if (upErr) throw upErr;
       const patch: Record<string, unknown> = { user_id: user.id };
       if (kind === "id") patch.id_document_path = path;
-      else patch.selfie_path = path;
+      else if (kind === "selfie") patch.selfie_path = path;
+      else patch.selfie_with_id_path = path;
       const { error } = await supabase
         .from("patient_verifications")
         .upsert(patch as never, { onConflict: "user_id" });
       if (error) throw error;
-      toast.success(kind === "id" ? "ID photo uploaded" : "Selfie captured");
+      toast.success(
+        kind === "id" ? "ID photo uploaded" :
+        kind === "selfie" ? "Selfie captured" :
+        "Selfie with ID captured"
+      );
       await reload();
     } catch (e: any) {
       toast.error(e?.message || "Upload failed");
@@ -141,8 +149,9 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
   const complete = isVerificationComplete(v);
   const hasId = !!v?.id_document_path;
   const hasSelfie = !!v?.selfie_path;
+  const hasSelfieId = !!v?.selfie_with_id_path;
   const hasIdNumber = !!(v?.id_number && v.id_number.replace(/\D/g, "").length >= 6);
-  const completedSteps = [hasSelfie, hasId, hasIdNumber].filter(Boolean).length;
+  const completedSteps = [hasSelfie, hasId, hasSelfieId, hasIdNumber].filter(Boolean).length;
 
   return (
     <div
@@ -171,19 +180,17 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
               </span>
             ) : (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
-                {completedSteps}/3 steps
+                {completedSteps}/4 steps
               </span>
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Same process as our drivers — selfie, ID photo, and ID number. Required for
-            prescription medication.
+            Upload once — these documents will auto-attach to every future prescription order.
           </p>
         </div>
       </div>
 
       <div className="space-y-3">
-        {/* Step 1: Selfie */}
         <StepRow
           n={1}
           title="Live selfie"
@@ -192,18 +199,12 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
           busy={busy === "selfie"}
           icon={<Camera className="h-4 w-4" />}
           action={
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs gap-1"
-              onClick={() => setLiveSelfieOpen(true)}
-            >
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => setLiveSelfieOpen(true)}>
               <Camera className="h-3.5 w-3.5" /> {hasSelfie ? "Retake" : "Start camera"}
             </Button>
           }
         />
 
-        {/* Step 2: ID Photo */}
         <StepRow
           n={2}
           title="ID / Passport photo"
@@ -212,20 +213,28 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
           busy={busy === "id"}
           icon={<IdCard className="h-4 w-4" />}
           action={
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs gap-1"
-              onClick={() => setIdCameraOpen(true)}
-            >
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => setIdCameraOpen(true)}>
               <Camera className="h-3.5 w-3.5" /> {hasId ? "Retake" : "Start camera"}
             </Button>
           }
         />
 
-        {/* Step 3: ID Number */}
         <StepRow
           n={3}
+          title="Selfie holding your ID"
+          hint={hasSelfieId ? "Captured — retake if needed" : "Hold your ID next to your face, both clearly visible"}
+          done={hasSelfieId}
+          busy={busy === "selfie_id"}
+          icon={<ScanFace className="h-4 w-4" />}
+          action={
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => setSelfieIdOpen(true)}>
+              <Camera className="h-3.5 w-3.5" /> {hasSelfieId ? "Retake" : "Start camera"}
+            </Button>
+          }
+        />
+
+        <StepRow
+          n={4}
           title="ID number"
           hint="13-digit SA ID number or passport number"
           done={hasIdNumber}
@@ -241,12 +250,7 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
               inputMode="numeric"
               className="h-9 text-sm"
             />
-            <Button
-              size="sm"
-              onClick={saveIdNumber}
-              disabled={busy === "save" || idNumber === (v?.id_number ?? "")}
-              className="h-9"
-            >
+            <Button size="sm" onClick={saveIdNumber} disabled={busy === "save" || idNumber === (v?.id_number ?? "")} className="h-9">
               {busy === "save" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
             </Button>
           </div>
@@ -271,19 +275,21 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
         facing="environment"
         filenamePrefix="id-doc"
       />
+      <CameraCapture
+        open={selfieIdOpen}
+        onClose={() => setSelfieIdOpen(false)}
+        onCapture={(f) => uploadDoc("selfie_id", f)}
+        title="Selfie holding your ID"
+        hint="Hold your ID next to your face. Both your face and the ID details must be clearly visible."
+        facing="user"
+        filenamePrefix="selfie-with-id"
+      />
     </div>
   );
 }
 
 function StepRow({
-  n,
-  title,
-  hint,
-  done,
-  busy,
-  icon,
-  action,
-  children,
+  n, title, hint, done, busy, icon, action, children,
 }: {
   n: number;
   title: string;
@@ -295,26 +301,14 @@ function StepRow({
   children?: React.ReactNode;
 }) {
   return (
-    <div
-      className={`rounded-xl border ${
-        done ? "border-healthcare-green/40 bg-healthcare-green/5" : "border-border bg-card"
-      } p-3`}
-    >
+    <div className={`rounded-xl border ${done ? "border-healthcare-green/40 bg-healthcare-green/5" : "border-border bg-card"} p-3`}>
       <div className="flex items-start gap-3">
         <span
           className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
-            done
-              ? "bg-healthcare-green/20 text-healthcare-green"
-              : "bg-muted text-muted-foreground"
+            done ? "bg-healthcare-green/20 text-healthcare-green" : "bg-muted text-muted-foreground"
           }`}
         >
-          {busy ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : done ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            n
-          )}
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : done ? <CheckCircle2 className="h-4 w-4" /> : n}
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 flex-wrap">

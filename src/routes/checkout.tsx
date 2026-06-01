@@ -22,6 +22,7 @@ import { verifyPaystackTransaction, chargeSavedCard } from "@/lib/paystack.funct
 import { getWalletSummary, payOrderFromWallet } from "@/lib/wallet.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
+import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
 import { Users, Wallet as WalletIcon } from "lucide-react";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
@@ -404,6 +405,13 @@ function CheckoutPage() {
                   <Input placeholder="Recipient full name" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
                   <Input placeholder="Recipient phone" value={recipientPhone} onChange={(e) => setRecipientPhone(e.target.value)} />
                 </div>
+                {recipientFamilyId ? (
+                  <RecipientDocumentsBlock familyMemberId={recipientFamilyId} />
+                ) : (
+                  <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-800 dark:text-amber-300">
+                    To attach ID + selfie for the recipient, first <Link to="/dashboard/patient/family" className="underline font-semibold">save them in Family Profiles</Link>, then select them above.
+                  </div>
+                )}
                 <p className="text-[11px] text-muted-foreground">If they need prescription medication, attach their Rx below.</p>
               </div>
             )}
