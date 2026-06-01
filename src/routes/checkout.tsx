@@ -389,9 +389,35 @@ function CheckoutPage() {
           {items.length >= 2 && (
             <DrugInteractionPanel medications={items.map(i => i.name)} />
           )}
+          {/* Your details — saved for next order */}
+          <div className="healthcare-card p-6 space-y-3">
+            <div>
+              <h2 className="text-lg font-semibold">Your details</h2>
+              <p className="text-xs text-muted-foreground mt-1">Saved for next time so you don't have to re-enter.</p>
+            </div>
+            {!contactLoaded ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Full name</Label>
+                  <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Jane Doe" />
+                </div>
+                <div>
+                  <Label className="text-xs">Phone</Label>
+                  <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+27 ..." />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label className="text-xs">Email</Label>
+                  <Input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="you@email.com" />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold">Delivery address</h2>
-            <p className="text-xs text-muted-foreground mt-1 mb-3">We'll auto-route your order to the closest pharmacy (10 → 60 km).</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">Used only for this order. We'll auto-route to the closest pharmacy (10 → 60 km).</p>
             <AddressPicker value={delivery} onChange={setDelivery} placeholder="Street, suburb, city…" />
           </div>
 
