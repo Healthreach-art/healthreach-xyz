@@ -289,6 +289,74 @@ function Storefront() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Book appointment */}
+      <Dialog open={apptOpen} onOpenChange={setApptOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarPlus className="h-5 w-5 text-primary" /> Book at {name}
+            </DialogTitle>
+            <DialogDescription>{pharmacy.address || "Pick a date & time to visit or consult."}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Preferred date & time</Label>
+              <Input
+                type="datetime-local"
+                value={apptWhen}
+                min={new Date(Date.now() + 30 * 60 * 1000).toISOString().slice(0, 16)}
+                onChange={(e) => setApptWhen(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Appointment type</Label>
+              <Select value={apptMode} onValueChange={setApptMode}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="in_person">In-person</SelectItem>
+                  <SelectItem value="phone">Phone consultation</SelectItem>
+                  <SelectItem value="video">Video consultation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Reason (optional)</Label>
+              <Textarea
+                rows={3}
+                value={apptReason}
+                onChange={(e) => setApptReason(e.target.value)}
+                placeholder="What would you like advice on?"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              disabled={apptBusy}
+              onClick={async () => {
+                if (!user) { navigate({ to: "/login" }); return; }
+                if (!apptWhen) { toast.error("Pick a date & time"); return; }
+                setApptBusy(true);
+                const { error } = await supabase.from("pharmacy_appointments").insert({
+                  patient_id: user.id,
+                  pharmacy_id: id,
+                  reason: apptReason.trim().slice(0, 1000),
+                  preferred_at: new Date(apptWhen).toISOString(),
+                  mode: apptMode,
+                  status: "pending",
+                });
+                setApptBusy(false);
+                if (error) { toast.error(error.message); return; }
+                toast.success(`Appointment requested at ${name}`);
+                setApptOpen(false);
+                setApptWhen(""); setApptReason("");
+              }}
+            >
+              {apptBusy ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Booking…</> : "Confirm booking"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
