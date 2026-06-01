@@ -189,6 +189,11 @@ function Storefront() {
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             <MapPin className="h-3 w-3" /> {pharmacy.address || "Cape Town"}
           </p>
+          <div className="mt-3">
+            <Button size="sm" onClick={() => setApptOpen(true)} className="rounded-full">
+              <CalendarPlus className="h-4 w-4 mr-1" /> Book appointment
+            </Button>
+          </div>
         </div>
       </div>
 
