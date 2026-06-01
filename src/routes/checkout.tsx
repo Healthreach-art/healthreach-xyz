@@ -94,6 +94,12 @@ function CheckoutPage() {
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
 
+  // Patient contact details (saved to profile for next time)
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactLoaded, setContactLoaded] = useState(false);
+
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [walletCents, setWalletCents] = useState<number>(0);
   // payMethod: "wallet" | "new" | card UUID
