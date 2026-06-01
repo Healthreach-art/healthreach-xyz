@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Plus, Minus, Trash2, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE } from "@/lib/pricing";
+import { customerPrice, deliveryFeeForKm } from "@/lib/pricing";
 import { useState } from "react";
 
 export function FloatingCart() {
@@ -15,7 +15,8 @@ export function FloatingCart() {
   if (role !== "patient" || itemCount === 0) return null;
 
   const customerSubtotal = items.reduce((s, i) => s + customerPrice(i.price) * i.qty, 0);
-  const deliveryFee = customerDeliveryFee(BASE_DELIVERY_FEE);
+  // Estimate using checkout's default 5 km until exact pickup/drop distance is known at checkout.
+  const deliveryFee = deliveryFeeForKm(5);
   const total = customerSubtotal + deliveryFee;
 
   return (
@@ -91,7 +92,7 @@ export function FloatingCart() {
             <span className="font-medium">R{customerSubtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Delivery fee</span>
+            <span className="text-muted-foreground">Delivery fee (est.)</span>
             <span className="font-medium">R{deliveryFee.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-base font-bold pt-1">
