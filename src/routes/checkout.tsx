@@ -227,6 +227,17 @@ function CheckoutPage() {
     }
     if (!delivery || !delivery.lat || !delivery.lng) { toast.error("Pick a delivery address."); return; }
     if (!user.email) { toast.error("Your account has no email — required for payment."); return; }
+    if (!contactName.trim() || !contactPhone.trim()) {
+      toast.error("Please fill in your name and phone in Your details.");
+      return;
+    }
+
+    // Persist contact details for next time (best-effort)
+    supabase.from("profiles").update({
+      full_name: contactName.trim(),
+      phone: contactPhone.trim(),
+      email: contactEmail.trim() || user.email,
+    }).eq("user_id", user.id).then(() => {});
 
     setProcessing(true);
     setRxIssues([]);
