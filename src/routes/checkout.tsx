@@ -431,6 +431,7 @@ function CheckoutPage() {
                 pharmacyName={it.pharmacyName}
                 medicationId={it.medId}
                 medicationName={it.name}
+                familyMemberId={forSomeoneElse && recipientFamilyId ? recipientFamilyId : null}
                 onPicked={(uploadId) => update(it.medId, { prescriptionUploadId: uploadId })}
                 onUploadedPending={(row) => {
                   if (row.status === "approved") update(it.medId, { prescriptionUploadId: row.id });
