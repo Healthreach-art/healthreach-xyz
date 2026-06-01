@@ -30,6 +30,7 @@ export function PrescriptionPicker({
   pharmacyName,
   medicationId,
   medicationName,
+  familyMemberId,
   onPicked,
   onUploadedPending,
 }: Props) {
