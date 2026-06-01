@@ -74,10 +74,10 @@ export function RecipientDocumentsBlock({ familyMemberId, onComplete }: Props) {
         .from("prescriptions")
         .upload(path, file, { contentType: file.type, upsert: true });
       if (upErr) throw upErr;
-      const patch: Record<string, unknown> = {};
-      if (kind === "id") patch.id_document_path = path;
-      else patch.selfie_with_id_path = path;
-      const { error } = await supabase.from("family_members").update(patch).eq("id", m.id);
+      const patch = kind === "id"
+        ? { id_document_path: path }
+        : { selfie_with_id_path: path };
+      const { error } = await supabase.from("family_members").update(patch as never).eq("id", m.id);
       if (error) throw error;
       toast.success(kind === "id" ? "Recipient ID uploaded" : "Selfie with ID uploaded");
       await reload();
