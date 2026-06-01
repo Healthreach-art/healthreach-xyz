@@ -144,10 +144,7 @@ function PatientDashboard() {
     pending: 0, accepted: 1, preparing: 1, ready: 2, out_for_delivery: 3, delivered: 4,
   };
   const latestActive = orders.find((o) => !["delivered", "cancelled"].includes(o.status));
-  const latestDelivered = orders.find((o) => o.status === "delivered");
-  const activeStepIdx = latestActive
-    ? (STATUS_STEP[latestActive.status] ?? 0)
-    : latestDelivered ? 4 : -1;
+  const activeStepIdx = latestActive ? (STATUS_STEP[latestActive.status] ?? 0) : -1;
 
   return (
     <div className="bg-background min-h-screen">
