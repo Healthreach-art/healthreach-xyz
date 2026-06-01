@@ -2,12 +2,17 @@ import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-r
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Search, Star, Clock, MapPin, Stethoscope, Loader2, ArrowLeft, Plus,
-  Heart, Thermometer, Sparkles, Repeat, Baby, Bandage,
+  Heart, Thermometer, Sparkles, Repeat, Baby, Bandage, CalendarPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCart } from "@/hooks/useCart";
 import { customerPrice } from "@/lib/pricing";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
@@ -101,6 +106,7 @@ export const Route = createFileRoute("/pharmacy/$id")({
 function Storefront() {
   const { id } = useParams({ from: "/pharmacy/$id" });
   const navigate = useNavigate();
+  const { user } = useAuth();
   const cart = useCart();
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
   const [meds, setMeds] = useState<Med[]>([]);
@@ -108,6 +114,11 @@ function Storefront() {
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("All");
   const [rxFor, setRxFor] = useState<Med | null>(null);
+  const [apptOpen, setApptOpen] = useState(false);
+  const [apptWhen, setApptWhen] = useState("");
+  const [apptMode, setApptMode] = useState("in_person");
+  const [apptReason, setApptReason] = useState("");
+  const [apptBusy, setApptBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -178,6 +189,11 @@ function Storefront() {
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             <MapPin className="h-3 w-3" /> {pharmacy.address || "Cape Town"}
           </p>
+          <div className="mt-3">
+            <Button size="sm" onClick={() => setApptOpen(true)} className="rounded-full">
+              <CalendarPlus className="h-4 w-4 mr-1" /> Book appointment
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -271,6 +287,74 @@ function Storefront() {
               onUploadedPending={() => { toast.success("Prescription uploaded — we'll notify you once approved"); setRxFor(null); }}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Book appointment */}
+      <Dialog open={apptOpen} onOpenChange={setApptOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarPlus className="h-5 w-5 text-primary" /> Book at {name}
+            </DialogTitle>
+            <DialogDescription>{pharmacy.address || "Pick a date & time to visit or consult."}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Preferred date & time</Label>
+              <Input
+                type="datetime-local"
+                value={apptWhen}
+                min={new Date(Date.now() + 30 * 60 * 1000).toISOString().slice(0, 16)}
+                onChange={(e) => setApptWhen(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Appointment type</Label>
+              <Select value={apptMode} onValueChange={setApptMode}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="in_person">In-person</SelectItem>
+                  <SelectItem value="phone">Phone consultation</SelectItem>
+                  <SelectItem value="video">Video consultation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Reason (optional)</Label>
+              <Textarea
+                rows={3}
+                value={apptReason}
+                onChange={(e) => setApptReason(e.target.value)}
+                placeholder="What would you like advice on?"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              disabled={apptBusy}
+              onClick={async () => {
+                if (!user) { navigate({ to: "/login" }); return; }
+                if (!apptWhen) { toast.error("Pick a date & time"); return; }
+                setApptBusy(true);
+                const { error } = await supabase.from("pharmacy_appointments").insert({
+                  patient_id: user.id,
+                  pharmacy_id: id,
+                  reason: apptReason.trim().slice(0, 1000),
+                  preferred_at: new Date(apptWhen).toISOString(),
+                  mode: apptMode,
+                  status: "pending",
+                });
+                setApptBusy(false);
+                if (error) { toast.error(error.message); return; }
+                toast.success(`Appointment requested at ${name}`);
+                setApptOpen(false);
+                setApptWhen(""); setApptReason("");
+              }}
+            >
+              {apptBusy ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Booking…</> : "Confirm booking"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

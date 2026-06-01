@@ -94,6 +94,12 @@ function CheckoutPage() {
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
 
+  // Patient contact details (saved to profile for next time)
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactLoaded, setContactLoaded] = useState(false);
+
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [walletCents, setWalletCents] = useState<number>(0);
   // payMethod: "wallet" | "new" | card UUID
@@ -122,6 +128,13 @@ function CheckoutPage() {
     if (!user) return;
     supabase.from("family_members").select("id, full_name, relationship").eq("user_id", user.id)
       .then(({ data }) => setFamilyMembers((data ?? []) as never));
+    supabase.from("profiles").select("full_name, phone, email").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => {
+        setContactName(data?.full_name || "");
+        setContactPhone(data?.phone || "");
+        setContactEmail(data?.email || user.email || "");
+        setContactLoaded(true);
+      });
   }, [user]);
 
   useEffect(() => {
@@ -214,6 +227,17 @@ function CheckoutPage() {
     }
     if (!delivery || !delivery.lat || !delivery.lng) { toast.error("Pick a delivery address."); return; }
     if (!user.email) { toast.error("Your account has no email — required for payment."); return; }
+    if (!contactName.trim() || !contactPhone.trim()) {
+      toast.error("Please fill in your name and phone in Your details.");
+      return;
+    }
+
+    // Persist contact details for next time (best-effort)
+    supabase.from("profiles").update({
+      full_name: contactName.trim(),
+      phone: contactPhone.trim(),
+      email: contactEmail.trim() || user.email,
+    }).eq("user_id", user.id).then(() => {});
 
     setProcessing(true);
     setRxIssues([]);
@@ -365,9 +389,35 @@ function CheckoutPage() {
           {items.length >= 2 && (
             <DrugInteractionPanel medications={items.map(i => i.name)} />
           )}
+          {/* Your details — saved for next order */}
+          <div className="healthcare-card p-6 space-y-3">
+            <div>
+              <h2 className="text-lg font-semibold">Your details</h2>
+              <p className="text-xs text-muted-foreground mt-1">Saved for next time so you don't have to re-enter.</p>
+            </div>
+            {!contactLoaded ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Full name</Label>
+                  <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Jane Doe" />
+                </div>
+                <div>
+                  <Label className="text-xs">Phone</Label>
+                  <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+27 ..." />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label className="text-xs">Email</Label>
+                  <Input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="you@email.com" />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="healthcare-card p-6">
             <h2 className="text-lg font-semibold">Delivery address</h2>
-            <p className="text-xs text-muted-foreground mt-1 mb-3">We'll auto-route your order to the closest pharmacy (10 → 60 km).</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">Used only for this order. We'll auto-route to the closest pharmacy (10 → 60 km).</p>
             <AddressPicker value={delivery} onChange={setDelivery} placeholder="Street, suburb, city…" />
           </div>
 
