@@ -128,6 +128,13 @@ function CheckoutPage() {
     if (!user) return;
     supabase.from("family_members").select("id, full_name, relationship").eq("user_id", user.id)
       .then(({ data }) => setFamilyMembers((data ?? []) as never));
+    supabase.from("profiles").select("full_name, phone, email").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => {
+        setContactName(data?.full_name || "");
+        setContactPhone(data?.phone || "");
+        setContactEmail(data?.email || user.email || "");
+        setContactLoaded(true);
+      });
   }, [user]);
 
   useEffect(() => {
