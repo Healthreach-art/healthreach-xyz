@@ -403,8 +403,11 @@ export type Database = {
           date_of_birth: string | null
           full_name: string
           id: string
+          id_document_path: string | null
+          id_number: string | null
           notes: string | null
           relationship: string
+          selfie_with_id_path: string | null
           updated_at: string
           user_id: string
         }
@@ -416,8 +419,11 @@ export type Database = {
           date_of_birth?: string | null
           full_name: string
           id?: string
+          id_document_path?: string | null
+          id_number?: string | null
           notes?: string | null
           relationship?: string
+          selfie_with_id_path?: string | null
           updated_at?: string
           user_id: string
         }
@@ -429,8 +435,11 @@ export type Database = {
           date_of_birth?: string | null
           full_name?: string
           id?: string
+          id_document_path?: string | null
+          id_number?: string | null
           notes?: string | null
           relationship?: string
+          selfie_with_id_path?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -764,6 +773,7 @@ export type Database = {
           id_number: string | null
           notes: string | null
           selfie_path: string | null
+          selfie_with_id_path: string | null
           status: string
           updated_at: string
           user_id: string
@@ -774,6 +784,7 @@ export type Database = {
           id_number?: string | null
           notes?: string | null
           selfie_path?: string | null
+          selfie_with_id_path?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -784,6 +795,7 @@ export type Database = {
           id_number?: string | null
           notes?: string | null
           selfie_path?: string | null
+          selfie_with_id_path?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -1612,6 +1624,13 @@ export type Database = {
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
       }
       haversine_km: {
         Args: { lat1: number; lat2: number; lon1: number; lon2: number }
