@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Plus, Minus, Trash2, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { customerPrice, customerDeliveryFee, BASE_DELIVERY_FEE } from "@/lib/pricing";
+import { customerPrice, deliveryFeeForKm } from "@/lib/pricing";
 import { useState } from "react";
 
 export function FloatingCart() {
