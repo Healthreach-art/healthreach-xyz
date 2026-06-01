@@ -202,11 +202,9 @@ function PatientDashboard() {
                 <div>
                   {activeOrderId ? (
                     <OrderTimeline orderId={activeOrderId} initialOrderStatus={latestActive?.status ?? null} />
-                  ) : latestDelivered ? (
-                    <OrderTimeline orderId={latestDelivered.id} initialOrderStatus="delivered" />
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                      No active order yet. Place one to see live tracking.
+                      No active order. Waiting for your next order to start tracking.
                     </div>
                   )}
                 </div>
