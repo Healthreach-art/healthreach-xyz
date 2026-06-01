@@ -1,79 +1,57 @@
+# Unify Documents into Prescription Library
 
-# HEALTHREACH — Compliance & Trust Rollout
+## Goal
+Merge the separate "My Documents" vault into the **Prescription Library** as one combined flow. When a patient (or family member) uploads a prescription, their ID + selfie + selfie-with-ID + ID number are submitted together and visible to the pharmacy for self-screening.
 
-Phased so each turn ships something usable. You approve, I execute one phase, we review, then move on.
+## Changes
 
----
+### 1. Unified Prescription Library page
+- Rename `/dashboard/patient/prescriptions` to be the single source for all patient identity + prescription docs.
+- At the top: a single **Identity verification** card (existing `PatientVerificationCard`) — submitted once, auto-attaches to every order.
+- Below: prescription uploader + library list (existing `PrescriptionPicker`/`PrescriptionUploader`).
+- A single "Save & add to library" action that:
+  1. Saves identity fields if dirty.
+  2. Uploads the prescription.
+  3. Links them in one submission.
 
-## Phase 1 — Driver fixes (next turn)
+### 2. Remove standalone "My documents" route
+- Delete `/dashboard/patient/documents` route file.
+- Remove its entry from `AppSidebar.tsx`.
+- Anywhere we link to `/dashboard/patient/documents`, redirect to `/dashboard/patient/prescriptions`.
 
-Goal: drivers can complete onboarding, only verified drivers get offers, the map actually directs them to the customer, and patients can rate the driver after delivery.
+### 3. Family members — per-person document + prescription library
+- Family member edit page already supports ID number + ID document + selfie-with-ID via `family_members` columns.
+- Add a **per-family-member prescription library**: extend `prescription_uploads` with optional `family_member_id` column.
+- On `/dashboard/patient/family/[memberId]` (or inline on family page), show that member's documents + their own prescriptions.
+- In `PrescriptionUploader`, accept a `familyMemberId` prop; tag the upload to that family member if set.
+- In checkout, when ordering for a family member, only show prescriptions where `family_member_id = member.id`, and attach the member's documents.
 
-1. **Fix selfie submit on driver onboarding**
-   Camera opens but Submit does nothing → the captured `File` isn't being committed to form state before upload. Wire `CameraCapture` `onCapture` to a `useState<File>` slot used directly by the upload call, and disable Submit until both files exist. Same fix applied to the patient verification card (same component).
+### 4. Pharmacy view — show all patient/recipient documents
+- In pharmacy order detail / prescription review (`PharmacyReviewDialog`), when reviewing an upload:
+  - Show patient `patient_verifications` (ID doc, selfie, selfie-with-ID, ID number).
+  - If `family_member_id` set, also show the family member's ID doc + selfie-with-ID + ID number from `family_members`.
+- RLS already permits pharmacies to view `patient_verifications` for their patients. Add RLS for pharmacies to view `family_members` rows tied to orders they receive.
 
-2. **Block unverified drivers from receiving offers**
-   `dispatch_ready_order_to_drivers` already filters `p.approval_status = 'approved'`, but it does NOT require submitted driver documents. Tighten: add `AND EXISTS (SELECT 1 FROM driver_documents dd WHERE dd.driver_id = ds.driver_id AND dd.selfie_path IS NOT NULL AND dd.id_document_path IS NOT NULL AND dd.license_path IS NOT NULL)`. Also surface a clear "Verification pending — you won't get offers yet" banner on the driver dashboard when status is pending.
+## Files
 
-3. **Real map directions + customer pin**
-   `DeliveryMap` currently shows a straight line. Switch to Mapbox Directions API (token already in secrets) called from a new `getDirections` serverFn → return GeoJSON `LineString` + duration/distance. Render the route polyline, driver pin (live from `driver_locations`), pickup pin (pharmacy), and customer pin (delivery_lat/lng). Auto-fit bounds. Update every 8 s using existing realtime hook.
+**Migration:**
+- Add `family_member_id uuid` to `prescription_uploads` (nullable, FK family_members).
+- Add RLS policy on `family_members` allowing pharmacy to SELECT when there's a related order or prescription_upload where `pharmacy_id = auth.uid()`.
 
-4. **Patient rates driver after delivery**
-   `ratings` table already exists. Add a `ReviewDriverDialog` that auto-opens on the patient's order card when `status = 'delivered'` and no rating yet. 1–5 stars + optional comment → insert into `ratings(target_type='driver')`. Driver dashboard gets an "Avg rating" tile pulled from `ratings`.
+**Edit:**
+- `src/routes/dashboard.patient.prescriptions.tsx` — fold in `PatientVerificationCard` at top.
+- `src/components/AppSidebar.tsx` — remove "My documents" item.
+- `src/components/PrescriptionVerification.tsx` (PrescriptionUploader) — accept optional `familyMemberId`, save it on insert.
+- `src/components/PrescriptionPicker.tsx` — accept `familyMemberId` to filter library + tag new uploads.
+- `src/routes/dashboard.patient.family.tsx` — per-member documents (already partial via `RecipientDocumentsBlock`) + prescription library section.
+- `src/routes/checkout.tsx` — when family recipient is selected, pass `familyMemberId` into picker.
+- `src/components/PharmacyReviewDialog.tsx` — display attached identity docs (patient + family member).
 
----
+**Delete:**
+- `src/routes/dashboard.patient.documents.tsx`.
 
-## Phase 2 — Pharmacy verification framework
+## Out of scope
+- No change to pricing/checkout totals.
+- No change to AI verification scoring.
 
-Goal: bring pharmacy onboarding to parity with driver/patient.
-
-1. **DB**: extend `profiles` (pharmacy rows) with `license_number`, `pharmacist_name`, `pharmacist_council_number`, `business_reg_number`, `tax_number`, `responsible_pharmacist_phone`, `license_expires_at`. New table `pharmacy_documents` (operating_license_path, pharmacist_cert_path, business_reg_path, tax_cert_path, bank_proof_path). New enum value for status: extend `approval_status` to include `suspended`, `under_review`, `expired`. Annual re-verification: nightly cron flips approved→expired when `license_expires_at < now()`.
-2. **Onboarding wizard** at `/pharmacy/onboarding` (mirrors driver wizard): document uploads + ID number fields + bank account.
-3. **Admin review queue**: extend `dashboard.admin.tsx` with a Pharmacies tab showing pending applications, document preview, approve/reject with notes.
-4. **Pharmacy status badge** everywhere a pharmacy is shown (patient pharmacy picker hides non-approved).
-
----
-
-## Phase 3 — Patient verification hardening + POPIA & legal
-
-1. **OTP for phone numbers**: Supabase phone auth already supported; add phone verification step on patient profile (gated for prescription-only orders). For now: re-use email magic link as fallback if user prefers no SMS cost.
-2. **Account deletion (POPIA "right to be forgotten")**: `requestAccountDeletion` serverFn → soft-flag `profiles.deletion_requested_at`, admin queue processes within 30 days (hard delete user + cascade anonymise orders/payments).
-3. **Data export**: `exportMyData` serverFn returns ZIP/JSON of all rows referencing the user.
-4. **Legal pages** (each a new route file with proper `head()` metadata):
-   `/legal/terms`, `/legal/privacy`, `/legal/popia`, `/legal/pharmacy-agreement`, `/legal/driver-agreement`, `/legal/patient-agreement`, `/legal/refund-policy`, `/legal/cookie-policy`, `/legal/prescription-handling`. Footer links to all. Signup adds "I agree to Terms + POPIA notice" checkbox (required).
-5. **Cookie consent banner** (small, dismissible, stored in `localStorage` + `profiles.cookie_consent_at`).
-
----
-
-## Phase 4 — Audit logs + fraud controls
-
-1. **DB**: `audit_logs(id, actor_id, actor_role, action, target_type, target_id, metadata jsonb, ip, user_agent, created_at)`. Append-only — no UPDATE/DELETE policies. Admin-only read.
-2. **Triggers** that auto-insert on: login (`auth.sessions`), prescription upload/approval, pharmacy approval, driver pickup/delivery, payment status change, profile edits.
-3. **Fraud signals**:
-   - Patient duplicate-account check: hash `id_number` and unique-index it on `patient_verifications`.
-   - Pharmacy: 6-monthly license expiry reminders (cron + notifications).
-   - Driver: surface avg rating < 3 to admin queue automatically; auto-suspend after 3 consecutive failed deliveries.
-4. **Admin Audit Log viewer** route with filters by actor/action/date.
-
----
-
-## Out of scope (call out, don't silently skip)
-
-- End-to-end message encryption (real E2EE needs key management UX; current setup uses TLS in transit + AES at rest via Supabase — document this in POPIA notice).
-- Annual manual compliance check workflow beyond the expiry flag (would need a human admin SOP page).
-- Criminal background screening — needs a third-party provider (e.g. iiDENTIFii, MIE). Phase 4 leaves an integration stub.
-- SMS OTP cost: requires a Twilio/Vonage account. Phase 3 leaves it behind a feature flag.
-
----
-
-## Technical notes
-
-- All new server logic uses `createServerFn` + `requireSupabaseAuth` per the TanStack pattern. No new Supabase Edge Functions.
-- Every new table follows the GRANT → RLS → POLICY structure with `auth.uid()` scoping; admin-only tables get no anon grant.
-- Map directions: `MAPBOX_ACCESS_TOKEN` already in secrets; new `getDirections` serverFn keeps token server-side.
-- Cron for expired licenses + offer rebroadcast already has a pattern (`rebroadcast_unaccepted_delivery_orders`); add `expire_pharmacy_licenses()` alongside it.
-- Legal page copy will be drafted from POPIA template; you should have a lawyer review before going to live production.
-
----
-
-Reply with **"go phase 1"** (or which phase to start). I'll execute one phase per turn so you can test each before the next.
+Reply **"go"** to apply.
