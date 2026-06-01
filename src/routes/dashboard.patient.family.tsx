@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, Trash2, Cake, AlertCircle, Heart } from "lucide-react";
+import { Users, Plus, Trash2, Cake, AlertCircle, Heart, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
+import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 
 export const Route = createFileRoute("/dashboard/patient/family")({
   head: () => ({ meta: [{ title: "Family Profiles — HEALTHREACH" }] }),
