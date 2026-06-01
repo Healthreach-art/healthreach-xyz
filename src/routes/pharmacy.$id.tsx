@@ -106,6 +106,7 @@ export const Route = createFileRoute("/pharmacy/$id")({
 function Storefront() {
   const { id } = useParams({ from: "/pharmacy/$id" });
   const navigate = useNavigate();
+  const { user } = useAuth();
   const cart = useCart();
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
   const [meds, setMeds] = useState<Med[]>([]);
@@ -113,6 +114,11 @@ function Storefront() {
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("All");
   const [rxFor, setRxFor] = useState<Med | null>(null);
+  const [apptOpen, setApptOpen] = useState(false);
+  const [apptWhen, setApptWhen] = useState("");
+  const [apptMode, setApptMode] = useState("in_person");
+  const [apptReason, setApptReason] = useState("");
+  const [apptBusy, setApptBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
