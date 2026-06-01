@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, Trash2, Cake, AlertCircle, Heart } from "lucide-react";
+import { Users, Plus, Trash2, Cake, AlertCircle, Heart, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
+import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 
 export const Route = createFileRoute("/dashboard/patient/family")({
   head: () => ({ meta: [{ title: "Family Profiles — HEALTHREACH" }] }),
@@ -121,36 +123,105 @@ function Page() {
         </div>
       )}
 
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="space-y-4">
         {items.length === 0 && !open && (
-          <div className="sm:col-span-2 rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
             No family members yet. Add one to order on their behalf.
           </div>
         )}
         {items.map((m) => (
-          <div key={m.id} className="rounded-2xl border border-border bg-card p-5 space-y-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-bold text-foreground">{m.full_name}</p>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">{m.relationship}</p>
-              </div>
-              <Button size="icon" variant="ghost" onClick={() => remove(m.id)}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
-            {m.date_of_birth && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Cake className="h-3.5 w-3.5" /> {new Date(m.date_of_birth).toLocaleDateString("en-ZA", { dateStyle: "medium" })}</p>
-            )}
-            {m.allergies && (
-              <p className="text-xs text-amber-600 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" /> Allergies: {m.allergies}</p>
-            )}
-            {m.conditions && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Heart className="h-3.5 w-3.5" /> {m.conditions}</p>
-            )}
-            {m.notes && <p className="text-xs text-muted-foreground">{m.notes}</p>}
-          </div>
+          <FamilyMemberCard key={m.id} member={m} onRemove={() => remove(m.id)} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function FamilyMemberCard({ member, onRemove }: { member: Member; onRemove: () => void }) {
+  const { user } = useAuth();
+  const [expanded, setExpanded] = useState(false);
+  const [uploads, setUploads] = useState<PrescriptionUpload[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  async function loadUploads() {
+    if (!user) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("prescription_uploads")
+      .select("*")
+      .eq("patient_id", user.id)
+      .eq("family_member_id" as never, member.id)
+      .order("created_at", { ascending: false });
+    setUploads((data ?? []) as PrescriptionUpload[]);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    if (expanded) loadUploads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="font-bold text-foreground">{member.full_name}</p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">{member.relationship}</p>
+        </div>
+        <Button size="icon" variant="ghost" onClick={onRemove}>
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </div>
+      {member.date_of_birth && (
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Cake className="h-3.5 w-3.5" /> {new Date(member.date_of_birth).toLocaleDateString("en-ZA", { dateStyle: "medium" })}</p>
+      )}
+      {member.allergies && (
+        <p className="text-xs text-amber-600 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" /> Allergies: {member.allergies}</p>
+      )}
+      {member.conditions && (
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Heart className="h-3.5 w-3.5" /> {member.conditions}</p>
+      )}
+      {member.notes && <p className="text-xs text-muted-foreground">{member.notes}</p>}
+
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full justify-between"
+        onClick={() => setExpanded((x) => !x)}
+      >
+        <span className="inline-flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Documents & prescriptions</span>
+        {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </Button>
+
+      {expanded && (
+        <div className="space-y-4 pt-2 border-t border-border">
+          <RecipientDocumentsBlock familyMemberId={member.id} />
+
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">Prescription library — {member.full_name}</h4>
+              <p className="text-[11px] text-muted-foreground">
+                Upload prescriptions issued in their name. They'll auto-attach when you order on their behalf.
+              </p>
+            </div>
+            <PrescriptionUploader familyMemberId={member.id} onUploaded={() => loadUploads()} />
+            {loading ? (
+              <p className="text-xs text-muted-foreground">Loading…</p>
+            ) : uploads.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No prescriptions yet for {member.full_name}.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {uploads.map((u) => (
+                  <li key={u.id} className="flex items-center justify-between rounded-md border border-border bg-muted/20 px-2 py-1.5 text-xs">
+                    <span>Uploaded {new Date(u.created_at).toLocaleDateString()}</span>
+                    <PrescriptionStatusBadge status={u.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

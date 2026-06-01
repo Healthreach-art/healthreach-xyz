@@ -14,6 +14,8 @@ interface Props {
   pharmacyName?: string;
   medicationId?: string | null;
   medicationName?: string | null;
+  /** Optional — when set, scope library + new uploads to a specific family member. */
+  familyMemberId?: string | null;
   onPicked: (uploadId: string) => void;
   onUploadedPending?: (upload: PrescriptionUpload) => void;
 }
@@ -28,6 +30,7 @@ export function PrescriptionPicker({
   pharmacyName,
   medicationId,
   medicationName,
+  familyMemberId,
   onPicked,
   onUploadedPending,
 }: Props) {
@@ -43,8 +46,13 @@ export function PrescriptionPicker({
     let cancelled = false;
     (async () => {
       setLoading(true);
+      let q = supabase.from("prescription_uploads").select("*").eq("patient_id", user.id);
+      // Scope library by recipient: when ordering for a family member, only show their
+      // prescriptions; when ordering for self, exclude family-member-tagged ones.
+      if (familyMemberId) q = q.eq("family_member_id" as never, familyMemberId);
+      else q = q.is("family_member_id" as never, null);
       const [{ data }, v] = await Promise.all([
-        supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(30),
+        q.order("created_at", { ascending: false }).limit(30),
         fetchVerification(user.id),
       ]);
       if (cancelled) return;
@@ -55,7 +63,7 @@ export function PrescriptionPicker({
       else if (!data || data.length === 0) setMode("upload");
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, familyMemberId]);
 
 
   const now = Date.now();
@@ -104,6 +112,7 @@ export function PrescriptionPicker({
         </p>
         <PrescriptionUploader
           medicationId={medicationId ?? null}
+          familyMemberId={familyMemberId ?? null}
           onUploaded={(row) => onUploadedPending?.(row)}
         />
       </div>

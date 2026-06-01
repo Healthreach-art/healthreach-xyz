@@ -1115,6 +1115,7 @@ export type Database = {
           dispensed_at: string | null
           dispensed_by: string | null
           expires_at: string | null
+          family_member_id: string | null
           file_path: string
           flagged: boolean
           fraud_score: number
@@ -1140,6 +1141,7 @@ export type Database = {
           dispensed_at?: string | null
           dispensed_by?: string | null
           expires_at?: string | null
+          family_member_id?: string | null
           file_path: string
           flagged?: boolean
           fraud_score?: number
@@ -1165,6 +1167,7 @@ export type Database = {
           dispensed_at?: string | null
           dispensed_by?: string | null
           expires_at?: string | null
+          family_member_id?: string | null
           file_path?: string
           flagged?: boolean
           fraud_score?: number
@@ -1184,7 +1187,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["prescription_upload_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "prescription_uploads_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prescriptions: {
         Row: {
