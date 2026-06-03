@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
   FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin, CalendarCheck,
-  Stethoscope,
+  Stethoscope, Search,
 } from "lucide-react";
 
 type Item = { title: string; url: string; icon: any };
@@ -24,6 +24,7 @@ export function AppSidebar() {
 
   const patientItems: Item[] = [
     { title: "Dashboard", url: "/dashboard/patient", icon: Home },
+    { title: "Find Care (AI)", url: "/dashboard/patient/find", icon: Search },
     { title: "Orders", url: "/dashboard/patient/orders", icon: ShoppingBag },
     { title: "Prescriptions & Documents", url: "/dashboard/patient/prescriptions", icon: Pill },
     { title: "Deliveries", url: "/track", icon: Truck },
