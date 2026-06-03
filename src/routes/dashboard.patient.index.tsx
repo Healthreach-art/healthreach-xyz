@@ -10,8 +10,8 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
   ShoppingBag, Upload, Truck, ArrowRight, Bot,
-  Star, Pill,
-  MessageSquare, Search,
+  Star, Siren, Pill,
+  CalendarCheck, FileText, MessageSquare, PhoneCall, Search,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/")({
