@@ -78,6 +78,10 @@ function DoctorDashboard() {
   const [consultationFee, setConsultationFee] = useState<number>(450);
   const [city, setCity] = useState("");
   const [practiceAddress, setPracticeAddress] = useState("");
+  const [servicesDescription, setServicesDescription] = useState("");
+  const [servicesTags, setServicesTags] = useState<string[]>([]);
+  const [subspecialties, setSubspecialties] = useState<string[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
 
   async function load() {
     if (!user) return;
