@@ -180,7 +180,7 @@ export function PharmacyAppointments() {
                   <div className="flex flex-wrap gap-2">
                     {a.status === "pending" && (
                       <Button size="sm" disabled={savingId === a.id} onClick={() => setStatus(a, "confirmed")}>
-                        <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> Accept
                       </Button>
                     )}
                     {a.status === "confirmed" && (
@@ -188,6 +188,13 @@ export function PharmacyAppointments() {
                         Mark completed
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id, name: p?.name || "patient" })}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-1" /> Message
+                    </Button>
                     <Button size="sm" variant="ghost" disabled={savingId === a.id} onClick={() => setStatus(a, "cancelled")}>
                       <XCircle className="h-4 w-4 mr-1" /> Decline
                     </Button>
