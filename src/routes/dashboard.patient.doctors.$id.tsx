@@ -167,6 +167,7 @@ function Page() {
 
       <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
         <h2 className="font-bold text-foreground flex items-center gap-2"><CalendarCheck className="h-5 w-5 text-primary" /> Book appointment</h2>
+        <p className="text-xs text-muted-foreground">You are booking with a <span className="font-semibold text-healthcare-teal">Doctor</span></p>
         <div className="grid sm:grid-cols-2 gap-3">
           <div><Label>Date & time</Label><Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></div>
           <div><Label>Consultation type</Label>
