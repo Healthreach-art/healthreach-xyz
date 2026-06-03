@@ -190,6 +190,20 @@ function Page() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {chatFor && user && (
+        <AppointmentChatDialog
+          open={!!chatFor}
+          onClose={() => setChatFor(null)}
+          appointmentId={chatFor.appointmentId}
+          appointmentType="doctor"
+          patientId={user.id}
+          providerId={chatFor.providerUserId}
+          myRole="patient"
+          title={`Chat with ${chatFor.name}`}
+          subtitle="Replies appear in real time"
+        />
+      )}
     </div>
   );
 }
