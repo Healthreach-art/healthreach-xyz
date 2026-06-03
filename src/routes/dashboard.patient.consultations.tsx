@@ -21,7 +21,7 @@ interface Appt {
   consultation_fee: number; platform_fee: number;
   reason: string; doctor_notes: string;
 }
-interface DocRow { id: string; full_name: string; specialty: string; photo_url: string }
+interface DocRow { id: string; user_id: string; full_name: string; specialty: string; photo_url: string }
 interface Rx { id: string; appointment_id: string; kind: string; title: string; body: string;
   medication_name: string | null; dosage: string | null; instructions: string | null;
   valid_until: string | null; created_at: string }
