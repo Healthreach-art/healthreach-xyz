@@ -251,7 +251,7 @@ function Page() {
           open={!!chatFor}
           onClose={() => setChatFor(null)}
           appointmentId={chatFor.appointmentId}
-          appointmentType="doctor"
+          appointmentType={chatFor.appointmentType}
           patientId={user.id}
           providerId={chatFor.providerUserId}
           myRole="patient"
