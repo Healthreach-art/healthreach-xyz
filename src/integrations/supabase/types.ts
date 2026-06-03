@@ -289,6 +289,50 @@ export type Database = {
         }
         Relationships: []
       }
+      doctor_availability: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          doctor_id: string
+          end_hour: number
+          id: string
+          is_active: boolean
+          slot_minutes: number
+          start_hour: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          doctor_id: string
+          end_hour: number
+          id?: string
+          is_active?: boolean
+          slot_minutes?: number
+          start_hour: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          doctor_id?: string
+          end_hour?: number
+          id?: string
+          is_active?: boolean
+          slot_minutes?: number
+          start_hour?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_availability_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_documents: {
         Row: {
           created_at: string
