@@ -174,6 +174,9 @@ function PatientDashboard() {
                     <c.icon className={`h-6 w-6 ${c.iconColor}`} />
                   </div>
                   <p className="text-sm font-bold text-foreground leading-tight pr-4">{c.title}</p>
+                  {(c as any).subtitle && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{(c as any).subtitle}</p>
+                  )}
                   <ArrowRight className="h-4 w-4 text-muted-foreground mt-2 group-hover:translate-x-1 transition-transform" />
                 </Link>
               ))}
