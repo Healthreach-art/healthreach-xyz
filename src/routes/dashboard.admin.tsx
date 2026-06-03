@@ -282,7 +282,7 @@ function AdminDashboard() {
 
   useEffect(() => {
     if (!autoApprove) return;
-    users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role))
+    users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver", "doctor"].includes(u.role))
       .forEach((u) => updateApproval(u.user_id, "approved"));
   }, [autoApprove, users.length]);
 
@@ -290,7 +290,7 @@ function AdminDashboard() {
   const pharmacies = users.filter((u) => u.role === "pharmacy");
   const drivers = users.filter((u) => u.role === "driver");
   const patients = users.filter((u) => u.role === "patient");
-  const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role));
+  const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver", "doctor"].includes(u.role));
 
   const completedPays = payments.filter((p) => p.status === "completed");
   const gmv = completedPays.reduce((s, p) => s + Number(p.total_paid ?? p.amount), 0);
