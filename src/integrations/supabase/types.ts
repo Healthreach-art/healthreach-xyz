@@ -448,7 +448,10 @@ export type Database = {
           rating_avg: number
           rating_count: number
           rejection_reason: string | null
+          services_description: string | null
+          services_tags: string[]
           specialty: string
+          subspecialties: string[]
           updated_at: string
           user_id: string | null
           verified_at: string | null
@@ -478,7 +481,10 @@ export type Database = {
           rating_avg?: number
           rating_count?: number
           rejection_reason?: string | null
+          services_description?: string | null
+          services_tags?: string[]
           specialty?: string
+          subspecialties?: string[]
           updated_at?: string
           user_id?: string | null
           verified_at?: string | null
@@ -508,7 +514,10 @@ export type Database = {
           rating_avg?: number
           rating_count?: number
           rejection_reason?: string | null
+          services_description?: string | null
+          services_tags?: string[]
           specialty?: string
+          subspecialties?: string[]
           updated_at?: string
           user_id?: string | null
           verified_at?: string | null
@@ -1650,6 +1659,8 @@ export type Database = {
           responsible_pharmacist_phone: string | null
           service_radius_km: number
           services: string[]
+          services_description: string | null
+          services_tags: string[]
           tax_number: string | null
           updated_at: string
           user_id: string
@@ -1690,6 +1701,8 @@ export type Database = {
           responsible_pharmacist_phone?: string | null
           service_radius_km?: number
           services?: string[]
+          services_description?: string | null
+          services_tags?: string[]
           tax_number?: string | null
           updated_at?: string
           user_id: string
@@ -1730,6 +1743,8 @@ export type Database = {
           responsible_pharmacist_phone?: string | null
           service_radius_km?: number
           services?: string[]
+          services_description?: string | null
+          services_tags?: string[]
           tax_number?: string | null
           updated_at?: string
           user_id?: string

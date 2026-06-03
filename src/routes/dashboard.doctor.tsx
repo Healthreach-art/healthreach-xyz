@@ -14,6 +14,8 @@ import { Stethoscope, Upload, Clock, CheckCircle2, AlertCircle, FileText, Calend
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { submitDoctorDocuments } from "@/lib/doctor-verify.functions";
+import { normalizeServices } from "@/lib/normalize-services.functions";
+import { Sparkles, X } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/doctor")({
   head: () => ({ meta: [{ title: "Doctor Dashboard — HEALTHREACH" }] }),
@@ -49,6 +51,7 @@ const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function DoctorDashboard() {
   const { user, approvalStatus, signOut, profile } = useAuth();
   const submit = useServerFn(submitDoctorDocuments);
+  const normalize = useServerFn(normalizeServices);
   const [docs, setDocs] = useState<DocRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -75,6 +78,10 @@ function DoctorDashboard() {
   const [consultationFee, setConsultationFee] = useState<number>(450);
   const [city, setCity] = useState("");
   const [practiceAddress, setPracticeAddress] = useState("");
+  const [servicesDescription, setServicesDescription] = useState("");
+  const [servicesTags, setServicesTags] = useState<string[]>([]);
+  const [subspecialties, setSubspecialties] = useState<string[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
 
   async function load() {
     if (!user) return;
@@ -115,6 +122,9 @@ function DoctorDashboard() {
       setConsultationFee(Number(doc.consultation_fee ?? 450));
       setCity(doc.city ?? "");
       setPracticeAddress(doc.address ?? "");
+      setServicesDescription((doc as any).services_description ?? "");
+      setServicesTags(((doc as any).services_tags as string[]) ?? []);
+      setSubspecialties(((doc as any).subspecialties as string[]) ?? []);
     } else {
       setFullName(profile?.full_name ?? "");
     }
@@ -189,6 +199,9 @@ function DoctorDashboard() {
       consultation_fee: consultationFee,
       city,
       address: practiceAddress,
+      services_description: servicesDescription.slice(0, 8000),
+      services_tags: servicesTags,
+      subspecialties,
       hospital_id: null,
       is_active: false, // remains inactive until admin verifies
     };
@@ -202,6 +215,24 @@ function DoctorDashboard() {
     if (error) return toast.error(error.message);
     toast.success("Profile saved");
     load();
+  }
+
+  async function runNormalize() {
+    if (servicesDescription.trim().length < 10) {
+      toast.error("Write a longer description first");
+      return;
+    }
+    setAiBusy(true);
+    try {
+      const r = await normalize({ data: { text: servicesDescription.trim(), kind: "doctor" } });
+      setSubspecialties(Array.from(new Set([...subspecialties, ...r.subspecialties])).slice(0, 40));
+      setServicesTags(Array.from(new Set([...servicesTags, ...r.keywords, ...r.subspecialties])).slice(0, 80));
+      toast.success(`AI added ${r.subspecialties.length} subspecialties + ${r.keywords.length} keywords`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "AI failed");
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   async function submitDocs() {
@@ -392,6 +423,52 @@ function DoctorDashboard() {
               <div className="space-y-2 md:col-span-2">
                 <Label>Short bio</Label>
                 <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} maxLength={1000} />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Conditions, procedures & special interests (free text)</Label>
+                <Textarea
+                  value={servicesDescription}
+                  onChange={(e) => setServicesDescription(e.target.value)}
+                  rows={5}
+                  maxLength={8000}
+                  placeholder="E.g. I treat type-2 diabetes, hypertension, asthma, women's health, child immunisations, mental-health screening, minor wound suturing, contraception fitting…"
+                />
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={runNormalize} disabled={aiBusy}>
+                    {aiBusy ? "Analysing…" : (<><Sparkles className="h-3 w-3 mr-1" /> Build search tags</>)}
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">{servicesDescription.length}/8000</span>
+                </div>
+                {(subspecialties.length > 0 || servicesTags.length > 0) && (
+                  <div className="space-y-2 pt-2">
+                    {subspecialties.length > 0 && (
+                      <div>
+                        <p className="text-[11px] uppercase font-bold text-muted-foreground mb-1">Subspecialties</p>
+                        <div className="flex flex-wrap gap-1">
+                          {subspecialties.map((t) => (
+                            <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px]">
+                              {t}
+                              <button type="button" onClick={() => setSubspecialties(subspecialties.filter((x) => x !== t))} aria-label={`Remove ${t}`}><X className="h-3 w-3" /></button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {servicesTags.length > 0 && (
+                      <div>
+                        <p className="text-[11px] uppercase font-bold text-muted-foreground mb-1">Search keywords ({servicesTags.length})</p>
+                        <div className="flex flex-wrap gap-1">
+                          {servicesTags.map((t) => (
+                            <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-[11px]">
+                              {t}
+                              <button type="button" onClick={() => setServicesTags(servicesTags.filter((x) => x !== t))} aria-label={`Remove ${t}`}><X className="h-3 w-3" /></button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <Button onClick={saveProfile} disabled={busy}>{busy ? "Saving..." : "Save profile"}</Button>
