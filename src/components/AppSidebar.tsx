@@ -7,8 +7,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
-  FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin, CalendarCheck,
-  Stethoscope, Search,
+  FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin,
+  Search,
 } from "lucide-react";
 
 type Item = { title: string; url: string; icon: any };
