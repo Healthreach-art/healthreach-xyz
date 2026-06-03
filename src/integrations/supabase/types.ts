@@ -289,6 +289,66 @@ export type Database = {
         }
         Relationships: []
       }
+      doctor_documents: {
+        Row: {
+          created_at: string
+          doctor_user_id: string
+          hpcsa_cert_path: string | null
+          hpcsa_number: string | null
+          id: string
+          id_document_path: string | null
+          indemnity_path: string | null
+          malpractice_cert_path: string | null
+          malpractice_expires_at: string | null
+          notes: string | null
+          practice_letter_path: string | null
+          qualification_paths: string[]
+          rejection_reason: string | null
+          submitted_at: string | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          doctor_user_id: string
+          hpcsa_cert_path?: string | null
+          hpcsa_number?: string | null
+          id?: string
+          id_document_path?: string | null
+          indemnity_path?: string | null
+          malpractice_cert_path?: string | null
+          malpractice_expires_at?: string | null
+          notes?: string | null
+          practice_letter_path?: string | null
+          qualification_paths?: string[]
+          rejection_reason?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          doctor_user_id?: string
+          hpcsa_cert_path?: string | null
+          hpcsa_number?: string | null
+          id?: string
+          id_document_path?: string | null
+          indemnity_path?: string | null
+          malpractice_cert_path?: string | null
+          malpractice_expires_at?: string | null
+          notes?: string | null
+          practice_letter_path?: string | null
+          qualification_paths?: string[]
+          rejection_reason?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       doctor_reviews: {
         Row: {
           appointment_id: string | null
@@ -328,10 +388,11 @@ export type Database = {
           consultation_fee: number
           created_at: string
           full_name: string
-          hospital_id: string
+          hospital_id: string | null
           id: string
           in_person_available: boolean
           is_active: boolean
+          is_verified: boolean
           languages: string[]
           latitude: number | null
           longitude: number | null
@@ -342,8 +403,12 @@ export type Database = {
           qualifications: string
           rating_avg: number
           rating_count: number
+          rejection_reason: string | null
           specialty: string
           updated_at: string
+          user_id: string | null
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           accepted_medical_aids?: string[]
@@ -353,10 +418,11 @@ export type Database = {
           consultation_fee?: number
           created_at?: string
           full_name: string
-          hospital_id: string
+          hospital_id?: string | null
           id?: string
           in_person_available?: boolean
           is_active?: boolean
+          is_verified?: boolean
           languages?: string[]
           latitude?: number | null
           longitude?: number | null
@@ -367,8 +433,12 @@ export type Database = {
           qualifications?: string
           rating_avg?: number
           rating_count?: number
+          rejection_reason?: string | null
           specialty?: string
           updated_at?: string
+          user_id?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           accepted_medical_aids?: string[]
@@ -378,10 +448,11 @@ export type Database = {
           consultation_fee?: number
           created_at?: string
           full_name?: string
-          hospital_id?: string
+          hospital_id?: string | null
           id?: string
           in_person_available?: boolean
           is_active?: boolean
+          is_verified?: boolean
           languages?: string[]
           latitude?: number | null
           longitude?: number | null
@@ -392,8 +463,12 @@ export type Database = {
           qualifications?: string
           rating_avg?: number
           rating_count?: number
+          rejection_reason?: string | null
           specialty?: string
           updated_at?: string
+          user_id?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: []
       }
@@ -1229,13 +1304,22 @@ export type Database = {
           license_path: string | null
           pharmacist_cert_path: string | null
           pharmacy_id: string
+          premises_license_expires_at: string | null
+          premises_license_number: string | null
           proof_of_address_path: string | null
+          rejection_reason: string | null
+          responsible_pharmacist_name: string | null
+          responsible_pharmacist_sapc: string | null
           review_notes: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          service_certificates: Json
           submitted_at: string | null
           tax_cert_path: string | null
           updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+          verified_services: string[]
         }
         Insert: {
           bank_confirmation_path?: string | null
@@ -1245,13 +1329,22 @@ export type Database = {
           license_path?: string | null
           pharmacist_cert_path?: string | null
           pharmacy_id: string
+          premises_license_expires_at?: string | null
+          premises_license_number?: string | null
           proof_of_address_path?: string | null
+          rejection_reason?: string | null
+          responsible_pharmacist_name?: string | null
+          responsible_pharmacist_sapc?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          service_certificates?: Json
           submitted_at?: string | null
           tax_cert_path?: string | null
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_services?: string[]
         }
         Update: {
           bank_confirmation_path?: string | null
@@ -1261,13 +1354,22 @@ export type Database = {
           license_path?: string | null
           pharmacist_cert_path?: string | null
           pharmacy_id?: string
+          premises_license_expires_at?: string | null
+          premises_license_number?: string | null
           proof_of_address_path?: string | null
+          rejection_reason?: string | null
+          responsible_pharmacist_name?: string | null
+          responsible_pharmacist_sapc?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          service_certificates?: Json
           submitted_at?: string | null
           tax_cert_path?: string | null
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_services?: string[]
         }
         Relationships: []
       }
