@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_messages: {
+        Row: {
+          appointment_id: string
+          appointment_type: string
+          body: string
+          created_at: string
+          id: string
+          patient_id: string
+          provider_id: string
+          read_at: string | null
+          sender_id: string
+          sender_role: string
+        }
+        Insert: {
+          appointment_id: string
+          appointment_type: string
+          body: string
+          created_at?: string
+          id?: string
+          patient_id: string
+          provider_id: string
+          read_at?: string | null
+          sender_id: string
+          sender_role: string
+        }
+        Update: {
+          appointment_id?: string
+          appointment_type?: string
+          body?: string
+          created_at?: string
+          id?: string
+          patient_id?: string
+          provider_id?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_role?: string
+        }
+        Relationships: []
+      }
       card_pins: {
         Row: {
           created_at: string

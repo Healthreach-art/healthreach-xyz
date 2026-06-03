@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Calendar, User, CheckCircle2, XCircle, Phone, Video, MapPin } from "lucide-react";
+import { Loader2, Calendar, User, CheckCircle2, XCircle, Phone, Video, MapPin, MessageCircle } from "lucide-react";
+import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
 import { toast } from "sonner";
 
 interface Appt {
@@ -27,6 +28,7 @@ export function PharmacyAppointments() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [patients, setPatients] = useState<Record<string, { name: string; phone: string }>>({});
+  const [chatFor, setChatFor] = useState<{ appointmentId: string; patientId: string; name: string } | null>(null);
 
   async function load() {
     if (!user) return;
@@ -178,7 +180,7 @@ export function PharmacyAppointments() {
                   <div className="flex flex-wrap gap-2">
                     {a.status === "pending" && (
                       <Button size="sm" disabled={savingId === a.id} onClick={() => setStatus(a, "confirmed")}>
-                        <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> Accept
                       </Button>
                     )}
                     {a.status === "confirmed" && (
@@ -186,6 +188,13 @@ export function PharmacyAppointments() {
                         Mark completed
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id, name: p?.name || "patient" })}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-1" /> Message
+                    </Button>
                     <Button size="sm" variant="ghost" disabled={savingId === a.id} onClick={() => setStatus(a, "cancelled")}>
                       <XCircle className="h-4 w-4 mr-1" /> Decline
                     </Button>
@@ -202,6 +211,20 @@ export function PharmacyAppointments() {
           );
         })}
       </div>
+
+      {chatFor && user && (
+        <AppointmentChatDialog
+          open={!!chatFor}
+          onClose={() => setChatFor(null)}
+          appointmentId={chatFor.appointmentId}
+          appointmentType="pharmacy"
+          patientId={chatFor.patientId}
+          providerId={user.id}
+          myRole="pharmacy"
+          title={`Chat with ${chatFor.name}`}
+          subtitle="Replies appear in real time"
+        />
+      )}
     </div>
   );
 }

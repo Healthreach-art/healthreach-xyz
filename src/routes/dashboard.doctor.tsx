@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Stethoscope, Upload, Clock, CheckCircle2, AlertCircle, FileText, Calendar } from "lucide-react";
+import { Stethoscope, Upload, Clock, CheckCircle2, AlertCircle, FileText, Calendar, MessageCircle } from "lucide-react";
+import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { submitDoctorDocuments } from "@/lib/doctor-verify.functions";
@@ -58,6 +59,7 @@ function DoctorDashboard() {
   const [appts, setAppts] = useState<any[]>([]);
   const [doctorRow, setDoctorRow] = useState<any | null>(null);
   const [avail, setAvail] = useState<AvailRow[]>([]);
+  const [chatFor, setChatFor] = useState<{ appointmentId: string; patientId: string } | null>(null);
 
   const [hpcsaNumber, setHpcsaNumber] = useState("");
   const [hpcsaPath, setHpcsaPath] = useState("");
@@ -498,12 +500,18 @@ function DoctorDashboard() {
                         <div className="text-xs text-muted-foreground capitalize">{a.mode.replace("_", " ")} · {a.status}{a.reason ? ` · ${a.reason.slice(0, 60)}` : ""}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={a.payment_status === "paid" ? "default" : "secondary"}>{a.payment_status}</Badge>
+                      <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id })}>
+                        <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message
+                      </Button>
                       {a.status === "pending" && (
-                        <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Confirm</Button>
+                        <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Accept</Button>
                       )}
-                      {(a.status === "pending" || a.status === "confirmed") && (
+                      {a.status === "pending" && (
+                        <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Decline</Button>
+                      )}
+                      {a.status === "confirmed" && (
                         <>
                           <Button size="sm" onClick={() => updateApptStatus(a.id, "completed")}>Mark complete</Button>
                           <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Cancel</Button>
@@ -580,6 +588,20 @@ function DoctorDashboard() {
       <p className="mt-8 text-center text-xs text-muted-foreground">
         HEALTHREACH is a discovery & booking platform only. All medical services, prescriptions, and treatment remain the responsibility of the doctor.
       </p>
+
+      {chatFor && user && (
+        <AppointmentChatDialog
+          open={!!chatFor}
+          onClose={() => setChatFor(null)}
+          appointmentId={chatFor.appointmentId}
+          appointmentType="doctor"
+          patientId={chatFor.patientId}
+          providerId={user.id}
+          myRole="doctor"
+          title="Chat with patient"
+          subtitle="Replies appear in real time"
+        />
+      )}
     </div>
   );
 }

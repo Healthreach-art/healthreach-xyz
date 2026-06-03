@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star } from "lucide-react";
+import { Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient/consultations")({
@@ -20,7 +21,7 @@ interface Appt {
   consultation_fee: number; platform_fee: number;
   reason: string; doctor_notes: string;
 }
-interface DocRow { id: string; full_name: string; specialty: string; photo_url: string }
+interface DocRow { id: string; user_id: string; full_name: string; specialty: string; photo_url: string }
 interface Rx { id: string; appointment_id: string; kind: string; title: string; body: string;
   medication_name: string | null; dosage: string | null; instructions: string | null;
   valid_until: string | null; created_at: string }
@@ -33,6 +34,9 @@ function Page() {
   const [reviewFor, setReviewFor] = useState<{ appointmentId: string; doctorId: string } | null>(null);
   const [stars, setStars] = useState(5);
   const [comment, setComment] = useState("");
+  const [chatFor, setChatFor] = useState<{ appointmentId: string; appointmentType: "doctor" | "pharmacy"; providerUserId: string; name: string } | null>(null);
+  const [pharmAppts, setPharmAppts] = useState<Array<{ id: string; pharmacy_id: string; reason: string; preferred_at: string; status: string; mode: string; pharmacist_notes: string | null }>>([]);
+  const [pharms, setPharms] = useState<Record<string, { name: string }>>({});
 
   async function load() {
     if (!user) return;
@@ -41,7 +45,7 @@ function Page() {
     setAppts(list);
     const docIds = Array.from(new Set(list.map((a) => a.doctor_id)));
     if (docIds.length) {
-      const { data: ds } = await supabase.from("doctors").select("id, full_name, specialty, photo_url").in("id", docIds);
+      const { data: ds } = await supabase.from("doctors").select("id, user_id, full_name, specialty, photo_url").in("id", docIds);
       const m: Record<string, DocRow> = {};
       (ds ?? []).forEach((d: any) => { m[d.id] = d; });
       setDocs(m);
@@ -53,6 +57,20 @@ function Page() {
       (rxs ?? []).forEach((r: any) => { (m[r.appointment_id] ||= []).push(r); });
       setRxByAppt(m);
     }
+    // Pharmacy appointments
+    const { data: pa } = await supabase
+      .from("pharmacy_appointments").select("id, pharmacy_id, reason, preferred_at, status, mode, pharmacist_notes")
+      .eq("patient_id", user.id).order("preferred_at", { ascending: false });
+    const pl = (pa ?? []) as typeof pharmAppts;
+    setPharmAppts(pl);
+    const pIds = Array.from(new Set(pl.map((p) => p.pharmacy_id)));
+    if (pIds.length) {
+      const { data: profs } = await supabase
+        .from("profiles").select("user_id, full_name, organization_name").in("user_id", pIds);
+      const m: Record<string, { name: string }> = {};
+      (profs ?? []).forEach((p: any) => { m[p.user_id] = { name: p.organization_name || p.full_name || "Pharmacy" }; });
+      setPharms(m);
+    }
   }
   useEffect(() => {
     load();
@@ -60,6 +78,7 @@ function Page() {
     const ch = supabase
       .channel(`patient-consult-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `patient_id=eq.${user.id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pharmacy_appointments", filter: `patient_id=eq.${user.id}` }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "e_prescriptions", filter: `patient_id=eq.${user.id}` }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -154,6 +173,11 @@ function Page() {
             )}
 
             <div className="flex flex-wrap gap-2 pt-1">
+              {doc?.user_id && a.status !== "cancelled" && (
+                <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, appointmentType: "doctor", providerUserId: doc.user_id, name: `Dr. ${doc.full_name}` })}>
+                  <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message doctor
+                </Button>
+              )}
               {a.status === "pending" || a.status === "confirmed" ? (
                 <Button size="sm" variant="ghost" onClick={() => cancel(a.id)}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
               ) : null}
@@ -166,6 +190,44 @@ function Page() {
           </div>
         );
       })}
+
+      {pharmAppts.length > 0 && (
+        <div className="pt-4">
+          <h2 className="text-lg font-bold text-foreground mb-2">Pharmacy bookings</h2>
+          <div className="space-y-3">
+            {pharmAppts.map((p) => (
+              <div key={p.id} className="rounded-2xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-healthcare-sky/15 flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-healthcare-sky" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-foreground truncate">{pharms[p.pharmacy_id]?.name || "Pharmacy"}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> {new Date(p.preferred_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}
+                      <span className="mx-1">·</span>{p.mode === "video" ? "Video" : p.mode === "phone" ? "Phone" : "In-person"}
+                    </p>
+                    {p.reason && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.reason}</p>}
+                    {p.pharmacist_notes && <p className="text-xs text-foreground/80 mt-1"><span className="font-semibold">Pharmacist:</span> {p.pharmacist_notes}</p>}
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${
+                    p.status === "confirmed" ? "bg-healthcare-green/15 text-healthcare-green" :
+                    p.status === "cancelled" ? "bg-destructive/15 text-destructive" :
+                    p.status === "completed" ? "bg-muted text-muted-foreground" :
+                    "bg-healthcare-sky/15 text-healthcare-sky"
+                  }`}>{p.status}</span>
+                </div>
+                {p.status !== "cancelled" && (
+                  <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: p.id, appointmentType: "pharmacy", providerUserId: p.pharmacy_id, name: pharms[p.pharmacy_id]?.name || "Pharmacy" })}>
+                    <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message pharmacist
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       <Dialog open={!!reviewFor} onOpenChange={(o) => !o && setReviewFor(null)}>
         <DialogContent className="sm:max-w-md">
@@ -183,6 +245,20 @@ function Page() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {chatFor && user && (
+        <AppointmentChatDialog
+          open={!!chatFor}
+          onClose={() => setChatFor(null)}
+          appointmentId={chatFor.appointmentId}
+          appointmentType={chatFor.appointmentType}
+          patientId={user.id}
+          providerId={chatFor.providerUserId}
+          myRole="patient"
+          title={`Chat with ${chatFor.name}`}
+          subtitle="Replies appear in real time"
+        />
+      )}
     </div>
   );
 }

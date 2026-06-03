@@ -11,7 +11,7 @@ export function useDriverLocationBroadcaster(opts: {
   enabled?: boolean;
   intervalMs?: number;
 }) {
-  const { driverId, activeOrderId, enabled = true, intervalMs = 8000 } = opts;
+  const { driverId, activeOrderId, enabled = true, intervalMs = 3000 } = opts;
   // Note: broadcasts as long as `enabled` is true, regardless of whether an
   // order is active — Uber-style continuous location while online.
 
