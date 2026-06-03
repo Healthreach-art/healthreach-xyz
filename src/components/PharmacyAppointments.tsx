@@ -211,6 +211,20 @@ export function PharmacyAppointments() {
           );
         })}
       </div>
+
+      {chatFor && user && (
+        <AppointmentChatDialog
+          open={!!chatFor}
+          onClose={() => setChatFor(null)}
+          appointmentId={chatFor.appointmentId}
+          appointmentType="pharmacy"
+          patientId={chatFor.patientId}
+          providerId={user.id}
+          myRole="pharmacy"
+          title={`Chat with ${chatFor.name}`}
+          subtitle="Replies appear in real time"
+        />
+      )}
     </div>
   );
 }
