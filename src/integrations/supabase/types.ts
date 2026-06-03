@@ -1473,6 +1473,7 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          appointments_enabled: boolean
           approval_status: Database["public"]["Enums"]["approval_status"] | null
           avatar_url: string | null
           business_reg_number: string | null
@@ -1495,18 +1496,22 @@ export type Database = {
           medical_aid_provider: string | null
           medical_aid_verification_status: string
           medical_aid_verified_at: string | null
+          opening_hours: string
           organization_name: string | null
           pharmacist_council_number: string | null
           pharmacist_name: string | null
           phone: string | null
           responsible_pharmacist_phone: string | null
           service_radius_km: number
+          services: string[]
           tax_number: string | null
           updated_at: string
           user_id: string
+          walkins_enabled: boolean
         }
         Insert: {
           address?: string | null
+          appointments_enabled?: boolean
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null
@@ -1531,18 +1536,22 @@ export type Database = {
           medical_aid_provider?: string | null
           medical_aid_verification_status?: string
           medical_aid_verified_at?: string | null
+          opening_hours?: string
           organization_name?: string | null
           pharmacist_council_number?: string | null
           pharmacist_name?: string | null
           phone?: string | null
           responsible_pharmacist_phone?: string | null
           service_radius_km?: number
+          services?: string[]
           tax_number?: string | null
           updated_at?: string
           user_id: string
+          walkins_enabled?: boolean
         }
         Update: {
           address?: string | null
+          appointments_enabled?: boolean
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null
@@ -1567,15 +1576,18 @@ export type Database = {
           medical_aid_provider?: string | null
           medical_aid_verification_status?: string
           medical_aid_verified_at?: string | null
+          opening_hours?: string
           organization_name?: string | null
           pharmacist_council_number?: string | null
           pharmacist_name?: string | null
           phone?: string | null
           responsible_pharmacist_phone?: string | null
           service_radius_km?: number
+          services?: string[]
           tax_number?: string | null
           updated_at?: string
           user_id?: string
+          walkins_enabled?: boolean
         }
         Relationships: []
       }
