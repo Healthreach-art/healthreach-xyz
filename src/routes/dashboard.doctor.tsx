@@ -59,6 +59,7 @@ function DoctorDashboard() {
   const [appts, setAppts] = useState<any[]>([]);
   const [doctorRow, setDoctorRow] = useState<any | null>(null);
   const [avail, setAvail] = useState<AvailRow[]>([]);
+  const [chatFor, setChatFor] = useState<{ appointmentId: string; patientId: string } | null>(null);
 
   const [hpcsaNumber, setHpcsaNumber] = useState("");
   const [hpcsaPath, setHpcsaPath] = useState("");
