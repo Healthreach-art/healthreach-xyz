@@ -66,7 +66,7 @@ function Page() {
     const pIds = Array.from(new Set(pl.map((p) => p.pharmacy_id)));
     if (pIds.length) {
       const { data: profs } = await supabase
-        .from("profiles").select("user_id, full_name, organization_name").in("user_id", pIds);
+        .from("pharmacy_directory" as never).select("user_id, full_name, organization_name").in("user_id", pIds);
       const m: Record<string, { name: string }> = {};
       (profs ?? []).forEach((p: any) => { m[p.user_id] = { name: p.organization_name || p.full_name || "Pharmacy" }; });
       setPharms(m);

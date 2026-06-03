@@ -2053,6 +2053,61 @@ export type Database = {
         }
         Relationships: []
       }
+      pharmacy_directory: {
+        Row: {
+          address: string | null
+          appointments_enabled: boolean | null
+          approval_status: Database["public"]["Enums"]["approval_status"] | null
+          created_at: string | null
+          full_name: string | null
+          latitude: number | null
+          longitude: number | null
+          opening_hours: string | null
+          organization_name: string | null
+          phone: string | null
+          services: string[] | null
+          services_tags: string[] | null
+          user_id: string | null
+          walkins_enabled: boolean | null
+        }
+        Insert: {
+          address?: string | null
+          appointments_enabled?: boolean | null
+          approval_status?:
+            | Database["public"]["Enums"]["approval_status"]
+            | null
+          created_at?: string | null
+          full_name?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          opening_hours?: string | null
+          organization_name?: string | null
+          phone?: string | null
+          services?: string[] | null
+          services_tags?: string[] | null
+          user_id?: string | null
+          walkins_enabled?: boolean | null
+        }
+        Update: {
+          address?: string | null
+          appointments_enabled?: boolean | null
+          approval_status?:
+            | Database["public"]["Enums"]["approval_status"]
+            | null
+          created_at?: string | null
+          full_name?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          opening_hours?: string | null
+          organization_name?: string | null
+          phone?: string | null
+          services?: string[] | null
+          services_tags?: string[] | null
+          user_id?: string | null
+          walkins_enabled?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_delivery_offer_for_driver: {

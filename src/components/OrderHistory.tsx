@@ -137,7 +137,7 @@ export function OrderHistory() {
       .select("invoice_number, subtotal, delivery_fee, total_paid, payment_method, transaction_ref, created_at")
       .eq("order_id", o.id).maybeSingle();
     if (!payment?.invoice_number) { toast.error("No invoice yet for this order"); return; }
-    const { data: ph } = await supabase.from("profiles").select("organization_name, full_name").eq("user_id", o.pharmacy_id).maybeSingle();
+    const { data: ph } = await supabase.from("pharmacy_directory" as never).select("organization_name, full_name").eq("user_id", o.pharmacy_id).maybeSingle() as { data: { organization_name: string | null; full_name: string | null } | null };
     downloadReceiptPdf({
       invoice_number: payment.invoice_number,
       created_at: payment.created_at,
@@ -149,7 +149,7 @@ export function OrderHistory() {
       total_paid: Number(payment.total_paid ?? o.total_amount),
       payment_method: payment.payment_method ?? "card",
       transaction_ref: payment.transaction_ref ?? "",
-      pharmacy_name: ph?.organization_name || ph?.full_name,
+      pharmacy_name: ph?.organization_name || ph?.full_name || undefined,
     });
   }
 
