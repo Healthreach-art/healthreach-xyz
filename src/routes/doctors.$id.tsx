@@ -18,10 +18,10 @@ interface Doctor {
 async function fetchDoctor(id: string) {
   const { data } = await supabase
     .from("doctors")
-    .select("id, full_name, specialty, qualifications, practice_number, bio, photo_url, consultation_fee, accepted_medical_aids, languages, online_available, in_person_available, phone_available, city, address, rating_avg, rating_count, is_active")
+    .select("id, full_name, specialty, qualifications, practice_number, bio, photo_url, consultation_fee, accepted_medical_aids, languages, online_available, in_person_available, phone_available, city, address, rating_avg, rating_count, is_active, is_verified")
     .eq("id", id)
     .maybeSingle();
-  return data?.is_active ? (data as Doctor) : null;
+  return data?.is_active && data?.is_verified ? (data as Doctor) : null;
 }
 
 export const Route = createFileRoute("/doctors/$id")({
