@@ -159,7 +159,7 @@ function Page() {
 
             <div className="flex flex-wrap gap-2 pt-1">
               {doc?.user_id && a.status !== "cancelled" && (
-                <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, providerUserId: doc.user_id, name: `Dr. ${doc.full_name}` })}>
+                <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, appointmentType: "doctor", providerUserId: doc.user_id, name: `Dr. ${doc.full_name}` })}>
                   <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message doctor
                 </Button>
               )}
