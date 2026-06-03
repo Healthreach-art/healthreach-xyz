@@ -41,13 +41,20 @@ export function AppSidebar() {
   const otherRoleItems: Item[] = user && role !== "patient" ? [
     { title: "Home", url: dashboardPath, icon: Home },
     ...(role === "pharmacy" ? [
-      { title: "Inventory", url: "/dashboard/pharmacy#inventory", icon: Pill },
-      { title: "Orders", url: "/dashboard/pharmacy#orders", icon: ShoppingBag },
+      { title: "Inventory", url: "/dashboard/pharmacy#inventory-section", icon: Pill },
+      { title: "Orders", url: "/dashboard/pharmacy#orders-section", icon: ShoppingBag },
       { title: "Prescription Queue", url: "/dashboard/pharmacy#prescription-queue", icon: FileText },
     ] : []),
-    ...(role === "driver" ? [{ title: "Deliveries", url: "/dashboard/driver", icon: Truck }] : []),
+    ...(role === "driver" ? [
+      { title: "Deliveries", url: "/dashboard/driver", icon: Truck },
+      { title: "Wallet", url: "/driver/wallet", icon: Wallet },
+    ] : []),
     ...(role === "doctor" ? [{ title: "My Practice", url: "/dashboard/doctor", icon: Stethoscope }] : []),
-    ...(role === "admin" ? [{ title: "Admin Panel", url: "/dashboard/admin", icon: ShieldCheck }] : []),
+    ...(role === "hospital" ? [{ title: "Hospital", url: "/dashboard/hospital", icon: HeartPulse }] : []),
+    ...(role === "admin" ? [
+      { title: "Admin Panel", url: "/dashboard/admin", icon: ShieldCheck },
+      { title: "Live Map", url: "/dashboard/admin/live", icon: MapPin },
+    ] : []),
   ] : [];
 
   const guest: Item[] = !user ? [
