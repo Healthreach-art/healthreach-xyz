@@ -199,6 +199,9 @@ function DoctorDashboard() {
       consultation_fee: consultationFee,
       city,
       address: practiceAddress,
+      services_description: servicesDescription.slice(0, 8000),
+      services_tags: servicesTags,
+      subspecialties,
       hospital_id: null,
       is_active: false, // remains inactive until admin verifies
     };
