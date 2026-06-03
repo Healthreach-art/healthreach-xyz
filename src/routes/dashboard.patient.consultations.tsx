@@ -156,6 +156,11 @@ function Page() {
             )}
 
             <div className="flex flex-wrap gap-2 pt-1">
+              {doc?.user_id && a.status !== "cancelled" && (
+                <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, providerUserId: doc.user_id, name: `Dr. ${doc.full_name}` })}>
+                  <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message doctor
+                </Button>
+              )}
               {a.status === "pending" || a.status === "confirmed" ? (
                 <Button size="sm" variant="ghost" onClick={() => cancel(a.id)}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
               ) : null}
