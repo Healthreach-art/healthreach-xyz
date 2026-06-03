@@ -45,7 +45,7 @@ function FindCarePage() {
       const [d, p] = await Promise.all([
         supabase.from("doctors")
           .select("id, full_name, specialty, city, photo_url, consultation_fee, rating_avg, rating_count")
-          .eq("is_active", true).order("rating_avg", { ascending: false }).limit(60),
+          .eq("is_active", true).eq("is_verified", true).order("rating_avg", { ascending: false }).limit(60),
         supabase.from("profiles")
           .select("user_id, organization_name, full_name, address, services")
           .eq("approval_status", "approved")

@@ -40,7 +40,7 @@ function Page() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("doctors").select("*").eq("is_active", true).order("rating_avg", { ascending: false });
+      const { data } = await supabase.from("doctors").select("*").eq("is_active", true).eq("is_verified", true).order("rating_avg", { ascending: false });
       setDocs((data ?? []) as Doctor[]);
       setLoading(false);
     })();

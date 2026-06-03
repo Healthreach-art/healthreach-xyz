@@ -15,7 +15,7 @@ export const Route = createFileRoute("/doctors/")({
     const { data } = await supabase
       .from("doctors")
       .select("id, full_name, specialty, city, photo_url, consultation_fee, rating_avg, rating_count")
-      .eq("is_active", true)
+      .eq("is_active", true).eq("is_verified", true)
       .order("rating_avg", { ascending: false })
       .limit(60);
     return { doctors: (data ?? []) as Doc[] };
