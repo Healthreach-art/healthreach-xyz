@@ -264,7 +264,7 @@ function DriverDashboard() {
         const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
         const userIds = Array.from(new Set((orders ?? []).flatMap((o) => [o.patient_id, o.pharmacy_id].filter((v): v is string => !!v))));
         const { data: profs } = userIds.length > 0
-          ? await supabase.from("profiles").select("user_id, full_name, phone, organization_name").in("user_id", userIds)
+          ? await supabase.from("pharmacy_directory" as never).select("user_id, full_name, phone, organization_name").in("user_id", userIds) as { data: { user_id: string; full_name: string; phone: string; organization_name: string }[] | null }
           : { data: [] as { user_id: string; full_name: string; phone: string; organization_name: string }[] };
         const profMap = new Map((profs ?? []).map((p) => [p.user_id, p]));
         setLiveDeliveries(active.map((d) => {
