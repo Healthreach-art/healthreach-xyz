@@ -491,6 +491,10 @@ function AdminDashboard() {
         </div>
       )}
 
+      {activeTab === "verifications" && <VerificationsPanel />}
+
+
+
       {/* PHARMACIES */}
       {activeTab === "pharmacies" && (
         <div className="healthcare-card p-6">
