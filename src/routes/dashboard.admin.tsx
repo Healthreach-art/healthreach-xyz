@@ -325,6 +325,7 @@ function AdminDashboard() {
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
     { id: "approvals", label: "Approvals", icon: CheckCircle, badge: pending.length },
+    { id: "verifications", label: "Doc verifications", icon: FileText },
     { id: "pharmacies", label: "Pharmacies", icon: Pill },
     { id: "drivers", label: "Drivers", icon: Truck },
     { id: "orders", label: "Orders", icon: ShoppingCart },
