@@ -41,7 +41,8 @@ function loadPaystack(): Promise<void> {
 
 export const Route = createFileRoute("/dashboard/patient/doctors/$id")({
   head: () => ({ meta: [{ title: "Doctor — HEALTHREACH" }] }),
-  validateSearch: (s: Record<string, unknown>) => ({ when: typeof s.when === "string" ? s.when : undefined }),
+  validateSearch: (s: Record<string, unknown>): { when?: string } =>
+    typeof s.when === "string" ? { when: s.when } : {},
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 
