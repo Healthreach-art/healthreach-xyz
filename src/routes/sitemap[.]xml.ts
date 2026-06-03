@@ -17,10 +17,28 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/", changefreq: "weekly", priority: "1.0" },
           { path: "/about", changefreq: "monthly", priority: "0.8" },
           { path: "/contact", changefreq: "monthly", priority: "0.7" },
+          { path: "/doctors", changefreq: "daily", priority: "0.9" },
           { path: "/signup", changefreq: "monthly", priority: "0.7" },
           { path: "/login", changefreq: "monthly", priority: "0.5" },
           { path: "/forgot-password", changefreq: "yearly", priority: "0.3" },
         ];
+
+        // Append dynamic doctor profile pages for SEO.
+        try {
+          const url = process.env.SUPABASE_URL;
+          const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+          if (url && key) {
+            const r = await fetch(`${url}/rest/v1/doctors?select=id&is_active=eq.true`, {
+              headers: { apikey: key, Authorization: `Bearer ${key}` },
+            });
+            if (r.ok) {
+              const rows = (await r.json()) as { id: string }[];
+              for (const row of rows) {
+                entries.push({ path: `/doctors/${row.id}`, changefreq: "weekly", priority: "0.6" });
+              }
+            }
+          }
+        } catch { /* ignore — sitemap should still serve static entries */ }
 
         const urls = entries.map((e) =>
           [

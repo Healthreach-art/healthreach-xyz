@@ -41,6 +41,8 @@ function loadPaystack(): Promise<void> {
 
 export const Route = createFileRoute("/dashboard/patient/doctors/$id")({
   head: () => ({ meta: [{ title: "Doctor — HEALTHREACH" }] }),
+  validateSearch: (s: Record<string, unknown>): { when?: string } =>
+    typeof s.when === "string" ? { when: s.when } : {},
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 
@@ -55,6 +57,7 @@ interface Doctor {
 function Page() {
   const { id } = Route.useParams();
   const { user } = useAuth();
+  const search = Route.useSearch();
   const navigate = useNavigate();
   const book = useServerFn(bookDoctorAppointment);
   const markPaid = useServerFn(markDoctorAppointmentPaid);
@@ -64,7 +67,15 @@ function Page() {
   const [reviews, setReviews] = useState<{ stars: number; comment: string; created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [when, setWhen] = useState("");
+  const [when, setWhen] = useState(() => {
+    const w = search.when;
+    if (!w) return "";
+    const d = new Date(w);
+    if (Number.isNaN(d.getTime())) return "";
+    // datetime-local needs YYYY-MM-DDTHH:mm in local time
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
   const [mode, setMode] = useState<"in_person" | "video" | "phone">("in_person");
   const [reason, setReason] = useState("");
   const [useAid, setUseAid] = useState(false);
