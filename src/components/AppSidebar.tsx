@@ -29,6 +29,7 @@ export function AppSidebar() {
     { title: "Prescriptions & Documents", url: "/dashboard/patient/prescriptions", icon: Pill },
     { title: "Deliveries", url: "/track", icon: Truck },
     { title: "Find a Doctor", url: "/dashboard/patient/doctors", icon: Stethoscope },
+    { title: "Find a Pharmacist", url: "/dashboard/patient/pharmacies", icon: Pill },
     { title: "My Consultations", url: "/dashboard/patient/consultations", icon: FileText },
     { title: "Medical Aid", url: "/dashboard/patient/medical-aid", icon: ShieldCheck },
     { title: "Pharmacy Appointments", url: "/dashboard/patient/appointments", icon: CalendarCheck },
