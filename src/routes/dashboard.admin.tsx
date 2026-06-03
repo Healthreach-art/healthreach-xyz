@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { broadcastNotification, seedJohannesburgDemo } from "@/lib/admin.functions";
+import { adminReviewDoctor, adminReviewPharmacyDocs } from "@/lib/doctor-verify.functions";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
