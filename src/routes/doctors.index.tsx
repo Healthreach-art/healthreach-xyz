@@ -41,7 +41,7 @@ function DoctorsIndex() {
   useEffect(() => {
     const n = q.trim().toLowerCase();
     if (!n) return setList(doctors);
-    setList(doctors.filter((d) =>
+    setList(doctors.filter((d: Doc) =>
       d.full_name.toLowerCase().includes(n) ||
       d.specialty.toLowerCase().includes(n) ||
       d.city.toLowerCase().includes(n),
