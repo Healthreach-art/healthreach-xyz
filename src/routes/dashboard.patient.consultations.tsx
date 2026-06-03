@@ -191,6 +191,44 @@ function Page() {
         );
       })}
 
+      {pharmAppts.length > 0 && (
+        <div className="pt-4">
+          <h2 className="text-lg font-bold text-foreground mb-2">Pharmacy bookings</h2>
+          <div className="space-y-3">
+            {pharmAppts.map((p) => (
+              <div key={p.id} className="rounded-2xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-healthcare-sky/15 flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-healthcare-sky" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-foreground truncate">{pharms[p.pharmacy_id]?.name || "Pharmacy"}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> {new Date(p.preferred_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}
+                      <span className="mx-1">·</span>{p.mode === "video" ? "Video" : p.mode === "phone" ? "Phone" : "In-person"}
+                    </p>
+                    {p.reason && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.reason}</p>}
+                    {p.pharmacist_notes && <p className="text-xs text-foreground/80 mt-1"><span className="font-semibold">Pharmacist:</span> {p.pharmacist_notes}</p>}
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${
+                    p.status === "confirmed" ? "bg-healthcare-green/15 text-healthcare-green" :
+                    p.status === "cancelled" ? "bg-destructive/15 text-destructive" :
+                    p.status === "completed" ? "bg-muted text-muted-foreground" :
+                    "bg-healthcare-sky/15 text-healthcare-sky"
+                  }`}>{p.status}</span>
+                </div>
+                {p.status !== "cancelled" && (
+                  <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: p.id, appointmentType: "pharmacy", providerUserId: p.pharmacy_id, name: pharms[p.pharmacy_id]?.name || "Pharmacy" })}>
+                    <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message pharmacist
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
       <Dialog open={!!reviewFor} onOpenChange={(o) => !o && setReviewFor(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Rate this consultation</DialogTitle></DialogHeader>
