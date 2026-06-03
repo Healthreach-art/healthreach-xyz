@@ -217,6 +217,24 @@ function DoctorDashboard() {
     load();
   }
 
+  async function runNormalize() {
+    if (servicesDescription.trim().length < 10) {
+      toast.error("Write a longer description first");
+      return;
+    }
+    setAiBusy(true);
+    try {
+      const r = await normalize({ data: { text: servicesDescription.trim(), kind: "doctor" } });
+      setSubspecialties(Array.from(new Set([...subspecialties, ...r.subspecialties])).slice(0, 40));
+      setServicesTags(Array.from(new Set([...servicesTags, ...r.keywords, ...r.subspecialties])).slice(0, 80));
+      toast.success(`AI added ${r.subspecialties.length} subspecialties + ${r.keywords.length} keywords`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "AI failed");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   async function submitDocs() {
     if (!hpcsaNumber || !hpcsaPath || !idPath || qualPaths.length === 0 || !malpracticePath) {
       toast.error("All required documents must be uploaded first");
