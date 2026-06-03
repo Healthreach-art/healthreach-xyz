@@ -216,7 +216,7 @@ function PublicDoctorPage() {
       <section id="book" className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="font-bold text-foreground flex items-center gap-2"><CalendarCheck className="h-5 w-5 text-primary" /> Available appointments</h2>
-          <p className="text-xs text-muted-foreground">Next 7 weekdays · Mon–Fri · 09:00–16:00 SAST</p>
+          <p className="text-xs text-muted-foreground">Times shown follow the doctor's availability (SAST).</p>
         </div>
         <div className="space-y-3">
           {days.map((d) => (
