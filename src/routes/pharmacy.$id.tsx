@@ -50,7 +50,7 @@ const CATEGORIES = [
   { key: "First Aid", icon: Bandage, terms: ["bandage", "plaster", "antiseptic", "wound", "burn"] },
 ];
 
-interface Pharmacy { user_id: string; organization_name: string | null; full_name: string; address: string | null; }
+interface Pharmacy { user_id: string; organization_name: string | null; full_name: string; address: string | null; appointments_enabled: boolean; walkins_enabled: boolean; opening_hours: string | null; services: string[] | null; phone: string | null; }
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; description?: string | null; }
 
 export const Route = createFileRoute("/pharmacy/$id")({
@@ -123,7 +123,7 @@ function Storefront() {
   useEffect(() => {
     (async () => {
       const [{ data: prof }, { data: medsData }] = await Promise.all([
-        supabase.from("profiles").select("user_id, organization_name, full_name, address").eq("user_id", id).maybeSingle(),
+        supabase.from("profiles").select("user_id, organization_name, full_name, address, appointments_enabled, walkins_enabled, opening_hours, services, phone").eq("user_id", id).maybeSingle(),
         supabase.from("medications").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, description").eq("pharmacy_id", id).gt("stock_quantity", 0).order("name"),
       ]);
       setPharmacy(prof as Pharmacy | null);
@@ -189,13 +189,46 @@ function Storefront() {
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             <MapPin className="h-3 w-3" /> {pharmacy.address || "Cape Town"}
           </p>
-          <div className="mt-3">
-            <Button size="sm" onClick={() => setApptOpen(true)} className="rounded-full">
-              <CalendarPlus className="h-4 w-4 mr-1" /> Book appointment
-            </Button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {pharmacy.appointments_enabled && (
+              <Button size="sm" onClick={() => setApptOpen(true)} className="rounded-full">
+                <CalendarPlus className="h-4 w-4 mr-1" /> Book appointment
+              </Button>
+            )}
+            {pharmacy.walkins_enabled && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-healthcare-mint/40 text-foreground px-3 py-1.5 text-xs font-semibold">
+                <MapPin className="h-3.5 w-3.5" /> Walk-ins welcome
+              </span>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Services + walk-in info */}
+      {(pharmacy.walkins_enabled || (pharmacy.services?.length ?? 0) > 0) && (
+        <div className="container-narrow px-4 sm:px-6 pt-5">
+          <div className="healthcare-card p-4 grid gap-3 sm:grid-cols-2">
+            {pharmacy.walkins_enabled && (
+              <div>
+                <p className="text-xs font-bold uppercase text-muted-foreground">Walk-in hours</p>
+                <p className="text-sm mt-1">{pharmacy.opening_hours?.trim() || "Mon–Fri 08:00–18:00"}</p>
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> {pharmacy.address || "Cape Town"}</p>
+              </div>
+            )}
+            {(pharmacy.services?.length ?? 0) > 0 && (
+              <div>
+                <p className="text-xs font-bold uppercase text-muted-foreground">Services offered</p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {pharmacy.services!.map((s) => (
+                    <span key={s} className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-[11px] font-semibold">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
 
       {/* Sticky search + tabs */}
       <div className="sticky top-12 z-20 bg-background/95 backdrop-blur border-b border-border">

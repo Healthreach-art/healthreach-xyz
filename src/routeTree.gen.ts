@@ -51,6 +51,7 @@ import { Route as DashboardPatientPharmaciesRouteImport } from './routes/dashboa
 import { Route as DashboardPatientPaymentMethodsRouteImport } from './routes/dashboard.patient.payment-methods'
 import { Route as DashboardPatientOrdersRouteImport } from './routes/dashboard.patient.orders'
 import { Route as DashboardPatientMedicalAidRouteImport } from './routes/dashboard.patient.medical-aid'
+import { Route as DashboardPatientFindRouteImport } from './routes/dashboard.patient.find'
 import { Route as DashboardPatientFamilyRouteImport } from './routes/dashboard.patient.family'
 import { Route as DashboardPatientDoctorsRouteImport } from './routes/dashboard.patient.doctors'
 import { Route as DashboardPatientConsultationsRouteImport } from './routes/dashboard.patient.consultations'
@@ -278,6 +279,11 @@ const DashboardPatientMedicalAidRoute =
     path: '/dashboard/patient/medical-aid',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DashboardPatientFindRoute = DashboardPatientFindRouteImport.update({
+  id: '/dashboard/patient/find',
+  path: '/dashboard/patient/find',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardPatientFamilyRoute = DashboardPatientFamilyRouteImport.update({
   id: '/dashboard/patient/family',
   path: '/dashboard/patient/family',
@@ -376,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
   '/dashboard/patient/doctors': typeof DashboardPatientDoctorsRouteWithChildren
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
+  '/dashboard/patient/find': typeof DashboardPatientFindRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
@@ -430,6 +437,7 @@ export interface FileRoutesByTo {
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
   '/dashboard/patient/doctors': typeof DashboardPatientDoctorsRouteWithChildren
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
+  '/dashboard/patient/find': typeof DashboardPatientFindRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
@@ -485,6 +493,7 @@ export interface FileRoutesById {
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
   '/dashboard/patient/doctors': typeof DashboardPatientDoctorsRouteWithChildren
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
+  '/dashboard/patient/find': typeof DashboardPatientFindRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
@@ -541,6 +550,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/consultations'
     | '/dashboard/patient/doctors'
     | '/dashboard/patient/family'
+    | '/dashboard/patient/find'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
@@ -595,6 +605,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/consultations'
     | '/dashboard/patient/doctors'
     | '/dashboard/patient/family'
+    | '/dashboard/patient/find'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
@@ -649,6 +660,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/consultations'
     | '/dashboard/patient/doctors'
     | '/dashboard/patient/family'
+    | '/dashboard/patient/find'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
@@ -702,6 +714,7 @@ export interface RootRouteChildren {
   DashboardPatientConsultationsRoute: typeof DashboardPatientConsultationsRoute
   DashboardPatientDoctorsRoute: typeof DashboardPatientDoctorsRouteWithChildren
   DashboardPatientFamilyRoute: typeof DashboardPatientFamilyRoute
+  DashboardPatientFindRoute: typeof DashboardPatientFindRoute
   DashboardPatientMedicalAidRoute: typeof DashboardPatientMedicalAidRoute
   DashboardPatientOrdersRoute: typeof DashboardPatientOrdersRoute
   DashboardPatientPaymentMethodsRoute: typeof DashboardPatientPaymentMethodsRoute
@@ -1011,6 +1024,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientMedicalAidRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/patient/find': {
+      id: '/dashboard/patient/find'
+      path: '/dashboard/patient/find'
+      fullPath: '/dashboard/patient/find'
+      preLoaderRoute: typeof DashboardPatientFindRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/patient/family': {
       id: '/dashboard/patient/family'
       path: '/dashboard/patient/family'
@@ -1160,6 +1180,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardPatientConsultationsRoute: DashboardPatientConsultationsRoute,
   DashboardPatientDoctorsRoute: DashboardPatientDoctorsRouteWithChildren,
   DashboardPatientFamilyRoute: DashboardPatientFamilyRoute,
+  DashboardPatientFindRoute: DashboardPatientFindRoute,
   DashboardPatientMedicalAidRoute: DashboardPatientMedicalAidRoute,
   DashboardPatientOrdersRoute: DashboardPatientOrdersRoute,
   DashboardPatientPaymentMethodsRoute: DashboardPatientPaymentMethodsRoute,
