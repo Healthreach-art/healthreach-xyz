@@ -65,7 +65,7 @@ function DoctorsIndex() {
         />
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {list.map((d) => (
+        {list.map((d: Doc) => (
           <Link key={d.id} to="/doctors/$id" params={{ id: d.id }} className="rounded-2xl border border-border bg-card p-4 hover:shadow-md transition flex gap-3">
             <div className="h-16 w-16 rounded-xl bg-healthcare-mint/30 overflow-hidden flex items-center justify-center shrink-0">
               {d.photo_url ? <img src={d.photo_url} alt={d.full_name} className="h-full w-full object-cover" loading="lazy" /> : <UserIcon className="h-7 w-7 text-healthcare-teal" />}
