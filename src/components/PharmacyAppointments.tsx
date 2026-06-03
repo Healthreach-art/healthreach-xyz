@@ -28,6 +28,7 @@ export function PharmacyAppointments() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [patients, setPatients] = useState<Record<string, { name: string; phone: string }>>({});
+  const [chatFor, setChatFor] = useState<{ appointmentId: string; patientId: string; name: string } | null>(null);
 
   async function load() {
     if (!user) return;
