@@ -34,6 +34,7 @@ function Page() {
   const [reviewFor, setReviewFor] = useState<{ appointmentId: string; doctorId: string } | null>(null);
   const [stars, setStars] = useState(5);
   const [comment, setComment] = useState("");
+  const [chatFor, setChatFor] = useState<{ appointmentId: string; providerUserId: string; name: string } | null>(null);
 
   async function load() {
     if (!user) return;
