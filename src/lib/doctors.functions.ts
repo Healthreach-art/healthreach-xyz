@@ -23,18 +23,23 @@ export const bookDoctorAppointment = createServerFn({ method: "POST" })
     const userId = context.userId;
     const { data: doc, error: docErr } = await supabaseAdmin
       .from("doctors")
-      .select("id, hospital_id, consultation_fee, is_active, full_name")
+      .select("id, hospital_id, user_id, consultation_fee, is_active, is_verified, full_name")
       .eq("id", data.doctorId)
       .maybeSingle();
     if (docErr || !doc) throw new Error("Doctor not found");
     if (!doc.is_active) throw new Error("Doctor is not accepting appointments");
+    if (!doc.is_verified) throw new Error("Doctor is not yet verified by HEALTHREACH");
+
+    // Self-registered doctors have no hospital — fall back to the doctor's own user_id
+    // so the existing notification trigger still has a recipient.
+    const hospitalId = doc.hospital_id ?? doc.user_id ?? userId;
 
     const { data: appt, error } = await supabaseAdmin
       .from("doctor_appointments")
       .insert({
         patient_id: userId,
         doctor_id: doc.id,
-        hospital_id: doc.hospital_id,
+        hospital_id: hospitalId,
         family_member_id: data.familyMemberId ?? null,
         scheduled_at: new Date(data.scheduledAt).toISOString(),
         mode: data.mode,
