@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, BadgeCheck, Stethoscope } from "lucide-react";
+import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Stethoscope } from "lucide-react";
 
 const SITE = "https://healthreachhub.lovable.app";
 
