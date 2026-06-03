@@ -39,6 +39,13 @@ interface DocRow {
   rejection_reason: string | null;
 }
 
+interface AvailRow {
+  id: string; doctor_id: string; day_of_week: number;
+  start_hour: number; end_hour: number; slot_minutes: number; is_active: boolean;
+}
+
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 function DoctorDashboard() {
   const { user, approvalStatus, signOut, profile } = useAuth();
   const submit = useServerFn(submitDoctorDocuments);
@@ -47,6 +54,7 @@ function DoctorDashboard() {
   const [busy, setBusy] = useState(false);
   const [appts, setAppts] = useState<any[]>([]);
   const [doctorRow, setDoctorRow] = useState<any | null>(null);
+  const [avail, setAvail] = useState<AvailRow[]>([]);
 
   const [hpcsaNumber, setHpcsaNumber] = useState("");
   const [hpcsaPath, setHpcsaPath] = useState("");
@@ -71,14 +79,22 @@ function DoctorDashboard() {
   async function load() {
     if (!user) return;
     setLoading(true);
-    const [{ data: d }, { data: doc }, { data: a }] = await Promise.all([
+    const [{ data: d }, { data: doc }] = await Promise.all([
       supabase.from("doctor_documents").select("*").eq("doctor_user_id", user.id).maybeSingle(),
       supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("doctor_appointments").select("*").order("scheduled_at", { ascending: false }).limit(50),
     ]);
     setDocs((d as DocRow) ?? null);
     setDoctorRow(doc);
-    setAppts(a ?? []);
+    if (doc?.id) {
+      const [{ data: a }, { data: av }] = await Promise.all([
+        supabase.from("doctor_appointments").select("*").eq("doctor_id", doc.id).order("scheduled_at", { ascending: false }).limit(50),
+        supabase.from("doctor_availability").select("*").eq("doctor_id", doc.id).order("day_of_week").order("start_hour"),
+      ]);
+      setAppts(a ?? []);
+      setAvail((av ?? []) as AvailRow[]);
+    } else {
+      setAppts([]); setAvail([]);
+    }
     if (d) {
       setHpcsaNumber(d.hpcsa_number ?? "");
       setHpcsaPath(d.hpcsa_cert_path ?? "");
@@ -105,6 +121,48 @@ function DoctorDashboard() {
     setLoading(false);
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
+
+  // Realtime — incoming appointments + availability changes flow in within seconds
+  useEffect(() => {
+    if (!doctorRow?.id) return;
+    const ch = supabase
+      .channel(`doctor-dash-${doctorRow.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `doctor_id=eq.${doctorRow.id}` }, async (payload) => {
+        if (payload.eventType === "INSERT") toast.success("New appointment request");
+        const { data: a } = await supabase.from("doctor_appointments").select("*").eq("doctor_id", doctorRow.id).order("scheduled_at", { ascending: false }).limit(50);
+        setAppts(a ?? []);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_availability", filter: `doctor_id=eq.${doctorRow.id}` }, async () => {
+        const { data: av } = await supabase.from("doctor_availability").select("*").eq("doctor_id", doctorRow.id).order("day_of_week").order("start_hour");
+        setAvail((av ?? []) as AvailRow[]);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [doctorRow?.id]);
+
+  async function addAvail(dow: number) {
+    if (!doctorRow?.id) return toast.error("Save your profile first");
+    const { error } = await supabase.from("doctor_availability").insert({
+      doctor_id: doctorRow.id, day_of_week: dow, start_hour: 9, end_hour: 17, slot_minutes: 30, is_active: true,
+    });
+    if (error) toast.error(error.message);
+  }
+  async function updateAvail(id: string, patch: Partial<AvailRow>) {
+    const { error } = await supabase.from("doctor_availability").update(patch).eq("id", id);
+    if (error) toast.error(error.message);
+  }
+  async function removeAvail(id: string) {
+    const { error } = await supabase.from("doctor_availability").delete().eq("id", id);
+    if (error) toast.error(error.message);
+  }
+  async function updateApptStatus(id: string, status: string) {
+    const patch: any = { status };
+    if (status === "completed") patch.completed_at = new Date().toISOString();
+    if (status === "cancelled") patch.cancelled_at = new Date().toISOString();
+    const { error } = await supabase.from("doctor_appointments").update(patch).eq("id", id);
+    if (error) toast.error(error.message);
+    else toast.success(`Appointment ${status}`);
+  }
 
   async function uploadTo(file: File, slot: string): Promise<string | null> {
     if (!user) return null;
