@@ -122,6 +122,9 @@ function DoctorDashboard() {
       setConsultationFee(Number(doc.consultation_fee ?? 450));
       setCity(doc.city ?? "");
       setPracticeAddress(doc.address ?? "");
+      setServicesDescription((doc as any).services_description ?? "");
+      setServicesTags(((doc as any).services_tags as string[]) ?? []);
+      setSubspecialties(((doc as any).subspecialties as string[]) ?? []);
     } else {
       setFullName(profile?.full_name ?? "");
     }
