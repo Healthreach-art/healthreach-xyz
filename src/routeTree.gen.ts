@@ -37,6 +37,7 @@ import { Route as DoctorsIdRouteImport } from './routes/doctors.$id'
 import { Route as DashboardPharmacyRouteImport } from './routes/dashboard.pharmacy'
 import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
 import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
+import { Route as DashboardDoctorRouteImport } from './routes/dashboard.doctor'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
@@ -203,6 +204,11 @@ const DashboardDriverRoute = DashboardDriverRouteImport.update({
   path: '/dashboard/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardDoctorRoute = DashboardDoctorRouteImport.update({
+  id: '/dashboard/doctor',
+  path: '/dashboard/doctor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardAdminRoute = DashboardAdminRouteImport.update({
   id: '/dashboard/admin',
   path: '/dashboard/admin',
@@ -363,6 +369,7 @@ export interface FileRoutesByFullPath {
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
+  '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
@@ -418,6 +425,7 @@ export interface FileRoutesByTo {
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
+  '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
@@ -474,6 +482,7 @@ export interface FileRoutesById {
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
+  '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRoute
@@ -531,6 +540,7 @@ export interface FileRouteTypes {
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
+    | '/dashboard/doctor'
     | '/dashboard/driver'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
@@ -586,6 +596,7 @@ export interface FileRouteTypes {
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
+    | '/dashboard/doctor'
     | '/dashboard/driver'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
@@ -641,6 +652,7 @@ export interface FileRouteTypes {
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
+    | '/dashboard/doctor'
     | '/dashboard/driver'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
@@ -697,6 +709,7 @@ export interface RootRouteChildren {
   ApiMockPayRoute: typeof ApiMockPayRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   DashboardAdminRoute: typeof DashboardAdminRouteWithChildren
+  DashboardDoctorRoute: typeof DashboardDoctorRoute
   DashboardDriverRoute: typeof DashboardDriverRoute
   DashboardHospitalRoute: typeof DashboardHospitalRoute
   DashboardPharmacyRoute: typeof DashboardPharmacyRoute
@@ -924,6 +937,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/driver'
       fullPath: '/dashboard/driver'
       preLoaderRoute: typeof DashboardDriverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/doctor': {
+      id: '/dashboard/doctor'
+      path: '/dashboard/doctor'
+      fullPath: '/dashboard/doctor'
+      preLoaderRoute: typeof DashboardDoctorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/admin': {
@@ -1163,6 +1183,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMockPayRoute: ApiMockPayRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   DashboardAdminRoute: DashboardAdminRouteWithChildren,
+  DashboardDoctorRoute: DashboardDoctorRoute,
   DashboardDriverRoute: DashboardDriverRoute,
   DashboardHospitalRoute: DashboardHospitalRoute,
   DashboardPharmacyRoute: DashboardPharmacyRoute,

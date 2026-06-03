@@ -1,0 +1,417 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { RoleGuard } from "@/components/RoleGuard";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Stethoscope, Upload, Clock, CheckCircle2, AlertCircle, FileText, Calendar } from "lucide-react";
+import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { submitDoctorDocuments } from "@/lib/doctor-verify.functions";
+
+export const Route = createFileRoute("/dashboard/doctor")({
+  head: () => ({ meta: [{ title: "Doctor Dashboard — HEALTHREACH" }] }),
+  component: () => (
+    <RoleGuard allow="doctor">
+      <DoctorDashboard />
+    </RoleGuard>
+  ),
+});
+
+interface DocRow {
+  hpcsa_number: string | null;
+  hpcsa_cert_path: string | null;
+  id_document_path: string | null;
+  qualification_paths: string[];
+  malpractice_cert_path: string | null;
+  malpractice_expires_at: string | null;
+  practice_letter_path: string | null;
+  indemnity_path: string | null;
+  notes: string | null;
+  submitted_at: string | null;
+  verified_at: string | null;
+  rejection_reason: string | null;
+}
+
+function DoctorDashboard() {
+  const { user, approvalStatus, signOut, profile } = useAuth();
+  const submit = useServerFn(submitDoctorDocuments);
+  const [docs, setDocs] = useState<DocRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [appts, setAppts] = useState<any[]>([]);
+  const [doctorRow, setDoctorRow] = useState<any | null>(null);
+
+  const [hpcsaNumber, setHpcsaNumber] = useState("");
+  const [hpcsaPath, setHpcsaPath] = useState("");
+  const [idPath, setIdPath] = useState("");
+  const [qualPaths, setQualPaths] = useState<string[]>([]);
+  const [malpracticePath, setMalpracticePath] = useState("");
+  const [malpracticeExpiry, setMalpracticeExpiry] = useState("");
+  const [practiceLetterPath, setPracticeLetterPath] = useState("");
+  const [indemnityPath, setIndemnityPath] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Doctor profile fields (so they appear in the public directory after approval)
+  const [fullName, setFullName] = useState("");
+  const [specialty, setSpecialty] = useState("General Practitioner");
+  const [qualifications, setQualifications] = useState("");
+  const [practiceNumber, setPracticeNumber] = useState("");
+  const [bio, setBio] = useState("");
+  const [consultationFee, setConsultationFee] = useState<number>(450);
+  const [city, setCity] = useState("");
+  const [practiceAddress, setPracticeAddress] = useState("");
+
+  async function load() {
+    if (!user) return;
+    setLoading(true);
+    const [{ data: d }, { data: doc }, { data: a }] = await Promise.all([
+      supabase.from("doctor_documents").select("*").eq("doctor_user_id", user.id).maybeSingle(),
+      supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle(),
+      supabase.from("doctor_appointments").select("*").order("scheduled_at", { ascending: false }).limit(50),
+    ]);
+    setDocs((d as DocRow) ?? null);
+    setDoctorRow(doc);
+    setAppts(a ?? []);
+    if (d) {
+      setHpcsaNumber(d.hpcsa_number ?? "");
+      setHpcsaPath(d.hpcsa_cert_path ?? "");
+      setIdPath(d.id_document_path ?? "");
+      setQualPaths(d.qualification_paths ?? []);
+      setMalpracticePath(d.malpractice_cert_path ?? "");
+      setMalpracticeExpiry(d.malpractice_expires_at ?? "");
+      setPracticeLetterPath(d.practice_letter_path ?? "");
+      setIndemnityPath(d.indemnity_path ?? "");
+      setNotes(d.notes ?? "");
+    }
+    if (doc) {
+      setFullName(doc.full_name ?? profile?.full_name ?? "");
+      setSpecialty(doc.specialty ?? "General Practitioner");
+      setQualifications(doc.qualifications ?? "");
+      setPracticeNumber(doc.practice_number ?? "");
+      setBio(doc.bio ?? "");
+      setConsultationFee(Number(doc.consultation_fee ?? 450));
+      setCity(doc.city ?? "");
+      setPracticeAddress(doc.address ?? "");
+    } else {
+      setFullName(profile?.full_name ?? "");
+    }
+    setLoading(false);
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
+
+  async function uploadTo(file: File, slot: string): Promise<string | null> {
+    if (!user) return null;
+    const ext = file.name.split(".").pop() || "bin";
+    const path = `${user.id}/${slot}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("doctor-docs").upload(path, file, { upsert: true });
+    if (error) {
+      toast.error(error.message);
+      return null;
+    }
+    return path;
+  }
+
+  async function saveProfile() {
+    if (!user) return;
+    setBusy(true);
+    const payload = {
+      user_id: user.id,
+      full_name: fullName,
+      specialty,
+      qualifications,
+      practice_number: practiceNumber,
+      bio,
+      consultation_fee: consultationFee,
+      city,
+      address: practiceAddress,
+      hospital_id: null,
+      is_active: false, // remains inactive until admin verifies
+    };
+    let error: any;
+    if (doctorRow) {
+      ({ error } = await supabase.from("doctors").update(payload).eq("id", doctorRow.id));
+    } else {
+      ({ error } = await supabase.from("doctors").insert(payload));
+    }
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Profile saved");
+    load();
+  }
+
+  async function submitDocs() {
+    if (!hpcsaNumber || !hpcsaPath || !idPath || qualPaths.length === 0 || !malpracticePath) {
+      toast.error("All required documents must be uploaded first");
+      return;
+    }
+    setBusy(true);
+    try {
+      await submit({
+        data: {
+          hpcsa_number: hpcsaNumber,
+          hpcsa_cert_path: hpcsaPath,
+          id_document_path: idPath,
+          qualification_paths: qualPaths,
+          malpractice_cert_path: malpracticePath,
+          malpractice_expires_at: malpracticeExpiry || undefined,
+          practice_letter_path: practiceLetterPath || undefined,
+          indemnity_path: indemnityPath || undefined,
+          notes: notes || undefined,
+        },
+      });
+      toast.success("Documents submitted for admin review");
+      load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Submission failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isVerified = approvalStatus === "approved" && !!docs?.verified_at;
+  const isPending = !!docs?.submitted_at && !docs?.verified_at && !docs?.rejection_reason;
+  const wasRejected = !!docs?.rejection_reason;
+
+  return (
+    <div className="container mx-auto max-w-5xl px-4 py-8">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full healthcare-gradient">
+            <Stethoscope className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Doctor Dashboard</h1>
+            <p className="text-sm text-muted-foreground">{profile?.full_name || profile?.email}</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={signOut}>Sign out</Button>
+      </div>
+
+      <Card className="mb-6 p-4">
+        {isVerified ? (
+          <div className="flex items-center gap-3 text-sm">
+            <CheckCircle2 className="h-5 w-5 text-healthcare-green" />
+            <span>Your account is verified. You appear in the public directory.</span>
+          </div>
+        ) : isPending ? (
+          <div className="flex items-center gap-3 text-sm">
+            <Clock className="h-5 w-5 text-amber-500" />
+            <span>Documents submitted. An admin is reviewing them — you'll be notified.</span>
+          </div>
+        ) : wasRejected ? (
+          <div className="flex items-start gap-3 text-sm">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <div className="font-medium text-destructive">Verification rejected</div>
+              <div className="text-muted-foreground">{docs?.rejection_reason}</div>
+              <div className="text-xs mt-1">Update your documents below and resubmit.</div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3 text-sm">
+            <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+            <div>
+              <div className="font-medium">No document, no operation.</div>
+              <div className="text-muted-foreground">
+                HEALTHREACH only connects patients with verified providers. Upload your HPCSA registration, ID, qualifications and malpractice cover. Admin verifies before patients can book you.
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Tabs defaultValue="docs">
+        <TabsList>
+          <TabsTrigger value="docs">Legal documents</TabsTrigger>
+          <TabsTrigger value="profile">Public profile</TabsTrigger>
+          <TabsTrigger value="appointments">
+            Appointments {appts.length ? <Badge variant="secondary" className="ml-2">{appts.length}</Badge> : null}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="docs">
+          <Card className="p-6 space-y-5">
+            <p className="text-xs text-muted-foreground">
+              South Africa: HPCSA registration is mandatory. Malpractice cover is required to take patients via HEALTHREACH.
+            </p>
+
+            <div className="space-y-2">
+              <Label>HPCSA registration number *</Label>
+              <Input value={hpcsaNumber} onChange={(e) => setHpcsaNumber(e.target.value)} placeholder="e.g. MP0123456" maxLength={64} />
+            </div>
+
+            <FileSlot
+              label="HPCSA registration certificate (PDF) *"
+              currentPath={hpcsaPath}
+              onUpload={async (f) => { const p = await uploadTo(f, "hpcsa"); if (p) setHpcsaPath(p); }}
+            />
+            <FileSlot
+              label="South African ID / Passport *"
+              currentPath={idPath}
+              onUpload={async (f) => { const p = await uploadTo(f, "id"); if (p) setIdPath(p); }}
+            />
+            <MultiFileSlot
+              label="Medical qualifications (degrees, diplomas) *"
+              paths={qualPaths}
+              onUpload={async (f) => {
+                const p = await uploadTo(f, "qual");
+                if (p) setQualPaths((prev) => [...prev, p]);
+              }}
+              onRemove={(p) => setQualPaths((prev) => prev.filter((x) => x !== p))}
+            />
+            <FileSlot
+              label="Professional indemnity / malpractice cover *"
+              currentPath={malpracticePath}
+              onUpload={async (f) => { const p = await uploadTo(f, "malpractice"); if (p) setMalpracticePath(p); }}
+            />
+            <div className="space-y-2">
+              <Label>Malpractice cover expiry</Label>
+              <Input type="date" value={malpracticeExpiry} onChange={(e) => setMalpracticeExpiry(e.target.value)} />
+            </div>
+            <FileSlot
+              label="Practice / clinic letter (optional)"
+              currentPath={practiceLetterPath}
+              onUpload={async (f) => { const p = await uploadTo(f, "practice"); if (p) setPracticeLetterPath(p); }}
+            />
+            <FileSlot
+              label="Additional indemnity proof (optional)"
+              currentPath={indemnityPath}
+              onUpload={async (f) => { const p = await uploadTo(f, "indemnity"); if (p) setIndemnityPath(p); }}
+            />
+            <div className="space-y-2">
+              <Label>Notes for the reviewer</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} maxLength={1000} />
+            </div>
+
+            <Button onClick={submitDocs} disabled={busy} className="w-full">
+              {busy ? "Submitting..." : isPending ? "Resubmit for review" : "Submit for admin review"}
+            </Button>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="profile">
+          <Card className="p-6 space-y-4">
+            <p className="text-xs text-muted-foreground">
+              How patients will see you in the public directory. Only visible after admin verification.
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Full name (as on HPCSA)</Label>
+                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={120} />
+              </div>
+              <div className="space-y-2">
+                <Label>Specialty</Label>
+                <Input value={specialty} onChange={(e) => setSpecialty(e.target.value)} maxLength={120} />
+              </div>
+              <div className="space-y-2">
+                <Label>Qualifications</Label>
+                <Input value={qualifications} onChange={(e) => setQualifications(e.target.value)} placeholder="e.g. MBChB (UCT), Dip Obs" maxLength={200} />
+              </div>
+              <div className="space-y-2">
+                <Label>Practice number</Label>
+                <Input value={practiceNumber} onChange={(e) => setPracticeNumber(e.target.value)} maxLength={64} />
+              </div>
+              <div className="space-y-2">
+                <Label>Consultation fee (R)</Label>
+                <Input type="number" value={consultationFee} onChange={(e) => setConsultationFee(Number(e.target.value))} min={0} />
+              </div>
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Input value={city} onChange={(e) => setCity(e.target.value)} maxLength={120} />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Practice address</Label>
+                <Input value={practiceAddress} onChange={(e) => setPracticeAddress(e.target.value)} maxLength={300} />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Short bio</Label>
+                <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} maxLength={1000} />
+              </div>
+            </div>
+            <Button onClick={saveProfile} disabled={busy}>{busy ? "Saving..." : "Save profile"}</Button>
+            {doctorRow && !doctorRow.is_verified && (
+              <p className="text-xs text-muted-foreground">
+                Profile saved but hidden from patients until an admin verifies your documents.
+              </p>
+            )}
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="appointments">
+          <Card className="p-6">
+            {appts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No appointments yet. Once verified, patients can book you at{" "}
+                <Link to="/doctors" className="underline">/doctors</Link>.
+              </p>
+            ) : (
+              <div className="divide-y">
+                {appts.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm font-medium">{new Date(a.scheduled_at).toLocaleString()}</div>
+                        <div className="text-xs text-muted-foreground capitalize">{a.mode} · {a.status}</div>
+                      </div>
+                    </div>
+                    <Badge variant={a.payment_status === "paid" ? "default" : "secondary"}>{a.payment_status}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <p className="mt-8 text-center text-xs text-muted-foreground">
+        HEALTHREACH is a discovery & booking platform only. All medical services, prescriptions, and treatment remain the responsibility of the doctor.
+      </p>
+    </div>
+  );
+}
+
+function FileSlot({ label, currentPath, onUpload }: { label: string; currentPath: string; onUpload: (f: File) => Promise<void>; }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex items-center gap-2">
+        <Button type="button" size="sm" variant="outline" onClick={() => ref.current?.click()}>
+          <Upload className="mr-1 h-3 w-3" /> {currentPath ? "Replace" : "Upload"}
+        </Button>
+        {currentPath && <span className="truncate text-xs text-muted-foreground">{currentPath.split("/").pop()}</span>}
+        <input ref={ref} type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }} />
+      </div>
+    </div>
+  );
+}
+
+function MultiFileSlot({ label, paths, onUpload, onRemove }: { label: string; paths: string[]; onUpload: (f: File) => Promise<void>; onRemove: (p: string) => void; }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="space-y-2">
+        {paths.map((p) => (
+          <div key={p} className="flex items-center gap-2 text-xs">
+            <FileText className="h-3 w-3 text-muted-foreground" />
+            <span className="flex-1 truncate text-muted-foreground">{p.split("/").pop()}</span>
+            <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(p)}>Remove</Button>
+          </div>
+        ))}
+        <Button type="button" size="sm" variant="outline" onClick={() => ref.current?.click()}>
+          <Upload className="mr-1 h-3 w-3" /> Add document
+        </Button>
+        <input ref={ref} type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { onUpload(f); e.target.value = ""; } }} />
+      </div>
+    </div>
+  );
+}

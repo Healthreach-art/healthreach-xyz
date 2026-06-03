@@ -10,13 +10,13 @@ import { setSignupLocation } from "@/lib/dispatch.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
 
-type SignupSearch = { role?: "patient" | "pharmacy" | "driver" };
+type SignupSearch = { role?: "patient" | "pharmacy" | "driver" | "doctor" };
 
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>): SignupSearch => {
     const r = search.role;
-    return { role: r === "pharmacy" || r === "driver" ? r : "patient" };
+    return { role: r === "pharmacy" || r === "driver" || r === "doctor" ? r : "patient" };
   },
   head: () => ({
     meta: [
@@ -31,6 +31,7 @@ const ROLE_META = {
   patient: { label: "Patient", title: "Create Patient Account", desc: "Join HEALTHREACH today" },
   pharmacy: { label: "Pharmacy", title: "Become a Pharmacy Partner", desc: "Manage inventory and fulfill orders" },
   driver: { label: "Driver", title: "Become a Driver", desc: "Deliver medications to patients" },
+  doctor: { label: "Doctor", title: "Register as a Doctor", desc: "Self-register, upload HPCSA + legal docs, get approved" },
 } as const;
 
 function SignupPage() {
@@ -38,7 +39,7 @@ function SignupPage() {
   const { role = "patient" } = useSearch({ from: "/signup" }) as SignupSearch;
   const meta = ROLE_META[role];
   const needsOrg = role === "pharmacy";
-  const needsApproval = role === "pharmacy" || role === "driver";
+  const needsApproval = role === "pharmacy" || role === "driver" || role === "doctor";
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -175,7 +176,7 @@ function SignupPage() {
             </div>
 
             <div className="space-y-1">
-              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : "Delivery address"}</Label>
+              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : role === "doctor" ? "Practice address" : "Delivery address"}</Label>
               <AddressPicker
                 value={address}
                 onChange={setAddress}

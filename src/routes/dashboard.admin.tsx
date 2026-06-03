@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { broadcastNotification, seedJohannesburgDemo } from "@/lib/admin.functions";
+import { adminReviewDoctor, adminReviewPharmacyDocs } from "@/lib/doctor-verify.functions";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,9 +34,9 @@ export const Route = createFileRoute("/dashboard/admin")({
 });
 
 type TabId =
-  | "overview" | "analytics" | "approvals" | "pharmacies" | "drivers"
+  | "overview" | "analytics" | "approvals" | "verifications" | "pharmacies" | "drivers"
   | "orders" | "payments" | "refunds" | "prescriptions" | "complaints" | "users" | "broadcasts" | "reports";
-type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin";
+type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suspended" | "under_review" | "expired";
 
 interface UserRow {
@@ -282,7 +283,7 @@ function AdminDashboard() {
 
   useEffect(() => {
     if (!autoApprove) return;
-    users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role))
+    users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver", "doctor"].includes(u.role))
       .forEach((u) => updateApproval(u.user_id, "approved"));
   }, [autoApprove, users.length]);
 
@@ -290,7 +291,7 @@ function AdminDashboard() {
   const pharmacies = users.filter((u) => u.role === "pharmacy");
   const drivers = users.filter((u) => u.role === "driver");
   const patients = users.filter((u) => u.role === "patient");
-  const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver"].includes(u.role));
+  const pending = users.filter((u) => u.approval_status === "pending" && u.role && ["pharmacy", "hospital", "driver", "doctor"].includes(u.role));
 
   const completedPays = payments.filter((p) => p.status === "completed");
   const gmv = completedPays.reduce((s, p) => s + Number(p.total_paid ?? p.amount), 0);
@@ -325,6 +326,7 @@ function AdminDashboard() {
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
     { id: "approvals", label: "Approvals", icon: CheckCircle, badge: pending.length },
+    { id: "verifications", label: "Doc verifications", icon: FileText },
     { id: "pharmacies", label: "Pharmacies", icon: Pill },
     { id: "drivers", label: "Drivers", icon: Truck },
     { id: "orders", label: "Orders", icon: ShoppingCart },
@@ -489,6 +491,10 @@ function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {activeTab === "verifications" && <VerificationsPanel />}
+
+
 
       {/* PHARMACIES */}
       {activeTab === "pharmacies" && (
@@ -910,6 +916,148 @@ function AdminDashboard() {
         orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : undefined}
         onClose={() => setChatOrderId(null)}
       />
+    </div>
+  );
+}
+
+// ============ Verifications panel ============
+function VerificationsPanel() {
+  const [doctorDocs, setDoctorDocs] = useState<any[]>([]);
+  const [pharmDocs, setPharmDocs] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, any>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const reviewDoctor = useServerFn(adminReviewDoctor);
+  const reviewPharm = useServerFn(adminReviewPharmacyDocs);
+
+  async function load() {
+    const [{ data: dd }, { data: pd }] = await Promise.all([
+      supabase.from("doctor_documents").select("*").order("submitted_at", { ascending: false }),
+      supabase.from("pharmacy_documents").select("*").order("submitted_at", { ascending: false }),
+    ]);
+    setDoctorDocs(dd ?? []);
+    setPharmDocs(pd ?? []);
+    const ids = Array.from(new Set([
+      ...(dd ?? []).map((x: any) => x.doctor_user_id),
+      ...(pd ?? []).map((x: any) => x.pharmacy_id),
+    ]));
+    if (ids.length) {
+      const { data: ps } = await supabase.from("profiles")
+        .select("user_id, full_name, email, organization_name").in("user_id", ids);
+      const m: Record<string, any> = {};
+      (ps ?? []).forEach((p: any) => { m[p.user_id] = p; });
+      setProfiles(m);
+    }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function signedUrl(bucket: string, path: string | null) {
+    if (!path) return null;
+    const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 600);
+    return data?.signedUrl ?? null;
+  }
+
+  async function openFile(bucket: string, path: string | null) {
+    const url = await signedUrl(bucket, path);
+    if (url) window.open(url, "_blank");
+    else toast.error("File not available");
+  }
+
+  async function decideDoctor(userId: string, decision: "approve" | "reject") {
+    const reason = decision === "reject" ? (window.prompt("Rejection reason?") ?? "") : "";
+    setBusy(userId);
+    try {
+      await reviewDoctor({ data: { doctorUserId: userId, decision, reason: reason || undefined } });
+      toast.success(decision === "approve" ? "Doctor verified" : "Doctor rejected");
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    finally { setBusy(null); }
+  }
+
+  async function decidePharm(userId: string, decision: "approve" | "reject", services: string[] = []) {
+    const reason = decision === "reject" ? (window.prompt("Rejection reason?") ?? "") : "";
+    setBusy(userId);
+    try {
+      await reviewPharm({ data: { pharmacyUserId: userId, decision, reason: reason || undefined, verifiedServices: services } });
+      toast.success(decision === "approve" ? "Pharmacy verified" : "Pharmacy rejected");
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="healthcare-card p-6">
+        <h2 className="text-lg font-semibold mb-4">Doctor verifications ({doctorDocs.length})</h2>
+        {doctorDocs.length === 0 && <p className="text-sm text-muted-foreground">No doctor submissions yet.</p>}
+        <div className="space-y-3">
+          {doctorDocs.map((d) => {
+            const p = profiles[d.doctor_user_id] || {};
+            const status = d.verified_at ? "verified" : d.rejection_reason ? "rejected" : d.submitted_at ? "pending" : "draft";
+            return (
+              <div key={d.id} className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{p.full_name || p.email || d.doctor_user_id.slice(0, 8)}</p>
+                    <p className="text-xs text-muted-foreground">HPCSA: {d.hpcsa_number || "—"} · Status: <span className="capitalize">{status}</span></p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => decideDoctor(d.doctor_user_id, "approve")} disabled={busy === d.doctor_user_id || status === "verified"}>Approve</Button>
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => decideDoctor(d.doctor_user_id, "reject")} disabled={busy === d.doctor_user_id}>Reject</Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <Button size="sm" variant="ghost" onClick={() => openFile("doctor-docs", d.hpcsa_cert_path)}>HPCSA cert</Button>
+                  <Button size="sm" variant="ghost" onClick={() => openFile("doctor-docs", d.id_document_path)}>ID</Button>
+                  <Button size="sm" variant="ghost" onClick={() => openFile("doctor-docs", d.malpractice_cert_path)}>Malpractice</Button>
+                  {(d.qualification_paths || []).map((q: string, i: number) => (
+                    <Button key={q} size="sm" variant="ghost" onClick={() => openFile("doctor-docs", q)}>Qual #{i + 1}</Button>
+                  ))}
+                  {d.practice_letter_path && <Button size="sm" variant="ghost" onClick={() => openFile("doctor-docs", d.practice_letter_path)}>Practice letter</Button>}
+                  {d.indemnity_path && <Button size="sm" variant="ghost" onClick={() => openFile("doctor-docs", d.indemnity_path)}>Indemnity</Button>}
+                </div>
+                {d.notes && <p className="text-xs text-muted-foreground">Notes: {d.notes}</p>}
+                {d.rejection_reason && <p className="text-xs text-destructive">Rejection: {d.rejection_reason}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="healthcare-card p-6">
+        <h2 className="text-lg font-semibold mb-4">Pharmacy credential reviews ({pharmDocs.length})</h2>
+        {pharmDocs.length === 0 && <p className="text-sm text-muted-foreground">No pharmacy submissions yet.</p>}
+        <div className="space-y-3">
+          {pharmDocs.map((d) => {
+            const p = profiles[d.pharmacy_id] || {};
+            const status = d.verified_at ? "verified" : d.rejection_reason ? "rejected" : d.submitted_at ? "pending" : "draft";
+            const services = Object.keys(d.service_certificates || {});
+            return (
+              <div key={d.id} className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{p.organization_name || p.full_name || d.pharmacy_id.slice(0, 8)}</p>
+                    <p className="text-xs text-muted-foreground">SAPC: {d.responsible_pharmacist_sapc || "—"} · Status: <span className="capitalize">{status}</span></p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => decidePharm(d.pharmacy_id, "approve", services)} disabled={busy === d.pharmacy_id || status === "verified"}>Approve</Button>
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => decidePharm(d.pharmacy_id, "reject")} disabled={busy === d.pharmacy_id}>Reject</Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {d.license_path && <Button size="sm" variant="ghost" onClick={() => openFile("pharmacy-docs", d.license_path)}>Premises licence</Button>}
+                  {d.pharmacist_cert_path && <Button size="sm" variant="ghost" onClick={() => openFile("pharmacy-docs", d.pharmacist_cert_path)}>SAPC cert</Button>}
+                  {d.business_reg_path && <Button size="sm" variant="ghost" onClick={() => openFile("pharmacy-docs", d.business_reg_path)}>Business reg</Button>}
+                  {d.tax_cert_path && <Button size="sm" variant="ghost" onClick={() => openFile("pharmacy-docs", d.tax_cert_path)}>Tax cert</Button>}
+                  {Object.entries(d.service_certificates || {}).map(([svc, path]: any) => (
+                    <Button key={svc} size="sm" variant="ghost" onClick={() => openFile("pharmacy-docs", path as string)}>{svc}</Button>
+                  ))}
+                </div>
+                {d.rejection_reason && <p className="text-xs text-destructive">Rejection: {d.rejection_reason}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

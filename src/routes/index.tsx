@@ -12,6 +12,7 @@ import {
   Users,
   CreditCard,
   Activity,
+  Stethoscope,
 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
 
@@ -265,7 +266,7 @@ function HomePage() {
               Grow your pharmacy or earn on the road — join the HEALTHREACH network.
             </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 max-w-3xl mx-auto">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
             <div className="healthcare-card p-6 flex flex-col items-start">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-healthcare-green/15 text-healthcare-green">
                 <Pill className="h-6 w-6" />
@@ -288,6 +289,18 @@ function HomePage() {
               </p>
               <Link to="/signup" search={{ role: "driver" } as any} className="mt-4">
                 <Button variant="default">Apply as Driver</Button>
+              </Link>
+            </div>
+            <div className="healthcare-card p-6 flex flex-col items-start">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <Stethoscope className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Register as a Doctor</h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed flex-1">
+                HPCSA-registered? Self-register, upload your legal documents, and start taking bookings once verified.
+              </p>
+              <Link to="/signup" search={{ role: "doctor" } as any} className="mt-4">
+                <Button variant="default">Apply as Doctor</Button>
               </Link>
             </div>
           </div>
