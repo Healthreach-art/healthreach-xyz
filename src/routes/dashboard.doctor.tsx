@@ -500,12 +500,18 @@ function DoctorDashboard() {
                         <div className="text-xs text-muted-foreground capitalize">{a.mode.replace("_", " ")} · {a.status}{a.reason ? ` · ${a.reason.slice(0, 60)}` : ""}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={a.payment_status === "paid" ? "default" : "secondary"}>{a.payment_status}</Badge>
+                      <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id })}>
+                        <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message
+                      </Button>
                       {a.status === "pending" && (
-                        <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Confirm</Button>
+                        <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Accept</Button>
                       )}
-                      {(a.status === "pending" || a.status === "confirmed") && (
+                      {a.status === "pending" && (
+                        <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Decline</Button>
+                      )}
+                      {a.status === "confirmed" && (
                         <>
                           <Button size="sm" onClick={() => updateApptStatus(a.id, "completed")}>Mark complete</Button>
                           <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Cancel</Button>
