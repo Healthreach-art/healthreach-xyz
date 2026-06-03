@@ -322,9 +322,9 @@ const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
 } as any)
 const DashboardPatientDoctorsIdRoute =
   DashboardPatientDoctorsIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => DashboardPatientDoctorsRoute,
+    id: '/dashboard/patient/doctors/$id',
+    path: '/dashboard/patient/doctors/$id',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -698,6 +698,7 @@ export interface RootRouteChildren {
   DashboardPatientTransactionsRoute: typeof DashboardPatientTransactionsRoute
   DashboardPatientWalletRoute: typeof DashboardPatientWalletRoute
   DashboardPatientIndexRoute: typeof DashboardPatientIndexRoute
+  DashboardPatientDoctorsIdRoute: typeof DashboardPatientDoctorsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1054,10 +1055,10 @@ declare module '@tanstack/react-router' {
     }
     '/dashboard/patient/doctors/$id': {
       id: '/dashboard/patient/doctors/$id'
-      path: '/$id'
+      path: '/dashboard/patient/doctors/$id'
       fullPath: '/dashboard/patient/doctors/$id'
       preLoaderRoute: typeof DashboardPatientDoctorsIdRouteImport
-      parentRoute: typeof DashboardPatientDoctorsRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -1134,17 +1135,8 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardPatientTransactionsRoute: DashboardPatientTransactionsRoute,
   DashboardPatientWalletRoute: DashboardPatientWalletRoute,
   DashboardPatientIndexRoute: DashboardPatientIndexRoute,
+  DashboardPatientDoctorsIdRoute: DashboardPatientDoctorsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
