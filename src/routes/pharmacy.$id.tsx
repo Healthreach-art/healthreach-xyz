@@ -228,7 +228,7 @@ function Storefront() {
           </div>
         </div>
       )}
-      <div className="hidden">{/* keep layout */}</div>
+      
 
       {/* Sticky search + tabs */}
       <div className="sticky top-12 z-20 bg-background/95 backdrop-blur border-b border-border">
