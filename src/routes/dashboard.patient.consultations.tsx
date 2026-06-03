@@ -42,7 +42,7 @@ function Page() {
     setAppts(list);
     const docIds = Array.from(new Set(list.map((a) => a.doctor_id)));
     if (docIds.length) {
-      const { data: ds } = await supabase.from("doctors").select("id, full_name, specialty, photo_url").in("id", docIds);
+      const { data: ds } = await supabase.from("doctors").select("id, user_id, full_name, specialty, photo_url").in("id", docIds);
       const m: Record<string, DocRow> = {};
       (ds ?? []).forEach((d: any) => { m[d.id] = d; });
       setDocs(m);
