@@ -331,6 +331,7 @@ function Storefront() {
               <CalendarPlus className="h-5 w-5 text-primary" /> Book at {name}
             </DialogTitle>
             <DialogDescription>{pharmacy.address || "Pick a date & time to visit or consult."}</DialogDescription>
+            <p className="text-xs text-muted-foreground pt-1">You are booking with a <span className="font-semibold text-healthcare-teal">Pharmacist</span></p>
           </DialogHeader>
           <div className="space-y-3">
             <div>
