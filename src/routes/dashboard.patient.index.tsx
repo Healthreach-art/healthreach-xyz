@@ -98,7 +98,7 @@ function PatientDashboard() {
         setPickupCode((del as { pickup_code?: string | null } | null)?.pickup_code ?? null);
         setDeliveryCode((del as { delivery_code?: string | null } | null)?.delivery_code ?? null);
         if (ordRow?.pharmacy_id) {
-          const { data: pharm } = await supabase.from("profiles").select("address").eq("user_id", ordRow.pharmacy_id).maybeSingle();
+          const { data: pharm } = await supabase.from("pharmacy_directory" as never).select("address").eq("user_id", ordRow.pharmacy_id).maybeSingle() as { data: { address: string | null } | null };
           if (!cancelled) setMapPickup((pharm?.address as string) || null);
         }
         if (del?.driver_id) {
