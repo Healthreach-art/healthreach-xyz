@@ -3,12 +3,13 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Loader2, Sparkles, Stethoscope, Store, AlertTriangle, Star, MapPin } from "lucide-react";
+import { Search, Loader2, Sparkles, Stethoscope, Store, AlertTriangle, Star, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DOCTOR_SPECIALTIES, PHARMACY_SERVICES } from "@/lib/services";
 import { matchSymptoms } from "@/lib/symptom-matcher.functions";
 import { toast } from "sonner";
@@ -16,16 +17,30 @@ import { toast } from "sonner";
 interface Doctor {
   id: string; full_name: string; specialty: string; city: string;
   photo_url: string; consultation_fee: number; rating_avg: number; rating_count: number;
+  latitude: number | null; longitude: number | null;
+  subspecialties: string[] | null; services_tags: string[] | null;
 }
 interface Pharm {
   user_id: string; organization_name: string | null; full_name: string;
-  address: string | null; services: string[] | null;
+  address: string | null; services: string[] | null; services_tags: string[] | null;
+  latitude: number | null; longitude: number | null; appointments_enabled: boolean | null;
 }
 
 export const Route = createFileRoute("/dashboard/patient/find")({
   head: () => ({ meta: [{ title: "Find Care — HEALTHREACH" }] }),
   component: () => <RoleGuard allow="patient"><FindCarePage /></RoleGuard>,
 });
+
+const PHARMACY_APPT_FEE = 150; // platform-standard pharmacist consultation fee (R)
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
 
 function FindCarePage() {
   const aiMatch = useServerFn(matchSymptoms);
@@ -40,17 +55,20 @@ function FindCarePage() {
   const [matching, setMatching] = useState(false);
   const [aiResult, setAiResult] = useState<Awaited<ReturnType<typeof matchSymptoms>> | null>(null);
 
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+
   useEffect(() => {
     (async () => {
       const [d, p] = await Promise.all([
         supabase.from("doctors")
-          .select("id, full_name, specialty, city, photo_url, consultation_fee, rating_avg, rating_count")
-          .eq("is_active", true).eq("is_verified", true).order("rating_avg", { ascending: false }).limit(60),
+          .select("id, full_name, specialty, city, photo_url, consultation_fee, rating_avg, rating_count, latitude, longitude, subspecialties, services_tags")
+          .eq("is_active", true).eq("is_verified", true).order("rating_avg", { ascending: false }).limit(80),
         supabase.from("profiles")
-          .select("user_id, organization_name, full_name, address, services")
+          .select("user_id, organization_name, full_name, address, services, services_tags, latitude, longitude, appointments_enabled")
           .eq("approval_status", "approved")
           .not("organization_name", "is", null)
-          .limit(60),
+          .limit(80),
       ]);
       setDoctors((d.data ?? []) as Doctor[]);
       setPharmacies((p.data ?? []) as Pharm[]);
@@ -58,35 +76,65 @@ function FindCarePage() {
     })();
   }, []);
 
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { toast.error("Geolocation not supported"); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+        toast.success("Distances now calculated from your location");
+      },
+      (err) => { setLocating(false); toast.error(err.message || "Could not get location"); },
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  };
+
+  const withDistance = <T extends { latitude: number | null; longitude: number | null }>(rows: T[]) => {
+    if (!userLoc) return rows.map((r) => ({ ...r, distance_km: null as number | null }));
+    return rows.map((r) => ({
+      ...r,
+      distance_km: r.latitude != null && r.longitude != null
+        ? Math.round(haversineKm(userLoc.lat, userLoc.lng, Number(r.latitude), Number(r.longitude)) * 10) / 10
+        : null,
+    })).sort((a, b) => (a.distance_km ?? 9e9) - (b.distance_km ?? 9e9));
+  };
+
   const filteredDoctors = useMemo(() => {
     const needle = q.toLowerCase();
-    return doctors.filter((d) => {
+    const matched = doctors.filter((d) => {
       if (specialty !== "any" && d.specialty !== specialty) return false;
       if (!needle) return true;
-      return d.full_name.toLowerCase().includes(needle)
-        || d.specialty.toLowerCase().includes(needle)
-        || d.city.toLowerCase().includes(needle);
+      const hay = [
+        d.full_name, d.specialty, d.city,
+        ...(d.subspecialties ?? []),
+        ...(d.services_tags ?? []),
+      ].join(" ").toLowerCase();
+      return hay.includes(needle);
     });
-  }, [doctors, q, specialty]);
+    return withDistance(matched);
+  }, [doctors, q, specialty, userLoc]);
 
   const filteredPharmacies = useMemo(() => {
     const needle = q.toLowerCase();
-    return pharmacies.filter((p) => {
+    const matched = pharmacies.filter((p) => {
       if (service !== "any" && !(p.services ?? []).includes(service)) return false;
       if (!needle) return true;
-      const name = (p.organization_name || p.full_name || "").toLowerCase();
-      const addr = (p.address ?? "").toLowerCase();
-      const svc = (p.services ?? []).join(" ").toLowerCase();
-      return name.includes(needle) || addr.includes(needle) || svc.includes(needle);
+      const hay = [
+        p.organization_name ?? "", p.full_name, p.address ?? "",
+        ...(p.services ?? []), ...(p.services_tags ?? []),
+      ].join(" ").toLowerCase();
+      return hay.includes(needle);
     });
-  }, [pharmacies, q, service]);
+    return withDistance(matched);
+  }, [pharmacies, q, service, userLoc]);
 
   const runMatch = async () => {
     if (symptoms.trim().length < 3) { toast.error("Tell me a bit more about how you feel"); return; }
     setMatching(true);
     setAiResult(null);
     try {
-      const r = await aiMatch({ data: { symptoms: symptoms.trim() } });
+      const r = await aiMatch({ data: { symptoms: symptoms.trim(), user_lat: userLoc?.lat ?? null, user_lng: userLoc?.lng ?? null } });
       setAiResult(r);
       if (r.specialties[0]) setSpecialty(r.specialties[0]);
       if (r.services[0]) setService(r.services[0]);
@@ -99,9 +147,15 @@ function FindCarePage() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Sparkles className="h-6 w-6 text-primary" /> Find Care</h1>
-        <p className="text-sm text-muted-foreground">Search doctors and pharmacies, or describe symptoms for an AI match.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Sparkles className="h-6 w-6 text-primary" /> Find Care</h1>
+          <p className="text-sm text-muted-foreground">Search verified doctors and approved pharmacies, or describe symptoms for an AI match.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={useMyLocation} disabled={locating}>
+          {locating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Navigation className="h-4 w-4 mr-1" />}
+          {userLoc ? "Update location" : "Use my location"}
+        </Button>
       </div>
 
       {/* AI symptom matcher */}
@@ -139,6 +193,25 @@ function FindCarePage() {
                 <button key={s} onClick={() => setService(s)} className="ml-1 px-2 py-0.5 rounded-full bg-healthcare-mint/40 text-foreground text-xs font-semibold hover:bg-healthcare-mint/60">{s}</button>
               ))}</div>
             )}
+            {aiResult.providers.doctors.length + aiResult.providers.pharmacies.length > 0 && (
+              <div className="pt-2">
+                <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Best matches near you</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {aiResult.providers.doctors.slice(0, 4).map((d: any) => (
+                    <Link key={d.id} to="/dashboard/patient/doctors/$id" params={{ id: d.id }} className="rounded-lg border border-border p-2 hover:shadow-sm text-xs">
+                      <p className="font-semibold truncate">Dr. {d.full_name}</p>
+                      <p className="text-muted-foreground">{d.specialty} · R{Number(d.consultation_fee).toFixed(0)}{d.distance_km != null ? ` · ${d.distance_km} km` : ""}</p>
+                    </Link>
+                  ))}
+                  {aiResult.providers.pharmacies.slice(0, 4).map((p: any) => (
+                    <Link key={p.user_id} to="/pharmacy/$id" params={{ id: p.user_id }} className="rounded-lg border border-border p-2 hover:shadow-sm text-xs">
+                      <p className="font-semibold truncate">{p.organization_name || p.full_name}</p>
+                      <p className="text-muted-foreground">Pharmacy{p.distance_km != null ? ` · ${p.distance_km} km` : ""}</p>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -147,7 +220,7 @@ function FindCarePage() {
       <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, city, condition…" className="pl-9 h-11" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, city, condition, symptom…" className="pl-9 h-11" />
         </div>
         <Select value={specialty} onValueChange={setSpecialty}>
           <SelectTrigger className="h-11 min-w-[180px]"><SelectValue placeholder="Specialty" /></SelectTrigger>
@@ -173,6 +246,7 @@ function FindCarePage() {
             <TabsTrigger value="all">All ({filteredDoctors.length + filteredPharmacies.length})</TabsTrigger>
             <TabsTrigger value="doctors"><Stethoscope className="h-4 w-4 mr-1" /> Doctors ({filteredDoctors.length})</TabsTrigger>
             <TabsTrigger value="pharmacies"><Store className="h-4 w-4 mr-1" /> Pharmacies ({filteredPharmacies.length})</TabsTrigger>
+            <TabsTrigger value="fees">Fees</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="mt-4 space-y-6">
@@ -185,13 +259,18 @@ function FindCarePage() {
           <TabsContent value="pharmacies" className="mt-4">
             <PharmacyGrid pharmacies={filteredPharmacies} />
           </TabsContent>
+          <TabsContent value="fees" className="mt-4">
+            <FeesTable doctors={filteredDoctors} pharmacies={filteredPharmacies} />
+          </TabsContent>
         </Tabs>
       )}
     </div>
   );
 }
 
-function DoctorGrid({ doctors }: { doctors: Doctor[] }) {
+type WithDist<T> = T & { distance_km: number | null };
+
+function DoctorGrid({ doctors }: { doctors: WithDist<Doctor>[] }) {
   if (doctors.length === 0) return <p className="text-sm text-muted-foreground py-6 text-center">No matching doctors.</p>;
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -204,7 +283,10 @@ function DoctorGrid({ doctors }: { doctors: Doctor[] }) {
             <div className="min-w-0 flex-1">
               <p className="font-bold truncate">Dr. {d.full_name}</p>
               <p className="text-xs text-primary font-semibold">{d.specialty}</p>
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5"><MapPin className="h-3 w-3" />{d.city || "South Africa"}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                <MapPin className="h-3 w-3" />{d.city || "South Africa"}
+                {d.distance_km != null && <span className="ml-1 font-semibold text-foreground">· {d.distance_km} km</span>}
+              </p>
               <div className="flex items-center justify-between mt-1.5 text-xs">
                 <span className="flex items-center gap-0.5 font-semibold"><Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />{d.rating_avg.toFixed(1)} ({d.rating_count})</span>
                 <span className="font-bold">R{Number(d.consultation_fee).toFixed(0)}</span>
@@ -217,7 +299,7 @@ function DoctorGrid({ doctors }: { doctors: Doctor[] }) {
   );
 }
 
-function PharmacyGrid({ pharmacies }: { pharmacies: Pharm[] }) {
+function PharmacyGrid({ pharmacies }: { pharmacies: WithDist<Pharm>[] }) {
   if (pharmacies.length === 0) return <p className="text-sm text-muted-foreground py-6 text-center">No matching pharmacies.</p>;
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -226,7 +308,10 @@ function PharmacyGrid({ pharmacies }: { pharmacies: Pharm[] }) {
           <div className="flex items-center gap-2"><Store className="h-5 w-5 text-primary" />
             <p className="font-bold truncate">{p.organization_name || p.full_name}</p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" />{p.address || "South Africa"}</p>
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            <MapPin className="h-3 w-3" />{p.address || "South Africa"}
+            {p.distance_km != null && <span className="ml-1 font-semibold text-foreground">· {p.distance_km} km</span>}
+          </p>
           {(p.services?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {p.services!.slice(0, 4).map((s) => (
@@ -237,6 +322,81 @@ function PharmacyGrid({ pharmacies }: { pharmacies: Pharm[] }) {
           )}
         </Link>
       ))}
+    </div>
+  );
+}
+
+function FeesTable({ doctors, pharmacies }: { doctors: WithDist<Doctor>[]; pharmacies: WithDist<Pharm>[] }) {
+  const rows = useMemo(() => {
+    const docRows = doctors.map((d) => ({
+      kind: "doctor" as const,
+      id: d.id,
+      name: `Dr. ${d.full_name}`,
+      detail: d.specialty,
+      city: d.city || "—",
+      distance_km: d.distance_km,
+      fee: Number(d.consultation_fee),
+      to: { route: "/dashboard/patient/doctors/$id" as const, params: { id: d.id } },
+    }));
+    const phRows = pharmacies
+      .filter((p) => p.appointments_enabled !== false)
+      .map((p) => ({
+        kind: "pharmacy" as const,
+        id: p.user_id,
+        name: p.organization_name || p.full_name,
+        detail: (p.services ?? []).slice(0, 3).join(", ") || "Pharmacist consultation",
+        city: p.address || "—",
+        distance_km: p.distance_km,
+        fee: PHARMACY_APPT_FEE,
+        to: { route: "/pharmacy/$id" as const, params: { id: p.user_id } },
+      }));
+    return [...docRows, ...phRows].sort((a, b) => (a.distance_km ?? 9e9) - (b.distance_km ?? 9e9));
+  }, [doctors, pharmacies]);
+
+  if (rows.length === 0) return <p className="text-sm text-muted-foreground py-6 text-center">No fees to display — refine your filters.</p>;
+
+  return (
+    <div className="healthcare-card overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Provider</TableHead>
+            <TableHead className="hidden md:table-cell">Service</TableHead>
+            <TableHead className="hidden sm:table-cell">Where</TableHead>
+            <TableHead className="text-right">Fee</TableHead>
+            <TableHead className="text-right">Book</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={`${r.kind}-${r.id}`}>
+              <TableCell>
+                <div className="flex items-center gap-2 font-semibold">
+                  {r.kind === "doctor" ? <Stethoscope className="h-4 w-4 text-primary shrink-0" /> : <Store className="h-4 w-4 text-primary shrink-0" />}
+                  <span className="truncate">{r.name}</span>
+                </div>
+                <span className="md:hidden text-[11px] text-muted-foreground block">{r.detail}</span>
+              </TableCell>
+              <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{r.detail}</TableCell>
+              <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
+                <span className="truncate inline-block max-w-[180px] align-middle">{r.city}</span>
+                {r.distance_km != null && <span className="ml-1 font-semibold text-foreground">· {r.distance_km} km</span>}
+              </TableCell>
+              <TableCell className="text-right font-bold whitespace-nowrap">R {r.fee.toFixed(0)}</TableCell>
+              <TableCell className="text-right">
+                {r.kind === "doctor" ? (
+                  <Link to="/dashboard/patient/doctors/$id" params={{ id: r.id }} className="text-xs font-semibold text-primary hover:underline">Book →</Link>
+                ) : (
+                  <Link to="/pharmacy/$id" params={{ id: r.id }} className="text-xs font-semibold text-primary hover:underline">Book →</Link>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <p className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border">
+        Fees are set by each provider. Pharmacy appointment fee is the standard pharmacist consultation rate.
+      </p>
     </div>
   );
 }
