@@ -57,6 +57,20 @@ function Page() {
       (rxs ?? []).forEach((r: any) => { (m[r.appointment_id] ||= []).push(r); });
       setRxByAppt(m);
     }
+    // Pharmacy appointments
+    const { data: pa } = await supabase
+      .from("pharmacy_appointments").select("id, pharmacy_id, reason, preferred_at, status, mode, pharmacist_notes")
+      .eq("patient_id", user.id).order("preferred_at", { ascending: false });
+    const pl = (pa ?? []) as typeof pharmAppts;
+    setPharmAppts(pl);
+    const pIds = Array.from(new Set(pl.map((p) => p.pharmacy_id)));
+    if (pIds.length) {
+      const { data: profs } = await supabase
+        .from("profiles").select("user_id, full_name, organization_name").in("user_id", pIds);
+      const m: Record<string, { name: string }> = {};
+      (profs ?? []).forEach((p: any) => { m[p.user_id] = { name: p.organization_name || p.full_name || "Pharmacy" }; });
+      setPharms(m);
+    }
   }
   useEffect(() => {
     load();
@@ -64,6 +78,7 @@ function Page() {
     const ch = supabase
       .channel(`patient-consult-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `patient_id=eq.${user.id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pharmacy_appointments", filter: `patient_id=eq.${user.id}` }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "e_prescriptions", filter: `patient_id=eq.${user.id}` }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
