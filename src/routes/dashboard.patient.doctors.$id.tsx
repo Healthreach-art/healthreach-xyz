@@ -181,22 +181,9 @@ function Page() {
           </div>
         </div>
         <div><Label>Reason for visit</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} placeholder="e.g. Annual check-up, persistent headache…" /></div>
-        <div className="rounded-xl border border-border p-3 space-y-2">
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <Checkbox checked={useAid} onCheckedChange={(c) => setUseAid(!!c)} />
-            Use my medical aid for the consultation fee
-          </label>
-          {useAid && (
-            <div className="grid sm:grid-cols-2 gap-3 pt-1">
-              <Input placeholder="Provider" value={aidProvider} onChange={(e) => setAidProvider(e.target.value)} />
-              <Input placeholder="Membership number" value={aidMember} onChange={(e) => setAidMember(e.target.value)} />
-            </div>
-          )}
-          <p className="text-[11px] text-muted-foreground">
-            {useAid ? "The doctor will claim the consultation fee from your medical aid. You only pay the R15 booking fee now." :
-                     "You pay only the R15 booking fee now. Settle the consultation fee at the practice."}
-          </p>
-        </div>
+        <p className="text-[11px] text-muted-foreground">
+          You pay only the R15 booking fee now. Settle the consultation fee directly with the doctor.
+        </p>
         <div className="flex items-center justify-between border-t border-border pt-3">
           <div>
             <p className="text-xs text-muted-foreground">Pay now</p>
