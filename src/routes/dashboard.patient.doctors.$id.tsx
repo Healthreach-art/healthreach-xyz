@@ -93,14 +93,11 @@ function Page() {
     if (!user) return toast.error("Please sign in");
     if (!doc) return;
     if (!when) return toast.error("Pick a date & time");
-    if (useAid && (!aidProvider || !aidMember)) return toast.error("Add your medical aid details or untick the option");
     setBusy(true);
     try {
       const { appointmentId, platformFeeCents } = await book({
         data: {
           doctorId: doc.id, scheduledAt: when, mode, reason: reason.trim(),
-          useMedicalAid: useAid, medicalAidProvider: useAid ? aidProvider : undefined,
-          medicalAidMemberNumber: useAid ? aidMember : undefined,
         },
       });
       await loadPaystack();
