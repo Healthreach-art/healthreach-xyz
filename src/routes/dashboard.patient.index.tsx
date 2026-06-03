@@ -32,7 +32,7 @@ interface OrderRow {
 }
 
 const ACTION_CARDS = [
-  { title: "Book Appointment", icon: CalendarCheck, to: "/dashboard/patient/find", bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+  { title: "Book Appointment", subtitle: "Doctor or Pharmacist", icon: CalendarCheck, to: "/dashboard/patient/find", bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
   { title: "Order Medicine", icon: ShoppingBag, to: "/dashboard/patient/search", bg: "bg-healthcare-green/10", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
   { title: "Upload Prescription", icon: Upload, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-mint/40", iconColor: "text-healthcare-teal" },
   { title: "Track Delivery", icon: Truck, to: "/track", bg: "bg-healthcare-light", iconBg: "bg-healthcare-sky/30", iconColor: "text-healthcare-sky" },
