@@ -77,9 +77,6 @@ function Page() {
   });
   const [mode, setMode] = useState<"in_person" | "video" | "phone">("in_person");
   const [reason, setReason] = useState("");
-  const [useAid, setUseAid] = useState(false);
-  const [aidProvider, setAidProvider] = useState("");
-  const [aidMember, setAidMember] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
