@@ -14,6 +14,8 @@ import { Stethoscope, Upload, Clock, CheckCircle2, AlertCircle, FileText, Calend
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { submitDoctorDocuments } from "@/lib/doctor-verify.functions";
+import { normalizeServices } from "@/lib/normalize-services.functions";
+import { Sparkles, X } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/doctor")({
   head: () => ({ meta: [{ title: "Doctor Dashboard — HEALTHREACH" }] }),
