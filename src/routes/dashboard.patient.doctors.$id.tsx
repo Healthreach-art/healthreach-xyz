@@ -86,11 +86,6 @@ function Page() {
         supabase.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
       ]);
       setDoc(d as Doctor); setReviews(r ?? []); setLoading(false);
-      // Prefill medical aid from profile
-      if (user) {
-        const { data: p } = await supabase.from("profiles").select("medical_aid_provider, medical_aid_member_number").eq("user_id", user.id).maybeSingle();
-        if (p?.medical_aid_provider) { setAidProvider(p.medical_aid_provider); setAidMember(p.medical_aid_member_number || ""); setUseAid(true); }
-      }
     })();
   }, [id, user]);
 
