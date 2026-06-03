@@ -48,16 +48,13 @@ import { Route as DashboardPatientSupportRouteImport } from './routes/dashboard.
 import { Route as DashboardPatientSearchRouteImport } from './routes/dashboard.patient.search'
 import { Route as DashboardPatientRemindersRouteImport } from './routes/dashboard.patient.reminders'
 import { Route as DashboardPatientPrescriptionsRouteImport } from './routes/dashboard.patient.prescriptions'
-import { Route as DashboardPatientPharmaciesRouteImport } from './routes/dashboard.patient.pharmacies'
 import { Route as DashboardPatientPaymentMethodsRouteImport } from './routes/dashboard.patient.payment-methods'
 import { Route as DashboardPatientOrdersRouteImport } from './routes/dashboard.patient.orders'
 import { Route as DashboardPatientMedicalAidRouteImport } from './routes/dashboard.patient.medical-aid'
 import { Route as DashboardPatientFindRouteImport } from './routes/dashboard.patient.find'
 import { Route as DashboardPatientFamilyRouteImport } from './routes/dashboard.patient.family'
-import { Route as DashboardPatientDoctorsRouteImport } from './routes/dashboard.patient.doctors'
 import { Route as DashboardPatientConsultationsRouteImport } from './routes/dashboard.patient.consultations'
 import { Route as DashboardPatientAssistantRouteImport } from './routes/dashboard.patient.assistant'
-import { Route as DashboardPatientAppointmentsRouteImport } from './routes/dashboard.patient.appointments'
 import { Route as DashboardPatientAddressesRouteImport } from './routes/dashboard.patient.addresses'
 import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard.patient.activity'
 import { Route as DashboardAdminLiveRouteImport } from './routes/dashboard.admin.live'
@@ -262,12 +259,6 @@ const DashboardPatientPrescriptionsRoute =
     path: '/dashboard/patient/prescriptions',
     getParentRoute: () => rootRouteImport,
   } as any)
-const DashboardPatientPharmaciesRoute =
-  DashboardPatientPharmaciesRouteImport.update({
-    id: '/dashboard/patient/pharmacies',
-    path: '/dashboard/patient/pharmacies',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const DashboardPatientPaymentMethodsRoute =
   DashboardPatientPaymentMethodsRouteImport.update({
     id: '/dashboard/patient/payment-methods',
@@ -295,11 +286,6 @@ const DashboardPatientFamilyRoute = DashboardPatientFamilyRouteImport.update({
   path: '/dashboard/patient/family',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardPatientDoctorsRoute = DashboardPatientDoctorsRouteImport.update({
-  id: '/dashboard/patient/doctors',
-  path: '/dashboard/patient/doctors',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DashboardPatientConsultationsRoute =
   DashboardPatientConsultationsRouteImport.update({
     id: '/dashboard/patient/consultations',
@@ -310,12 +296,6 @@ const DashboardPatientAssistantRoute =
   DashboardPatientAssistantRouteImport.update({
     id: '/dashboard/patient/assistant',
     path: '/dashboard/patient/assistant',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientAppointmentsRoute =
-  DashboardPatientAppointmentsRouteImport.update({
-    id: '/dashboard/patient/appointments',
-    path: '/dashboard/patient/appointments',
     getParentRoute: () => rootRouteImport,
   } as any)
 const DashboardPatientAddressesRoute =
@@ -384,16 +364,13 @@ export interface FileRoutesByFullPath {
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
-  '/dashboard/patient/appointments': typeof DashboardPatientAppointmentsRoute
   '/dashboard/patient/assistant': typeof DashboardPatientAssistantRoute
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
-  '/dashboard/patient/doctors': typeof DashboardPatientDoctorsRouteWithChildren
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
   '/dashboard/patient/find': typeof DashboardPatientFindRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
-  '/dashboard/patient/pharmacies': typeof DashboardPatientPharmaciesRoute
   '/dashboard/patient/prescriptions': typeof DashboardPatientPrescriptionsRoute
   '/dashboard/patient/reminders': typeof DashboardPatientRemindersRoute
   '/dashboard/patient/search': typeof DashboardPatientSearchRoute
@@ -440,16 +417,13 @@ export interface FileRoutesByTo {
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
-  '/dashboard/patient/appointments': typeof DashboardPatientAppointmentsRoute
   '/dashboard/patient/assistant': typeof DashboardPatientAssistantRoute
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
-  '/dashboard/patient/doctors': typeof DashboardPatientDoctorsRouteWithChildren
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
   '/dashboard/patient/find': typeof DashboardPatientFindRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
-  '/dashboard/patient/pharmacies': typeof DashboardPatientPharmaciesRoute
   '/dashboard/patient/prescriptions': typeof DashboardPatientPrescriptionsRoute
   '/dashboard/patient/reminders': typeof DashboardPatientRemindersRoute
   '/dashboard/patient/search': typeof DashboardPatientSearchRoute
@@ -497,16 +471,13 @@ export interface FileRoutesById {
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
-  '/dashboard/patient/appointments': typeof DashboardPatientAppointmentsRoute
   '/dashboard/patient/assistant': typeof DashboardPatientAssistantRoute
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
-  '/dashboard/patient/doctors': typeof DashboardPatientDoctorsRouteWithChildren
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
   '/dashboard/patient/find': typeof DashboardPatientFindRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
-  '/dashboard/patient/pharmacies': typeof DashboardPatientPharmaciesRoute
   '/dashboard/patient/prescriptions': typeof DashboardPatientPrescriptionsRoute
   '/dashboard/patient/reminders': typeof DashboardPatientRemindersRoute
   '/dashboard/patient/search': typeof DashboardPatientSearchRoute
@@ -555,16 +526,13 @@ export interface FileRouteTypes {
     | '/dashboard/admin/live'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
-    | '/dashboard/patient/appointments'
     | '/dashboard/patient/assistant'
     | '/dashboard/patient/consultations'
-    | '/dashboard/patient/doctors'
     | '/dashboard/patient/family'
     | '/dashboard/patient/find'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
-    | '/dashboard/patient/pharmacies'
     | '/dashboard/patient/prescriptions'
     | '/dashboard/patient/reminders'
     | '/dashboard/patient/search'
@@ -611,16 +579,13 @@ export interface FileRouteTypes {
     | '/dashboard/admin/live'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
-    | '/dashboard/patient/appointments'
     | '/dashboard/patient/assistant'
     | '/dashboard/patient/consultations'
-    | '/dashboard/patient/doctors'
     | '/dashboard/patient/family'
     | '/dashboard/patient/find'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
-    | '/dashboard/patient/pharmacies'
     | '/dashboard/patient/prescriptions'
     | '/dashboard/patient/reminders'
     | '/dashboard/patient/search'
@@ -667,16 +632,13 @@ export interface FileRouteTypes {
     | '/dashboard/admin/live'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
-    | '/dashboard/patient/appointments'
     | '/dashboard/patient/assistant'
     | '/dashboard/patient/consultations'
-    | '/dashboard/patient/doctors'
     | '/dashboard/patient/family'
     | '/dashboard/patient/find'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
-    | '/dashboard/patient/pharmacies'
     | '/dashboard/patient/prescriptions'
     | '/dashboard/patient/reminders'
     | '/dashboard/patient/search'
@@ -722,16 +684,13 @@ export interface RootRouteChildren {
   ApiPublicPaymentWebhookRoute: typeof ApiPublicPaymentWebhookRoute
   DashboardPatientActivityRoute: typeof DashboardPatientActivityRoute
   DashboardPatientAddressesRoute: typeof DashboardPatientAddressesRoute
-  DashboardPatientAppointmentsRoute: typeof DashboardPatientAppointmentsRoute
   DashboardPatientAssistantRoute: typeof DashboardPatientAssistantRoute
   DashboardPatientConsultationsRoute: typeof DashboardPatientConsultationsRoute
-  DashboardPatientDoctorsRoute: typeof DashboardPatientDoctorsRouteWithChildren
   DashboardPatientFamilyRoute: typeof DashboardPatientFamilyRoute
   DashboardPatientFindRoute: typeof DashboardPatientFindRoute
   DashboardPatientMedicalAidRoute: typeof DashboardPatientMedicalAidRoute
   DashboardPatientOrdersRoute: typeof DashboardPatientOrdersRoute
   DashboardPatientPaymentMethodsRoute: typeof DashboardPatientPaymentMethodsRoute
-  DashboardPatientPharmaciesRoute: typeof DashboardPatientPharmaciesRoute
   DashboardPatientPrescriptionsRoute: typeof DashboardPatientPrescriptionsRoute
   DashboardPatientRemindersRoute: typeof DashboardPatientRemindersRoute
   DashboardPatientSearchRoute: typeof DashboardPatientSearchRoute
@@ -1016,13 +975,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientPrescriptionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/pharmacies': {
-      id: '/dashboard/patient/pharmacies'
-      path: '/dashboard/patient/pharmacies'
-      fullPath: '/dashboard/patient/pharmacies'
-      preLoaderRoute: typeof DashboardPatientPharmaciesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dashboard/patient/payment-methods': {
       id: '/dashboard/patient/payment-methods'
       path: '/dashboard/patient/payment-methods'
@@ -1058,13 +1010,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientFamilyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/doctors': {
-      id: '/dashboard/patient/doctors'
-      path: '/dashboard/patient/doctors'
-      fullPath: '/dashboard/patient/doctors'
-      preLoaderRoute: typeof DashboardPatientDoctorsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dashboard/patient/consultations': {
       id: '/dashboard/patient/consultations'
       path: '/dashboard/patient/consultations'
@@ -1077,13 +1022,6 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/patient/assistant'
       fullPath: '/dashboard/patient/assistant'
       preLoaderRoute: typeof DashboardPatientAssistantRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/patient/appointments': {
-      id: '/dashboard/patient/appointments'
-      path: '/dashboard/patient/appointments'
-      fullPath: '/dashboard/patient/appointments'
-      preLoaderRoute: typeof DashboardPatientAppointmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/addresses': {
@@ -1147,20 +1085,6 @@ const DashboardAdminRouteWithChildren = DashboardAdminRoute._addFileChildren(
   DashboardAdminRouteChildren,
 )
 
-interface DashboardPatientDoctorsRouteChildren {
-  DashboardPatientDoctorsIdRoute: typeof DashboardPatientDoctorsIdRoute
-}
-
-const DashboardPatientDoctorsRouteChildren: DashboardPatientDoctorsRouteChildren =
-  {
-    DashboardPatientDoctorsIdRoute: DashboardPatientDoctorsIdRoute,
-  }
-
-const DashboardPatientDoctorsRouteWithChildren =
-  DashboardPatientDoctorsRoute._addFileChildren(
-    DashboardPatientDoctorsRouteChildren,
-  )
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -1196,16 +1120,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPaymentWebhookRoute: ApiPublicPaymentWebhookRoute,
   DashboardPatientActivityRoute: DashboardPatientActivityRoute,
   DashboardPatientAddressesRoute: DashboardPatientAddressesRoute,
-  DashboardPatientAppointmentsRoute: DashboardPatientAppointmentsRoute,
   DashboardPatientAssistantRoute: DashboardPatientAssistantRoute,
   DashboardPatientConsultationsRoute: DashboardPatientConsultationsRoute,
-  DashboardPatientDoctorsRoute: DashboardPatientDoctorsRouteWithChildren,
   DashboardPatientFamilyRoute: DashboardPatientFamilyRoute,
   DashboardPatientFindRoute: DashboardPatientFindRoute,
   DashboardPatientMedicalAidRoute: DashboardPatientMedicalAidRoute,
   DashboardPatientOrdersRoute: DashboardPatientOrdersRoute,
   DashboardPatientPaymentMethodsRoute: DashboardPatientPaymentMethodsRoute,
-  DashboardPatientPharmaciesRoute: DashboardPatientPharmaciesRoute,
   DashboardPatientPrescriptionsRoute: DashboardPatientPrescriptionsRoute,
   DashboardPatientRemindersRoute: DashboardPatientRemindersRoute,
   DashboardPatientSearchRoute: DashboardPatientSearchRoute,
@@ -1217,3 +1138,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
