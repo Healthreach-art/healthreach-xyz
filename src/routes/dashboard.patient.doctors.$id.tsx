@@ -154,7 +154,7 @@ function Page() {
             {doc.in_person_available && <Pill>In-person</Pill>}
             {doc.online_available && <Pill><Video className="h-3 w-3" /> Video</Pill>}
             {doc.phone_available && <Pill><Phone className="h-3 w-3" /> Phone</Pill>}
-            {doc.accepted_medical_aids.map((p) => <Pill key={p} tone="sky"><BadgeCheck className="h-3 w-3" />{p}</Pill>)}
+            
           </div>
           {doc.bio && <p className="text-sm text-foreground/80 mt-3">{doc.bio}</p>}
         </div>
