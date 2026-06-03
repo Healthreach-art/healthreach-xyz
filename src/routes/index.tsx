@@ -12,6 +12,7 @@ import {
   Users,
   CreditCard,
   Activity,
+  Stethoscope,
 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
 
