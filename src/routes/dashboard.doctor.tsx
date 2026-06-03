@@ -588,6 +588,20 @@ function DoctorDashboard() {
       <p className="mt-8 text-center text-xs text-muted-foreground">
         HEALTHREACH is a discovery & booking platform only. All medical services, prescriptions, and treatment remain the responsibility of the doctor.
       </p>
+
+      {chatFor && user && (
+        <AppointmentChatDialog
+          open={!!chatFor}
+          onClose={() => setChatFor(null)}
+          appointmentId={chatFor.appointmentId}
+          appointmentType="doctor"
+          patientId={chatFor.patientId}
+          providerId={user.id}
+          myRole="doctor"
+          title="Chat with patient"
+          subtitle="Replies appear in real time"
+        />
+      )}
     </div>
   );
 }
