@@ -11,7 +11,7 @@ import { customerPrice } from "@/lib/pricing";
 import {
   ShoppingBag, Upload, Truck, ArrowRight, Bot,
   Package, Bike, Star, Siren, Pill,
-  CalendarCheck, FileText, MessageSquare, PhoneCall,
+  CalendarCheck, FileText, MessageSquare, PhoneCall, Stethoscope,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/")({
@@ -32,10 +32,10 @@ interface OrderRow {
 }
 
 const ACTION_CARDS = [
-  { title: "Order Medication", icon: ShoppingBag, to: "/dashboard/patient/pharmacies", bg: "bg-healthcare-green/10", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
+  { title: "Find a Doctor", icon: Stethoscope, to: "/dashboard/patient/doctors", bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+  { title: "Find a Pharmacist", icon: Pill, to: "/dashboard/patient/pharmacies", bg: "bg-healthcare-green/10", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
   { title: "Upload Prescription", icon: Upload, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-mint/40", iconColor: "text-healthcare-teal" },
   { title: "Track Delivery", icon: Truck, to: "/track", bg: "bg-healthcare-light", iconBg: "bg-healthcare-sky/30", iconColor: "text-healthcare-sky" },
-  { title: "Book Appointment", icon: CalendarCheck, to: "/dashboard/patient/appointments", bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
   { title: "AI Medicine Assistant", icon: Bot, to: "/dashboard/patient/assistant", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
 ];
 

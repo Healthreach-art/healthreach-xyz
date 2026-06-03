@@ -39,6 +39,13 @@ interface DocRow {
   rejection_reason: string | null;
 }
 
+interface AvailRow {
+  id: string; doctor_id: string; day_of_week: number;
+  start_hour: number; end_hour: number; slot_minutes: number; is_active: boolean;
+}
+
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 function DoctorDashboard() {
   const { user, approvalStatus, signOut, profile } = useAuth();
   const submit = useServerFn(submitDoctorDocuments);
@@ -47,6 +54,7 @@ function DoctorDashboard() {
   const [busy, setBusy] = useState(false);
   const [appts, setAppts] = useState<any[]>([]);
   const [doctorRow, setDoctorRow] = useState<any | null>(null);
+  const [avail, setAvail] = useState<AvailRow[]>([]);
 
   const [hpcsaNumber, setHpcsaNumber] = useState("");
   const [hpcsaPath, setHpcsaPath] = useState("");
@@ -71,14 +79,22 @@ function DoctorDashboard() {
   async function load() {
     if (!user) return;
     setLoading(true);
-    const [{ data: d }, { data: doc }, { data: a }] = await Promise.all([
+    const [{ data: d }, { data: doc }] = await Promise.all([
       supabase.from("doctor_documents").select("*").eq("doctor_user_id", user.id).maybeSingle(),
       supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("doctor_appointments").select("*").order("scheduled_at", { ascending: false }).limit(50),
     ]);
     setDocs((d as DocRow) ?? null);
     setDoctorRow(doc);
-    setAppts(a ?? []);
+    if (doc?.id) {
+      const [{ data: a }, { data: av }] = await Promise.all([
+        supabase.from("doctor_appointments").select("*").eq("doctor_id", doc.id).order("scheduled_at", { ascending: false }).limit(50),
+        supabase.from("doctor_availability").select("*").eq("doctor_id", doc.id).order("day_of_week").order("start_hour"),
+      ]);
+      setAppts(a ?? []);
+      setAvail((av ?? []) as AvailRow[]);
+    } else {
+      setAppts([]); setAvail([]);
+    }
     if (d) {
       setHpcsaNumber(d.hpcsa_number ?? "");
       setHpcsaPath(d.hpcsa_cert_path ?? "");
@@ -105,6 +121,48 @@ function DoctorDashboard() {
     setLoading(false);
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
+
+  // Realtime — incoming appointments + availability changes flow in within seconds
+  useEffect(() => {
+    if (!doctorRow?.id) return;
+    const ch = supabase
+      .channel(`doctor-dash-${doctorRow.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `doctor_id=eq.${doctorRow.id}` }, async (payload) => {
+        if (payload.eventType === "INSERT") toast.success("New appointment request");
+        const { data: a } = await supabase.from("doctor_appointments").select("*").eq("doctor_id", doctorRow.id).order("scheduled_at", { ascending: false }).limit(50);
+        setAppts(a ?? []);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_availability", filter: `doctor_id=eq.${doctorRow.id}` }, async () => {
+        const { data: av } = await supabase.from("doctor_availability").select("*").eq("doctor_id", doctorRow.id).order("day_of_week").order("start_hour");
+        setAvail((av ?? []) as AvailRow[]);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [doctorRow?.id]);
+
+  async function addAvail(dow: number) {
+    if (!doctorRow?.id) return toast.error("Save your profile first");
+    const { error } = await supabase.from("doctor_availability").insert({
+      doctor_id: doctorRow.id, day_of_week: dow, start_hour: 9, end_hour: 17, slot_minutes: 30, is_active: true,
+    });
+    if (error) toast.error(error.message);
+  }
+  async function updateAvail(id: string, patch: Partial<AvailRow>) {
+    const { error } = await supabase.from("doctor_availability").update(patch).eq("id", id);
+    if (error) toast.error(error.message);
+  }
+  async function removeAvail(id: string) {
+    const { error } = await supabase.from("doctor_availability").delete().eq("id", id);
+    if (error) toast.error(error.message);
+  }
+  async function updateApptStatus(id: string, status: string) {
+    const patch: any = { status };
+    if (status === "completed") patch.completed_at = new Date().toISOString();
+    if (status === "cancelled") patch.cancelled_at = new Date().toISOString();
+    const { error } = await supabase.from("doctor_appointments").update(patch).eq("id", id);
+    if (error) toast.error(error.message);
+    else toast.success(`Appointment ${status}`);
+  }
 
   async function uploadTo(file: File, slot: string): Promise<string | null> {
     if (!user) return null;
@@ -227,13 +285,14 @@ function DoctorDashboard() {
         )}
       </Card>
 
-      <Tabs defaultValue="docs">
+      <Tabs defaultValue="appointments">
         <TabsList>
-          <TabsTrigger value="docs">Legal documents</TabsTrigger>
-          <TabsTrigger value="profile">Public profile</TabsTrigger>
           <TabsTrigger value="appointments">
             Appointments {appts.length ? <Badge variant="secondary" className="ml-2">{appts.length}</Badge> : null}
           </TabsTrigger>
+          <TabsTrigger value="availability">Availability</TabsTrigger>
+          <TabsTrigger value="profile">Public profile</TabsTrigger>
+          <TabsTrigger value="docs">Legal documents</TabsTrigger>
         </TabsList>
 
         <TabsContent value="docs">
@@ -349,26 +408,96 @@ function DoctorDashboard() {
             {appts.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No appointments yet. Once verified, patients can book you at{" "}
-                <Link to="/doctors" className="underline">/doctors</Link>.
+                <Link to="/doctors" className="underline">/doctors</Link>. New bookings appear here instantly.
               </p>
             ) : (
               <div className="divide-y">
                 {appts.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between py-3">
+                  <div key={a.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <div className="text-sm font-medium">{new Date(a.scheduled_at).toLocaleString()}</div>
-                        <div className="text-xs text-muted-foreground capitalize">{a.mode} · {a.status}</div>
+                        <div className="text-sm font-medium">{new Date(a.scheduled_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</div>
+                        <div className="text-xs text-muted-foreground capitalize">{a.mode.replace("_", " ")} · {a.status}{a.reason ? ` · ${a.reason.slice(0, 60)}` : ""}</div>
                       </div>
                     </div>
-                    <Badge variant={a.payment_status === "paid" ? "default" : "secondary"}>{a.payment_status}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={a.payment_status === "paid" ? "default" : "secondary"}>{a.payment_status}</Badge>
+                      {a.status === "pending" && (
+                        <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Confirm</Button>
+                      )}
+                      {(a.status === "pending" || a.status === "confirmed") && (
+                        <>
+                          <Button size="sm" onClick={() => updateApptStatus(a.id, "completed")}>Mark complete</Button>
+                          <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Cancel</Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </Card>
         </TabsContent>
+
+        <TabsContent value="availability">
+          <Card className="p-6 space-y-4">
+            <div>
+              <p className="text-sm font-medium">Weekly availability</p>
+              <p className="text-xs text-muted-foreground">
+                Add a time window for each day you take bookings. Patients only see these slots on your public profile.
+                {!doctorRow && " Save your public profile first."}
+              </p>
+            </div>
+            <div className="space-y-3">
+              {DOW.map((label, dow) => {
+                const rows = avail.filter((a) => a.day_of_week === dow);
+                return (
+                  <div key={dow} className="rounded-xl border border-border p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold">{label}</p>
+                      <Button size="sm" variant="outline" onClick={() => addAvail(dow)} disabled={!doctorRow}>
+                        Add window
+                      </Button>
+                    </div>
+                    {rows.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Closed</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {rows.map((r) => (
+                          <div key={r.id} className="flex flex-wrap items-center gap-2 text-xs">
+                            <Input type="number" min={0} max={23} value={r.start_hour}
+                              onChange={(e) => updateAvail(r.id, { start_hour: Number(e.target.value) })}
+                              className="w-20" />
+                            <span>to</span>
+                            <Input type="number" min={1} max={24} value={r.end_hour}
+                              onChange={(e) => updateAvail(r.id, { end_hour: Number(e.target.value) })}
+                              className="w-20" />
+                            <span>· slot</span>
+                            <Input type="number" min={10} max={240} step={5} value={r.slot_minutes}
+                              onChange={(e) => updateAvail(r.id, { slot_minutes: Number(e.target.value) })}
+                              className="w-24" />
+                            <span>min</span>
+                            <label className="ml-2 flex items-center gap-1">
+                              <input type="checkbox" checked={r.is_active}
+                                onChange={(e) => updateAvail(r.id, { is_active: e.target.checked })} />
+                              Active
+                            </label>
+                            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => removeAvail(r.id)}>Remove</Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              If you don't set any availability, your public page shows a default Mon–Fri 09:00–16:00 schedule.
+            </p>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
       <p className="mt-8 text-center text-xs text-muted-foreground">

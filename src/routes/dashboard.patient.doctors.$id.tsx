@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2, BadgeCheck } from "lucide-react";
+import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { bookDoctorAppointment, markDoctorAppointmentPaid } from "@/lib/doctors.functions";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
@@ -78,9 +77,6 @@ function Page() {
   });
   const [mode, setMode] = useState<"in_person" | "video" | "phone">("in_person");
   const [reason, setReason] = useState("");
-  const [useAid, setUseAid] = useState(false);
-  const [aidProvider, setAidProvider] = useState("");
-  const [aidMember, setAidMember] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -90,11 +86,6 @@ function Page() {
         supabase.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
       ]);
       setDoc(d as Doctor); setReviews(r ?? []); setLoading(false);
-      // Prefill medical aid from profile
-      if (user) {
-        const { data: p } = await supabase.from("profiles").select("medical_aid_provider, medical_aid_member_number").eq("user_id", user.id).maybeSingle();
-        if (p?.medical_aid_provider) { setAidProvider(p.medical_aid_provider); setAidMember(p.medical_aid_member_number || ""); setUseAid(true); }
-      }
     })();
   }, [id, user]);
 
@@ -102,14 +93,11 @@ function Page() {
     if (!user) return toast.error("Please sign in");
     if (!doc) return;
     if (!when) return toast.error("Pick a date & time");
-    if (useAid && (!aidProvider || !aidMember)) return toast.error("Add your medical aid details or untick the option");
     setBusy(true);
     try {
       const { appointmentId, platformFeeCents } = await book({
         data: {
           doctorId: doc.id, scheduledAt: when, mode, reason: reason.trim(),
-          useMedicalAid: useAid, medicalAidProvider: useAid ? aidProvider : undefined,
-          medicalAidMemberNumber: useAid ? aidMember : undefined,
         },
       });
       await loadPaystack();
@@ -166,7 +154,7 @@ function Page() {
             {doc.in_person_available && <Pill>In-person</Pill>}
             {doc.online_available && <Pill><Video className="h-3 w-3" /> Video</Pill>}
             {doc.phone_available && <Pill><Phone className="h-3 w-3" /> Phone</Pill>}
-            {doc.accepted_medical_aids.map((p) => <Pill key={p} tone="sky"><BadgeCheck className="h-3 w-3" />{p}</Pill>)}
+            
           </div>
           {doc.bio && <p className="text-sm text-foreground/80 mt-3">{doc.bio}</p>}
         </div>
@@ -193,22 +181,9 @@ function Page() {
           </div>
         </div>
         <div><Label>Reason for visit</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} placeholder="e.g. Annual check-up, persistent headache…" /></div>
-        <div className="rounded-xl border border-border p-3 space-y-2">
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <Checkbox checked={useAid} onCheckedChange={(c) => setUseAid(!!c)} />
-            Use my medical aid for the consultation fee
-          </label>
-          {useAid && (
-            <div className="grid sm:grid-cols-2 gap-3 pt-1">
-              <Input placeholder="Provider" value={aidProvider} onChange={(e) => setAidProvider(e.target.value)} />
-              <Input placeholder="Membership number" value={aidMember} onChange={(e) => setAidMember(e.target.value)} />
-            </div>
-          )}
-          <p className="text-[11px] text-muted-foreground">
-            {useAid ? "The doctor will claim the consultation fee from your medical aid. You only pay the R15 booking fee now." :
-                     "You pay only the R15 booking fee now. Settle the consultation fee at the practice."}
-          </p>
-        </div>
+        <p className="text-[11px] text-muted-foreground">
+          You pay only the R15 booking fee now. Settle the consultation fee directly with the doctor.
+        </p>
         <div className="flex items-center justify-between border-t border-border pt-3">
           <div>
             <p className="text-xs text-muted-foreground">Pay now</p>

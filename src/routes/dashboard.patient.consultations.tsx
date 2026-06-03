@@ -54,7 +54,16 @@ function Page() {
       setRxByAppt(m);
     }
   }
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => {
+    load();
+    if (!user) return;
+    const ch = supabase
+      .channel(`patient-consult-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `patient_id=eq.${user.id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "e_prescriptions", filter: `patient_id=eq.${user.id}` }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user]);
 
   async function cancel(id: string) {
     await supabase.from("doctor_appointments").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", id);
