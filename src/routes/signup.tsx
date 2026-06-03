@@ -176,7 +176,7 @@ function SignupPage() {
             </div>
 
             <div className="space-y-1">
-              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : "Delivery address"}</Label>
+              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : role === "doctor" ? "Practice address" : "Delivery address"}</Label>
               <AddressPicker
                 value={address}
                 onChange={setAddress}
