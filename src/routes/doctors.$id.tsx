@@ -75,20 +75,11 @@ function PublicDoctorPage() {
   const [doc, setDoc] = useState<Doctor | null>(initialDoc);
   const [reviews, setReviews] = useState<{ stars: number; comment: string; created_at: string }[]>([]);
   const [busySlots, setBusySlots] = useState<Set<string>>(new Set());
+  const [availability, setAvailability] = useState<{ day_of_week: number; start_hour: number; end_hour: number; slot_minutes: number; is_active: boolean }[]>([]);
 
   useEffect(() => {
-    (async () => {
-      if (!doc) {
-        const d = await fetchDoctor(id);
-        if (d) setDoc(d);
-      }
-      const { data: r } = await supabase
-        .from("doctor_reviews")
-        .select("stars, comment, created_at")
-        .eq("doctor_id", id)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setReviews(r ?? []);
+    let cancelled = false;
+    async function refreshSlots() {
       const since = new Date(); since.setHours(0, 0, 0, 0);
       const until = new Date(since); until.setDate(until.getDate() + 14);
       const { data: appts } = await supabase
@@ -98,29 +89,61 @@ function PublicDoctorPage() {
         .gte("scheduled_at", since.toISOString())
         .lt("scheduled_at", until.toISOString())
         .in("status", ["pending", "confirmed"]);
-      setBusySlots(new Set((appts ?? []).map((a: any) => new Date(a.scheduled_at).toISOString())));
+      if (!cancelled) setBusySlots(new Set((appts ?? []).map((a: any) => new Date(a.scheduled_at).toISOString())));
+    }
+    (async () => {
+      if (!doc) {
+        const d = await fetchDoctor(id);
+        if (d && !cancelled) setDoc(d);
+      }
+      const [{ data: r }, { data: av }] = await Promise.all([
+        supabase.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
+        supabase.from("doctor_availability").select("day_of_week, start_hour, end_hour, slot_minutes, is_active").eq("doctor_id", id).eq("is_active", true),
+      ]);
+      if (cancelled) return;
+      setReviews(r ?? []);
+      setAvailability(av ?? []);
+      await refreshSlots();
     })();
+    // Realtime: when bookings change for this doctor, refresh busy slots within seconds.
+    const ch = supabase
+      .channel(`doctor-pub-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `doctor_id=eq.${id}` }, refreshSlots)
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_availability", filter: `doctor_id=eq.${id}` }, async () => {
+        const { data: av } = await supabase.from("doctor_availability").select("day_of_week, start_hour, end_hour, slot_minutes, is_active").eq("doctor_id", id).eq("is_active", true);
+        if (!cancelled) setAvailability(av ?? []);
+      })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [id, doc]);
 
-  // Generate next 7 days × hourly slots 09:00–16:00 weekdays.
+  // Build next-14-day slot grid from doctor's availability (fallback Mon–Fri 09–16 if none set).
   const days = useMemo(() => {
+    const fallback = availability.length === 0;
     const out: { date: Date; slots: { iso: string; label: string; taken: boolean }[] }[] = [];
     const now = new Date();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 14; i++) {
       const d = new Date(now); d.setDate(now.getDate() + i); d.setHours(0, 0, 0, 0);
       const dow = d.getDay();
-      if (dow === 0 || dow === 6) continue; // weekdays only
+      const windows = fallback
+        ? (dow === 0 || dow === 6 ? [] : [{ start_hour: 9, end_hour: 16, slot_minutes: 60 }])
+        : availability.filter((a) => a.day_of_week === dow);
       const slots: { iso: string; label: string; taken: boolean }[] = [];
-      for (let h = 9; h <= 16; h++) {
-        const s = new Date(d); s.setHours(h, 0, 0, 0);
-        if (s.getTime() < now.getTime() + 60 * 60 * 1000) continue;
-        const iso = s.toISOString();
-        slots.push({ iso, label: `${String(h).padStart(2, "0")}:00`, taken: busySlots.has(iso) });
+      for (const w of windows) {
+        for (let m = w.start_hour * 60; m + w.slot_minutes <= w.end_hour * 60; m += w.slot_minutes) {
+          const s = new Date(d); s.setHours(Math.floor(m / 60), m % 60, 0, 0);
+          if (s.getTime() < now.getTime() + 30 * 60 * 1000) continue;
+          const iso = s.toISOString();
+          const h = String(Math.floor(m / 60)).padStart(2, "0");
+          const mm = String(m % 60).padStart(2, "0");
+          slots.push({ iso, label: `${h}:${mm}`, taken: busySlots.has(iso) });
+        }
       }
       if (slots.length) out.push({ date: d, slots });
+      if (out.length >= 7) break;
     }
     return out;
-  }, [busySlots]);
+  }, [busySlots, availability]);
 
   function pickSlot(iso: string) {
     if (user && role === "patient") {
