@@ -40,11 +40,16 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "HEALTHREACH" },
       { name: "description", content: "Integrated healthcare management for South Africa." },
       { name: "author", content: "HEALTHREACH" },
       { name: "google-site-verification", content: "Gkfb-CiZBB_nnA4rdpo-EGkrnExvQzPKHhH04qbhsKw" },
+      { name: "theme-color", content: "#3aa8f0" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-title", content: "HEALTHREACH" },
+      { name: "mobile-web-app-capable", content: "yes" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "HEALTHREACH" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -54,7 +59,12 @@ export const Route = createRootRoute({
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", crossOrigin: "" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
+
   }),
   shellComponent: RootShell,
   component: RootComponent,
