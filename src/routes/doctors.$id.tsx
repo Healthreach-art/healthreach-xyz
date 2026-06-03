@@ -194,9 +194,6 @@ function PublicDoctorPage() {
             {doc.in_person_available && <Pill>In-person</Pill>}
             {doc.online_available && <Pill><Video className="h-3 w-3" /> Video</Pill>}
             {doc.phone_available && <Pill><Phone className="h-3 w-3" /> Phone</Pill>}
-            {(doc.accepted_medical_aids ?? []).map((p) => (
-              <Pill key={p} tone="sky"><BadgeCheck className="h-3 w-3" />{p}</Pill>
-            ))}
           </div>
         </div>
         <div className="text-right shrink-0">
