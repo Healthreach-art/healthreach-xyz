@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star } from "lucide-react";
+import { Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient/consultations")({
