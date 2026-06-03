@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Calendar, User, CheckCircle2, XCircle, Phone, Video, MapPin } from "lucide-react";
+import { Loader2, Calendar, User, CheckCircle2, XCircle, Phone, Video, MapPin, MessageCircle } from "lucide-react";
+import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
 import { toast } from "sonner";
 
 interface Appt {
