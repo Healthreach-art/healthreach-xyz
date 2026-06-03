@@ -285,13 +285,14 @@ function DoctorDashboard() {
         )}
       </Card>
 
-      <Tabs defaultValue="docs">
+      <Tabs defaultValue="appointments">
         <TabsList>
-          <TabsTrigger value="docs">Legal documents</TabsTrigger>
-          <TabsTrigger value="profile">Public profile</TabsTrigger>
           <TabsTrigger value="appointments">
             Appointments {appts.length ? <Badge variant="secondary" className="ml-2">{appts.length}</Badge> : null}
           </TabsTrigger>
+          <TabsTrigger value="availability">Availability</TabsTrigger>
+          <TabsTrigger value="profile">Public profile</TabsTrigger>
+          <TabsTrigger value="docs">Legal documents</TabsTrigger>
         </TabsList>
 
         <TabsContent value="docs">
