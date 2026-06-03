@@ -34,7 +34,9 @@ function Page() {
   const [reviewFor, setReviewFor] = useState<{ appointmentId: string; doctorId: string } | null>(null);
   const [stars, setStars] = useState(5);
   const [comment, setComment] = useState("");
-  const [chatFor, setChatFor] = useState<{ appointmentId: string; providerUserId: string; name: string } | null>(null);
+  const [chatFor, setChatFor] = useState<{ appointmentId: string; appointmentType: "doctor" | "pharmacy"; providerUserId: string; name: string } | null>(null);
+  const [pharmAppts, setPharmAppts] = useState<Array<{ id: string; pharmacy_id: string; reason: string; preferred_at: string; status: string; mode: string; pharmacist_notes: string | null }>>([]);
+  const [pharms, setPharms] = useState<Record<string, { name: string }>>({});
 
   async function load() {
     if (!user) return;
