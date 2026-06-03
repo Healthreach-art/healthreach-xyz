@@ -149,7 +149,7 @@ export function OrderHistory() {
       total_paid: Number(payment.total_paid ?? o.total_amount),
       payment_method: payment.payment_method ?? "card",
       transaction_ref: payment.transaction_ref ?? "",
-      pharmacy_name: ph?.organization_name || ph?.full_name,
+      pharmacy_name: ph?.organization_name || ph?.full_name || undefined,
     });
   }
 
