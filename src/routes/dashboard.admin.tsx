@@ -679,6 +679,55 @@ function AdminDashboard() {
         </div>
       )}
 
+      {/* PAYOUTS */}
+      {activeTab === "payouts" && (
+        <div className="healthcare-card p-6">
+          <h2 className="text-lg font-semibold mb-4">
+            Driver Payout Requests ({payouts.length}) — Pending: R {payouts.filter((p) => p.status === "pending").reduce((s, p) => s + Number(p.amount), 0).toFixed(2)}
+          </h2>
+          {payouts.length === 0 && <p className="text-sm text-muted-foreground">No payout requests yet.</p>}
+          <div className="space-y-3">
+            {payouts.map((p) => {
+              const driver = userMap.get(p.driver_id);
+              const bank = bankAccounts.find((b) => b.driver_id === p.driver_id && b.is_default)
+                || bankAccounts.find((b) => b.driver_id === p.driver_id);
+              return (
+                <div key={p.id} className="rounded-lg border border-border p-4">
+                  <div className="flex flex-wrap justify-between items-start gap-3">
+                    <div>
+                      <p className="font-semibold">{driver?.full_name || p.driver_id.slice(0, 8)}</p>
+                      <p className="text-xs text-muted-foreground">{driver?.phone || driver?.email || "—"} • Requested {new Date(p.requested_at).toLocaleString()}</p>
+                      {bank ? (
+                        <p className="text-xs mt-1">
+                          <span className="font-medium">{bank.bank_name}</span> • {bank.account_holder} • •••{bank.account_number.slice(-4)} • {bank.account_type} {bank.branch_code ? `• branch ${bank.branch_code}` : ""}
+                        </p>
+                      ) : (
+                        <p className="text-xs mt-1 text-destructive">No bank account on file</p>
+                      )}
+                      {p.reference && <p className="text-xs text-muted-foreground">Ref: {p.reference}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold">R {Number(p.amount).toFixed(2)}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(p.status)}`}>{p.status}</span>
+                      <p className="text-[11px] text-muted-foreground mt-1 capitalize">{p.method.replace(/_/g, " ")}</p>
+                    </div>
+                  </div>
+                  {p.status !== "paid" && p.status !== "failed" && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {p.status === "pending" && (
+                        <Button size="sm" variant="outline" className="h-7" onClick={() => updatePayoutStatus(p, "processing")}>Mark processing</Button>
+                      )}
+                      <Button size="sm" className="h-7" onClick={() => updatePayoutStatus(p, "paid")}>Mark paid</Button>
+                      <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => updatePayoutStatus(p, "failed")}>Mark failed</Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* REFUNDS */}
       {activeTab === "refunds" && (
         <div className="healthcare-card p-6">
