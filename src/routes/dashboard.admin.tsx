@@ -214,6 +214,7 @@ function AdminDashboard() {
     const [
       { data: profs }, { data: roleRows }, { data: ords }, { data: pays },
       { data: dels }, { data: comps }, { data: rates }, { data: pres },
+      { data: pos }, { data: bas },
     ] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
@@ -223,6 +224,8 @@ function AdminDashboard() {
       supabase.from("complaints").select("*").order("created_at", { ascending: false }),
       supabase.from("ratings").select("*").order("created_at", { ascending: false }),
       supabase.from("prescriptions").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("driver_payouts").select("*").order("requested_at", { ascending: false }).limit(500),
+      supabase.from("driver_bank_accounts").select("*"),
     ]);
     const roleMap = new Map((roleRows ?? []).map((r) => [r.user_id, r.role as AppRole]));
     setUsers((profs ?? []).map((p: any) => ({
@@ -236,7 +239,10 @@ function AdminDashboard() {
     setComplaints((comps ?? []) as any);
     setRatings((rates ?? []) as any);
     setPrescriptions((pres ?? []) as any);
+    setPayouts((pos ?? []) as any);
+    setBankAccounts((bas ?? []) as any);
   }
+
 
   useEffect(() => {
     setLoading(true);
