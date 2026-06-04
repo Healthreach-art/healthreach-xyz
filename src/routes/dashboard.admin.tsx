@@ -13,7 +13,7 @@ import {
   Users, ShieldCheck, DollarSign, Activity, CheckCircle, XCircle,
   Building2, Truck, Pill, BarChart3, FileText, AlertTriangle, Settings,
   Loader2, Crown, ShieldOff, TrendingUp, MessageSquare, Star, RotateCcw,
-  PackageX, Stethoscope, ShoppingCart, CreditCard, Megaphone, Eye, Send,
+  PackageX, Stethoscope, ShoppingCart, CreditCard, Megaphone, Eye, Send, ArrowDownToLine,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +35,30 @@ export const Route = createFileRoute("/dashboard/admin")({
 
 type TabId =
   | "overview" | "analytics" | "approvals" | "verifications" | "pharmacies" | "drivers"
-  | "orders" | "payments" | "refunds" | "prescriptions" | "complaints" | "users" | "broadcasts" | "reports";
+  | "orders" | "payments" | "payouts" | "refunds" | "prescriptions" | "complaints" | "users" | "broadcasts" | "reports";
+
+interface PayoutRow {
+  id: string;
+  driver_id: string;
+  amount: number;
+  status: string;
+  method: string;
+  reference: string | null;
+  requested_at: string;
+  paid_at: string | null;
+  notes: string | null;
+}
+
+interface BankAccountRow {
+  id: string;
+  driver_id: string;
+  bank_name: string;
+  account_holder: string;
+  account_number: string;
+  branch_code: string | null;
+  account_type: string;
+  is_default: boolean;
+}
 type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suspended" | "under_review" | "expired";
 
@@ -144,6 +167,8 @@ function AdminDashboard() {
   const [complaints, setComplaints] = useState<ComplaintRow[]>([]);
   const [ratings, setRatings] = useState<RatingRow[]>([]);
   const [prescriptions, setPrescriptions] = useState<PrescriptionRow[]>([]);
+  const [payouts, setPayouts] = useState<PayoutRow[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccountRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -189,6 +214,7 @@ function AdminDashboard() {
     const [
       { data: profs }, { data: roleRows }, { data: ords }, { data: pays },
       { data: dels }, { data: comps }, { data: rates }, { data: pres },
+      { data: pos }, { data: bas },
     ] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
@@ -198,6 +224,8 @@ function AdminDashboard() {
       supabase.from("complaints").select("*").order("created_at", { ascending: false }),
       supabase.from("ratings").select("*").order("created_at", { ascending: false }),
       supabase.from("prescriptions").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("driver_payouts").select("*").order("requested_at", { ascending: false }).limit(500),
+      supabase.from("driver_bank_accounts").select("*"),
     ]);
     const roleMap = new Map((roleRows ?? []).map((r) => [r.user_id, r.role as AppRole]));
     setUsers((profs ?? []).map((p: any) => ({
@@ -211,7 +239,10 @@ function AdminDashboard() {
     setComplaints((comps ?? []) as any);
     setRatings((rates ?? []) as any);
     setPrescriptions((pres ?? []) as any);
+    setPayouts((pos ?? []) as any);
+    setBankAccounts((bas ?? []) as any);
   }
+
 
   useEffect(() => {
     setLoading(true);
@@ -264,6 +295,16 @@ function AdminDashboard() {
     toast.success("Refund processed");
     setRefundConfirm(null);
   }
+
+  async function updatePayoutStatus(p: PayoutRow, status: "processing" | "paid" | "failed") {
+    const patch: any = { status };
+    if (status === "paid") patch.paid_at = new Date().toISOString();
+    const { error } = await supabase.from("driver_payouts").update(patch).eq("id", p.id);
+    if (error) return toast.error(error.message);
+    toast.success(`Payout marked ${status}`);
+  }
+
+
 
   async function updateComplaintStatus(id: string, status: string, response?: string) {
     const patch: any = { status };
@@ -331,6 +372,7 @@ function AdminDashboard() {
     { id: "drivers", label: "Drivers", icon: Truck },
     { id: "orders", label: "Orders", icon: ShoppingCart },
     { id: "payments", label: "Payments", icon: CreditCard },
+    { id: "payouts", label: "Driver Payouts", icon: ArrowDownToLine, badge: payouts.filter((p) => p.status === "pending").length },
     { id: "refunds", label: "Refunds", icon: RotateCcw, badge: refunds.length },
     { id: "prescriptions", label: "Prescriptions", icon: Stethoscope },
     { id: "complaints", label: "Complaints", icon: MessageSquare, badge: complaints.filter((c) => c.status === "open").length },
@@ -633,6 +675,55 @@ function AdminDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* PAYOUTS */}
+      {activeTab === "payouts" && (
+        <div className="healthcare-card p-6">
+          <h2 className="text-lg font-semibold mb-4">
+            Driver Payout Requests ({payouts.length}) — Pending: R {payouts.filter((p) => p.status === "pending").reduce((s, p) => s + Number(p.amount), 0).toFixed(2)}
+          </h2>
+          {payouts.length === 0 && <p className="text-sm text-muted-foreground">No payout requests yet.</p>}
+          <div className="space-y-3">
+            {payouts.map((p) => {
+              const driver = userMap.get(p.driver_id);
+              const bank = bankAccounts.find((b) => b.driver_id === p.driver_id && b.is_default)
+                || bankAccounts.find((b) => b.driver_id === p.driver_id);
+              return (
+                <div key={p.id} className="rounded-lg border border-border p-4">
+                  <div className="flex flex-wrap justify-between items-start gap-3">
+                    <div>
+                      <p className="font-semibold">{driver?.full_name || p.driver_id.slice(0, 8)}</p>
+                      <p className="text-xs text-muted-foreground">{driver?.phone || driver?.email || "—"} • Requested {new Date(p.requested_at).toLocaleString()}</p>
+                      {bank ? (
+                        <p className="text-xs mt-1">
+                          <span className="font-medium">{bank.bank_name}</span> • {bank.account_holder} • •••{bank.account_number.slice(-4)} • {bank.account_type} {bank.branch_code ? `• branch ${bank.branch_code}` : ""}
+                        </p>
+                      ) : (
+                        <p className="text-xs mt-1 text-destructive">No bank account on file</p>
+                      )}
+                      {p.reference && <p className="text-xs text-muted-foreground">Ref: {p.reference}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold">R {Number(p.amount).toFixed(2)}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(p.status)}`}>{p.status}</span>
+                      <p className="text-[11px] text-muted-foreground mt-1 capitalize">{p.method.replace(/_/g, " ")}</p>
+                    </div>
+                  </div>
+                  {p.status !== "paid" && p.status !== "failed" && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {p.status === "pending" && (
+                        <Button size="sm" variant="outline" className="h-7" onClick={() => updatePayoutStatus(p, "processing")}>Mark processing</Button>
+                      )}
+                      <Button size="sm" className="h-7" onClick={() => updatePayoutStatus(p, "paid")}>Mark paid</Button>
+                      <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => updatePayoutStatus(p, "failed")}>Mark failed</Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
