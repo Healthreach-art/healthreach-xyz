@@ -35,7 +35,30 @@ export const Route = createFileRoute("/dashboard/admin")({
 
 type TabId =
   | "overview" | "analytics" | "approvals" | "verifications" | "pharmacies" | "drivers"
-  | "orders" | "payments" | "refunds" | "prescriptions" | "complaints" | "users" | "broadcasts" | "reports";
+  | "orders" | "payments" | "payouts" | "refunds" | "prescriptions" | "complaints" | "users" | "broadcasts" | "reports";
+
+interface PayoutRow {
+  id: string;
+  driver_id: string;
+  amount: number;
+  status: string;
+  method: string;
+  reference: string | null;
+  requested_at: string;
+  paid_at: string | null;
+  notes: string | null;
+}
+
+interface BankAccountRow {
+  id: string;
+  driver_id: string;
+  bank_name: string;
+  account_holder: string;
+  account_number: string;
+  branch_code: string | null;
+  account_type: string;
+  is_default: boolean;
+}
 type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "suspended" | "under_review" | "expired";
 
