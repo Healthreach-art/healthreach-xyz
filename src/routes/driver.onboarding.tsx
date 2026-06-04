@@ -107,10 +107,13 @@ function Onboarding() {
       setDocs((p) => ({ ...p, [key]: path }));
       if (signed?.signedUrl) setPreviews((p) => ({ ...p, [key]: signed.signedUrl }));
       toast.success("Uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploadingKey(null);
     }
   }
+
 
   async function handleAvatarUpload(file: File) {
     if (!user) throw new Error("Not signed in");
