@@ -296,6 +296,16 @@ function AdminDashboard() {
     setRefundConfirm(null);
   }
 
+  async function updatePayoutStatus(p: PayoutRow, status: "processing" | "paid" | "failed") {
+    const patch: any = { status };
+    if (status === "paid") patch.paid_at = new Date().toISOString();
+    const { error } = await supabase.from("driver_payouts").update(patch).eq("id", p.id);
+    if (error) return toast.error(error.message);
+    toast.success(`Payout marked ${status}`);
+  }
+
+
+
   async function updateComplaintStatus(id: string, status: string, response?: string) {
     const patch: any = { status };
     if (response !== undefined) patch.admin_response = response;
