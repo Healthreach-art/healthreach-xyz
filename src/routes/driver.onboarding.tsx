@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Upload, ShieldCheck, Camera, FileText, Car, IdCard, CheckCircle2, Clock, User } from "lucide-react";
 import { toast } from "sonner";
 import { CameraCapture } from "@/components/CameraCapture";
+import { useServerFn } from "@tanstack/react-start";
+import { saveDriverProfilePhoto } from "@/lib/driver-onboarding.functions";
 
 export const Route = createFileRoute("/driver/onboarding")({
   head: () => ({ meta: [{ title: "Driver Onboarding — HEALTHREACH" }] }),
@@ -50,6 +52,7 @@ interface DriverDocs {
 function Onboarding() {
   const { user, approvalStatus } = useAuth();
   const navigate = useNavigate();
+  const saveProfilePhoto = useServerFn(saveDriverProfilePhoto);
   const [docs, setDocs] = useState<DriverDocs>({});
   const [loading, setLoading] = useState(true);
   const [uploadingKey, setUploadingKey] = useState<DocKey | "avatar" | null>(null);
@@ -125,14 +128,7 @@ function Onboarding() {
       if (error) throw new Error(error.message);
       const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
       const url = pub.publicUrl;
-      // Upsert so the row is created if the signup trigger never ran for this user.
-      const { error: dbErr } = await supabase
-        .from("profiles")
-        .upsert(
-          { user_id: user.id, avatar_url: url, full_name: user.user_metadata?.full_name ?? "", email: user.email ?? "" } as never,
-          { onConflict: "user_id" }
-        );
-      if (dbErr) throw new Error(dbErr.message);
+      await saveProfilePhoto({ data: { avatarUrl: url } });
       setAvatarUrl(url);
       toast.success("Profile photo saved");
     } catch (e) {
