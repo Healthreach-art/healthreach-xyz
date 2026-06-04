@@ -63,6 +63,32 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
     const approve = data.decision === "approve";
     const ts = new Date().toISOString();
 
+    // Pre-flight readiness check (matches the DB trigger guard_doctor_publish_ready)
+    if (approve) {
+      const { data: doc } = await supabaseAdmin
+        .from("doctors")
+        .select("id, full_name, specialty, qualifications, city, consultation_fee, photo_url")
+        .eq("user_id", data.doctorUserId)
+        .maybeSingle();
+      if (!doc) throw new Error("Doctor profile not found — ask the doctor to save their public profile first.");
+      const missing: string[] = [];
+      if (!doc.photo_url) missing.push("profile photo");
+      if (!doc.full_name || doc.full_name.trim().length < 2) missing.push("full name");
+      if (!doc.specialty || doc.specialty.trim().length < 2) missing.push("specialty");
+      if (!doc.qualifications || doc.qualifications.trim().length < 2) missing.push("qualifications");
+      if (!doc.city || doc.city.trim().length < 2) missing.push("city");
+      if (!doc.consultation_fee || Number(doc.consultation_fee) <= 0) missing.push("consultation fee");
+      const { count: windows } = await supabaseAdmin
+        .from("doctor_availability")
+        .select("*", { count: "exact", head: true })
+        .eq("doctor_id", doc.id)
+        .eq("is_active", true);
+      if (!windows || windows === 0) missing.push("at least one weekly availability window");
+      if (missing.length) {
+        throw new Error(`Cannot approve — doctor must complete: ${missing.join(", ")}.`);
+      }
+    }
+
     // Update profile approval status
     await supabaseAdmin.from("profiles")
       .update({ approval_status: approve ? "approved" : "rejected", updated_at: ts })
