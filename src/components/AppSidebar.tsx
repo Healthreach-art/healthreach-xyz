@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
   FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin,
-  Stethoscope, Search,
+  Search,
 } from "lucide-react";
 
 type Item = { title: string; url: string; icon: any };
@@ -48,7 +48,7 @@ export function AppSidebar() {
     ...(role === "driver" ? [
       { title: "Wallet", url: "/driver/wallet", icon: Wallet },
     ] : []),
-    ...(role === "doctor" ? [{ title: "My Practice", url: "/dashboard/doctor", icon: Stethoscope }] : []),
+    
     ...(role === "hospital" ? [{ title: "Hospital", url: "/dashboard/hospital", icon: HeartPulse }] : []),
     ...(role === "admin" ? [
       { title: "Admin Panel", url: "/dashboard/admin", icon: ShieldCheck },

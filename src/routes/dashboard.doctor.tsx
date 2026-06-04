@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
@@ -83,6 +83,9 @@ function DoctorDashboard() {
   const [servicesDescription, setServicesDescription] = useState("");
   const [servicesTags, setServicesTags] = useState<string[]>([]);
   const [subspecialties, setSubspecialties] = useState<string[]>([]);
+  const [photoUrl, setPhotoUrl] = useState<string>("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [apptFilter, setApptFilter] = useState<"new" | "upcoming" | "cancelled" | "history">("new");
   const [aiBusy, setAiBusy] = useState(false);
 
   async function load() {
@@ -127,6 +130,7 @@ function DoctorDashboard() {
       setServicesDescription((doc as any).services_description ?? "");
       setServicesTags(((doc as any).services_tags as string[]) ?? []);
       setSubspecialties(((doc as any).subspecialties as string[]) ?? []);
+      setPhotoUrl((doc as any).photo_url ?? "");
     } else {
       setFullName(profile?.full_name ?? "");
     }
@@ -188,6 +192,26 @@ function DoctorDashboard() {
     return path;
   }
 
+  async function uploadPhoto(file: File) {
+    if (!user) return;
+    setPhotoBusy(true);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${user.id}/profile-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("doctor-photos").upload(path, file, { upsert: true, contentType: file.type });
+    if (error) { setPhotoBusy(false); return toast.error(error.message); }
+    const { data: pub } = supabase.storage.from("doctor-photos").getPublicUrl(path);
+    setPhotoUrl(pub.publicUrl);
+    if (doctorRow) {
+      const { error: upErr } = await supabase.from("doctors").update({ photo_url: pub.publicUrl }).eq("id", doctorRow.id);
+      if (upErr) toast.error(upErr.message);
+      else toast.success("Profile photo updated");
+    } else {
+      toast.success("Photo ready — click Save profile to publish it");
+    }
+    setPhotoBusy(false);
+  }
+
+
   async function saveProfile() {
     if (!user) return;
     setBusy(true);
@@ -204,6 +228,7 @@ function DoctorDashboard() {
       services_description: servicesDescription.slice(0, 8000),
       services_tags: servicesTags,
       subspecialties,
+      photo_url: photoUrl || undefined,
       hospital_id: null,
       is_active: false, // remains inactive until admin verifies
     };
@@ -393,7 +418,29 @@ function DoctorDashboard() {
             <p className="text-xs text-muted-foreground">
               How patients will see you in the public directory. Only visible after admin verification.
             </p>
+
+            <div className="flex items-center gap-4 rounded-xl border border-border p-4">
+              <div className="h-20 w-20 rounded-full bg-healthcare-mint/30 overflow-hidden flex items-center justify-center shrink-0">
+                {photoUrl ? (
+                  <img src={photoUrl} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <Stethoscope className="h-8 w-8 text-healthcare-teal" />
+                )}
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-medium">Profile photo {photoUrl ? "" : <span className="text-destructive">*required</span>}</p>
+                <p className="text-[11px] text-muted-foreground">Patients and our AI use this face when searching. Use a clear, friendly head-shot.</p>
+                <label className="inline-flex items-center gap-2 mt-1">
+                  <Button type="button" size="sm" variant="outline" disabled={photoBusy} asChild>
+                    <span><Upload className="h-3 w-3 mr-1" />{photoBusy ? "Uploading…" : photoUrl ? "Replace photo" : "Upload photo"}</span>
+                  </Button>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} />
+                </label>
+              </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
+
               <div className="space-y-2">
                 <Label>Full name (as on HPCSA)</Label>
                 <Input value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={120} />
@@ -483,46 +530,81 @@ function DoctorDashboard() {
         </TabsContent>
 
         <TabsContent value="appointments">
-          <Card className="p-6">
-            {appts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No appointments yet. Once verified, patients can book you at{" "}
-                <Link to="/doctors" className="underline">/doctors</Link>. New bookings appear here instantly.
-              </p>
-            ) : (
-              <div className="divide-y">
-                {appts.map((a) => (
-                  <div key={a.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm font-medium">{new Date(a.scheduled_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</div>
-                        <div className="text-xs text-muted-foreground capitalize">{a.mode.replace("_", " ")} · {a.status}{a.reason ? ` · ${a.reason.slice(0, 60)}` : ""}</div>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={a.payment_status === "paid" ? "default" : "secondary"}>{a.payment_status}</Badge>
-                      <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id })}>
-                        <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message
-                      </Button>
-                      {a.status === "pending" && (
-                        <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Accept</Button>
-                      )}
-                      {a.status === "pending" && (
-                        <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Decline</Button>
-                      )}
-                      {a.status === "confirmed" && (
-                        <>
-                          <Button size="sm" onClick={() => updateApptStatus(a.id, "completed")}>Mark complete</Button>
-                          <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Cancel</Button>
-                        </>
-                      )}
-                    </div>
+          <Card className="p-6 space-y-4">
+            {(() => {
+              const now = Date.now();
+              const buckets = {
+                new: appts.filter((a) => a.status === "pending"),
+                upcoming: appts.filter((a) => a.status === "confirmed" && new Date(a.scheduled_at).getTime() >= now - 60 * 60 * 1000),
+                cancelled: appts.filter((a) => a.status === "cancelled" || a.status === "no_show"),
+                history: appts.filter((a) => a.status === "completed" || (a.status === "confirmed" && new Date(a.scheduled_at).getTime() < now - 60 * 60 * 1000)),
+              } as const;
+              const list = buckets[apptFilter];
+              const tabs: { key: typeof apptFilter; label: string }[] = [
+                { key: "new", label: "New" },
+                { key: "upcoming", label: "Upcoming" },
+                { key: "cancelled", label: "Cancelled" },
+                { key: "history", label: "History" },
+              ];
+              return (
+                <>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tabs.map((t) => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setApptFilter(t.key)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${apptFilter === t.key ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:text-foreground"}`}
+                      >
+                        {t.label}
+                        {buckets[t.key].length > 0 && <span className="ml-1 opacity-80">({buckets[t.key].length})</span>}
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                  {list.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {apptFilter === "new" && "No new requests."}
+                      {apptFilter === "upcoming" && "No upcoming appointments."}
+                      {apptFilter === "cancelled" && "Nothing cancelled."}
+                      {apptFilter === "history" && "No past consultations yet."}
+                    </p>
+                  ) : (
+                    <div className="divide-y">
+                      {list.map((a) => (
+                        <div key={a.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <div className="text-sm font-medium">{new Date(a.scheduled_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</div>
+                              <div className="text-xs text-muted-foreground capitalize">{a.mode.replace("_", " ")} · {a.status}{a.reason ? ` · ${a.reason.slice(0, 60)}` : ""}</div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id })}>
+                              <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message
+                            </Button>
+                            {a.status === "pending" && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Accept</Button>
+                                <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Decline</Button>
+                              </>
+                            )}
+                            {a.status === "confirmed" && (
+                              <>
+                                <Button size="sm" onClick={() => updateApptStatus(a.id, "completed")}>Mark complete</Button>
+                                <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Cancel</Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </Card>
+
         </TabsContent>
 
         <TabsContent value="availability">
