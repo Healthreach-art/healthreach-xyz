@@ -208,7 +208,7 @@ function DoctorDashboard() {
       services_description: servicesDescription.slice(0, 8000),
       services_tags: servicesTags,
       subspecialties,
-      photo_url: photoUrl || null,
+      photo_url: photoUrl || undefined,
       hospital_id: null,
       is_active: false, // remains inactive until admin verifies
     };
