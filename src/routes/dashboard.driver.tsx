@@ -403,16 +403,20 @@ function DriverDashboard() {
     setRespondingId(offer.id);
     try {
       await acceptOfferSafely({ data: { offerId: offer.id } });
-    } catch {
-      setRespondingId(null);
-      toast.error("Too late — another driver took it.");
       setOffers((prev) => prev.filter((o) => o.id !== offer.id));
-      return;
+      toast.success("Delivery accepted!");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Couldn't accept this delivery.";
+      // The RPC throws "Too late — another driver took it" / "Offer is no longer available"
+      // when the offer is gone. Surface the actual message so verification or other
+      // server-side reasons aren't hidden.
+      toast.error(msg);
+      if (/no longer available|Too late|expired|declined/i.test(msg)) {
+        setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+      }
+    } finally {
+      setRespondingId(null);
     }
-
-    setRespondingId(null);
-    setOffers((prev) => prev.filter((o) => o.id !== offer.id));
-    toast.success("Delivery accepted!");
   }
 
   async function declineOffer(offer: Offer) {

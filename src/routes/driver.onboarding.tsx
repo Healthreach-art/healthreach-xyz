@@ -107,10 +107,13 @@ function Onboarding() {
       setDocs((p) => ({ ...p, [key]: path }));
       if (signed?.signedUrl) setPreviews((p) => ({ ...p, [key]: signed.signedUrl }));
       toast.success("Uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploadingKey(null);
     }
   }
+
 
   async function handleAvatarUpload(file: File) {
     if (!user) throw new Error("Not signed in");
@@ -122,10 +125,18 @@ function Onboarding() {
       if (error) throw new Error(error.message);
       const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
       const url = pub.publicUrl;
-      const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: url }).eq("user_id", user.id);
+      // Upsert so the row is created if the signup trigger never ran for this user.
+      const { error: dbErr } = await supabase
+        .from("profiles")
+        .upsert(
+          { user_id: user.id, avatar_url: url, full_name: user.user_metadata?.full_name ?? "", email: user.email ?? "" } as never,
+          { onConflict: "user_id" }
+        );
       if (dbErr) throw new Error(dbErr.message);
       setAvatarUrl(url);
       toast.success("Profile photo saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save photo");
     } finally {
       setUploadingKey(null);
     }
@@ -133,11 +144,23 @@ function Onboarding() {
 
   async function submitForReview() {
     if (!user) return;
-    if (!avatarUrl) { toast.error("Add a profile photo so patients can recognise you."); return; }
-    const allUploaded = DOCS.every((d) => (docs as any)[d.key]);
-    if (!allUploaded) { toast.error("Please upload all documents."); return; }
     if (!vehicleReg.trim()) { toast.error("Enter your vehicle registration."); return; }
     setSubmitting(true);
+
+    // Re-fetch from DB so the button cannot be bypassed by stale state.
+    const [{ data: fresh }, { data: prof }] = await Promise.all([
+      supabase.from("driver_documents").select("*").eq("driver_id", user.id).maybeSingle(),
+      supabase.from("profiles").select("avatar_url").eq("user_id", user.id).maybeSingle(),
+    ]);
+    const missing: string[] = [];
+    if (!prof?.avatar_url) missing.push("Profile photo");
+    for (const d of DOCS) if (!(fresh as any)?.[d.key]) missing.push(d.label);
+    if (missing.length) {
+      setSubmitting(false);
+      toast.error(`Missing: ${missing.join(", ")}`);
+      return;
+    }
+
     const { error } = await supabase.from("driver_documents").upsert({
       driver_id: user.id,
       vehicle_type: vehicleType,
@@ -146,7 +169,7 @@ function Onboarding() {
     } as any, { onConflict: "driver_id" });
     setSubmitting(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Submitted for verification");
+    toast.success("Submitted — an admin will review your documents shortly.");
     navigate({ to: "/dashboard/driver" });
   }
 

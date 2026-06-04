@@ -46,7 +46,6 @@ export function AppSidebar() {
       { title: "Prescription Queue", url: "/dashboard/pharmacy#prescription-queue", icon: FileText },
     ] : []),
     ...(role === "driver" ? [
-      { title: "Deliveries", url: "/dashboard/driver", icon: Truck },
       { title: "Wallet", url: "/driver/wallet", icon: Wallet },
     ] : []),
     ...(role === "doctor" ? [{ title: "My Practice", url: "/dashboard/doctor", icon: Stethoscope }] : []),
