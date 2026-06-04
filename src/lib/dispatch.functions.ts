@@ -245,7 +245,9 @@ export const setSignupLocation = createServerFn({ method: "POST" })
     };
     if (data.organizationName) patch.organization_name = data.organizationName;
     if (data.phone) patch.phone = data.phone;
-    await supabaseAdmin.from("profiles").update(patch as never).eq("user_id", userId);
+    await supabaseAdmin
+      .from("profiles")
+      .upsert({ user_id: userId, ...patch } as never, { onConflict: "user_id" });
 
     const { data: roleRow } = await supabaseAdmin
       .from("user_roles").select("role").eq("user_id", userId).maybeSingle();
