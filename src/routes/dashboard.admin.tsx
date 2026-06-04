@@ -362,6 +362,7 @@ function AdminDashboard() {
     { id: "drivers", label: "Drivers", icon: Truck },
     { id: "orders", label: "Orders", icon: ShoppingCart },
     { id: "payments", label: "Payments", icon: CreditCard },
+    { id: "payouts", label: "Driver Payouts", icon: ArrowDownToLine, badge: payouts.filter((p) => p.status === "pending").length },
     { id: "refunds", label: "Refunds", icon: RotateCcw, badge: refunds.length },
     { id: "prescriptions", label: "Prescriptions", icon: Stethoscope },
     { id: "complaints", label: "Complaints", icon: MessageSquare, badge: complaints.filter((c) => c.status === "open").length },
