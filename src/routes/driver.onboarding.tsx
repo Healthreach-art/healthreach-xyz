@@ -122,10 +122,18 @@ function Onboarding() {
       if (error) throw new Error(error.message);
       const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
       const url = pub.publicUrl;
-      const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: url }).eq("user_id", user.id);
+      // Upsert so the row is created if the signup trigger never ran for this user.
+      const { error: dbErr } = await supabase
+        .from("profiles")
+        .upsert(
+          { user_id: user.id, avatar_url: url, full_name: user.user_metadata?.full_name ?? "", email: user.email ?? "" } as never,
+          { onConflict: "user_id" }
+        );
       if (dbErr) throw new Error(dbErr.message);
       setAvatarUrl(url);
       toast.success("Profile photo saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save photo");
     } finally {
       setUploadingKey(null);
     }
