@@ -83,6 +83,9 @@ function DoctorDashboard() {
   const [servicesDescription, setServicesDescription] = useState("");
   const [servicesTags, setServicesTags] = useState<string[]>([]);
   const [subspecialties, setSubspecialties] = useState<string[]>([]);
+  const [photoUrl, setPhotoUrl] = useState<string>("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [apptFilter, setApptFilter] = useState<"new" | "upcoming" | "cancelled" | "history">("new");
   const [aiBusy, setAiBusy] = useState(false);
 
   async function load() {
