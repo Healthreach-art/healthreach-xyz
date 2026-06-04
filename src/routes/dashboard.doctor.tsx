@@ -192,6 +192,26 @@ function DoctorDashboard() {
     return path;
   }
 
+  async function uploadPhoto(file: File) {
+    if (!user) return;
+    setPhotoBusy(true);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${user.id}/profile-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("doctor-photos").upload(path, file, { upsert: true, contentType: file.type });
+    if (error) { setPhotoBusy(false); return toast.error(error.message); }
+    const { data: pub } = supabase.storage.from("doctor-photos").getPublicUrl(path);
+    setPhotoUrl(pub.publicUrl);
+    if (doctorRow) {
+      const { error: upErr } = await supabase.from("doctors").update({ photo_url: pub.publicUrl }).eq("id", doctorRow.id);
+      if (upErr) toast.error(upErr.message);
+      else toast.success("Profile photo updated");
+    } else {
+      toast.success("Photo ready — click Save profile to publish it");
+    }
+    setPhotoBusy(false);
+  }
+
+
   async function saveProfile() {
     if (!user) return;
     setBusy(true);
