@@ -13,7 +13,7 @@ import {
   Users, ShieldCheck, DollarSign, Activity, CheckCircle, XCircle,
   Building2, Truck, Pill, BarChart3, FileText, AlertTriangle, Settings,
   Loader2, Crown, ShieldOff, TrendingUp, MessageSquare, Star, RotateCcw,
-  PackageX, Stethoscope, ShoppingCart, CreditCard, Megaphone, Eye, Send,
+  PackageX, Stethoscope, ShoppingCart, CreditCard, Megaphone, Eye, Send, ArrowDownToLine,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
