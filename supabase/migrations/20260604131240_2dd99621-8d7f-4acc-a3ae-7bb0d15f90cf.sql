@@ -1,0 +1,10 @@
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.driver_bank_accounts TO authenticated;
+GRANT ALL ON public.driver_bank_accounts TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.driver_payouts TO authenticated;
+GRANT ALL ON public.driver_payouts TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.driver_documents TO authenticated;
+GRANT ALL ON public.driver_documents TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.doctor_documents TO authenticated;
+GRANT ALL ON public.doctor_documents TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.pharmacy_documents TO authenticated;
+GRANT ALL ON public.pharmacy_documents TO service_role;
