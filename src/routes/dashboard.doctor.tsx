@@ -530,46 +530,81 @@ function DoctorDashboard() {
         </TabsContent>
 
         <TabsContent value="appointments">
-          <Card className="p-6">
-            {appts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No appointments yet. Once verified, patients can book you at{" "}
-                <Link to="/doctors" className="underline">/doctors</Link>. New bookings appear here instantly.
-              </p>
-            ) : (
-              <div className="divide-y">
-                {appts.map((a) => (
-                  <div key={a.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm font-medium">{new Date(a.scheduled_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</div>
-                        <div className="text-xs text-muted-foreground capitalize">{a.mode.replace("_", " ")} · {a.status}{a.reason ? ` · ${a.reason.slice(0, 60)}` : ""}</div>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={a.payment_status === "paid" ? "default" : "secondary"}>{a.payment_status}</Badge>
-                      <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id })}>
-                        <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message
-                      </Button>
-                      {a.status === "pending" && (
-                        <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Accept</Button>
-                      )}
-                      {a.status === "pending" && (
-                        <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Decline</Button>
-                      )}
-                      {a.status === "confirmed" && (
-                        <>
-                          <Button size="sm" onClick={() => updateApptStatus(a.id, "completed")}>Mark complete</Button>
-                          <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Cancel</Button>
-                        </>
-                      )}
-                    </div>
+          <Card className="p-6 space-y-4">
+            {(() => {
+              const now = Date.now();
+              const buckets = {
+                new: appts.filter((a) => a.status === "pending"),
+                upcoming: appts.filter((a) => a.status === "confirmed" && new Date(a.scheduled_at).getTime() >= now - 60 * 60 * 1000),
+                cancelled: appts.filter((a) => a.status === "cancelled" || a.status === "no_show"),
+                history: appts.filter((a) => a.status === "completed" || (a.status === "confirmed" && new Date(a.scheduled_at).getTime() < now - 60 * 60 * 1000)),
+              } as const;
+              const list = buckets[apptFilter];
+              const tabs: { key: typeof apptFilter; label: string }[] = [
+                { key: "new", label: "New" },
+                { key: "upcoming", label: "Upcoming" },
+                { key: "cancelled", label: "Cancelled" },
+                { key: "history", label: "History" },
+              ];
+              return (
+                <>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tabs.map((t) => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setApptFilter(t.key)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${apptFilter === t.key ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:text-foreground"}`}
+                      >
+                        {t.label}
+                        {buckets[t.key].length > 0 && <span className="ml-1 opacity-80">({buckets[t.key].length})</span>}
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                  {list.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {apptFilter === "new" && "No new requests."}
+                      {apptFilter === "upcoming" && "No upcoming appointments."}
+                      {apptFilter === "cancelled" && "Nothing cancelled."}
+                      {apptFilter === "history" && "No past consultations yet."}
+                    </p>
+                  ) : (
+                    <div className="divide-y">
+                      {list.map((a) => (
+                        <div key={a.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <div className="text-sm font-medium">{new Date(a.scheduled_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</div>
+                              <div className="text-xs text-muted-foreground capitalize">{a.mode.replace("_", " ")} · {a.status}{a.reason ? ` · ${a.reason.slice(0, 60)}` : ""}</div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id })}>
+                              <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message
+                            </Button>
+                            {a.status === "pending" && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Accept</Button>
+                                <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Decline</Button>
+                              </>
+                            )}
+                            {a.status === "confirmed" && (
+                              <>
+                                <Button size="sm" onClick={() => updateApptStatus(a.id, "completed")}>Mark complete</Button>
+                                <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Cancel</Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </Card>
+
         </TabsContent>
 
         <TabsContent value="availability">
