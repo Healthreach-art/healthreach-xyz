@@ -130,6 +130,7 @@ function DoctorDashboard() {
       setServicesDescription((doc as any).services_description ?? "");
       setServicesTags(((doc as any).services_tags as string[]) ?? []);
       setSubspecialties(((doc as any).subspecialties as string[]) ?? []);
+      setPhotoUrl((doc as any).photo_url ?? "");
     } else {
       setFullName(profile?.full_name ?? "");
     }
