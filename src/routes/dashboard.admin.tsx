@@ -167,6 +167,8 @@ function AdminDashboard() {
   const [complaints, setComplaints] = useState<ComplaintRow[]>([]);
   const [ratings, setRatings] = useState<RatingRow[]>([]);
   const [prescriptions, setPrescriptions] = useState<PrescriptionRow[]>([]);
+  const [payouts, setPayouts] = useState<PayoutRow[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccountRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
