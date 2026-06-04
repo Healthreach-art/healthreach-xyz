@@ -48,7 +48,7 @@ export function AppSidebar() {
     ...(role === "driver" ? [
       { title: "Wallet", url: "/driver/wallet", icon: Wallet },
     ] : []),
-    ...(role === "doctor" ? [{ title: "My Practice", url: "/dashboard/doctor", icon: Stethoscope }] : []),
+    
     ...(role === "hospital" ? [{ title: "Hospital", url: "/dashboard/hospital", icon: HeartPulse }] : []),
     ...(role === "admin" ? [
       { title: "Admin Panel", url: "/dashboard/admin", icon: ShieldCheck },
