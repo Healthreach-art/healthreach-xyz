@@ -418,7 +418,29 @@ function DoctorDashboard() {
             <p className="text-xs text-muted-foreground">
               How patients will see you in the public directory. Only visible after admin verification.
             </p>
+
+            <div className="flex items-center gap-4 rounded-xl border border-border p-4">
+              <div className="h-20 w-20 rounded-full bg-healthcare-mint/30 overflow-hidden flex items-center justify-center shrink-0">
+                {photoUrl ? (
+                  <img src={photoUrl} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <Stethoscope className="h-8 w-8 text-healthcare-teal" />
+                )}
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-medium">Profile photo {photoUrl ? "" : <span className="text-destructive">*required</span>}</p>
+                <p className="text-[11px] text-muted-foreground">Patients and our AI use this face when searching. Use a clear, friendly head-shot.</p>
+                <label className="inline-flex items-center gap-2 mt-1">
+                  <Button type="button" size="sm" variant="outline" disabled={photoBusy} asChild>
+                    <span><Upload className="h-3 w-3 mr-1" />{photoBusy ? "Uploading…" : photoUrl ? "Replace photo" : "Upload photo"}</span>
+                  </Button>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} />
+                </label>
+              </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
+
               <div className="space-y-2">
                 <Label>Full name (as on HPCSA)</Label>
                 <Input value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={120} />
