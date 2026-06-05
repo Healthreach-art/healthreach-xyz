@@ -58,7 +58,9 @@ export function OrderChatDialog({ orderId, orderLabel, onClose }: OrderChatDialo
         },
       )
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    if (typeof window !== "undefined") (window as any).__activeChatId = orderId;
+    return () => { cancelled = true; supabase.removeChannel(ch); if (typeof window !== "undefined") (window as any).__activeChatId = null; };
+
   }, [orderId, user]);
 
   useEffect(() => {

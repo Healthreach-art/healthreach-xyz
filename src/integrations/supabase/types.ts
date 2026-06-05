@@ -1793,30 +1793,36 @@ export type Database = {
       }
       ratings: {
         Row: {
+          appointment_id: string | null
+          appointment_type: string | null
           comment: string | null
           created_at: string
           id: string
-          order_id: string
+          order_id: string | null
           patient_id: string
           stars: number
           target_id: string
           target_type: string
         }
         Insert: {
+          appointment_id?: string | null
+          appointment_type?: string | null
           comment?: string | null
           created_at?: string
           id?: string
-          order_id: string
+          order_id?: string | null
           patient_id: string
           stars: number
           target_id: string
           target_type: string
         }
         Update: {
+          appointment_id?: string | null
+          appointment_type?: string | null
           comment?: string | null
           created_at?: string
           id?: string
-          order_id?: string
+          order_id?: string | null
           patient_id?: string
           stars?: number
           target_id?: string

@@ -61,7 +61,9 @@ export function AppointmentChatDialog({
         { event: "INSERT", schema: "public", table: "appointment_messages", filter: `appointment_id=eq.${appointmentId}` },
         (payload) => setMessages((prev) => [...prev, payload.new as Message]))
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    if (typeof window !== "undefined") (window as any).__activeChatId = appointmentId;
+    return () => { cancelled = true; supabase.removeChannel(ch); if (typeof window !== "undefined") (window as any).__activeChatId = null; };
+
   }, [open, appointmentId, appointmentType, user]);
 
   useEffect(() => {

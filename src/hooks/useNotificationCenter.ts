@@ -32,13 +32,21 @@ function playNotificationSound() {
   } catch { /* audio may be blocked until user interaction */ }
 }
 
+function browserNotify(title: string, body: string) {
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  try { new Notification(title, { body, icon: "/favicon.ico" }); } catch { /* noop */ }
+}
+
 /**
- * Subscribes to public.notifications for the current user and surfaces them
- * as toasts / browser-push, gated by the user's notification_preferences.
+ * Subscribes the current user to:
+ *  - public.notifications (existing system notifications)
+ *  - public.appointment_messages (chat with doctor/pharmacy on bookings)
+ *  - public.order_messages (chat on a delivery order)
  *
- * Categories mapped:
- *   - order, delivery, payment → push_orders + sms_orders/email_orders (logged)
- *   - promotion → email_promotions
+ * Each new message becomes a toast + sound + browser push. We suppress the
+ * toast when the matching chat dialog is already open (the chat dialog sets
+ * window.__activeChatId while mounted).
  */
 export function useNotificationCenter(userId: string | null | undefined) {
   const prefsRef = useRef<Prefs>(DEFAULT_PREFS);
@@ -58,7 +66,6 @@ export function useNotificationCenter(userId: string | null | undefined) {
     }
     loadPrefs();
 
-    // Request browser push permission once (best-effort).
     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
       Notification.requestPermission().catch(() => {});
     }
@@ -74,19 +81,56 @@ export function useNotificationCenter(userId: string | null | undefined) {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload) => {
           const n: any = payload.new;
-          // Only show notifications generated after the page mounted (avoid spamming on reload).
           if (new Date(n.created_at).getTime() < startedAt.current - 5000) return;
-
           const prefs = prefsRef.current;
           const isPromo = n.category === "promotion";
           const allowed = isPromo ? prefs.email_promotions : prefs.push_orders;
           if (!allowed) return;
-
           toast.message(n.title, { description: n.body });
           playNotificationSound();
-          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-            try { new Notification(n.title, { body: n.body, icon: "/favicon.ico" }); } catch { /* noop */ }
-          }
+          browserNotify(n.title, n.body);
+        })
+      .subscribe();
+
+    // --- Chat messages: appointment_messages ---
+    const apptMsgChannel = supabase
+      .channel(`appt-msg-${userId}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "appointment_messages" },
+        (payload) => {
+          const m: any = payload.new;
+          if (m.sender_id === userId) return;
+          if (m.patient_id !== userId && m.provider_id !== userId) return;
+          if (typeof window !== "undefined" && (window as any).__activeChatId === m.appointment_id) return;
+          const who = m.sender_role === "doctor" ? "Doctor"
+            : m.sender_role === "pharmacy" ? "Pharmacy"
+            : m.sender_role === "patient" ? "Patient" : "Provider";
+          toast.message(`New message from ${who}`, {
+            description: (m.body ?? "").slice(0, 140),
+          });
+          playNotificationSound();
+          browserNotify(`New message from ${who}`, m.body ?? "");
+        })
+      .subscribe();
+
+    // --- Chat messages: order_messages ---
+    const orderMsgChannel = supabase
+      .channel(`order-msg-${userId}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "order_messages" },
+        (payload) => {
+          const m: any = payload.new;
+          if (m.sender_id === userId) return;
+          // RLS already filters to messages we can see; skip self.
+          if (typeof window !== "undefined" && (window as any).__activeChatId === m.order_id) return;
+          const who = m.sender_role === "driver" ? "Driver"
+            : m.sender_role === "pharmacy" ? "Pharmacy"
+            : m.sender_role === "patient" ? "Patient" : "Order update";
+          toast.message(`New message from ${who}`, {
+            description: (m.body ?? "").slice(0, 140),
+          });
+          playNotificationSound();
+          browserNotify(`New message from ${who}`, m.body ?? "");
         })
       .subscribe();
 
@@ -94,6 +138,8 @@ export function useNotificationCenter(userId: string | null | undefined) {
       cancelled = true;
       supabase.removeChannel(prefsChannel);
       supabase.removeChannel(notifChannel);
+      supabase.removeChannel(apptMsgChannel);
+      supabase.removeChannel(orderMsgChannel);
     };
   }, [userId]);
 }
