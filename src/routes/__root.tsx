@@ -8,8 +8,10 @@ import { CartProvider } from "@/hooks/useCart";
 import { FloatingCart } from "@/components/FloatingCart";
 import { Toaster } from "@/components/ui/sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { ServiceRatingPrompt } from "@/components/ServiceRatingPrompt";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+
 import logoUrl from "@/assets/healthreach-logo.png";
 import appCss from "../styles.css?url";
 
@@ -96,7 +98,9 @@ function RootComponent() {
         <FloatingCart />
         <Toaster />
         <NotificationCenter />
+        <ServiceRatingPrompt />
       </CartProvider>
+
     </AuthProvider>
   );
 }
