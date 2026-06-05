@@ -1,57 +1,45 @@
-# Unify Documents into Prescription Library
+## What I'll ship (in this order)
 
-## Goal
-Merge the separate "My Documents" vault into the **Prescription Library** as one combined flow. When a patient (or family member) uploads a prescription, their ID + selfie + selfie-with-ID + ID number are submitted together and visible to the pharmacy for self-screening.
+### 1. Brand logo (green, Uber-style "HealthReach" pill)
+- Generate a single SVG/PNG logo asset (green pill, white "HealthReach" wordmark inside, rounded — like Uber's tag style).
+- Swap it into `Header.tsx`, `AppSidebar.tsx` header, root header strip, and favicon meta references. Removes the gradient "H" square + split-color wordmark currently used.
 
-## Changes
+### 2. Dashboard quick-action illustrations
+On `dashboard.patient.index.tsx`, add real illustrations to each tile:
+- Book Appointment → doctor/stethoscope
+- Order Medicine → pill bottle
+- Upload Prescription → script paper
+- Track Delivery → delivery scooter (SA context)
+- AI Medicine Assistant → friendly AI/chat bubble
+Generated as 5 PNGs (transparent), imported into the tile cards.
 
-### 1. Unified Prescription Library page
-- Rename `/dashboard/patient/prescriptions` to be the single source for all patient identity + prescription docs.
-- At the top: a single **Identity verification** card (existing `PatientVerificationCard`) — submitted once, auto-attaches to every order.
-- Below: prescription uploader + library list (existing `PrescriptionPicker`/`PrescriptionUploader`).
-- A single "Save & add to library" action that:
-  1. Saves identity fields if dirty.
-  2. Uploads the prescription.
-  3. Links them in one submission.
+### 3. Doctors & Pharmacies: real users only + photos
+- `doctors.index.tsx` / patient `find` / `doctors.$id.tsx`: only show doctors whose `user_id` exists in `auth.users` AND have `approval_status = 'approved'` AND `profile_photo_url IS NOT NULL`. Render `profile_photo_url` (fallback initials avatar).
+- Same for pharmacy listings: require linked `user_id`, approved, and show `logo_url`/branch photo.
+- One migration adds a view (or RPC) `public_doctors` / `public_pharmacies` that joins to auth + filters; frontend reads the view. This also "removes mockup data" without destructive deletes — seeds/demos without a real auth user simply stop appearing.
 
-### 2. Remove standalone "My documents" route
-- Delete `/dashboard/patient/documents` route file.
-- Remove its entry from `AppSidebar.tsx`.
-- Anywhere we link to `/dashboard/patient/documents`, redirect to `/dashboard/patient/prescriptions`.
+### 4. Pickup code persists until order is `completed`
+Symptom: pharmacy pickup code disappears on refresh or when leaving the page.
+- Audit `PickupCodeDialog` + pharmacy dashboard: ensure code is read from `orders.pickup_code` (DB), not local state.
+- Render the code on every order card whose status is in (`ready_for_pickup`, `picked_up`, `out_for_delivery`) — only hide when `status = 'completed'` or `cancelled`.
+- If `pickup_code` column missing on `orders`, migration adds it + backfills.
 
-### 3. Family members — per-person document + prescription library
-- Family member edit page already supports ID number + ID document + selfie-with-ID via `family_members` columns.
-- Add a **per-family-member prescription library**: extend `prescription_uploads` with optional `family_member_id` column.
-- On `/dashboard/patient/family/[memberId]` (or inline on family page), show that member's documents + their own prescriptions.
-- In `PrescriptionUploader`, accept a `familyMemberId` prop; tag the upload to that family member if set.
-- In checkout, when ordering for a family member, only show prescriptions where `family_member_id = member.id`, and attach the member's documents.
+### 5. Realtime messaging works across the platform
+- One migration: `ALTER PUBLICATION supabase_realtime ADD TABLE appointment_messages, order_messages, notifications;` + `REPLICA IDENTITY FULL` on each.
+- `AppointmentChatDialog` and `OrderChatDialog`: subscribe to `postgres_changes` filtered by the thread id, append new rows to local state, scroll to bottom. Confirm send path inserts with correct `sender_id = auth.uid()` so RLS doesn't 401.
+- Verify RLS allows both sides (patient + provider) to `SELECT` + `INSERT` on the relevant thread.
 
-### 4. Pharmacy view — show all patient/recipient documents
-- In pharmacy order detail / prescription review (`PharmacyReviewDialog`), when reviewing an upload:
-  - Show patient `patient_verifications` (ID doc, selfie, selfie-with-ID, ID number).
-  - If `family_member_id` set, also show the family member's ID doc + selfie-with-ID + ID number from `family_members`.
-- RLS already permits pharmacies to view `patient_verifications` for their patients. Add RLS for pharmacies to view `family_members` rows tied to orders they receive.
+### 6. "Remove mockup, use real data"
+- Patient dashboard widgets currently using placeholder numbers → wire to existing hooks (`usePatientStats`, real queries) where a real source exists; otherwise show empty state ("No orders yet") instead of fake numbers.
+- Doctors/pharmacy filters above already enforce real-user-only.
+- I will NOT delete rows from the DB — filtering at the read layer is reversible.
 
-## Files
+## Technical notes
+- New migration files: realtime publication + (maybe) `pickup_code` column + `public_doctors`/`public_pharmacies` views with `security_invoker=on`.
+- New assets: 1 logo + 5 dashboard illustrations (generated, transparent PNG).
+- No schema-breaking changes; no destructive deletes.
 
-**Migration:**
-- Add `family_member_id uuid` to `prescription_uploads` (nullable, FK family_members).
-- Add RLS policy on `family_members` allowing pharmacy to SELECT when there's a related order or prescription_upload where `pharmacy_id = auth.uid()`.
-
-**Edit:**
-- `src/routes/dashboard.patient.prescriptions.tsx` — fold in `PatientVerificationCard` at top.
-- `src/components/AppSidebar.tsx` — remove "My documents" item.
-- `src/components/PrescriptionVerification.tsx` (PrescriptionUploader) — accept optional `familyMemberId`, save it on insert.
-- `src/components/PrescriptionPicker.tsx` — accept `familyMemberId` to filter library + tag new uploads.
-- `src/routes/dashboard.patient.family.tsx` — per-member documents (already partial via `RecipientDocumentsBlock`) + prescription library section.
-- `src/routes/checkout.tsx` — when family recipient is selected, pass `familyMemberId` into picker.
-- `src/components/PharmacyReviewDialog.tsx` — display attached identity docs (patient + family member).
-
-**Delete:**
-- `src/routes/dashboard.patient.documents.tsx`.
-
-## Out of scope
-- No change to pricing/checkout totals.
-- No change to AI verification scoring.
-
-Reply **"go"** to apply.
+## Out of scope (tell me if you want these too)
+- Redesigning the doctor/pharmacy card layouts beyond adding photo + name.
+- Push notifications / SMS — in-app realtime only.
+- Driver chat (same pattern would apply if you want it next).
