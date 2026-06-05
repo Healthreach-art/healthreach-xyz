@@ -151,6 +151,7 @@ function SidebarShell() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-3">
             <SidebarTrigger />
+            <BackButton />
             <Link to="/" className="text-sm font-semibold tracking-tight">
               HEALTH<span className="text-primary">REACH</span>
             </Link>
