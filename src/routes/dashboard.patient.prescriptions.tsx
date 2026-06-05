@@ -135,17 +135,107 @@ function Page() {
 
       <div className="healthcare-card p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Stethoscope className="h-5 w-5 text-primary" /> Active Prescriptions
+          <FileText className="h-5 w-5 text-primary" /> My Prescription Library
+          <span className="ml-auto text-xs font-normal text-muted-foreground">{alerts.refillable.length} eligible for refill</span>
         </h2>
         {loading && <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
-        {!loading && prescriptions.length === 0 && <p className="text-sm text-muted-foreground">No prescriptions on file.</p>}
+        {!loading && pxUploads.length === 0 && prescriptions.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nothing here yet — upload a prescription above or order Rx medicine to add one automatically.</p>
+        )}
+
         <div className="space-y-3">
+          {/* Uploaded prescriptions (with AI verification, repeats, dispense token) */}
+          {pxUploads.map((u) => {
+            const v = validityOf(u);
+            const canRefill = v.state === "valid" || v.state === "expiring";
+            return (
+              <div key={`up-${u.id}`} className="rounded-lg border border-border p-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-sm font-medium text-foreground truncate flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary">Uploaded</span>
+                    Prescription · {new Date(u.created_at).toLocaleDateString()}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <PrescriptionStatusBadge status={u.status} />
+                    {v.state === "valid" && v.days !== null && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-healthcare-green/20 text-healthcare-green inline-flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Valid · {v.days}d left
+                      </span>
+                    )}
+                    {v.state === "expiring" && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> Expires in {v.days}d
+                      </span>
+                    )}
+                    {v.state === "expired" && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/15 text-destructive inline-flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Expired
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {(u.status === "rejected" || u.status === "reupload_requested") && u.pharmacist_notes && (
+                  <p className="mt-2 text-xs text-destructive">Pharmacist: {u.pharmacist_notes}</p>
+                )}
+                {u.status === "approved" && (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs flex items-center gap-2">
+                      <RefreshCw className="h-3 w-3 text-primary" />
+                      <span>
+                        <span className="font-semibold">{Math.max(0, (u.repeats_total ?? 0) - (u.repeats_used ?? 0))}</span>
+                        <span className="text-muted-foreground"> of {(u.repeats_total ?? 0)} repeats remaining</span>
+                      </span>
+                    </div>
+                    {u.dispense_token && (
+                      <div className="rounded-md border border-healthcare-green/30 bg-healthcare-green/10 px-2.5 py-1.5 text-xs flex items-center gap-2">
+                        <KeyRound className="h-3 w-3 text-healthcare-green" />
+                        <span className="font-mono font-semibold text-healthcare-green">{u.dispense_token}</span>
+                        <span className="text-[10px] text-muted-foreground ml-auto">last dispense</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {(u.fraud_score ?? 0) >= 40 && (
+                  <div className="mt-2"><FraudPanel row={u} /></div>
+                )}
+                {(u.fraud_score ?? 0) < 40 && u.status === "approved" && (
+                  <div className="mt-2 inline-flex items-center gap-1 text-[11px] text-healthcare-green">
+                    <ShieldCheck className="h-3 w-3" /> Verified · low risk
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={async () => {
+                    try { const url = await getPrescriptionFileUrl(u.file_path); window.open(url, "_blank", "noopener,noreferrer"); }
+                    catch (e: any) { toast.error(e?.message || "Could not open file"); }
+                  }}>View prescription</Button>
+                  {canRefill && (u.repeats_total ?? 0) > (u.repeats_used ?? 0) && (
+                    <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
+                      <Link to="/dashboard/patient/find">
+                        <RefreshCw className="h-3 w-3" /> Refill
+                      </Link>
+                    </Button>
+                  )}
+                  {(u.repeats_total ?? 0) > 0 && (u.repeats_used ?? 0) >= (u.repeats_total ?? 0) && (
+                    <span className="text-xs px-2 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 inline-flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> Renewal required
+                    </span>
+                  )}
+                  <PrescriptionScanButton row={u} />
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Doctor-issued / e-prescriptions captured into the prescriptions table */}
           {prescriptions.map((p) => (
-            <div key={p.id} className="rounded-lg border border-border p-3">
-              <div className="flex items-start justify-between">
+            <div key={`rx-${p.id}`} className="rounded-lg border border-border p-3">
+              <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-sm font-medium text-foreground">{p.medication_name}</p>
-                  {p.dosage && <p className="text-xs text-muted-foreground">{p.dosage}</p>}
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-healthcare-teal/15 text-healthcare-teal">E-Script</span>
+                    {p.medication_name}
+                  </p>
+                  {p.dosage && <p className="text-xs text-muted-foreground mt-0.5">{p.dosage}</p>}
                   <p className="text-xs text-muted-foreground mt-0.5">Dr. {p.doctor_name || "—"} • {new Date(p.created_at).toLocaleDateString()}</p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${p.is_active === false ? "bg-muted text-muted-foreground" : "bg-healthcare-green/20 text-healthcare-green"}`}>
@@ -157,92 +247,6 @@ function Page() {
         </div>
       </div>
 
-      <div className="healthcare-card p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-          <FileText className="h-5 w-5 text-primary" /> Prescription Uploads
-          <span className="ml-auto text-xs font-normal text-muted-foreground">{alerts.refillable.length} eligible for refill</span>
-        </h2>
-        {pxUploads.length === 0 && <p className="text-sm text-muted-foreground">No uploads yet — upload happens during checkout for Rx-required medicines.</p>}
-        <div className="space-y-3">
-          {pxUploads.map((u) => {
-            const v = validityOf(u);
-            const canRefill = v.state === "valid" || v.state === "expiring";
-            return (
-            <div key={u.id} className="rounded-lg border border-border p-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <p className="text-sm font-medium text-foreground truncate">Upload · {new Date(u.created_at).toLocaleDateString()}</p>
-                <div className="flex items-center gap-2">
-                  <PrescriptionStatusBadge status={u.status} />
-                  {v.state === "valid" && v.days !== null && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-healthcare-green/20 text-healthcare-green inline-flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Valid · {v.days}d left
-                    </span>
-                  )}
-                  {v.state === "expiring" && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 inline-flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> Expires in {v.days}d
-                    </span>
-                  )}
-                  {v.state === "expired" && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/15 text-destructive inline-flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" /> Expired
-                    </span>
-                  )}
-                </div>
-              </div>
-              {(u.status === "rejected" || u.status === "reupload_requested") && u.pharmacist_notes && (
-                <p className="mt-2 text-xs text-destructive">Pharmacist: {u.pharmacist_notes}</p>
-              )}
-              {u.status === "approved" && (
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs flex items-center gap-2">
-                    <RefreshCw className="h-3 w-3 text-primary" />
-                    <span>
-                      <span className="font-semibold">{Math.max(0, (u.repeats_total ?? 0) - (u.repeats_used ?? 0))}</span>
-                      <span className="text-muted-foreground"> of {(u.repeats_total ?? 0)} repeats remaining</span>
-                    </span>
-                  </div>
-                  {u.dispense_token && (
-                    <div className="rounded-md border border-healthcare-green/30 bg-healthcare-green/10 px-2.5 py-1.5 text-xs flex items-center gap-2">
-                      <KeyRound className="h-3 w-3 text-healthcare-green" />
-                      <span className="font-mono font-semibold text-healthcare-green">{u.dispense_token}</span>
-                      <span className="text-[10px] text-muted-foreground ml-auto">last dispense</span>
-                    </div>
-                  )}
-                </div>
-              )}
-              {(u.fraud_score ?? 0) >= 40 && (
-                <div className="mt-2"><FraudPanel row={u} /></div>
-              )}
-              {(u.fraud_score ?? 0) < 40 && u.status === "approved" && (
-                <div className="mt-2 inline-flex items-center gap-1 text-[11px] text-healthcare-green">
-                  <ShieldCheck className="h-3 w-3" /> Verified · low risk
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={async () => {
-                  try { const url = await getPrescriptionFileUrl(u.file_path); window.open(url, "_blank", "noopener,noreferrer"); }
-                  catch (e: any) { toast.error(e?.message || "Could not open file"); }
-                }}>View prescription</Button>
-                {canRefill && (u.repeats_total ?? 0) > (u.repeats_used ?? 0) && (
-                  <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
-                    <Link to="/dashboard/patient/find">
-                      <RefreshCw className="h-3 w-3" /> Refill
-                    </Link>
-                  </Button>
-                )}
-                {(u.repeats_total ?? 0) > 0 && (u.repeats_used ?? 0) >= (u.repeats_total ?? 0) && (
-                  <span className="text-xs px-2 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 inline-flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" /> Renewal required
-                  </span>
-                )}
-                <PrescriptionScanButton row={u} />
-              </div>
-            </div>
-            );
-          })}
-        </div>
-      </div>
 
       {prescriptions.length >= 2 && (
         <DrugInteractionPanel medications={prescriptions.filter(p => p.is_active !== false).map(p => p.medication_name)} />
