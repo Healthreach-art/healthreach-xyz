@@ -108,7 +108,8 @@ function AppShell() {
   if (!showSidebar) {
     return (
       <div className="flex min-h-screen flex-col w-full">
-        <header className="sticky top-0 z-40 h-12 flex items-center border-b border-border bg-background/95 backdrop-blur px-4">
+        <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-4">
+          <BackButton />
           <Link to="/" className="text-sm font-semibold tracking-tight">
             HEALTH<span className="text-primary">REACH</span>
           </Link>
