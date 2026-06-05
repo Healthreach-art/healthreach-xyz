@@ -10,6 +10,7 @@ import {
   FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin,
   Search,
 } from "lucide-react";
+import logoImg from "@/assets/healthreach-logo.png";
 
 type Item = { title: string; url: string; icon: any };
 
@@ -101,15 +102,13 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader>
-        <Link to={user ? dashboardPath : "/"} className="flex items-center gap-2 px-2 py-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-healthcare-green/15 text-healthcare-green">
-            <HeartPulse className="h-5 w-5" />
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col leading-tight">
-              <span className="text-base font-bold tracking-tight text-foreground">Healthreach</span>
-              <span className="text-[10px] text-muted-foreground">Medication, Delivered</span>
+        <Link to={user ? dashboardPath : "/"} className="flex items-center px-2 py-2" aria-label="HealthReach home">
+          {collapsed ? (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-healthcare-green/15 text-healthcare-green">
+              <HeartPulse className="h-5 w-5" />
             </div>
+          ) : (
+            <img src={logoImg} alt="HealthReach" width={160} height={44} className="h-8 w-auto" />
           )}
         </Link>
       </SidebarHeader>

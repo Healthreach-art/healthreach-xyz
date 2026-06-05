@@ -9,10 +9,13 @@ import { OrderTimeline } from "@/components/OrderTimeline";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
-  ShoppingBag, Upload, Truck, ArrowRight, Bot,
-  Star, Siren, Pill,
-  CalendarCheck, FileText, MessageSquare, PhoneCall, Search,
+  ArrowRight, Star, Pill, MessageSquare,
 } from "lucide-react";
+import tileAppt from "@/assets/tile-book-appointment.png";
+import tileMed from "@/assets/tile-order-medicine.png";
+import tileRx from "@/assets/tile-upload-prescription.png";
+import tileTrack from "@/assets/tile-track-delivery.png";
+import tileAI from "@/assets/tile-ai-assistant.png";
 
 export const Route = createFileRoute("/dashboard/patient/")({
   head: () => ({ meta: [{ title: "Dashboard — Healthreach" }] }),
@@ -32,11 +35,11 @@ interface OrderRow {
 }
 
 const ACTION_CARDS = [
-  { title: "Book Appointment", subtitle: "Doctor or Pharmacist", icon: CalendarCheck, to: "/dashboard/patient/find", bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
-  { title: "Order Medicine", icon: ShoppingBag, to: "/dashboard/patient/search", bg: "bg-healthcare-green/10", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
-  { title: "Upload Prescription", icon: Upload, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-mint/40", iconColor: "text-healthcare-teal" },
-  { title: "Track Delivery", icon: Truck, to: "/track", bg: "bg-healthcare-light", iconBg: "bg-healthcare-sky/30", iconColor: "text-healthcare-sky" },
-  { title: "AI Medicine Assistant", icon: Bot, to: "/dashboard/patient/assistant", bg: "bg-healthcare-mint/20", iconBg: "bg-healthcare-green/20", iconColor: "text-healthcare-green" },
+  { title: "Book Appointment", subtitle: "Doctor or Pharmacist", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-purple-50" },
+  { title: "Order Medicine", img: tileMed, to: "/dashboard/patient/search", bg: "bg-healthcare-green/10" },
+  { title: "Upload Prescription", img: tileRx, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20" },
+  { title: "Track Delivery", img: tileTrack, to: "/track", bg: "bg-healthcare-light" },
+  { title: "AI Medicine Assistant", img: tileAI, to: "/dashboard/patient/assistant", bg: "bg-healthcare-mint/20" },
 ];
 
 
@@ -168,12 +171,10 @@ function PatientDashboard() {
                 <Link
                   key={c.title}
                   to={c.to}
-                  className={`group rounded-3xl ${c.bg} p-4 sm:p-5 border border-border/40 hover:shadow-lg hover:-translate-y-1 transition-all duration-200`}
+                  className={`group rounded-3xl ${c.bg} p-4 sm:p-5 border border-border/40 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col`}
                 >
-                  <div className={`h-12 w-12 rounded-2xl ${c.iconBg} flex items-center justify-center mb-3`}>
-                    <c.icon className={`h-6 w-6 ${c.iconColor}`} />
-                  </div>
-                  <p className="text-sm font-bold text-foreground leading-tight pr-4">{c.title}</p>
+                  <img src={c.img} alt="" width={96} height={96} loading="lazy" className="h-20 w-20 sm:h-24 sm:w-24 object-contain mb-2 self-center" />
+                  <p className="text-sm font-bold text-foreground leading-tight">{c.title}</p>
                   {(c as any).subtitle && (
                     <p className="text-[11px] text-muted-foreground mt-0.5">{(c as any).subtitle}</p>
                   )}
