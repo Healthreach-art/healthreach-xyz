@@ -243,40 +243,8 @@ function CheckoutPage() {
 
     const totalCents = Math.round(total * 100);
 
-    // ---- Branch 1: Pay from wallet -----------------------------------------
-    if (payMethod === "wallet") {
-      if (walletCents < totalCents) {
-        toast.error(`Wallet is short by R${((totalCents - walletCents) / 100).toFixed(2)}. Top up first.`);
-        setProcessing(false);
-        return;
-      }
-      try {
-        await payWallet({ data: { amountCents: totalCents } });
-        setWalletCents((c) => c - totalCents);
-        await finalizeOrder();
-      } catch (err) {
-        toast.error((err as Error)?.message || "Wallet payment failed.");
-      } finally {
-        setProcessing(false);
-      }
-      return;
-    }
+    // Always pay via Paystack popup — no wallet, no saved cards.
 
-    // ---- Branch 2: One-tap saved card --------------------------------------
-    const savedCard = savedCards.find((c) => c.id === payMethod && c.authorization_code);
-    if (savedCard) {
-      try {
-        const charge = await chargeCard({ data: { cardId: savedCard.id, amountCents: totalCents, purpose: "order_payment" } });
-        const v = await verifyPaystack({ data: { reference: charge.reference } });
-        if (!(v as { verified: boolean }).verified) { toast.error("Payment could not be verified."); setProcessing(false); return; }
-        await finalizeOrder();
-      } catch (err) {
-        toast.error((err as Error)?.message || "One-tap payment failed.");
-      } finally {
-        setProcessing(false);
-      }
-      return;
-    }
 
     // ---- Branch 3: New card via Paystack popup (auto-saves authorization) --
     try {
