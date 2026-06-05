@@ -24,7 +24,7 @@ export function AppSidebar() {
   const dashboardPath = role ? `/dashboard/${role}` : "/login";
 
   const patientItems: Item[] = [
-    { title: "Dashboard", url: "/dashboard/patient", icon: Home },
+    { title: "Home", url: "/dashboard/patient", icon: Home },
     { title: "Book Appointment", url: "/dashboard/patient/find", icon: Search },
     { title: "Order Medicine", url: "/dashboard/patient/search", icon: ShoppingBag },
     { title: "Orders", url: "/dashboard/patient/orders", icon: ShoppingBag },
@@ -35,9 +35,9 @@ export function AppSidebar() {
     { title: "Health Records", url: "/dashboard/patient/activity", icon: ClipboardList },
     { title: "Family Profiles", url: "/dashboard/patient/family", icon: Users },
     { title: "Addresses", url: "/dashboard/patient/addresses", icon: MapPin },
-    { title: "Wallet & Payments", url: "/dashboard/patient/payment-methods", icon: Wallet },
     { title: "Support", url: "/dashboard/patient/support", icon: LifeBuoy },
   ];
+
 
   const otherRoleItems: Item[] = user && role !== "patient" ? [
     { title: "Home", url: dashboardPath, icon: Home },
