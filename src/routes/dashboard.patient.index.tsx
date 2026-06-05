@@ -10,6 +10,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
   ArrowRight, Star, Pill, MessageSquare,
+  Siren, PhoneCall, CalendarCheck, FileText,
 } from "lucide-react";
 import tileAppt from "@/assets/tile-book-appointment.png";
 import tileMed from "@/assets/tile-order-medicine.png";
