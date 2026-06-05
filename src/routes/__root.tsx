@@ -1,4 +1,6 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState, useRouter } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -106,7 +108,8 @@ function AppShell() {
   if (!showSidebar) {
     return (
       <div className="flex min-h-screen flex-col w-full">
-        <header className="sticky top-0 z-40 h-12 flex items-center border-b border-border bg-background/95 backdrop-blur px-4">
+        <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-4">
+          <BackButton />
           <Link to="/" className="text-sm font-semibold tracking-tight">
             HEALTH<span className="text-primary">REACH</span>
           </Link>
@@ -148,6 +151,7 @@ function SidebarShell() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-3">
             <SidebarTrigger />
+            <BackButton />
             <Link to="/" className="text-sm font-semibold tracking-tight">
               HEALTH<span className="text-primary">REACH</span>
             </Link>
@@ -159,5 +163,28 @@ function SidebarShell() {
         </div>
       </div>
     </SidebarProvider>
+  );
+}
+
+function BackButton() {
+  const router = useRouter();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  if (pathname === "/") return null;
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7"
+      aria-label="Go back"
+      onClick={() => {
+        if (typeof window !== "undefined" && window.history.length > 1) {
+          router.history.back();
+        } else {
+          router.navigate({ to: "/" });
+        }
+      }}
+    >
+      <ArrowLeft className="h-4 w-4" />
+    </Button>
   );
 }
