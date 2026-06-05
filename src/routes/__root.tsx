@@ -165,3 +165,26 @@ function SidebarShell() {
     </SidebarProvider>
   );
 }
+
+function BackButton() {
+  const router = useRouter();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  if (pathname === "/") return null;
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7"
+      aria-label="Go back"
+      onClick={() => {
+        if (typeof window !== "undefined" && window.history.length > 1) {
+          router.history.back();
+        } else {
+          router.navigate({ to: "/" });
+        }
+      }}
+    >
+      <ArrowLeft className="h-4 w-4" />
+    </Button>
+  );
+}
