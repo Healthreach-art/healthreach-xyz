@@ -998,13 +998,17 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
       {delivery.delivery_address && (
         <p className="text-xs text-muted-foreground truncate mt-2">→ {delivery.delivery_address}</p>
       )}
-      {delivery.status === "assigned" && delivery.pickup_code && (
+      {delivery.pickup_code && !["delivered", "cancelled", "failed"].includes(delivery.status) && (
         <div className="mt-3 rounded-lg bg-primary/5 border border-primary/30 p-3 flex items-center justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pickup code</p>
             <p className="text-2xl font-bold font-mono text-primary tracking-[0.4em]">{delivery.pickup_code}</p>
           </div>
-          <p className="text-[10px] text-muted-foreground max-w-[120px] text-right leading-tight">Share with the driver to confirm pickup</p>
+          <p className="text-[10px] text-muted-foreground max-w-[120px] text-right leading-tight">
+            {delivery.status === "picked_up" || delivery.status === "out_for_delivery"
+              ? "Driver has picked up — code stays visible until delivery is complete"
+              : "Share with the driver to confirm pickup"}
+          </p>
         </div>
       )}
 

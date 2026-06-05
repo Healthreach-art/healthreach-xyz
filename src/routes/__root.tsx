@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import logoUrl from "@/assets/healthreach-logo.png";
 import appCss from "../styles.css?url";
 
 const NO_SIDEBAR_ROUTES = new Set(["/", "/login", "/signup", "/about", "/contact", "/reset-password"]);
@@ -110,8 +111,8 @@ function AppShell() {
       <div className="flex min-h-screen flex-col w-full">
         <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-4">
           <BackButton />
-          <Link to="/" className="text-sm font-semibold tracking-tight">
-            HEALTH<span className="text-primary">REACH</span>
+          <Link to="/" aria-label="HealthReach home">
+            <img src={logoUrl} alt="HealthReach" width={120} height={32} className="h-7 w-auto" />
           </Link>
         </header>
         <main className="flex-1">
@@ -152,8 +153,8 @@ function SidebarShell() {
           <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-3">
             <SidebarTrigger />
             <BackButton />
-            <Link to="/" className="text-sm font-semibold tracking-tight">
-              HEALTH<span className="text-primary">REACH</span>
+            <Link to="/" aria-label="HealthReach home">
+              <img src={logoUrl} alt="HealthReach" width={120} height={32} className="h-7 w-auto" />
             </Link>
           </header>
           <main className="flex-1">
