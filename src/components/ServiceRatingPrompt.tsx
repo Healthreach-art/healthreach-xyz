@@ -50,13 +50,14 @@ export function ServiceRatingPrompt() {
         ids.push({ id: p.pharmacyId, key: "pharmacy" });
       }
       if (ids.length) {
-        const { data } = await supabase.from("profiles").select("user_id, full_name, business_name")
+        const { data } = await supabase.from("profiles").select("user_id, full_name")
           .in("user_id", ids.map((i) => i.id));
         for (const { id, key } of ids) {
           const row = (data ?? []).find((d: any) => d.user_id === id);
-          (t as any)[key] = { id, name: row?.business_name || row?.full_name || (key === "doctor" ? "Doctor" : key === "driver" ? "Driver" : "Pharmacy") };
+          (t as any)[key] = { id, name: row?.full_name || (key === "doctor" ? "Doctor" : key === "driver" ? "Driver" : "Pharmacy") };
         }
       }
+
       setTargets(t);
       setLoading(false);
     }
