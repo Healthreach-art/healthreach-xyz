@@ -73,32 +73,38 @@ export const Route = createFileRoute("/")({
 const features = [
   {
     icon: Pill,
+    img: tileMed,
     title: "Medication Ordering",
     description: "Search, compare, and order medications from verified pharmacies with ease.",
   },
   {
-    icon: Building2,
-    title: "Inventory Management",
-    description: "Real-time stock tracking and automated alerts for pharmacies and hospitals.",
+    icon: CalendarCheckIcon,
+    img: tileAppt,
+    title: "Book Appointments",
+    description: "Book doctors and pharmacists in minutes — in-person or virtual.",
   },
   {
     icon: Heart,
-    title: "Patient Care",
-    description: "Coordinate patient care with digital prescriptions and treatment records.",
+    img: tileRx,
+    title: "Prescriptions & Care",
+    description: "Upload prescriptions, manage refills, and coordinate patient care.",
   },
   {
     icon: Truck,
+    img: tileTrack,
     title: "Delivery Tracking",
     description: "Real-time delivery tracking from pharmacy to your doorstep.",
   },
   {
-    icon: CreditCard,
-    title: "Secure Payments",
-    description: "Multiple payment options including cards, EFT, and mobile payments.",
+    icon: Activity,
+    img: tileAI,
+    title: "AI Medicine Assistant",
+    description: "Chat with an AI assistant about medicines, dosage, and side effects.",
   },
   {
     icon: ShieldCheck,
-    title: "Data Security",
+    img: undefined,
+    title: "Secure & Compliant",
     description: "Enterprise-grade encryption protecting all patient and payment data.",
   },
 ];
@@ -106,33 +112,45 @@ const features = [
 const roles = [
   {
     icon: Users,
+    img: rolePatient,
     title: "Patients",
     description: "Order medication, track deliveries, and manage your health records.",
-    color: "bg-primary/10 text-primary",
+    to: "/for-patients",
+  },
+  {
+    icon: Stethoscope,
+    img: roleDoctor,
+    title: "Doctors",
+    description: "HPCSA-verified doctors take bookings, issue digital prescriptions, and review patient files.",
+    to: "/doctors",
   },
   {
     icon: Pill,
+    img: rolePharmacy,
     title: "Pharmacies",
     description: "Manage inventory, fulfill orders, and process prescriptions efficiently.",
-    color: "bg-healthcare-teal/20 text-healthcare-teal",
+    to: "/for-pharmacies",
   },
   {
     icon: Building2,
+    img: roleHospital,
     title: "Hospitals",
     description: "Issue digital prescriptions and coordinate patient care seamlessly.",
-    color: "bg-healthcare-green/20 text-healthcare-green",
+    to: "/for-pharmacies",
   },
   {
     icon: Truck,
+    img: roleDriver,
     title: "Drivers",
     description: "Accept deliveries, navigate routes, and confirm drop-offs on the go.",
-    color: "bg-healthcare-sky/20 text-healthcare-sky",
+    to: "/for-drivers",
   },
   {
     icon: Activity,
+    img: roleAdmin,
     title: "Administrators",
     description: "Oversee the entire platform with analytics, user management, and reports.",
-    color: "bg-accent text-accent-foreground",
+    to: "/login",
   },
 ];
 
