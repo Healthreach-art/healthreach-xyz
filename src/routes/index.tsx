@@ -10,9 +10,9 @@ import {
   Heart,
   Clock,
   Users,
-  CreditCard,
   Activity,
   Stethoscope,
+  CalendarCheck as CalendarCheckIcon,
 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
 import rolePatient from "@/assets/role-patient.jpg";
