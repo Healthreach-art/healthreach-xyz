@@ -10,7 +10,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
   ArrowRight, Star, Pill, MessageSquare,
-  Siren, PhoneCall, CalendarCheck, FileText,
+  Siren, PhoneCall, CalendarCheck, FileText, Stethoscope,
 } from "lucide-react";
 import tileAppt from "@/assets/tile-book-appointment.png";
 import tileMed from "@/assets/tile-order-medicine.png";
@@ -35,8 +35,9 @@ interface OrderRow {
   pharmacy_id: string;
 }
 
-const ACTION_CARDS = [
+const ACTION_CARDS: Array<{ title: string; subtitle?: string; img?: string; icon?: any; to: string; bg: string }> = [
   { title: "Book Appointment", subtitle: "Doctor or Pharmacist", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-purple-50" },
+  { title: "Find a Doctor", subtitle: "Browse verified doctors", icon: Stethoscope, to: "/doctors", bg: "bg-primary/10" },
   { title: "Order Medicine", img: tileMed, to: "/dashboard/patient/search", bg: "bg-healthcare-green/10" },
   { title: "Upload Prescription", img: tileRx, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20" },
   { title: "Track Delivery", img: tileTrack, to: "/track", bg: "bg-healthcare-light" },
@@ -167,17 +168,23 @@ function PatientDashboard() {
             </div>
 
             {/* Action cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               {ACTION_CARDS.map((c) => (
                 <Link
                   key={c.title}
                   to={c.to}
                   className={`group rounded-3xl ${c.bg} p-4 sm:p-5 border border-border/40 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col`}
                 >
-                  <img src={c.img} alt="" width={96} height={96} loading="lazy" className="h-20 w-20 sm:h-24 sm:w-24 object-contain mb-2 self-center" />
+                  {c.img ? (
+                    <img src={c.img} alt="" width={96} height={96} loading="lazy" className="h-20 w-20 sm:h-24 sm:w-24 object-contain mb-2 self-center" />
+                  ) : c.icon ? (
+                    <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-white/60 mb-2 self-center flex items-center justify-center">
+                      <c.icon className="h-10 w-10 sm:h-12 sm:w-12 text-primary" strokeWidth={1.5} />
+                    </div>
+                  ) : null}
                   <p className="text-sm font-bold text-foreground leading-tight">{c.title}</p>
-                  {(c as any).subtitle && (
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{(c as any).subtitle}</p>
+                  {c.subtitle && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{c.subtitle}</p>
                   )}
                   <ArrowRight className="h-4 w-4 text-muted-foreground mt-2 group-hover:translate-x-1 transition-transform" />
                 </Link>
