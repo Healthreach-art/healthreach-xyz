@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { History, Repeat, Download, Search, X, Star } from "lucide-react";
+import { History, Repeat, Download, Search, X, Star, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { downloadReceiptPdf } from "@/lib/receipt";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ interface OrderRow {
   pharmacy_id: string;
   medication_id: string | null;
   created_at: string;
+  prescription_upload_id: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -64,7 +65,7 @@ export function OrderHistory() {
     const load = async () => {
       const { data: ords } = await supabase
         .from("orders")
-        .select("id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at")
+        .select("id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at, prescription_upload_id")
         .eq("patient_id", user.id)
         .order("created_at", { ascending: false });
       const rows = (ords ?? []) as OrderRow[];
@@ -216,6 +217,13 @@ export function OrderHistory() {
                   {o.status === "delivered" && !reviewedOrders.has(o.id) && (
                     <Button size="sm" variant="default" className="h-7 text-xs gap-1 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setReviewFor(o)}>
                       <Star className="h-3 w-3" /> Rate
+                    </Button>
+                  )}
+                  {o.prescription_upload_id && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" asChild>
+                      <Link to="/dashboard/patient/prescriptions">
+                        <FileText className="h-3 w-3" /> View Rx
+                      </Link>
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => downloadInvoice(o)}>

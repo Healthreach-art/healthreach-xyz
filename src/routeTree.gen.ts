@@ -47,6 +47,7 @@ import { Route as DashboardPatientTransactionsRouteImport } from './routes/dashb
 import { Route as DashboardPatientSupportRouteImport } from './routes/dashboard.patient.support'
 import { Route as DashboardPatientSearchRouteImport } from './routes/dashboard.patient.search'
 import { Route as DashboardPatientRemindersRouteImport } from './routes/dashboard.patient.reminders'
+import { Route as DashboardPatientRatingsRouteImport } from './routes/dashboard.patient.ratings'
 import { Route as DashboardPatientPrescriptionsRouteImport } from './routes/dashboard.patient.prescriptions'
 import { Route as DashboardPatientPaymentMethodsRouteImport } from './routes/dashboard.patient.payment-methods'
 import { Route as DashboardPatientOrdersRouteImport } from './routes/dashboard.patient.orders'
@@ -253,6 +254,11 @@ const DashboardPatientRemindersRoute =
     path: '/dashboard/patient/reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DashboardPatientRatingsRoute = DashboardPatientRatingsRouteImport.update({
+  id: '/dashboard/patient/ratings',
+  path: '/dashboard/patient/ratings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardPatientPrescriptionsRoute =
   DashboardPatientPrescriptionsRouteImport.update({
     id: '/dashboard/patient/prescriptions',
@@ -372,6 +378,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
   '/dashboard/patient/prescriptions': typeof DashboardPatientPrescriptionsRoute
+  '/dashboard/patient/ratings': typeof DashboardPatientRatingsRoute
   '/dashboard/patient/reminders': typeof DashboardPatientRemindersRoute
   '/dashboard/patient/search': typeof DashboardPatientSearchRoute
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
@@ -425,6 +432,7 @@ export interface FileRoutesByTo {
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
   '/dashboard/patient/prescriptions': typeof DashboardPatientPrescriptionsRoute
+  '/dashboard/patient/ratings': typeof DashboardPatientRatingsRoute
   '/dashboard/patient/reminders': typeof DashboardPatientRemindersRoute
   '/dashboard/patient/search': typeof DashboardPatientSearchRoute
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
@@ -479,6 +487,7 @@ export interface FileRoutesById {
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
   '/dashboard/patient/prescriptions': typeof DashboardPatientPrescriptionsRoute
+  '/dashboard/patient/ratings': typeof DashboardPatientRatingsRoute
   '/dashboard/patient/reminders': typeof DashboardPatientRemindersRoute
   '/dashboard/patient/search': typeof DashboardPatientSearchRoute
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
@@ -534,6 +543,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
     | '/dashboard/patient/prescriptions'
+    | '/dashboard/patient/ratings'
     | '/dashboard/patient/reminders'
     | '/dashboard/patient/search'
     | '/dashboard/patient/support'
@@ -587,6 +597,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
     | '/dashboard/patient/prescriptions'
+    | '/dashboard/patient/ratings'
     | '/dashboard/patient/reminders'
     | '/dashboard/patient/search'
     | '/dashboard/patient/support'
@@ -640,6 +651,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
     | '/dashboard/patient/prescriptions'
+    | '/dashboard/patient/ratings'
     | '/dashboard/patient/reminders'
     | '/dashboard/patient/search'
     | '/dashboard/patient/support'
@@ -692,6 +704,7 @@ export interface RootRouteChildren {
   DashboardPatientOrdersRoute: typeof DashboardPatientOrdersRoute
   DashboardPatientPaymentMethodsRoute: typeof DashboardPatientPaymentMethodsRoute
   DashboardPatientPrescriptionsRoute: typeof DashboardPatientPrescriptionsRoute
+  DashboardPatientRatingsRoute: typeof DashboardPatientRatingsRoute
   DashboardPatientRemindersRoute: typeof DashboardPatientRemindersRoute
   DashboardPatientSearchRoute: typeof DashboardPatientSearchRoute
   DashboardPatientSupportRoute: typeof DashboardPatientSupportRoute
@@ -969,6 +982,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/patient/ratings': {
+      id: '/dashboard/patient/ratings'
+      path: '/dashboard/patient/ratings'
+      fullPath: '/dashboard/patient/ratings'
+      preLoaderRoute: typeof DashboardPatientRatingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/patient/prescriptions': {
       id: '/dashboard/patient/prescriptions'
       path: '/dashboard/patient/prescriptions'
@@ -1129,6 +1149,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardPatientOrdersRoute: DashboardPatientOrdersRoute,
   DashboardPatientPaymentMethodsRoute: DashboardPatientPaymentMethodsRoute,
   DashboardPatientPrescriptionsRoute: DashboardPatientPrescriptionsRoute,
+  DashboardPatientRatingsRoute: DashboardPatientRatingsRoute,
   DashboardPatientRemindersRoute: DashboardPatientRemindersRoute,
   DashboardPatientSearchRoute: DashboardPatientSearchRoute,
   DashboardPatientSupportRoute: DashboardPatientSupportRoute,
@@ -1140,13 +1161,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

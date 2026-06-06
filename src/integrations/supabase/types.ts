@@ -1081,6 +1081,7 @@ export type Database = {
           pharmacy_id: string | null
           pickup_lat: number | null
           pickup_lng: number | null
+          prescription_upload_id: string | null
           priority: boolean
           quantity: number
           recipient_family_member_id: string | null
@@ -1112,6 +1113,7 @@ export type Database = {
           pharmacy_id?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
+          prescription_upload_id?: string | null
           priority?: boolean
           quantity?: number
           recipient_family_member_id?: string | null
@@ -1143,6 +1145,7 @@ export type Database = {
           pharmacy_id?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
+          prescription_upload_id?: string | null
           priority?: boolean
           quantity?: number
           recipient_family_member_id?: string | null
@@ -1166,6 +1169,13 @@ export type Database = {
             columns: ["medication_id"]
             isOneToOne: false
             referencedRelation: "medications_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_prescription_upload_id_fkey"
+            columns: ["prescription_upload_id"]
+            isOneToOne: false
+            referencedRelation: "prescription_uploads"
             referencedColumns: ["id"]
           },
         ]

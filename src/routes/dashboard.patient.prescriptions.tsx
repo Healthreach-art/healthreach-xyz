@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { verifyPrescription } from "@/utils/ai.functions";
-import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw, Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles } from "lucide-react";
+import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw, Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles, Download, Share2, Link as LinkIcon, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrescriptionStatusBadge, PrescriptionUploader, getPrescriptionFileUrl, FraudPanel, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { PatientVerificationCard } from "@/components/PatientVerificationCard";
@@ -39,6 +39,7 @@ function Page() {
   const { user } = useAuth();
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [pxUploads, setPxUploads] = useState<PrescriptionUpload[]>([]);
+  const [linkedOrders, setLinkedOrders] = useState<Record<string, Array<{ id: string; medication_name: string; status: string; created_at: string; pharmacy_id: string; pharmacy_name: string }>>>({});
   const [loading, setLoading] = useState(true);
   const verifyRx = useServerFn(verifyPrescription);
 
@@ -48,6 +49,27 @@ function Page() {
     setPxUploads((data ?? []) as PrescriptionUpload[]);
   };
 
+  async function loadLinkedOrders(uploadIds: string[]) {
+    if (!uploadIds.length) { setLinkedOrders({}); return; }
+    const { data: ords } = await supabase
+      .from("orders")
+      .select("id, medication_name, status, created_at, pharmacy_id, prescription_upload_id")
+      .in("prescription_upload_id", uploadIds)
+      .order("created_at", { ascending: false });
+    const list = (ords ?? []) as any[];
+    const pharmIds = Array.from(new Set(list.map((o) => o.pharmacy_id).filter(Boolean)));
+    const names: Record<string, string> = {};
+    if (pharmIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("user_id, full_name, organization_name").in("user_id", pharmIds);
+      (profs ?? []).forEach((p: any) => { names[p.user_id] = p.organization_name || p.full_name || "Pharmacy"; });
+    }
+    const grouped: Record<string, any[]> = {};
+    list.forEach((o) => {
+      (grouped[o.prescription_upload_id] ||= []).push({ ...o, pharmacy_name: names[o.pharmacy_id] || "Pharmacy" });
+    });
+    setLinkedOrders(grouped);
+  }
+
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -56,10 +78,41 @@ function Page() {
         supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }),
       ]);
       setPrescriptions((rx ?? []) as Prescription[]);
-      setPxUploads((ups ?? []) as PrescriptionUpload[]);
+      const upsList = (ups ?? []) as PrescriptionUpload[];
+      setPxUploads(upsList);
+      await loadLinkedOrders(upsList.map((u) => u.id));
       setLoading(false);
     })();
   }, [user]);
+
+  async function downloadPrescription(u: PrescriptionUpload) {
+    try {
+      const url = await getPrescriptionFileUrl(u.file_path);
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const ext = (u.mime_type?.split("/")[1] || "file").replace("jpeg", "jpg");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `prescription-${u.id.slice(0,8)}.${ext}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      toast.success("Prescription downloaded");
+    } catch (e: any) { toast.error(e?.message || "Could not download"); }
+  }
+
+  async function sharePrescription(u: PrescriptionUpload) {
+    try {
+      const url = await getPrescriptionFileUrl(u.file_path);
+      const shareData = { title: "HEALTHREACH prescription", text: "Secure prescription link", url };
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        try { await (navigator as any).share(shareData); return; }
+        catch { /* user cancelled — fall through to copy */ }
+      }
+      await navigator.clipboard.writeText(url);
+      toast.success("Secure link copied", { description: "Share with your pharmacy. Link expires shortly." });
+    } catch (e: any) { toast.error(e?.message || "Could not share"); }
+  }
+
 
   const alerts = useMemo(() => {
     const expiring = pxUploads.filter((u) => validityOf(u).state === "expiring");
@@ -204,10 +257,16 @@ function Page() {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={async () => {
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={async () => {
                     try { const url = await getPrescriptionFileUrl(u.file_path); window.open(url, "_blank", "noopener,noreferrer"); }
                     catch (e: any) { toast.error(e?.message || "Could not open file"); }
-                  }}>View prescription</Button>
+                  }}><FileText className="h-3 w-3" /> View</Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => downloadPrescription(u)}>
+                    <Download className="h-3 w-3" /> Download
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => sharePrescription(u)}>
+                    <Share2 className="h-3 w-3" /> Share with pharmacy
+                  </Button>
                   {canRefill && (u.repeats_total ?? 0) > (u.repeats_used ?? 0) && (
                     <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
                       <Link to="/dashboard/patient/find">
@@ -222,6 +281,25 @@ function Page() {
                   )}
                   <PrescriptionScanButton row={u} />
                 </div>
+                {(linkedOrders[u.id]?.length ?? 0) > 0 && (
+                  <div className="mt-3 rounded-md border border-border/60 bg-muted/30 p-2">
+                    <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide flex items-center gap-1">
+                      <Package className="h-3 w-3" /> Used on {linkedOrders[u.id].length} order{linkedOrders[u.id].length > 1 ? "s" : ""}
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {linkedOrders[u.id].slice(0, 4).map((o) => (
+                        <li key={o.id} className="text-xs flex items-center justify-between gap-2">
+                          <Link to="/dashboard/patient/orders" className="text-primary hover:underline truncate inline-flex items-center gap-1">
+                            <LinkIcon className="h-3 w-3" /> {o.medication_name} · {o.pharmacy_name}
+                          </Link>
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                            {o.status.replace(/_/g, " ")} · {new Date(o.created_at).toLocaleDateString("en-ZA")}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             );
           })}
