@@ -257,10 +257,16 @@ function Page() {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={async () => {
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={async () => {
                     try { const url = await getPrescriptionFileUrl(u.file_path); window.open(url, "_blank", "noopener,noreferrer"); }
                     catch (e: any) { toast.error(e?.message || "Could not open file"); }
-                  }}>View prescription</Button>
+                  }}><FileText className="h-3 w-3" /> View</Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => downloadPrescription(u)}>
+                    <Download className="h-3 w-3" /> Download
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => sharePrescription(u)}>
+                    <Share2 className="h-3 w-3" /> Share with pharmacy
+                  </Button>
                   {canRefill && (u.repeats_total ?? 0) > (u.repeats_used ?? 0) && (
                     <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
                       <Link to="/dashboard/patient/find">
@@ -275,6 +281,25 @@ function Page() {
                   )}
                   <PrescriptionScanButton row={u} />
                 </div>
+                {(linkedOrders[u.id]?.length ?? 0) > 0 && (
+                  <div className="mt-3 rounded-md border border-border/60 bg-muted/30 p-2">
+                    <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide flex items-center gap-1">
+                      <Package className="h-3 w-3" /> Used on {linkedOrders[u.id].length} order{linkedOrders[u.id].length > 1 ? "s" : ""}
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {linkedOrders[u.id].slice(0, 4).map((o) => (
+                        <li key={o.id} className="text-xs flex items-center justify-between gap-2">
+                          <Link to="/dashboard/patient/orders" className="text-primary hover:underline truncate inline-flex items-center gap-1">
+                            <LinkIcon className="h-3 w-3" /> {o.medication_name} · {o.pharmacy_name}
+                          </Link>
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                            {o.status.replace(/_/g, " ")} · {new Date(o.created_at).toLocaleDateString("en-ZA")}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             );
           })}
