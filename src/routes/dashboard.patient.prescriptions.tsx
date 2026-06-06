@@ -39,6 +39,7 @@ function Page() {
   const { user } = useAuth();
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [pxUploads, setPxUploads] = useState<PrescriptionUpload[]>([]);
+  const [linkedOrders, setLinkedOrders] = useState<Record<string, Array<{ id: string; medication_name: string; status: string; created_at: string; pharmacy_id: string; pharmacy_name: string }>>>({});
   const [loading, setLoading] = useState(true);
   const verifyRx = useServerFn(verifyPrescription);
 
@@ -48,6 +49,27 @@ function Page() {
     setPxUploads((data ?? []) as PrescriptionUpload[]);
   };
 
+  async function loadLinkedOrders(uploadIds: string[]) {
+    if (!uploadIds.length) { setLinkedOrders({}); return; }
+    const { data: ords } = await supabase
+      .from("orders")
+      .select("id, medication_name, status, created_at, pharmacy_id, prescription_upload_id")
+      .in("prescription_upload_id", uploadIds)
+      .order("created_at", { ascending: false });
+    const list = (ords ?? []) as any[];
+    const pharmIds = Array.from(new Set(list.map((o) => o.pharmacy_id).filter(Boolean)));
+    const names: Record<string, string> = {};
+    if (pharmIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("user_id, full_name, organization_name").in("user_id", pharmIds);
+      (profs ?? []).forEach((p: any) => { names[p.user_id] = p.organization_name || p.full_name || "Pharmacy"; });
+    }
+    const grouped: Record<string, any[]> = {};
+    list.forEach((o) => {
+      (grouped[o.prescription_upload_id] ||= []).push({ ...o, pharmacy_name: names[o.pharmacy_id] || "Pharmacy" });
+    });
+    setLinkedOrders(grouped);
+  }
+
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -56,10 +78,41 @@ function Page() {
         supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }),
       ]);
       setPrescriptions((rx ?? []) as Prescription[]);
-      setPxUploads((ups ?? []) as PrescriptionUpload[]);
+      const upsList = (ups ?? []) as PrescriptionUpload[];
+      setPxUploads(upsList);
+      await loadLinkedOrders(upsList.map((u) => u.id));
       setLoading(false);
     })();
   }, [user]);
+
+  async function downloadPrescription(u: PrescriptionUpload) {
+    try {
+      const url = await getPrescriptionFileUrl(u.file_path);
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const ext = (u.mime_type?.split("/")[1] || "file").replace("jpeg", "jpg");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `prescription-${u.id.slice(0,8)}.${ext}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      toast.success("Prescription downloaded");
+    } catch (e: any) { toast.error(e?.message || "Could not download"); }
+  }
+
+  async function sharePrescription(u: PrescriptionUpload) {
+    try {
+      const url = await getPrescriptionFileUrl(u.file_path);
+      const shareData = { title: "HEALTHREACH prescription", text: "Secure prescription link", url };
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        try { await (navigator as any).share(shareData); return; }
+        catch { /* user cancelled — fall through to copy */ }
+      }
+      await navigator.clipboard.writeText(url);
+      toast.success("Secure link copied", { description: "Share with your pharmacy. Link expires shortly." });
+    } catch (e: any) { toast.error(e?.message || "Could not share"); }
+  }
+
 
   const alerts = useMemo(() => {
     const expiring = pxUploads.filter((u) => validityOf(u).state === "expiring");
