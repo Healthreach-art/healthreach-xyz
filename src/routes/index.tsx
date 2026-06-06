@@ -221,12 +221,25 @@ function HomePage() {
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
-              <div key={feature.title} className="healthcare-card p-6">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
-                  <feature.icon className="h-5 w-5 text-primary" />
+              <div key={feature.title} className="healthcare-card overflow-hidden flex flex-col">
+                {feature.img ? (
+                  <div className="relative h-40 w-full overflow-hidden bg-muted">
+                    <img src={feature.img} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="h-40 w-full healthcare-gradient flex items-center justify-center">
+                    <feature.icon className="h-12 w-12 text-primary-foreground" />
+                  </div>
+                )}
+                <div className="p-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                      <feature.icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
