@@ -10,11 +10,22 @@ import {
   Heart,
   Clock,
   Users,
-  CreditCard,
   Activity,
   Stethoscope,
+  CalendarCheck as CalendarCheckIcon,
 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
+import rolePatient from "@/assets/role-patient.jpg";
+import rolePharmacy from "@/assets/role-pharmacy.jpg";
+import roleHospital from "@/assets/role-hospital.jpg";
+import roleDriver from "@/assets/role-driver.jpg";
+import roleDoctor from "@/assets/role-doctor.jpg";
+import roleAdmin from "@/assets/role-admin.jpg";
+import tileMed from "@/assets/tile-order-medicine.png";
+import tileRx from "@/assets/tile-upload-prescription.png";
+import tileTrack from "@/assets/tile-track-delivery.png";
+import tileAppt from "@/assets/tile-book-appointment.png";
+import tileAI from "@/assets/tile-ai-assistant.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -62,32 +73,38 @@ export const Route = createFileRoute("/")({
 const features = [
   {
     icon: Pill,
+    img: tileMed,
     title: "Medication Ordering",
     description: "Search, compare, and order medications from verified pharmacies with ease.",
   },
   {
-    icon: Building2,
-    title: "Inventory Management",
-    description: "Real-time stock tracking and automated alerts for pharmacies and hospitals.",
+    icon: CalendarCheckIcon,
+    img: tileAppt,
+    title: "Book Appointments",
+    description: "Book doctors and pharmacists in minutes — in-person or virtual.",
   },
   {
     icon: Heart,
-    title: "Patient Care",
-    description: "Coordinate patient care with digital prescriptions and treatment records.",
+    img: tileRx,
+    title: "Prescriptions & Care",
+    description: "Upload prescriptions, manage refills, and coordinate patient care.",
   },
   {
     icon: Truck,
+    img: tileTrack,
     title: "Delivery Tracking",
     description: "Real-time delivery tracking from pharmacy to your doorstep.",
   },
   {
-    icon: CreditCard,
-    title: "Secure Payments",
-    description: "Multiple payment options including cards, EFT, and mobile payments.",
+    icon: Activity,
+    img: tileAI,
+    title: "AI Medicine Assistant",
+    description: "Chat with an AI assistant about medicines, dosage, and side effects.",
   },
   {
     icon: ShieldCheck,
-    title: "Data Security",
+    img: undefined,
+    title: "Secure & Compliant",
     description: "Enterprise-grade encryption protecting all patient and payment data.",
   },
 ];
@@ -95,33 +112,45 @@ const features = [
 const roles = [
   {
     icon: Users,
+    img: rolePatient,
     title: "Patients",
     description: "Order medication, track deliveries, and manage your health records.",
-    color: "bg-primary/10 text-primary",
+    to: "/for-patients",
+  },
+  {
+    icon: Stethoscope,
+    img: roleDoctor,
+    title: "Doctors",
+    description: "HPCSA-verified doctors take bookings, issue digital prescriptions, and review patient files.",
+    to: "/doctors",
   },
   {
     icon: Pill,
+    img: rolePharmacy,
     title: "Pharmacies",
     description: "Manage inventory, fulfill orders, and process prescriptions efficiently.",
-    color: "bg-healthcare-teal/20 text-healthcare-teal",
+    to: "/for-pharmacies",
   },
   {
     icon: Building2,
+    img: roleHospital,
     title: "Hospitals",
     description: "Issue digital prescriptions and coordinate patient care seamlessly.",
-    color: "bg-healthcare-green/20 text-healthcare-green",
+    to: "/for-pharmacies",
   },
   {
     icon: Truck,
+    img: roleDriver,
     title: "Drivers",
     description: "Accept deliveries, navigate routes, and confirm drop-offs on the go.",
-    color: "bg-healthcare-sky/20 text-healthcare-sky",
+    to: "/for-drivers",
   },
   {
     icon: Activity,
+    img: roleAdmin,
     title: "Administrators",
     description: "Oversee the entire platform with analytics, user management, and reports.",
-    color: "bg-accent text-accent-foreground",
+    to: "/login",
   },
 ];
 
@@ -192,12 +221,25 @@ function HomePage() {
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
-              <div key={feature.title} className="healthcare-card p-6">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
-                  <feature.icon className="h-5 w-5 text-primary" />
+              <div key={feature.title} className="healthcare-card overflow-hidden flex flex-col">
+                {feature.img ? (
+                  <div className="relative h-40 w-full overflow-hidden bg-muted">
+                    <img src={feature.img} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="h-40 w-full healthcare-gradient flex items-center justify-center">
+                    <feature.icon className="h-12 w-12 text-primary-foreground" />
+                  </div>
+                )}
+                <div className="p-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                      <feature.icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -217,15 +259,27 @@ function HomePage() {
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {roles.map((role) => (
-              <div key={role.title} className="healthcare-card p-6 flex flex-col">
-                <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-lg ${role.color}`}>
-                  <role.icon className="h-5 w-5" />
+              <div key={role.title} className="healthcare-card overflow-hidden flex flex-col group">
+                <div className="relative h-44 w-full overflow-hidden bg-muted">
+                  <img
+                    src={role.img}
+                    alt={role.title}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute top-3 left-3 flex h-10 w-10 items-center justify-center rounded-lg bg-background/90 backdrop-blur-sm">
+                    <role.icon className="h-5 w-5 text-primary" />
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">{role.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed flex-1">{role.description}</p>
-                <Button variant="ghost" size="sm" className="mt-4 w-fit text-primary">
-                  Learn more →
-                </Button>
+                <div className="p-6 flex flex-col flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">{role.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed flex-1">{role.description}</p>
+                  <Link to={role.to as any} className="mt-4">
+                    <Button variant="ghost" size="sm" className="w-fit text-primary p-0 hover:bg-transparent">
+                      Learn more →
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
