@@ -131,14 +131,9 @@ export function AskProviderFab() {
 
       {openChat && user && openChat.kind === "order" && (
         <OrderChatDialog
-          open
-          onClose={() => setOpenChat(null)}
           orderId={openChat.id}
-          patientId={user.id}
-          pharmacyId={openChat.pharmacyId}
-          myRole="patient"
-          title={`Order chat — ${openChat.pharmacyName}`}
-          subtitle={openChat.medication}
+          orderLabel={`${openChat.pharmacyName} — ${openChat.medication}`}
+          onClose={() => setOpenChat(null)}
         />
       )}
       {openChat && user && openChat.kind === "doctor_appt" && (
