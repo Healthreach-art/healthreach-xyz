@@ -15,6 +15,17 @@ import {
   Stethoscope,
 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
+import rolePatient from "@/assets/role-patient.jpg";
+import rolePharmacy from "@/assets/role-pharmacy.jpg";
+import roleHospital from "@/assets/role-hospital.jpg";
+import roleDriver from "@/assets/role-driver.jpg";
+import roleDoctor from "@/assets/role-doctor.jpg";
+import roleAdmin from "@/assets/role-admin.jpg";
+import tileMed from "@/assets/tile-order-medicine.png";
+import tileRx from "@/assets/tile-upload-prescription.png";
+import tileTrack from "@/assets/tile-track-delivery.png";
+import tileAppt from "@/assets/tile-book-appointment.png";
+import tileAI from "@/assets/tile-ai-assistant.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({
