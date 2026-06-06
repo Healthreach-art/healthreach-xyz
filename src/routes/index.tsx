@@ -259,15 +259,27 @@ function HomePage() {
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {roles.map((role) => (
-              <div key={role.title} className="healthcare-card p-6 flex flex-col">
-                <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-lg ${role.color}`}>
-                  <role.icon className="h-5 w-5" />
+              <div key={role.title} className="healthcare-card overflow-hidden flex flex-col group">
+                <div className="relative h-44 w-full overflow-hidden bg-muted">
+                  <img
+                    src={role.img}
+                    alt={role.title}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute top-3 left-3 flex h-10 w-10 items-center justify-center rounded-lg bg-background/90 backdrop-blur-sm">
+                    <role.icon className="h-5 w-5 text-primary" />
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">{role.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed flex-1">{role.description}</p>
-                <Button variant="ghost" size="sm" className="mt-4 w-fit text-primary">
-                  Learn more →
-                </Button>
+                <div className="p-6 flex flex-col flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">{role.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed flex-1">{role.description}</p>
+                  <Link to={role.to as any} className="mt-4">
+                    <Button variant="ghost" size="sm" className="w-fit text-primary p-0 hover:bg-transparent">
+                      Learn more →
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
