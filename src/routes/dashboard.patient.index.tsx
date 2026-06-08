@@ -10,7 +10,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
   ArrowRight, Star, Pill, MessageSquare,
-  Siren, PhoneCall, CalendarCheck, FileText, Stethoscope,
+  Siren, PhoneCall, CalendarCheck, FileText,
 } from "lucide-react";
 import tileAppt from "@/assets/tile-book-appointment.png";
 import tileMed from "@/assets/tile-order-medicine.png";
@@ -37,7 +37,6 @@ interface OrderRow {
 
 const ACTION_CARDS: Array<{ title: string; subtitle?: string; img?: string; icon?: any; to: string; bg: string }> = [
   { title: "Book Appointment", subtitle: "Doctor or Pharmacist", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-purple-50" },
-  { title: "Find a Doctor", subtitle: "Browse verified doctors", icon: Stethoscope, to: "/doctors", bg: "bg-primary/10" },
   { title: "Order Medicine", img: tileMed, to: "/dashboard/patient/search", bg: "bg-healthcare-green/10" },
   { title: "Upload Prescription", img: tileRx, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20" },
   { title: "Track Delivery", img: tileTrack, to: "/track", bg: "bg-healthcare-light" },
