@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, Phone, Mail } from "lucide-react";
+import { MessageCircle, Phone } from "lucide-react";
 
 const WA_NUMBER = "27797285078";
 const WA_LINK = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi HEALTHREACH, I'd like to ask a quick question.")}`;
@@ -45,7 +45,6 @@ export function Footer() {
           <div>
             <h3 className="mb-3 text-sm font-semibold text-foreground">Contact</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="mailto:info@healthreach.co.za" className="inline-flex items-center gap-2 hover:text-foreground"><Mail className="h-3.5 w-3.5" /><span>info@healthreach.co.za</span></a></li>
               <li><a href="tel:+27797285078" className="inline-flex items-center gap-2 hover:text-foreground"><Phone className="h-3.5 w-3.5" /> +27 79 728 5078</a></li>
               <li><a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp us</a></li>
               <li>Cape Town, South Africa</li>
