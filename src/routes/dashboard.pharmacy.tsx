@@ -617,9 +617,13 @@ function PharmacyDashboard() {
         <div id="orders-section" className="healthcare-card p-6 scroll-mt-20">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Incoming Orders</h2>
+            <Button size="sm" variant="outline" onClick={loadData} disabled={loading}>
+              {loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Refresh
+            </Button>
           </div>
           {!loading && orders.length === 0 && (
-            <p className="text-sm text-muted-foreground py-6 text-center">No orders yet. Add medications to your inventory so patients can order.</p>
+            <p className="text-sm text-muted-foreground py-6 text-center">No orders yet. Add medications to your inventory so patients can find and order from you.</p>
           )}
           <div className="space-y-3">
             {orders.map((order) => (
