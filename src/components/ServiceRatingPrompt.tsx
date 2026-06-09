@@ -142,7 +142,7 @@ export function ServiceRatingPrompt() {
         .from("orders")
         .select("id, pharmacy_id, status, medication_name, updated_at")
         .eq("patient_id", user.id)
-        .in("status", ["delivered", "completed"])
+        .in("status", ["delivered"])
         .order("updated_at", { ascending: false })
         .limit(5);
       for (const o of orders ?? []) {
