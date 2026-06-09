@@ -134,8 +134,35 @@ export function ServiceRatingPrompt() {
           });
         })
       .subscribe();
+
+    // Mount-time scan: catch deliveries/completions that happened while the
+    // patient was offline so the prompt still appears next time they open the app.
+    (async () => {
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, pharmacy_id, status, medication_name, updated_at")
+        .eq("patient_id", user.id)
+        .in("status", ["delivered"])
+        .order("updated_at", { ascending: false })
+        .limit(5);
+      for (const o of orders ?? []) {
+        const { data: del } = await supabase
+          .from("deliveries").select("driver_id").eq("order_id", (o as any).id).maybeSingle();
+        await maybePrompt({
+          source: "order",
+          orderId: (o as any).id,
+          pharmacyId: (o as any).pharmacy_id ?? null,
+          driverId: (del as any)?.driver_id ?? null,
+          label: (o as any).medication_name || "your order",
+        });
+        // stop after first one that actually opens
+        if (document.querySelector('[role="dialog"]')) break;
+      }
+    })();
+
     return () => { supabase.removeChannel(channel); };
   }, [user, role]);
+
 
   async function submit() {
     if (!prompt || !user) return;
