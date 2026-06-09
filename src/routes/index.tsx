@@ -122,7 +122,7 @@ const roles = [
     img: roleDoctor,
     title: "Doctors",
     description: "HPCSA-verified doctors take bookings, issue digital prescriptions, and review patient files.",
-    to: "/doctors",
+    to: "/for-doctors",
   },
   {
     icon: Pill,
