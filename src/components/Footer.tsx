@@ -27,6 +27,7 @@ export function Footer() {
             <h3 className="mb-3 text-sm font-semibold text-foreground">Platform</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/for-patients" className="hover:text-foreground transition-colors">For Patients</Link></li>
+              <li><Link to="/for-doctors" className="hover:text-foreground transition-colors">For Doctors</Link></li>
               <li><Link to="/for-pharmacies" className="hover:text-foreground transition-colors">For Pharmacies</Link></li>
               <li><Link to="/for-drivers" className="hover:text-foreground transition-colors">For Drivers</Link></li>
             </ul>
