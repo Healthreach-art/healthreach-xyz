@@ -6,6 +6,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
