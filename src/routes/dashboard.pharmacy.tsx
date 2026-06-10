@@ -31,6 +31,7 @@ import { PharmacyAnalytics } from "@/components/PharmacyAnalytics";
 import { PharmacyFinance } from "@/components/PharmacyFinance";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { PharmacyOffersInbox } from "@/components/PharmacyOffersInbox";
 import { PharmacyLocationCard } from "@/components/PharmacyLocationCard";
 import { PharmacyBranchesManager } from "@/components/PharmacyBranchesManager";
