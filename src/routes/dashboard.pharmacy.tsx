@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import pharmacyHero from "@/assets/pharmacy-1.jpg";
 import medGeneric from "@/assets/med-generic.jpg";
