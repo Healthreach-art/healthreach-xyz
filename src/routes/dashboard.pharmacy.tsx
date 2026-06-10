@@ -98,6 +98,7 @@ function PharmacyDashboard() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [orderGroups, setOrderGroups] = useState<GroupedOrder<Order>[]>([]);
   const [liveDeliveries, setLiveDeliveries] = useState<LiveDelivery[]>([]);
   const [loading, setLoading] = useState(true);
 
