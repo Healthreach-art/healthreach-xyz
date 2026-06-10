@@ -308,8 +308,22 @@ function TrackPage() {
           </div>
 
           <div className="healthcare-card p-6 h-fit space-y-4">
-            <h2 className="text-lg font-semibold">Delivery Details</h2>
-            <div>
+            <h2 className="text-lg font-semibold">Package Contents</h2>
+            <ul className="space-y-1.5">
+              {groupItems.map((it) => (
+                <li key={it.id} className="flex justify-between gap-2 text-sm">
+                  <span className="font-medium">{it.medication_name} <span className="text-muted-foreground font-normal">× {it.quantity}</span></span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">R {Number(it.total_amount).toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+            {groupInfo && (
+              <div className="pt-2 border-t border-border/60 flex justify-between text-sm">
+                <span className="text-muted-foreground">Total paid</span>
+                <span className="font-semibold">R {Number(groupInfo.total_amount).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="pt-2 border-t border-border/60">
               <p className="text-xs text-muted-foreground mb-1">Pickup</p>
               <p className="text-sm">{delivery?.pickup_address || "Pharmacy will set this when ready"}</p>
             </div>
@@ -317,7 +331,15 @@ function TrackPage() {
               <p className="text-xs text-muted-foreground mb-1">Drop-off</p>
               <p className="text-sm">{delivery?.delivery_address || order.delivery_address || "—"}</p>
             </div>
+            {groupInfo?.delivery_code && (
+              <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Delivery code</p>
+                <p className="text-xl font-mono font-bold text-primary mt-1">{groupInfo.delivery_code}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Share this with the driver on arrival.</p>
+              </div>
+            )}
           </div>
+
         </div>
       )}
     </div>
