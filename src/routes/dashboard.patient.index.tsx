@@ -69,7 +69,7 @@ function PatientDashboard() {
     async function load() {
       const { data } = await supabase
         .from("orders")
-        .select("id, status, total_amount, created_at, pharmacy_id")
+        .select("id, order_group_id, status, total_amount, created_at, pharmacy_id")
         .eq("patient_id", user!.id)
         .eq("is_demo", false)
         .order("created_at", { ascending: false })
