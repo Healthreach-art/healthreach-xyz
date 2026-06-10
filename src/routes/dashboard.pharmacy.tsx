@@ -429,17 +429,16 @@ function PharmacyDashboard() {
     return true;
   }
 
-  // Marks order ready and broadcasts driver offers. The delivery row is only
-  // created when a driver manually accepts, so tracking does not jump ahead.
-  async function markReadyAndBroadcast(orderId: string) {
+  // Marks ALL items in a group as ready and broadcasts ONE driver offer keyed
+  // off the first order id (the delivery is created per-group by the DB trigger).
+  async function markGroupReadyAndBroadcast(g: GroupedOrder<Order>) {
     if (!user) return;
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return;
-    const { error: orderErr } = await supabase.from("orders").update({ status: "ready" }).eq("id", orderId);
-    if (orderErr) { toast.error(orderErr.message); return; }
-    await broadcastToDrivers(order);
+    if (!(await setGroupStatus(g, "ready"))) return;
+    const first = g.items[0];
+    if (first) await broadcastToDrivers(first);
     loadData();
   }
+
 
   async function assignDriver(driverId: string) {
     if (!assignOrder) return;
