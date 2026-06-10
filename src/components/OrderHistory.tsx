@@ -71,6 +71,7 @@ export function OrderHistory() {
         .from("orders")
         .select("id, order_group_id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at, prescription_upload_id")
         .eq("patient_id", user.id)
+        .is("hidden_for_patient_at", null)
         .order("created_at", { ascending: false });
       const rows = (ords ?? []) as OrderRow[];
       setOrders(rows);
