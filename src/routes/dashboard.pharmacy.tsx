@@ -655,7 +655,7 @@ function PharmacyDashboard() {
           {!loading && orderGroups.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center">No orders yet. Add medications to your inventory so patients can find and order from you.</p>
           )}
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
             {orderGroups.map((g) => {
               const itemCount = g.items.reduce((s, i) => s + i.quantity, 0);
               return (
