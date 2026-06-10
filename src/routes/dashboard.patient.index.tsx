@@ -30,6 +30,7 @@ export const Route = createFileRoute("/dashboard/patient/")({
 
 interface OrderRow {
   id: string;
+  order_group_id: string | null;
   status: string;
   total_amount: number | string;
   created_at: string;
