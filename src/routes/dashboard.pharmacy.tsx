@@ -596,19 +596,26 @@ function PharmacyDashboard() {
       </div>
 
       {lowStockItems.length > 0 && (
-        <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+        <Link
+          to="/dashboard/pharmacy/low-stock"
+          className="mb-6 block rounded-lg border border-destructive/30 bg-destructive/5 p-4 hover:bg-destructive/10 transition-colors"
+        >
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             <span className="text-sm font-semibold text-destructive">Low Stock Alerts</span>
+            <span className="ml-auto text-[11px] text-destructive/80 font-medium">Open Low Stock →</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {lowStockItems.map((item) => (
+            {lowStockItems.slice(0, 8).map((item) => (
               <span key={item.id} className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-3 py-1 text-xs text-destructive">
                 <TrendingDown className="h-3 w-3" /> {item.name} ({item.stock_quantity} left)
               </span>
             ))}
+            {lowStockItems.length > 8 && (
+              <span className="text-xs text-destructive/80 self-center">+{lowStockItems.length - 8} more</span>
+            )}
           </div>
-        </div>
+        </Link>
       )}
 
       {loading && (
