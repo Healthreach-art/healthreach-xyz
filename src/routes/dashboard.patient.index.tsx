@@ -79,6 +79,7 @@ function PatientDashboard() {
       setOrders(list);
       const active = list.find((o) => !["delivered", "cancelled"].includes(o.status));
       setActiveOrderId(active?.id ?? null);
+      setActiveGroupId(active?.order_group_id ?? null);
 
       const ids = Array.from(new Set(list.map((o) => o.pharmacy_id))).filter(Boolean);
       if (ids.length) {
