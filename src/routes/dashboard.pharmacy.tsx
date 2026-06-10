@@ -632,12 +632,13 @@ function PharmacyDashboard() {
             </span>
             <span className="ml-auto text-xs font-normal text-muted-foreground">{liveDeliveries.length} in progress</span>
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {liveDeliveries.map((d) => (
-              <DeliveryTimelineCard key={d.id} delivery={d} onChat={setChatOrderId} />
-            ))}
+          <div className="max-h-[60vh] overflow-y-auto pr-1">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {liveDeliveries.map((d) => (
+                <DeliveryTimelineCard key={d.id} delivery={d} onChat={setChatOrderId} />
+              ))}
+            </div>
           </div>
-        </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
