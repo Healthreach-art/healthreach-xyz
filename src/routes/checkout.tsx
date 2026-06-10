@@ -176,17 +176,17 @@ function CheckoutPage() {
         recipient,
       },
     });
-    const matched = res.orders.filter((o) => o.matched).length;
-    if (matched === 0) {
+    if (!res.matched || res.orders.filter((o) => o.matched).length === 0) {
       toast.error("Payment received, but no pharmacies are available within 60 km. Support will contact you.");
       return;
     }
     clear();
     setSuccess(true);
+    const code = res.group?.deliveryCode;
     toast.success(
       scheduleEnabled && scheduledFor
-        ? `Scheduled ${matched} order(s) for ${new Date(scheduledFor).toLocaleString()}.`
-        : `${matched} order(s) sent to nearby pharmacies — awaiting acceptance…`
+        ? `Order scheduled for ${new Date(scheduledFor).toLocaleString()}${code ? ` — code ${code}` : ""}.`
+        : `Order placed — one package on its way${code ? `. Delivery code: ${code}` : ""}.`
     );
     setTimeout(() => navigate({ to: "/track" }), 1500);
   }
