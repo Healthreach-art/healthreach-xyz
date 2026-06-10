@@ -744,8 +744,15 @@ function DriverDashboard() {
             const isUpdating = updating === delivery.id;
             return (
               <div key={delivery.id} className="healthcare-card p-5 ring-1 ring-primary/20">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-mono text-muted-foreground">{delivery.id.slice(0, 8)}</span>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-mono text-muted-foreground">{delivery.id.slice(0, 8)}</span>
+                    {delivery.delivery_code && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                        CODE {delivery.delivery_code}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
                     <Button size="sm" variant="ghost" className="h-6 gap-1 text-xs px-2" onClick={() => setChatOrderId(delivery.order_id)}>
@@ -753,6 +760,18 @@ function DriverDashboard() {
                     </Button>
                   </div>
                 </div>
+                {delivery.items && delivery.items.length > 0 && (
+                  <div className="mb-3 rounded-md bg-muted/40 border border-border p-2">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                      Package · {delivery.items.length} item{delivery.items.length === 1 ? "" : "s"}
+                    </p>
+                    <ul className="text-xs space-y-0.5">
+                      {delivery.items.map((it) => (
+                        <li key={it.id} className="text-foreground">• {it.medication_name} × {it.quantity}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="space-y-2 text-xs">
                   <div className="flex items-start gap-2">
                     <Package className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
