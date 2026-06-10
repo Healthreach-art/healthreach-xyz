@@ -369,28 +369,35 @@ function PharmacyDashboard() {
     loadData();
   }
 
-  async function rejectOrder(orderId: string) {
+  // ---- Group-aware bulk actions (apply to ALL items in the package) ----
+  async function setGroupStatus(g: GroupedOrder<Order>, status: "cancelled" | "accepted" | "preparing" | "ready") {
+    const ids = g.items.map((i) => i.id);
+    const { error } = await supabase.from("orders").update({ status }).in("id", ids);
+    if (error) { toast.error(error.message); return false; }
+    if (g.group?.id) {
+      await supabase.from("order_groups" as never).update({ status } as never).eq("id", g.group.id);
+    }
+    return true;
+  }
 
-    const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
-    if (error) { toast.error(error.message); return; }
+  async function rejectGroup(g: GroupedOrder<Order>) {
+    if (!(await setGroupStatus(g, "cancelled"))) return;
     toast.success("Order rejected");
     loadData();
   }
 
-  async function acceptOrder(orderId: string) {
-    const { error } = await supabase.from("orders").update({ status: "accepted" }).eq("id", orderId);
-    if (error) { toast.error(error.message); return; }
+  async function acceptGroup(g: GroupedOrder<Order>) {
+    if (!(await setGroupStatus(g, "accepted"))) return;
     toast.success("Order accepted — prepare it when ready");
     loadData();
   }
 
-  async function markPreparing(orderId: string) {
-
-    const { error } = await supabase.from("orders").update({ status: "preparing" }).eq("id", orderId);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Order marked preparing");
+  async function markGroupPreparing(g: GroupedOrder<Order>) {
+    if (!(await setGroupStatus(g, "preparing"))) return;
+    toast.success("Package marked preparing");
     loadData();
   }
+
 
   // Ensure a deliveries row exists for the order; returns true on success.
   async function ensureDeliveryRow(orderId: string, driverId: string | null): Promise<boolean> {
