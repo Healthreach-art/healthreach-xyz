@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { History, Repeat, Download, Search, X, Star, FileText } from "lucide-react";
+import { History, Repeat, Download, Search, X, Star, FileText, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { downloadReceiptPdf } from "@/lib/receipt";
 import { toast } from "sonner";
@@ -71,6 +71,7 @@ export function OrderHistory() {
         .from("orders")
         .select("id, order_group_id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at, prescription_upload_id")
         .eq("patient_id", user.id)
+        .is("hidden_for_patient_at", null)
         .order("created_at", { ascending: false });
       const rows = (ords ?? []) as OrderRow[];
       setOrders(rows);
@@ -159,6 +160,28 @@ export function OrderHistory() {
     });
   }
 
+  async function hideGroup(g: GroupedOrder<OrderRow>) {
+    if (["pending", "accepted", "preparing", "ready", "out_for_delivery"].includes(g.status)) {
+      toast.error("This order is still active. Cancel it first, then remove it from history.");
+      return;
+    }
+    if (!confirm("Remove this order from your history? It will only be hidden from your view.")) return;
+    const targetId = g.group?.id || g.primaryOrderId;
+    const { error } = await supabase.rpc("hide_order_group_for_patient" as never, { _group_id: targetId } as never);
+    if (error) { toast.error(error.message); return; }
+    setGroups((prev) => prev.filter((x) => x.key !== g.key));
+    toast.success("Removed from history");
+  }
+
+  async function clearHistory() {
+    if (!confirm("Clear all delivered and cancelled orders from your history? Active orders are kept.")) return;
+    const { error } = await supabase.rpc("clear_patient_order_history" as never);
+    if (error) { toast.error(error.message); return; }
+    setGroups((prev) => prev.filter((g) => !["delivered", "cancelled", "rejected"].includes(g.status)));
+    toast.success("History cleared");
+  }
+
+
   const filteredGroups = groups.filter((g) => {
     if (filter === "active" && ["delivered", "cancelled"].includes(g.status)) return false;
     if (filter === "delivered" && g.status !== "delivered") return false;
@@ -168,12 +191,19 @@ export function OrderHistory() {
 
   return (
     <div className="healthcare-card p-6">
-      <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-        <History className="h-5 w-5 text-primary" /> Order History
-        <span className="inline-flex h-2 w-2 rounded-full bg-healthcare-green animate-pulse" aria-hidden />
-        <span className="text-[10px] uppercase tracking-wide text-healthcare-green font-semibold">Live</span>
-        <span className="ml-auto text-xs font-normal text-muted-foreground">{groups.length} order{groups.length === 1 ? "" : "s"}</span>
-      </h2>
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <History className="h-5 w-5 text-primary" /> Order History
+          <span className="inline-flex h-2 w-2 rounded-full bg-healthcare-green animate-pulse" aria-hidden />
+          <span className="text-[10px] uppercase tracking-wide text-healthcare-green font-semibold">Live</span>
+        </h2>
+        <span className="text-xs font-normal text-muted-foreground">{groups.length} order{groups.length === 1 ? "" : "s"}</span>
+        {groups.some((g) => ["delivered", "cancelled", "rejected"].includes(g.status)) && (
+          <Button size="sm" variant="ghost" className="ml-auto h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={clearHistory}>
+            <Trash2 className="h-3 w-3" /> Clear history
+          </Button>
+        )}
+      </div>
       <div className="flex gap-2 mb-3">
         {(["all", "active", "delivered"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
@@ -258,6 +288,11 @@ export function OrderHistory() {
                         <Link to="/payment" search={{ medId: first.medication_id ?? undefined, pharmacyId: first.pharmacy_id, name: first.medication_name, price: Number(first.total_amount) / Math.max(1, first.quantity), qty: first.quantity }}>
                           <Repeat className="h-3 w-3" /> Reorder
                         </Link>
+                      </Button>
+                    )}
+                    {!active && (
+                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={() => hideGroup(g)}>
+                        <Trash2 className="h-3 w-3" /> Remove
                       </Button>
                     )}
                   </div>

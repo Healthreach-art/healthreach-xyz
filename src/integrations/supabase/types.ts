@@ -1092,6 +1092,7 @@ export type Database = {
           delivery_km: number | null
           delivery_lat: number | null
           delivery_lng: number | null
+          hidden_for_patient_at: string | null
           id: string
           notes: string | null
           patient_id: string
@@ -1117,6 +1118,7 @@ export type Database = {
           delivery_km?: number | null
           delivery_lat?: number | null
           delivery_lng?: number | null
+          hidden_for_patient_at?: string | null
           id?: string
           notes?: string | null
           patient_id: string
@@ -1142,6 +1144,7 @@ export type Database = {
           delivery_km?: number | null
           delivery_lat?: number | null
           delivery_lng?: number | null
+          hidden_for_patient_at?: string | null
           id?: string
           notes?: string | null
           patient_id?: string
@@ -1203,6 +1206,7 @@ export type Database = {
           delivery_km: number | null
           delivery_lat: number | null
           delivery_lng: number | null
+          hidden_for_patient_at: string | null
           id: string
           is_demo: boolean
           medication_id: string | null
@@ -1236,6 +1240,7 @@ export type Database = {
           delivery_km?: number | null
           delivery_lat?: number | null
           delivery_lng?: number | null
+          hidden_for_patient_at?: string | null
           id?: string
           is_demo?: boolean
           medication_id?: string | null
@@ -1269,6 +1274,7 @@ export type Database = {
           delivery_km?: number | null
           delivery_lat?: number | null
           delivery_lng?: number | null
+          hidden_for_patient_at?: string | null
           id?: string
           is_demo?: boolean
           medication_id?: string | null
@@ -2285,6 +2291,7 @@ export type Database = {
         Args: { _pharmacy_id: string; _upload_id: string }
         Returns: undefined
       }
+      clear_patient_order_history: { Args: never; Returns: Json }
       consume_prescription_repeat: {
         Args: { _upload_id: string }
         Returns: string
@@ -2365,6 +2372,10 @@ export type Database = {
       haversine_km: {
         Args: { lat1: number; lat2: number; lon1: number; lon2: number }
         Returns: number
+      }
+      hide_order_group_for_patient: {
+        Args: { _group_id: string }
+        Returns: Json
       }
       is_order_participant: {
         Args: { _order_id: string; _user_id: string }

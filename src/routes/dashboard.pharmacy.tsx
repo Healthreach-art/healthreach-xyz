@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import pharmacyHero from "@/assets/pharmacy-1.jpg";
 import medGeneric from "@/assets/med-generic.jpg";
@@ -551,24 +551,12 @@ function PharmacyDashboard() {
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {[
-          { icon: ShoppingCart, label: "Pending Orders", value: String(pendingCount), color: "text-primary", target: "orders-section" },
-          { icon: Package, label: "Total Products", value: String(inventory.length), color: "text-healthcare-teal", target: "inventory-section" },
-          { icon: AlertTriangle, label: "Low Stock", value: String(lowStockItems.length), color: "text-destructive", target: "inventory-section" },
-          { icon: DollarSign, label: "Revenue (Total)", value: `R ${monthRevenue.toFixed(0)}`, color: "text-healthcare-green", target: "orders-section" },
-        ].map((stat) => (
-          <a
-            key={stat.label}
-            href={`#${stat.target}`}
-            onClick={(e) => {
-              e.preventDefault();
-              const el = document.getElementById(stat.target);
-              if (el) {
-                history.replaceState(null, "", `#${stat.target}`);
-                el.scrollIntoView({ behavior: "smooth", block: "start" });
-              }
-            }}
-            className="healthcare-card p-5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
+          { icon: ShoppingCart, label: "Pending Orders", value: String(pendingCount), color: "text-primary", to: null, target: "orders-section" },
+          { icon: Package, label: "Total Products", value: String(inventory.length), color: "text-healthcare-teal", to: "/dashboard/pharmacy/inventory", target: null },
+          { icon: AlertTriangle, label: "Low Stock", value: String(lowStockItems.length), color: "text-destructive", to: "/dashboard/pharmacy/low-stock", target: null },
+          { icon: DollarSign, label: "Revenue (Total)", value: `R ${monthRevenue.toFixed(0)}`, color: "text-healthcare-green", to: null, target: "orders-section" },
+        ].map((stat) => {
+          const body = (
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
@@ -578,8 +566,27 @@ function PharmacyDashboard() {
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
             </div>
-          </a>
-        ))}
+          );
+          const className = "healthcare-card p-5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary block";
+          if (stat.to) {
+            return <Link key={stat.label} to={stat.to} className={className}>{body}</Link>;
+          }
+          return (
+            <a
+              key={stat.label}
+              href={`#${stat.target}`}
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById(stat.target!);
+                if (el) {
+                  history.replaceState(null, "", `#${stat.target}`);
+                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }}
+              className={className}
+            >{body}</a>
+          );
+        })}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 mb-6">
@@ -589,19 +596,26 @@ function PharmacyDashboard() {
       </div>
 
       {lowStockItems.length > 0 && (
-        <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+        <Link
+          to="/dashboard/pharmacy/low-stock"
+          className="mb-6 block rounded-lg border border-destructive/30 bg-destructive/5 p-4 hover:bg-destructive/10 transition-colors"
+        >
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             <span className="text-sm font-semibold text-destructive">Low Stock Alerts</span>
+            <span className="ml-auto text-[11px] text-destructive/80 font-medium">Open Low Stock →</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {lowStockItems.map((item) => (
+            {lowStockItems.slice(0, 8).map((item) => (
               <span key={item.id} className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-3 py-1 text-xs text-destructive">
                 <TrendingDown className="h-3 w-3" /> {item.name} ({item.stock_quantity} left)
               </span>
             ))}
+            {lowStockItems.length > 8 && (
+              <span className="text-xs text-destructive/80 self-center">+{lowStockItems.length - 8} more</span>
+            )}
           </div>
-        </div>
+        </Link>
       )}
 
       {loading && (
@@ -618,15 +632,17 @@ function PharmacyDashboard() {
             </span>
             <span className="ml-auto text-xs font-normal text-muted-foreground">{liveDeliveries.length} in progress</span>
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {liveDeliveries.map((d) => (
-              <DeliveryTimelineCard key={d.id} delivery={d} onChat={setChatOrderId} />
-            ))}
+          <div className="max-h-[60vh] overflow-y-auto pr-1">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {liveDeliveries.map((d) => (
+                <DeliveryTimelineCard key={d.id} delivery={d} onChat={setChatOrderId} />
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="space-y-6">
         {/* Incoming Orders */}
         <div id="orders-section" className="healthcare-card p-6 scroll-mt-20">
           <div className="flex items-center justify-between mb-4">
@@ -639,7 +655,7 @@ function PharmacyDashboard() {
           {!loading && orderGroups.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center">No orders yet. Add medications to your inventory so patients can find and order from you.</p>
           )}
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
             {orderGroups.map((g) => {
               const itemCount = g.items.reduce((s, i) => s + i.quantity, 0);
               return (
@@ -703,77 +719,6 @@ function PharmacyDashboard() {
                   {!["pending", "accepted", "preparing"].includes(g.status) && (
                     <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-accent capitalize">{g.status.replace(/_/g, " ")}</span>
                   )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-
-        {/* Inventory */}
-        <div id="inventory-section" className="healthcare-card p-6 scroll-mt-20">
-          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-            <h2 className="text-lg font-semibold text-foreground">Inventory</h2>
-            <div className="flex items-center gap-2">
-              <BulkMedicineImportDialog onImported={loadData} />
-              <Button size="sm" variant="outline" onClick={openAddMedication}>+ Add Item</Button>
-            </div>
-          </div>
-
-          {!loading && inventory.length === 0 && (
-            <p className="text-sm text-muted-foreground py-6 text-center">Your inventory is empty. Click "+ Add Item" to add medications.</p>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {inventory.map((item) => {
-              const low = item.stock_quantity <= LOW_STOCK_THRESHOLD;
-              const out = item.stock_quantity === 0;
-              const expSoon = item.expiry_date && (new Date(item.expiry_date).getTime() - Date.now()) < 1000 * 60 * 60 * 24 * 30;
-              const expired = item.expiry_date && new Date(item.expiry_date).getTime() < Date.now();
-              return (
-                <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="relative h-24 overflow-hidden">
-                    <img src={item.image_url || medGeneric} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                    <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                      out ? "bg-muted text-muted-foreground" : low ? "bg-destructive text-destructive-foreground" : "bg-healthcare-green text-primary-foreground"
-                    }`}>
-                      {out ? "Hidden — out of stock" : `${item.stock_quantity} units`}
-                    </span>
-                    {(expired || expSoon) && (
-                      <span className={`absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${expired ? "bg-destructive text-destructive-foreground" : "bg-healthcare-sky/90 text-primary-foreground"}`}>
-                        {expired ? "Expired" : "Expires soon"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.category || "—"} · R {Number(item.price).toFixed(2)}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Customer sees <span className="font-semibold text-foreground">R {customerPrice(item.price).toFixed(2)}</span></p>
-                    {(item.batch_number || item.expiry_date) && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {item.batch_number ? `Batch ${item.batch_number}` : ""}
-                        {item.batch_number && item.expiry_date ? " · " : ""}
-                        {item.expiry_date ? `Exp ${new Date(item.expiry_date).toLocaleDateString()}` : ""}
-                      </p>
-                    )}
-                    <div className="mt-3 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1">
-                        <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, +1)}>
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => openEditMedication(item)}>
-                          <Pencil className="h-3 w-3" /> Edit
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               );
             })}
