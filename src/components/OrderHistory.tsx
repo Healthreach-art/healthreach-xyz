@@ -179,6 +179,8 @@ export function OrderHistory() {
     if (error) { toast.error(error.message); return; }
     setGroups((prev) => prev.filter((g) => !["delivered", "cancelled", "rejected"].includes(g.status)));
     toast.success("History cleared");
+  }
+
 
   const filteredGroups = groups.filter((g) => {
     if (filter === "active" && ["delivered", "cancelled"].includes(g.status)) return false;
