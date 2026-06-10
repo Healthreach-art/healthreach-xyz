@@ -68,11 +68,12 @@ export function OrderHistory() {
     const load = async () => {
       const { data: ords } = await supabase
         .from("orders")
-        .select("id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at, prescription_upload_id")
+        .select("id, order_group_id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at, prescription_upload_id")
         .eq("patient_id", user.id)
         .order("created_at", { ascending: false });
       const rows = (ords ?? []) as OrderRow[];
       setOrders(rows);
+      setGroups(await groupAndHydrate<OrderRow>(rows));
       const ids = rows.map((o) => o.id);
       if (ids.length === 0) return;
       const [{ data: dels }, { data: revs }] = await Promise.all([
