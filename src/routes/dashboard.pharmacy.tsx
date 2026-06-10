@@ -642,7 +642,7 @@ function PharmacyDashboard() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="space-y-6">
         {/* Incoming Orders */}
         <div id="orders-section" className="healthcare-card p-6 scroll-mt-20">
           <div className="flex items-center justify-between mb-4">
