@@ -31,10 +31,20 @@ interface Delivery {
 
 interface OrderRow {
   id: string;
+  order_group_id: string | null;
   status: string;
   medication_name: string;
+  quantity: number;
+  total_amount: number;
   delivery_address: string | null;
   updated_at: string;
+}
+
+interface GroupInfo {
+  id: string;
+  delivery_code: string | null;
+  status: string;
+  total_amount: number;
 }
 
 const stepDef: { key: string; label: string; icon: typeof CheckCircle2 }[] = [
@@ -61,6 +71,8 @@ function stepFromState(orderStatus: string | null, deliveryStatus: DeliveryStatu
 function TrackPage() {
   const { user } = useAuth();
   const [order, setOrder] = useState<OrderRow | null>(null);
+  const [groupItems, setGroupItems] = useState<OrderRow[]>([]);
+  const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null);
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [loading, setLoading] = useState(true);
   const [pulse, setPulse] = useState(false);
@@ -70,26 +82,49 @@ function TrackPage() {
     if (!user) { setLoading(false); return; }
 
     async function load() {
-      // Most recent non-cancelled order
+      // Most recent non-cancelled order — but we want the GROUP it belongs to
       const { data: orders } = await supabase
         .from("orders")
-        .select("id, status, medication_name, delivery_address, updated_at")
+        .select("id, order_group_id, status, medication_name, quantity, total_amount, delivery_address, updated_at")
         .eq("patient_id", user!.id)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false })
         .limit(1);
-      if (!orders || orders.length === 0) { setOrder(null); setDelivery(null); setLoading(false); return; }
+      if (!orders || orders.length === 0) {
+        setOrder(null); setGroupItems([]); setGroupInfo(null); setDelivery(null); setLoading(false); return;
+      }
       const o = orders[0] as OrderRow;
       setOrder(o);
 
-      const { data: del } = await supabase
-        .from("deliveries").select("*").eq("order_id", o.id).maybeSingle();
-      setDelivery((del ?? null) as Delivery | null);
+      // Pull every sibling in the same group + the group row itself
+      if (o.order_group_id) {
+        const [{ data: siblings }, { data: gRow }] = await Promise.all([
+          supabase.from("orders")
+            .select("id, order_group_id, status, medication_name, quantity, total_amount, delivery_address, updated_at")
+            .eq("order_group_id", o.order_group_id)
+            .order("created_at", { ascending: true }),
+          supabase.from("order_groups" as never)
+            .select("id, delivery_code, status, total_amount")
+            .eq("id", o.order_group_id).maybeSingle(),
+        ]);
+        setGroupItems(((siblings ?? []) as OrderRow[]));
+        setGroupInfo((gRow as GroupInfo | null) ?? null);
+        // Delivery is keyed by group when grouped
+        const { data: del } = await supabase
+          .from("deliveries").select("*").eq("order_group_id", o.order_group_id).maybeSingle();
+        setDelivery((del ?? null) as Delivery | null);
+      } else {
+        setGroupItems([o]);
+        setGroupInfo(null);
+        const { data: del } = await supabase
+          .from("deliveries").select("*").eq("order_id", o.id).maybeSingle();
+        setDelivery((del ?? null) as Delivery | null);
+      }
 
       const { data: loc } = await supabase
         .from("driver_locations").select("lat, lng, speed, updated_at")
         .eq("order_id", o.id).maybeSingle();
-      if (loc) setDriverLoc(loc as any);
+      if (loc) setDriverLoc(loc as { lat: number; lng: number; speed: number | null; updated_at: string });
 
       setLoading(false);
     }
@@ -149,12 +184,21 @@ function TrackPage() {
     <div className="container-narrow px-4 sm:px-6 py-8">
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
             Track Your Order
             <span className={`inline-flex h-2 w-2 rounded-full bg-healthcare-green transition-all ${pulse ? "scale-150 shadow-[0_0_12px_currentColor]" : ""}`} />
             <span className="text-xs font-normal text-muted-foreground">Live</span>
+            {groupInfo?.delivery_code && (
+              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                CODE {groupInfo.delivery_code}
+              </span>
+            )}
           </h1>
-          {order && <p className="text-sm text-muted-foreground">Order <span className="font-mono">{order.id.slice(0, 8)}</span> · {order.medication_name}</p>}
+          {order && (
+            <p className="text-sm text-muted-foreground">
+              Package <span className="font-mono">{(order.order_group_id ?? order.id).slice(0, 8)}</span> · {groupItems.length} item{groupItems.length === 1 ? "" : "s"}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
@@ -264,8 +308,22 @@ function TrackPage() {
           </div>
 
           <div className="healthcare-card p-6 h-fit space-y-4">
-            <h2 className="text-lg font-semibold">Delivery Details</h2>
-            <div>
+            <h2 className="text-lg font-semibold">Package Contents</h2>
+            <ul className="space-y-1.5">
+              {groupItems.map((it) => (
+                <li key={it.id} className="flex justify-between gap-2 text-sm">
+                  <span className="font-medium">{it.medication_name} <span className="text-muted-foreground font-normal">× {it.quantity}</span></span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">R {Number(it.total_amount).toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+            {groupInfo && (
+              <div className="pt-2 border-t border-border/60 flex justify-between text-sm">
+                <span className="text-muted-foreground">Total paid</span>
+                <span className="font-semibold">R {Number(groupInfo.total_amount).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="pt-2 border-t border-border/60">
               <p className="text-xs text-muted-foreground mb-1">Pickup</p>
               <p className="text-sm">{delivery?.pickup_address || "Pharmacy will set this when ready"}</p>
             </div>
@@ -273,7 +331,15 @@ function TrackPage() {
               <p className="text-xs text-muted-foreground mb-1">Drop-off</p>
               <p className="text-sm">{delivery?.delivery_address || order.delivery_address || "—"}</p>
             </div>
+            {groupInfo?.delivery_code && (
+              <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Delivery code</p>
+                <p className="text-xl font-mono font-bold text-primary mt-1">{groupInfo.delivery_code}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Share this with the driver on arrival.</p>
+              </div>
+            )}
           </div>
+
         </div>
       )}
     </div>

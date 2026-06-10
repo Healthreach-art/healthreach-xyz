@@ -41,6 +41,7 @@ import { LiveETACard } from "@/components/LiveETACard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
 import { dispatchOrderToNearbyDrivers } from "@/lib/driver-dispatch.functions";
+import { groupAndHydrate, type GroupedOrder } from "@/lib/orderGroups";
 
 
 import { RoleGuard } from "@/components/RoleGuard";
@@ -64,6 +65,7 @@ interface Medication {
 
 interface Order {
   id: string;
+  order_group_id: string | null;
   patient_id: string;
   medication_name: string;
   quantity: number;
@@ -96,6 +98,7 @@ function PharmacyDashboard() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [orderGroups, setOrderGroups] = useState<GroupedOrder<Order>[]>([]);
   const [liveDeliveries, setLiveDeliveries] = useState<LiveDelivery[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -153,7 +156,9 @@ function PharmacyDashboard() {
       supabase.from("orders").select("*").eq("pharmacy_id", user.id).eq("is_demo", false).order("created_at", { ascending: false }),
     ]);
     setInventory((medsRes.data ?? []) as Medication[]);
-    setOrders((ordersRes.data ?? []) as Order[]);
+    const ordersList = (ordersRes.data ?? []) as Order[];
+    setOrders(ordersList);
+    setOrderGroups(await groupAndHydrate<Order>(ordersList));
 
     // Load live deliveries (in-progress) for this pharmacy's orders
     const myOrderIds = (ordersRes.data ?? []).map((o) => o.id);
@@ -364,28 +369,35 @@ function PharmacyDashboard() {
     loadData();
   }
 
-  async function rejectOrder(orderId: string) {
+  // ---- Group-aware bulk actions (apply to ALL items in the package) ----
+  async function setGroupStatus(g: GroupedOrder<Order>, status: "cancelled" | "accepted" | "preparing" | "ready") {
+    const ids = g.items.map((i) => i.id);
+    const { error } = await supabase.from("orders").update({ status }).in("id", ids);
+    if (error) { toast.error(error.message); return false; }
+    if (g.group?.id) {
+      await supabase.from("order_groups" as never).update({ status } as never).eq("id", g.group.id);
+    }
+    return true;
+  }
 
-    const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
-    if (error) { toast.error(error.message); return; }
+  async function rejectGroup(g: GroupedOrder<Order>) {
+    if (!(await setGroupStatus(g, "cancelled"))) return;
     toast.success("Order rejected");
     loadData();
   }
 
-  async function acceptOrder(orderId: string) {
-    const { error } = await supabase.from("orders").update({ status: "accepted" }).eq("id", orderId);
-    if (error) { toast.error(error.message); return; }
+  async function acceptGroup(g: GroupedOrder<Order>) {
+    if (!(await setGroupStatus(g, "accepted"))) return;
     toast.success("Order accepted — prepare it when ready");
     loadData();
   }
 
-  async function markPreparing(orderId: string) {
-
-    const { error } = await supabase.from("orders").update({ status: "preparing" }).eq("id", orderId);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Order marked preparing");
+  async function markGroupPreparing(g: GroupedOrder<Order>) {
+    if (!(await setGroupStatus(g, "preparing"))) return;
+    toast.success("Package marked preparing");
     loadData();
   }
+
 
   // Ensure a deliveries row exists for the order; returns true on success.
   async function ensureDeliveryRow(orderId: string, driverId: string | null): Promise<boolean> {
@@ -417,17 +429,16 @@ function PharmacyDashboard() {
     return true;
   }
 
-  // Marks order ready and broadcasts driver offers. The delivery row is only
-  // created when a driver manually accepts, so tracking does not jump ahead.
-  async function markReadyAndBroadcast(orderId: string) {
+  // Marks ALL items in a group as ready and broadcasts ONE driver offer keyed
+  // off the first order id (the delivery is created per-group by the DB trigger).
+  async function markGroupReadyAndBroadcast(g: GroupedOrder<Order>) {
     if (!user) return;
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return;
-    const { error: orderErr } = await supabase.from("orders").update({ status: "ready" }).eq("id", orderId);
-    if (orderErr) { toast.error(orderErr.message); return; }
-    await broadcastToDrivers(order);
+    if (!(await setGroupStatus(g, "ready"))) return;
+    const first = g.items[0];
+    if (first) await broadcastToDrivers(first);
     loadData();
   }
+
 
   async function assignDriver(driverId: string) {
     if (!assignOrder) return;
@@ -622,54 +633,79 @@ function PharmacyDashboard() {
               Refresh
             </Button>
           </div>
-          {!loading && orders.length === 0 && (
+          {!loading && orderGroups.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center">No orders yet. Add medications to your inventory so patients can find and order from you.</p>
           )}
           <div className="space-y-3">
-            {orders.map((order) => (
-              <div key={order.id} className="rounded-lg border border-border p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono text-muted-foreground">{order.id.slice(0, 8)}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
-                    <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
-                      <MessageCircle className="h-3 w-3" /> Chat
-                    </Button>
+            {orderGroups.map((g) => {
+              const itemCount = g.items.reduce((s, i) => s + i.quantity, 0);
+              return (
+                <div key={g.key} className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-muted-foreground">{g.key.slice(0, 8)}</span>
+                      {g.delivery_code && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                          CODE {g.delivery_code}
+                        </span>
+                      )}
+                      {g.priority && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive/15 text-destructive font-semibold">PRIORITY</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{new Date(g.created_at).toLocaleDateString()}</span>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(g.primaryOrderId)}>
+                        <MessageCircle className="h-3 w-3" /> Chat
+                      </Button>
+                    </div>
                   </div>
+
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {g.items.length} item{g.items.length === 1 ? "" : "s"} · {itemCount} unit{itemCount === 1 ? "" : "s"} · one package
+                  </p>
+                  <ul className="text-sm space-y-0.5 mb-2">
+                    {g.items.map((it) => (
+                      <li key={it.id} className="flex justify-between gap-2">
+                        <span className="text-foreground">{it.medication_name} <span className="text-muted-foreground">× {it.quantity}</span></span>
+                        <span className="text-muted-foreground">R {Number(it.total_amount).toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">Package total: <span className="font-semibold text-foreground">R {g.total.toFixed(2)}</span></p>
+
+                  {g.status === "pending" && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Button size="sm" variant="default" className="gap-1" onClick={() => acceptGroup(g)}>
+                        <CheckCircle className="h-3 w-3" /> Accept Order
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectGroup(g)}>
+                        <XCircle className="h-3 w-3" /> Reject
+                      </Button>
+                    </div>
+                  )}
+
+                  {g.status === "accepted" && (
+                    <Button size="sm" variant="secondary" className="mt-3" onClick={() => markGroupPreparing(g)}>
+                      <Pill className="h-3 w-3 mr-1" /> Mark as Preparing
+                    </Button>
+                  )}
+
+                  {g.status === "preparing" && (
+                    <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markGroupReadyAndBroadcast(g)}>
+                      <Truck className="h-3 w-3" /> Mark Ready & Broadcast to Drivers
+                    </Button>
+                  )}
+
+                  {!["pending", "accepted", "preparing"].includes(g.status) && (
+                    <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-accent capitalize">{g.status.replace(/_/g, " ")}</span>
+                  )}
                 </div>
-                <p className="text-sm font-medium text-foreground">{order.medication_name} × {order.quantity}</p>
-                <p className="text-xs text-muted-foreground mt-1">Total: R {Number(order.total_amount).toFixed(2)}</p>
-
-                {order.status === "pending" && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <Button size="sm" variant="default" className="gap-1" onClick={() => acceptOrder(order.id)}>
-                      <CheckCircle className="h-3 w-3" /> Accept Order
-                    </Button>
-                    <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectOrder(order.id)}>
-                      <XCircle className="h-3 w-3" /> Reject
-                    </Button>
-                  </div>
-                )}
-
-                {order.status === "accepted" && (
-                  <Button size="sm" variant="secondary" className="mt-3" onClick={() => markPreparing(order.id)}>
-                    <Pill className="h-3 w-3 mr-1" /> Mark as Preparing
-                  </Button>
-                )}
-
-                {order.status === "preparing" && (
-                  <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markReadyAndBroadcast(order.id)}>
-                    <Truck className="h-3 w-3" /> Mark Ready & Broadcast to Drivers
-                  </Button>
-                )}
-
-                {!["pending", "accepted", "preparing"].includes(order.status) && (
-                  <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-accent capitalize">{order.status.replace(/_/g, " ")}</span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
+
 
         {/* Inventory */}
         <div id="inventory-section" className="healthcare-card p-6 scroll-mt-20">
