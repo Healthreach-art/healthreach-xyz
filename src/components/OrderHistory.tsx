@@ -290,6 +290,11 @@ export function OrderHistory() {
                         </Link>
                       </Button>
                     )}
+                    {!active && (
+                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={() => hideGroup(g)}>
+                        <Trash2 className="h-3 w-3" /> Remove
+                      </Button>
+                    )}
                   </div>
                 </div>
                 {active && (
