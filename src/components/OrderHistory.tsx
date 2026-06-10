@@ -158,10 +158,10 @@ export function OrderHistory() {
     });
   }
 
-  const filtered = orders.filter((o) => {
-    if (filter === "active" && ["delivered", "cancelled"].includes(o.status)) return false;
-    if (filter === "delivered" && o.status !== "delivered") return false;
-    if (q && !o.medication_name.toLowerCase().includes(q.toLowerCase())) return false;
+  const filteredGroups = groups.filter((g) => {
+    if (filter === "active" && ["delivered", "cancelled"].includes(g.status)) return false;
+    if (filter === "delivered" && g.status !== "delivered") return false;
+    if (q && !g.items.some((it) => it.medication_name.toLowerCase().includes(q.toLowerCase()))) return false;
     return true;
   });
 
@@ -171,7 +171,7 @@ export function OrderHistory() {
         <History className="h-5 w-5 text-primary" /> Order History
         <span className="inline-flex h-2 w-2 rounded-full bg-healthcare-green animate-pulse" aria-hidden />
         <span className="text-[10px] uppercase tracking-wide text-healthcare-green font-semibold">Live</span>
-        <span className="ml-auto text-xs font-normal text-muted-foreground">{orders.length} total</span>
+        <span className="ml-auto text-xs font-normal text-muted-foreground">{groups.length} order{groups.length === 1 ? "" : "s"}</span>
       </h2>
       <div className="flex gap-2 mb-3">
         {(["all", "active", "delivered"] as const).map((f) => (
@@ -185,77 +185,97 @@ export function OrderHistory() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input placeholder="Search past orders..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-8 h-9" />
       </div>
-      {filtered.length === 0 ? (
+      {filteredGroups.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-6">No orders match.</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map((o) => {
-            const active = !["delivered", "cancelled"].includes(o.status);
+          {filteredGroups.map((g) => {
+            const active = !["delivered", "cancelled"].includes(g.status);
+            const first = g.items[0];
+            const driverAssigned = g.items.some((it) => driverByOrder[it.id]);
+            const itemCount = g.items.reduce((s, i) => s + i.quantity, 0);
             return (
-            <div key={o.id} className={`rounded-lg border p-3 transition-all ${pulseId === o.id ? "border-primary shadow-md ring-2 ring-primary/30" : "border-border"}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-mono text-muted-foreground">{o.id.slice(0, 8)}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${statusColors[o.status] ?? "bg-accent"}`}>
-                  {active && <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />}
-                  {statusLabels[o.status] ?? o.status.replace(/_/g, " ")}
-                </span>
+              <div key={g.key} className={`rounded-lg border p-3 transition-all ${pulseId === g.primaryOrderId ? "border-primary shadow-md ring-2 ring-primary/30" : "border-border"}`}>
+                <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-muted-foreground">{g.key.slice(0, 8)}</span>
+                    {g.delivery_code && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                        CODE {g.delivery_code}
+                      </span>
+                    )}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${statusColors[g.status] ?? "bg-accent"}`}>
+                    {active && <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />}
+                    {statusLabels[g.status] ?? g.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <ul className="text-sm space-y-0.5">
+                  {g.items.map((it) => (
+                    <li key={it.id} className="flex justify-between gap-2">
+                      <span className="font-medium">{it.medication_name} <span className="text-muted-foreground font-normal">× {it.quantity}</span></span>
+                      <span className="text-xs text-muted-foreground">R {Number(it.total_amount).toFixed(2)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
+                  <div className="flex gap-3 text-xs text-muted-foreground">
+                    <span>{new Date(g.created_at).toLocaleDateString()}</span>
+                    <span>{g.items.length} item{g.items.length === 1 ? "" : "s"} · {itemCount} unit{itemCount === 1 ? "" : "s"}</span>
+                    <span className="font-semibold text-foreground">R {g.total.toFixed(2)}</span>
+                  </div>
+                  <div className="flex gap-1 flex-wrap">
+                    {active && (
+                      <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
+                        <Link to="/track">Track</Link>
+                      </Button>
+                    )}
+                    {active && !driverAssigned && g.status !== "out_for_delivery" && (
+                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={() => handleCancel(g.primaryOrderId)} disabled={cancellingId === g.primaryOrderId}>
+                        <X className="h-3 w-3" /> {cancellingId === g.primaryOrderId ? "Cancelling…" : "Cancel"}
+                      </Button>
+                    )}
+                    {g.status === "delivered" && first && !reviewedOrders.has(first.id) && (
+                      <Button size="sm" variant="default" className="h-7 text-xs gap-1 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setReviewFor(first)}>
+                        <Star className="h-3 w-3" /> Rate
+                      </Button>
+                    )}
+                    {g.items.some((it) => it.prescription_upload_id) && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" asChild>
+                        <Link to="/dashboard/patient/prescriptions">
+                          <FileText className="h-3 w-3" /> View Rx
+                        </Link>
+                      </Button>
+                    )}
+                    {first && (
+                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => downloadInvoice(first)}>
+                        <Download className="h-3 w-3" /> Invoice
+                      </Button>
+                    )}
+                    {first && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" asChild>
+                        <Link to="/payment" search={{ medId: first.medication_id ?? undefined, pharmacyId: first.pharmacy_id, name: first.medication_name, price: Number(first.total_amount) / Math.max(1, first.quantity), qty: first.quantity }}>
+                          <Repeat className="h-3 w-3" /> Reorder
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {active && (
+                  <div className="mt-3 space-y-2 pt-3 border-t border-border/60">
+                    <OrderTimeline orderId={g.primaryOrderId} initialOrderStatus={g.status} compact />
+                    {["ready", "out_for_delivery"].includes(g.status) && (
+                      <LiveETACard orderId={g.primaryOrderId} deliveryStatus={g.status === "ready" ? "assigned" : "in_transit"} />
+                    )}
+                    {!driverAssigned && (
+                      <p className="text-[11px] text-muted-foreground">You can still cancel this order — no driver has been assigned yet.</p>
+                    )}
+                    {driverAssigned && (
+                      <p className="text-[11px] text-amber-700 dark:text-amber-400">Driver assigned — cancellation now requires contacting support.</p>
+                    )}
+                  </div>
+                )}
               </div>
-              <p className="text-sm font-medium">{o.medication_name}</p>
-              <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
-                <div className="flex gap-3 text-xs text-muted-foreground">
-                  <span>{new Date(o.created_at).toLocaleDateString()}</span>
-                  <span>Qty {o.quantity}</span>
-                  <span>R {Number(o.total_amount).toFixed(2)}</span>
-                </div>
-                <div className="flex gap-1 flex-wrap">
-                  {active && (
-                    <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
-                      <Link to="/track">Track</Link>
-                    </Button>
-                  )}
-                  {active && !driverByOrder[o.id] && o.status !== "out_for_delivery" && (
-                    <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={() => handleCancel(o.id)} disabled={cancellingId === o.id}>
-                      <X className="h-3 w-3" /> {cancellingId === o.id ? "Cancelling…" : "Cancel"}
-                    </Button>
-                  )}
-                  {o.status === "delivered" && !reviewedOrders.has(o.id) && (
-                    <Button size="sm" variant="default" className="h-7 text-xs gap-1 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setReviewFor(o)}>
-                      <Star className="h-3 w-3" /> Rate
-                    </Button>
-                  )}
-                  {o.prescription_upload_id && (
-                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" asChild>
-                      <Link to="/dashboard/patient/prescriptions">
-                        <FileText className="h-3 w-3" /> View Rx
-                      </Link>
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => downloadInvoice(o)}>
-                    <Download className="h-3 w-3" /> Invoice
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" asChild>
-                    <Link to="/payment" search={{ medId: o.medication_id ?? undefined, pharmacyId: o.pharmacy_id, name: o.medication_name, price: Number(o.total_amount) / Math.max(1, o.quantity), qty: o.quantity }}>
-                      <Repeat className="h-3 w-3" /> Reorder
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-              {active && (
-                <div className="mt-3 space-y-2 pt-3 border-t border-border/60">
-                  <OrderTimeline orderId={o.id} initialOrderStatus={o.status} compact />
-                  {["ready", "out_for_delivery"].includes(o.status) && (
-                    <LiveETACard orderId={o.id} deliveryStatus={o.status === "ready" ? "assigned" : "in_transit"} />
-                  )}
-                  {active && !driverByOrder[o.id] && (
-                    <p className="text-[11px] text-muted-foreground">You can still cancel this order — no driver has been assigned yet.</p>
-                  )}
-                  {active && driverByOrder[o.id] && (
-                    <p className="text-[11px] text-amber-700 dark:text-amber-400">Driver assigned — cancellation now requires contacting support.</p>
-                  )}
-                </div>
-              )}
-            </div>
-
             );
           })}
         </div>
