@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { History, Repeat, Download, Search, X, Star, FileText } from "lucide-react";
+import { History, Repeat, Download, Search, X, Star, FileText, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { downloadReceiptPdf } from "@/lib/receipt";
 import { toast } from "sonner";
