@@ -633,54 +633,79 @@ function PharmacyDashboard() {
               Refresh
             </Button>
           </div>
-          {!loading && orders.length === 0 && (
+          {!loading && orderGroups.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center">No orders yet. Add medications to your inventory so patients can find and order from you.</p>
           )}
           <div className="space-y-3">
-            {orders.map((order) => (
-              <div key={order.id} className="rounded-lg border border-border p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono text-muted-foreground">{order.id.slice(0, 8)}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
-                    <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(order.id)}>
-                      <MessageCircle className="h-3 w-3" /> Chat
-                    </Button>
+            {orderGroups.map((g) => {
+              const itemCount = g.items.reduce((s, i) => s + i.quantity, 0);
+              return (
+                <div key={g.key} className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-muted-foreground">{g.key.slice(0, 8)}</span>
+                      {g.delivery_code && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                          CODE {g.delivery_code}
+                        </span>
+                      )}
+                      {g.priority && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive/15 text-destructive font-semibold">PRIORITY</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{new Date(g.created_at).toLocaleDateString()}</span>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setChatOrderId(g.primaryOrderId)}>
+                        <MessageCircle className="h-3 w-3" /> Chat
+                      </Button>
+                    </div>
                   </div>
+
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {g.items.length} item{g.items.length === 1 ? "" : "s"} · {itemCount} unit{itemCount === 1 ? "" : "s"} · one package
+                  </p>
+                  <ul className="text-sm space-y-0.5 mb-2">
+                    {g.items.map((it) => (
+                      <li key={it.id} className="flex justify-between gap-2">
+                        <span className="text-foreground">{it.medication_name} <span className="text-muted-foreground">× {it.quantity}</span></span>
+                        <span className="text-muted-foreground">R {Number(it.total_amount).toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">Package total: <span className="font-semibold text-foreground">R {g.total.toFixed(2)}</span></p>
+
+                  {g.status === "pending" && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Button size="sm" variant="default" className="gap-1" onClick={() => acceptGroup(g)}>
+                        <CheckCircle className="h-3 w-3" /> Accept Order
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectGroup(g)}>
+                        <XCircle className="h-3 w-3" /> Reject
+                      </Button>
+                    </div>
+                  )}
+
+                  {g.status === "accepted" && (
+                    <Button size="sm" variant="secondary" className="mt-3" onClick={() => markGroupPreparing(g)}>
+                      <Pill className="h-3 w-3 mr-1" /> Mark as Preparing
+                    </Button>
+                  )}
+
+                  {g.status === "preparing" && (
+                    <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markGroupReadyAndBroadcast(g)}>
+                      <Truck className="h-3 w-3" /> Mark Ready & Broadcast to Drivers
+                    </Button>
+                  )}
+
+                  {!["pending", "accepted", "preparing"].includes(g.status) && (
+                    <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-accent capitalize">{g.status.replace(/_/g, " ")}</span>
+                  )}
                 </div>
-                <p className="text-sm font-medium text-foreground">{order.medication_name} × {order.quantity}</p>
-                <p className="text-xs text-muted-foreground mt-1">Total: R {Number(order.total_amount).toFixed(2)}</p>
-
-                {order.status === "pending" && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <Button size="sm" variant="default" className="gap-1" onClick={() => acceptOrder(order.id)}>
-                      <CheckCircle className="h-3 w-3" /> Accept Order
-                    </Button>
-                    <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => rejectOrder(order.id)}>
-                      <XCircle className="h-3 w-3" /> Reject
-                    </Button>
-                  </div>
-                )}
-
-                {order.status === "accepted" && (
-                  <Button size="sm" variant="secondary" className="mt-3" onClick={() => markPreparing(order.id)}>
-                    <Pill className="h-3 w-3 mr-1" /> Mark as Preparing
-                  </Button>
-                )}
-
-                {order.status === "preparing" && (
-                  <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markReadyAndBroadcast(order.id)}>
-                    <Truck className="h-3 w-3" /> Mark Ready & Broadcast to Drivers
-                  </Button>
-                )}
-
-                {!["pending", "accepted", "preparing"].includes(order.status) && (
-                  <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-accent capitalize">{order.status.replace(/_/g, " ")}</span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
+
 
         {/* Inventory */}
         <div id="inventory-section" className="healthcare-card p-6 scroll-mt-20">
