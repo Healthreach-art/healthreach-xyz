@@ -55,6 +55,7 @@ function PatientDashboard() {
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
   const [driverName, setDriverName] = useState<string>("");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [mapPickup, setMapPickup] = useState<string | null>(null);
   const [mapDropoff, setMapDropoff] = useState<string | null>(null);
   const [pickupCode, setPickupCode] = useState<string | null>(null);
