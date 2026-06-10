@@ -31,10 +31,20 @@ interface Delivery {
 
 interface OrderRow {
   id: string;
+  order_group_id: string | null;
   status: string;
   medication_name: string;
+  quantity: number;
+  total_amount: number;
   delivery_address: string | null;
   updated_at: string;
+}
+
+interface GroupInfo {
+  id: string;
+  delivery_code: string | null;
+  status: string;
+  total_amount: number;
 }
 
 const stepDef: { key: string; label: string; icon: typeof CheckCircle2 }[] = [
@@ -61,6 +71,8 @@ function stepFromState(orderStatus: string | null, deliveryStatus: DeliveryStatu
 function TrackPage() {
   const { user } = useAuth();
   const [order, setOrder] = useState<OrderRow | null>(null);
+  const [groupItems, setGroupItems] = useState<OrderRow[]>([]);
+  const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null);
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [loading, setLoading] = useState(true);
   const [pulse, setPulse] = useState(false);
@@ -70,26 +82,49 @@ function TrackPage() {
     if (!user) { setLoading(false); return; }
 
     async function load() {
-      // Most recent non-cancelled order
+      // Most recent non-cancelled order — but we want the GROUP it belongs to
       const { data: orders } = await supabase
         .from("orders")
-        .select("id, status, medication_name, delivery_address, updated_at")
+        .select("id, order_group_id, status, medication_name, quantity, total_amount, delivery_address, updated_at")
         .eq("patient_id", user!.id)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false })
         .limit(1);
-      if (!orders || orders.length === 0) { setOrder(null); setDelivery(null); setLoading(false); return; }
+      if (!orders || orders.length === 0) {
+        setOrder(null); setGroupItems([]); setGroupInfo(null); setDelivery(null); setLoading(false); return;
+      }
       const o = orders[0] as OrderRow;
       setOrder(o);
 
-      const { data: del } = await supabase
-        .from("deliveries").select("*").eq("order_id", o.id).maybeSingle();
-      setDelivery((del ?? null) as Delivery | null);
+      // Pull every sibling in the same group + the group row itself
+      if (o.order_group_id) {
+        const [{ data: siblings }, { data: gRow }] = await Promise.all([
+          supabase.from("orders")
+            .select("id, order_group_id, status, medication_name, quantity, total_amount, delivery_address, updated_at")
+            .eq("order_group_id", o.order_group_id)
+            .order("created_at", { ascending: true }),
+          supabase.from("order_groups" as never)
+            .select("id, delivery_code, status, total_amount")
+            .eq("id", o.order_group_id).maybeSingle(),
+        ]);
+        setGroupItems(((siblings ?? []) as OrderRow[]));
+        setGroupInfo((gRow as GroupInfo | null) ?? null);
+        // Delivery is keyed by group when grouped
+        const { data: del } = await supabase
+          .from("deliveries").select("*").eq("order_group_id", o.order_group_id).maybeSingle();
+        setDelivery((del ?? null) as Delivery | null);
+      } else {
+        setGroupItems([o]);
+        setGroupInfo(null);
+        const { data: del } = await supabase
+          .from("deliveries").select("*").eq("order_id", o.id).maybeSingle();
+        setDelivery((del ?? null) as Delivery | null);
+      }
 
       const { data: loc } = await supabase
         .from("driver_locations").select("lat, lng, speed, updated_at")
         .eq("order_id", o.id).maybeSingle();
-      if (loc) setDriverLoc(loc as any);
+      if (loc) setDriverLoc(loc as { lat: number; lng: number; speed: number | null; updated_at: string });
 
       setLoading(false);
     }
