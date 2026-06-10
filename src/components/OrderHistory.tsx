@@ -53,6 +53,7 @@ const statusLabels: Record<string, string> = {
 export function OrderHistory() {
   const { user, profile } = useAuth();
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [groups, setGroups] = useState<GroupedOrder<OrderRow>[]>([]);
   const [filter, setFilter] = useState<"all" | "active" | "delivered">("all");
   const [q, setQ] = useState("");
   const [pulseId, setPulseId] = useState<string | null>(null);
