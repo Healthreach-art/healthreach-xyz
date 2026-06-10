@@ -43,7 +43,8 @@ export function AppSidebar() {
   const otherRoleItems: Item[] = user && role !== "patient" ? [
     { title: "Home", url: dashboardPath, icon: Home },
     ...(role === "pharmacy" ? [
-      { title: "Inventory", url: "/dashboard/pharmacy#inventory-section", icon: Pill },
+      { title: "Inventory", url: "/dashboard/pharmacy/inventory", icon: Pill },
+      { title: "Low Stock", url: "/dashboard/pharmacy/low-stock", icon: AlertTriangle },
       { title: "Orders", url: "/dashboard/pharmacy#orders-section", icon: ShoppingBag },
       { title: "Prescription Queue", url: "/dashboard/pharmacy#prescription-queue", icon: FileText },
     ] : []),
