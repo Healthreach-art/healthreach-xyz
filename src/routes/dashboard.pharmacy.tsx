@@ -1064,7 +1064,11 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
 
       {/* Unified real-time timeline */}
       <div className="mt-4">
-        <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} compact />
+        {delivery.order_group_id ? (
+          <OrderGroupTimeline orderGroupId={delivery.order_group_id} deliveryCode={delivery.pickup_code} />
+        ) : (
+          <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} compact />
+        )}
         <p className="text-[10px] text-muted-foreground mt-2 text-right">
           Last change {minsAgo === 0 ? "just now" : `${minsAgo}m ago`}
         </p>
