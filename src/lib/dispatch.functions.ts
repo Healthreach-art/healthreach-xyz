@@ -99,37 +99,89 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
   .inputValidator((input) => placeOrderSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context;
+    const medIds = Array.from(new Set(data.items.map((i) => i.medicationId)));
+
+    // 1. Pick ONE pharmacy: prefer the closest that stocks ALL meds within 60 km.
+    //    Otherwise fall back to the closest pharmacy (per product decision).
+    let chosenPharmacyId: string | null = null;
+    let chosenKm = 5;
+
+    const { data: matchRows } = await supabaseAdmin.rpc("find_pharmacy_with_all_meds", {
+      _med_ids: medIds, _lat: data.delivery.lat, _lng: data.delivery.lng, _max_km: MAX_RADIUS_KM,
+    });
+    const matches = (matchRows ?? []) as Array<{ pharmacy_id: string; distance_km: number; has_all: boolean; match_count: number }>;
+    if (matches.length > 0) {
+      chosenPharmacyId = matches[0].pharmacy_id;
+      chosenKm = Number(matches[0].distance_km.toFixed(2));
+    } else {
+      const { data: nearby } = await supabaseAdmin.rpc("find_pharmacies_near", {
+        _lat: data.delivery.lat, _lng: data.delivery.lng, _max_km: MAX_RADIUS_KM,
+      });
+      const list = (nearby ?? []) as Array<{ pharmacy_id: string; distance_km: number }>;
+      if (list.length > 0) {
+        chosenPharmacyId = list[0].pharmacy_id;
+        chosenKm = Number(list[0].distance_km.toFixed(2));
+      }
+    }
+
+    if (!chosenPharmacyId) {
+      return { orders: [], group: null, matched: false, reason: "no_pharmacy_in_range" };
+    }
+
+    const { data: pharmacy } = await supabaseAdmin
+      .from("profiles")
+      .select("latitude, longitude")
+      .eq("user_id", chosenPharmacyId)
+      .maybeSingle();
+
+    const isScheduled = !!data.scheduledFor;
+
+    // 2. One group = one cart = one delivery code = one package
+    const { data: group, error: groupErr } = await supabaseAdmin
+      .from("order_groups")
+      .insert({
+        patient_id: userId,
+        pharmacy_id: chosenPharmacyId,
+        status: isScheduled ? "scheduled" : "pending",
+        delivery_address: data.delivery.address,
+        delivery_lat: data.delivery.lat,
+        delivery_lng: data.delivery.lng,
+        pickup_lat: pharmacy?.latitude ?? null,
+        pickup_lng: pharmacy?.longitude ?? null,
+        delivery_km: chosenKm,
+        priority: !!data.priority,
+        scheduled_for: data.scheduledFor ?? null,
+        notes: data.notes ?? "",
+        recipient_name: data.recipient?.name ?? null,
+        recipient_phone: data.recipient?.phone ?? null,
+        recipient_family_member_id: data.recipient?.familyMemberId ?? null,
+      } as never)
+      .select("id, delivery_code")
+      .single();
+
+    if (groupErr || !group) {
+      console.error("Group insert failed:", groupErr);
+      return { orders: [], group: null, matched: false, reason: "group_failed" };
+    }
+
+    // 3. One order row per medicine, all sharing the group
     const created: Array<{ orderId: string; matched: boolean }> = [];
+    let subtotalSum = 0;
+    let deliveryFeeFirst = 0;
 
     for (const item of data.items) {
-      // Compute totals from authoritative price (trigger also enforces this)
-      const { data: med } = await supabaseAdmin
-        .from("medications").select("price, pharmacy_id").eq("id", item.medicationId).maybeSingle();
-      if (!med) continue;
-      const pharmacyId = item.pharmacyIdHint ?? med.pharmacy_id;
-      const { data: pharmacy } = await supabaseAdmin
-        .from("profiles")
-        .select("latitude, longitude")
-        .eq("user_id", pharmacyId)
-        .maybeSingle();
-
-      const km = pharmacy?.latitude && pharmacy?.longitude
-        ? Number(haversineKm(pharmacy.latitude, pharmacy.longitude, data.delivery.lat, data.delivery.lng).toFixed(2))
-        : 5;
-
-      const isScheduled = !!data.scheduledFor;
-
       const { data: order, error: orderErr } = await supabaseAdmin
         .from("orders")
         .insert({
           patient_id: userId,
-          pharmacy_id: pharmacyId,
+          pharmacy_id: chosenPharmacyId,
+          order_group_id: (group as { id: string }).id,
           medication_id: item.medicationId,
           medication_name: item.medicationName,
           quantity: item.quantity,
-          delivery_fee: 0,           // trigger sets to 26 + 10*km
-          total_amount: 0,           // trigger overrides
-          delivery_km: km,
+          delivery_fee: 0,
+          total_amount: 0,
+          delivery_km: chosenKm,
           priority: !!data.priority,
           scheduled_for: data.scheduledFor ?? null,
           status: isScheduled ? "scheduled" : "pending",
@@ -143,26 +195,50 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
           recipient_name: data.recipient?.name ?? null,
           recipient_phone: data.recipient?.phone ?? null,
           recipient_family_member_id: data.recipient?.familyMemberId ?? null,
-        })
-        .select("id")
+        } as never)
+        .select("id, total_amount, delivery_fee")
         .single();
 
       if (orderErr || !order) {
         console.error("Order insert failed:", orderErr);
         continue;
       }
-
-      await supabaseAdmin.from("notifications").insert({
-        user_id: pharmacyId,
-        category: "order",
-        title: isScheduled ? "Scheduled order received" : (data.priority ? "🚨 PRIORITY new order" : "New patient order"),
-        body: `${item.medicationName} × ${item.quantity}${isScheduled ? ` (deliver by ${new Date(data.scheduledFor!).toLocaleString()})` : ""}`,
-        link: "/dashboard/pharmacy#orders-section",
-      });
-      created.push({ orderId: order.id, matched: true });
+      const row = order as { id: string; total_amount: number; delivery_fee: number };
+      subtotalSum += Number(row.total_amount) - Number(row.delivery_fee);
+      deliveryFeeFirst = Number(row.delivery_fee);
+      created.push({ orderId: row.id, matched: true });
     }
 
-    return { orders: created };
+    // 4. Roll totals onto the group (one delivery fee per package, not per item)
+    const groupTotal = Math.round((subtotalSum + deliveryFeeFirst) * 100) / 100;
+    await supabaseAdmin
+      .from("order_groups")
+      .update({
+        subtotal: Math.round(subtotalSum * 100) / 100,
+        delivery_fee: deliveryFeeFirst,
+        total_amount: groupTotal,
+      } as never)
+      .eq("id", (group as { id: string }).id);
+
+    // 5. ONE notification per package
+    const itemCount = data.items.length;
+    await supabaseAdmin.from("notifications").insert({
+      user_id: chosenPharmacyId,
+      category: "order",
+      title: isScheduled
+        ? "Scheduled order received"
+        : data.priority ? "🚨 PRIORITY new order" : "New patient order",
+      body: `${itemCount} item${itemCount > 1 ? "s" : ""} · code ${(group as { delivery_code: string }).delivery_code}${
+        isScheduled ? ` · deliver by ${new Date(data.scheduledFor!).toLocaleString()}` : ""
+      }`,
+      link: "/dashboard/pharmacy#orders-section",
+    });
+
+    return {
+      orders: created,
+      group: { id: (group as { id: string }).id, deliveryCode: (group as { delivery_code: string }).delivery_code },
+      matched: true,
+    };
   });
 
 export const escalateOrderAssignment = createServerFn({ method: "POST" })
