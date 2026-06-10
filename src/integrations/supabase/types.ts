@@ -129,6 +129,7 @@ export type Database = {
           failure_reason: string | null
           id: string
           is_demo: boolean
+          order_group_id: string | null
           order_id: string
           peak_bonus: number | null
           pickup_address: string | null
@@ -154,6 +155,7 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           is_demo?: boolean
+          order_group_id?: string | null
           order_id: string
           peak_bonus?: number | null
           pickup_address?: string | null
@@ -179,6 +181,7 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           is_demo?: boolean
+          order_group_id?: string | null
           order_id?: string
           peak_bonus?: number | null
           pickup_address?: string | null
@@ -190,6 +193,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "deliveries_order_group_id_fkey"
+            columns: ["order_group_id"]
+            isOneToOne: false
+            referencedRelation: "order_groups"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "deliveries_order_id_fkey"
             columns: ["order_id"]
@@ -1029,6 +1039,84 @@ export type Database = {
         }
         Relationships: []
       }
+      order_groups: {
+        Row: {
+          created_at: string
+          delivery_address: string | null
+          delivery_code: string | null
+          delivery_fee: number | null
+          delivery_km: number | null
+          delivery_lat: number | null
+          delivery_lng: number | null
+          id: string
+          notes: string | null
+          patient_id: string
+          pharmacy_id: string | null
+          pickup_code: string | null
+          pickup_lat: number | null
+          pickup_lng: number | null
+          priority: boolean | null
+          recipient_family_member_id: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          scheduled_for: string | null
+          status: string
+          subtotal: number | null
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_address?: string | null
+          delivery_code?: string | null
+          delivery_fee?: number | null
+          delivery_km?: number | null
+          delivery_lat?: number | null
+          delivery_lng?: number | null
+          id?: string
+          notes?: string | null
+          patient_id: string
+          pharmacy_id?: string | null
+          pickup_code?: string | null
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          priority?: boolean | null
+          recipient_family_member_id?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          scheduled_for?: string | null
+          status?: string
+          subtotal?: number | null
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_address?: string | null
+          delivery_code?: string | null
+          delivery_fee?: number | null
+          delivery_km?: number | null
+          delivery_lat?: number | null
+          delivery_lng?: number | null
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          pharmacy_id?: string | null
+          pickup_code?: string | null
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          priority?: boolean | null
+          recipient_family_member_id?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          scheduled_for?: string | null
+          status?: string
+          subtotal?: number | null
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_messages: {
         Row: {
           body: string
@@ -1076,6 +1164,7 @@ export type Database = {
           medication_id: string | null
           medication_name: string
           notes: string | null
+          order_group_id: string | null
           patient_id: string
           pharmacy_assigned_at: string | null
           pharmacy_id: string | null
@@ -1108,6 +1197,7 @@ export type Database = {
           medication_id?: string | null
           medication_name: string
           notes?: string | null
+          order_group_id?: string | null
           patient_id: string
           pharmacy_assigned_at?: string | null
           pharmacy_id?: string | null
@@ -1140,6 +1230,7 @@ export type Database = {
           medication_id?: string | null
           medication_name?: string
           notes?: string | null
+          order_group_id?: string | null
           patient_id?: string
           pharmacy_assigned_at?: string | null
           pharmacy_id?: string | null
@@ -1169,6 +1260,13 @@ export type Database = {
             columns: ["medication_id"]
             isOneToOne: false
             referencedRelation: "medications_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_order_group_id_fkey"
+            columns: ["order_group_id"]
+            isOneToOne: false
+            referencedRelation: "order_groups"
             referencedColumns: ["id"]
           },
           {
@@ -2170,6 +2268,20 @@ export type Database = {
         Returns: {
           distance_km: number
           organization_name: string
+          pharmacy_id: string
+        }[]
+      }
+      find_pharmacy_with_all_meds: {
+        Args: {
+          _lat: number
+          _lng: number
+          _max_km?: number
+          _med_ids: string[]
+        }
+        Returns: {
+          distance_km: number
+          has_all: boolean
+          match_count: number
           pharmacy_id: string
         }[]
       }
