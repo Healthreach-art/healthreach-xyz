@@ -12,10 +12,12 @@ import { LiveETACard } from "@/components/LiveETACard";
 import { useServerFn } from "@tanstack/react-start";
 import { cancelOrder } from "@/lib/orders.functions";
 import { ReviewDialog } from "@/components/ReviewDialog";
+import { groupAndHydrate, type GroupedOrder } from "@/lib/orderGroups";
 
 
 interface OrderRow {
   id: string;
+  order_group_id: string | null;
   medication_name: string;
   status: string;
   total_amount: number;
