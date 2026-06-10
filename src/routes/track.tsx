@@ -184,12 +184,21 @@ function TrackPage() {
     <div className="container-narrow px-4 sm:px-6 py-8">
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
             Track Your Order
             <span className={`inline-flex h-2 w-2 rounded-full bg-healthcare-green transition-all ${pulse ? "scale-150 shadow-[0_0_12px_currentColor]" : ""}`} />
             <span className="text-xs font-normal text-muted-foreground">Live</span>
+            {groupInfo?.delivery_code && (
+              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                CODE {groupInfo.delivery_code}
+              </span>
+            )}
           </h1>
-          {order && <p className="text-sm text-muted-foreground">Order <span className="font-mono">{order.id.slice(0, 8)}</span> · {order.medication_name}</p>}
+          {order && (
+            <p className="text-sm text-muted-foreground">
+              Package <span className="font-mono">{(order.order_group_id ?? order.id).slice(0, 8)}</span> · {groupItems.length} item{groupItems.length === 1 ? "" : "s"}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
