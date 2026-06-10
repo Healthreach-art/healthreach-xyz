@@ -1039,6 +1039,50 @@ export type Database = {
         }
         Relationships: []
       }
+      order_group_events: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          at: string
+          id: string
+          note: string | null
+          order_group_id: string
+          source: string
+          stage: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string
+          id?: string
+          note?: string | null
+          order_group_id: string
+          source?: string
+          stage: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string
+          id?: string
+          note?: string | null
+          order_group_id?: string
+          source?: string
+          stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_group_events_order_group_id_fkey"
+            columns: ["order_group_id"]
+            isOneToOne: false
+            referencedRelation: "order_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_groups: {
         Row: {
           created_at: string
@@ -2294,6 +2338,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_order_group_timeline: {
+        Args: { _group_id: string }
+        Returns: {
+          actor_id: string
+          actor_name: string
+          actor_role: string
+          at: string
+          id: string
+          note: string
+          source: string
+          stage: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2322,6 +2379,7 @@ export type Database = {
         Returns: Json
       }
       release_scheduled_orders: { Args: never; Returns: Json }
+      resolve_actor_name: { Args: { _user_id: string }; Returns: string }
       wallet_credit: {
         Args: {
           _amount_cents: number

@@ -23,6 +23,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useDriverLocationBroadcaster } from "@/hooks/useDriverLocationBroadcaster";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { acceptDeliveryOffer, declineDeliveryOffer, getNearbyOffersForDriver, DRIVER_OFFER_RADIUS_KM, type NearbyOffer } from "@/lib/driver-dispatch.functions";
 
 type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered" | "failed";
@@ -803,7 +804,11 @@ function DriverDashboard() {
 
                 {/* Unified real-time timeline */}
                 <div className="mt-4">
-                  <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} variant="driver" compact />
+                  {delivery.order_group_id ? (
+                    <OrderGroupTimeline orderGroupId={delivery.order_group_id} deliveryCode={delivery.delivery_code} />
+                  ) : (
+                    <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} variant="driver" compact />
+                  )}
                 </div>
 
 

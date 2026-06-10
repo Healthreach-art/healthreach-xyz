@@ -6,6 +6,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/dashboard/patient/")({
 
 interface OrderRow {
   id: string;
+  order_group_id: string | null;
   status: string;
   total_amount: number | string;
   created_at: string;
@@ -53,6 +55,7 @@ function PatientDashboard() {
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
   const [driverName, setDriverName] = useState<string>("");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [mapPickup, setMapPickup] = useState<string | null>(null);
   const [mapDropoff, setMapDropoff] = useState<string | null>(null);
   const [pickupCode, setPickupCode] = useState<string | null>(null);
@@ -66,7 +69,7 @@ function PatientDashboard() {
     async function load() {
       const { data } = await supabase
         .from("orders")
-        .select("id, status, total_amount, created_at, pharmacy_id")
+        .select("id, order_group_id, status, total_amount, created_at, pharmacy_id")
         .eq("patient_id", user!.id)
         .eq("is_demo", false)
         .order("created_at", { ascending: false })
@@ -76,6 +79,7 @@ function PatientDashboard() {
       setOrders(list);
       const active = list.find((o) => !["delivered", "cancelled"].includes(o.status));
       setActiveOrderId(active?.id ?? null);
+      setActiveGroupId(active?.order_group_id ?? null);
 
       const ids = Array.from(new Set(list.map((o) => o.pharmacy_id))).filter(Boolean);
       if (ids.length) {
@@ -212,7 +216,11 @@ function PatientDashboard() {
                 {/* Unified real-time timeline */}
                 <div>
                   {activeOrderId ? (
-                    <OrderTimeline orderId={activeOrderId} initialOrderStatus={latestActive?.status ?? null} />
+                    activeGroupId ? (
+                      <OrderGroupTimeline orderGroupId={activeGroupId} deliveryCode={deliveryCode} />
+                    ) : (
+                      <OrderTimeline orderId={activeOrderId} initialOrderStatus={latestActive?.status ?? null} />
+                    )
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                       No active order. Waiting for your next order to start tracking.

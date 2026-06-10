@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { downloadReceiptPdf } from "@/lib/receipt";
 import { toast } from "sonner";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { LiveETACard } from "@/components/LiveETACard";
 import { useServerFn } from "@tanstack/react-start";
 import { cancelOrder } from "@/lib/orders.functions";
@@ -263,7 +264,11 @@ export function OrderHistory() {
                 </div>
                 {active && (
                   <div className="mt-3 space-y-2 pt-3 border-t border-border/60">
-                    <OrderTimeline orderId={g.primaryOrderId} initialOrderStatus={g.status} compact />
+                    {g.group?.id ? (
+                      <OrderGroupTimeline orderGroupId={g.group.id} deliveryCode={g.delivery_code} />
+                    ) : (
+                      <OrderTimeline orderId={g.primaryOrderId} initialOrderStatus={g.status} compact />
+                    )}
                     {["ready", "out_for_delivery"].includes(g.status) && (
                       <LiveETACard orderId={g.primaryOrderId} deliveryStatus={g.status === "ready" ? "assigned" : "in_transit"} />
                     )}

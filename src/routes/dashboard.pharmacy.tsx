@@ -31,6 +31,7 @@ import { PharmacyAnalytics } from "@/components/PharmacyAnalytics";
 import { PharmacyFinance } from "@/components/PharmacyFinance";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { PharmacyOffersInbox } from "@/components/PharmacyOffersInbox";
 import { PharmacyLocationCard } from "@/components/PharmacyLocationCard";
 import { PharmacyBranchesManager } from "@/components/PharmacyBranchesManager";
@@ -81,6 +82,7 @@ const LOW_STOCK_THRESHOLD = 10;
 interface LiveDelivery {
   id: string;
   order_id: string;
+  order_group_id: string | null;
   status: string;
   driver_id: string | null;
   driver_name: string | null;
@@ -165,7 +167,7 @@ function PharmacyDashboard() {
     if (myOrderIds.length > 0) {
       const { data: dels } = await supabase
         .from("deliveries")
-        .select("id, order_id, status, driver_id, delivery_address, updated_at, pickup_code")
+        .select("id, order_id, order_group_id, status, driver_id, delivery_address, updated_at, pickup_code")
         .in("order_id", myOrderIds)
         .in("status", ["assigned", "picked_up", "in_transit"])
         .order("updated_at", { ascending: false });
@@ -184,6 +186,7 @@ function PharmacyDashboard() {
         return {
           id: d.id,
           order_id: d.order_id,
+          order_group_id: (d as { order_group_id?: string | null }).order_group_id ?? null,
           status: d.status,
           driver_id: d.driver_id ?? null,
           driver_name: c?.full_name || (d.driver_id ? "Driver" : null),
@@ -1061,7 +1064,11 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
 
       {/* Unified real-time timeline */}
       <div className="mt-4">
-        <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} compact />
+        {delivery.order_group_id ? (
+          <OrderGroupTimeline orderGroupId={delivery.order_group_id} deliveryCode={delivery.pickup_code} />
+        ) : (
+          <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} compact />
+        )}
         <p className="text-[10px] text-muted-foreground mt-2 text-right">
           Last change {minsAgo === 0 ? "just now" : `${minsAgo}m ago`}
         </p>
