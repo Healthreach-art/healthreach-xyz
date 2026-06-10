@@ -160,6 +160,26 @@ export function OrderHistory() {
     });
   }
 
+  async function hideGroup(g: GroupedOrder<OrderRow>) {
+    if (["pending", "accepted", "preparing", "ready", "out_for_delivery"].includes(g.status)) {
+      toast.error("This order is still active. Cancel it first, then remove it from history.");
+      return;
+    }
+    if (!confirm("Remove this order from your history? It will only be hidden from your view.")) return;
+    const targetId = g.group?.id || g.primaryOrderId;
+    const { error } = await supabase.rpc("hide_order_group_for_patient" as never, { _group_id: targetId } as never);
+    if (error) { toast.error(error.message); return; }
+    setGroups((prev) => prev.filter((x) => x.key !== g.key));
+    toast.success("Removed from history");
+  }
+
+  async function clearHistory() {
+    if (!confirm("Clear all delivered and cancelled orders from your history? Active orders are kept.")) return;
+    const { error } = await supabase.rpc("clear_patient_order_history" as never);
+    if (error) { toast.error(error.message); return; }
+    setGroups((prev) => prev.filter((g) => !["delivered", "cancelled", "rejected"].includes(g.status)));
+    toast.success("History cleared");
+
   const filteredGroups = groups.filter((g) => {
     if (filter === "active" && ["delivered", "cancelled"].includes(g.status)) return false;
     if (filter === "delivered" && g.status !== "delivered") return false;
