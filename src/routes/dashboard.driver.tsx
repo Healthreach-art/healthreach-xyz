@@ -804,7 +804,11 @@ function DriverDashboard() {
 
                 {/* Unified real-time timeline */}
                 <div className="mt-4">
-                  <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} variant="driver" compact />
+                  {delivery.order_group_id ? (
+                    <OrderGroupTimeline orderGroupId={delivery.order_group_id} deliveryCode={delivery.delivery_code} />
+                  ) : (
+                    <OrderTimeline orderId={delivery.order_id} initialDeliveryStatus={delivery.status} variant="driver" compact />
+                  )}
                 </div>
 
 
