@@ -156,7 +156,9 @@ function PharmacyDashboard() {
       supabase.from("orders").select("*").eq("pharmacy_id", user.id).eq("is_demo", false).order("created_at", { ascending: false }),
     ]);
     setInventory((medsRes.data ?? []) as Medication[]);
-    setOrders((ordersRes.data ?? []) as Order[]);
+    const ordersList = (ordersRes.data ?? []) as Order[];
+    setOrders(ordersList);
+    setOrderGroups(await groupAndHydrate<Order>(ordersList));
 
     // Load live deliveries (in-progress) for this pharmacy's orders
     const myOrderIds = (ordersRes.data ?? []).map((o) => o.id);
