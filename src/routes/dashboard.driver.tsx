@@ -463,7 +463,13 @@ function DriverDashboard() {
     };
     const orderStatus = orderStatusMap[target];
     if (orderStatus) {
-      await supabase.from("orders").update({ status: orderStatus }).eq("id", d.order_id);
+      // Update ALL order rows in the package, not just the one the delivery row points at
+      if (d.order_group_id) {
+        await supabase.from("orders").update({ status: orderStatus }).eq("order_group_id", d.order_group_id);
+        await supabase.from("order_groups" as never).update({ status: orderStatus } as never).eq("id", d.order_group_id);
+      } else {
+        await supabase.from("orders").update({ status: orderStatus }).eq("id", d.order_id);
+      }
     }
     setUpdating(null);
     if (error) toast.error(error.message);
