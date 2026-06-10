@@ -166,7 +166,7 @@ function PharmacyDashboard() {
     if (myOrderIds.length > 0) {
       const { data: dels } = await supabase
         .from("deliveries")
-        .select("id, order_id, status, driver_id, delivery_address, updated_at, pickup_code")
+        .select("id, order_id, order_group_id, status, driver_id, delivery_address, updated_at, pickup_code")
         .in("order_id", myOrderIds)
         .in("status", ["assigned", "picked_up", "in_transit"])
         .order("updated_at", { ascending: false });
