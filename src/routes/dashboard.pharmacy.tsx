@@ -185,6 +185,7 @@ function PharmacyDashboard() {
         return {
           id: d.id,
           order_id: d.order_id,
+          order_group_id: (d as { order_group_id?: string | null }).order_group_id ?? null,
           status: d.status,
           driver_id: d.driver_id ?? null,
           driver_name: c?.full_name || (d.driver_id ? "Driver" : null),
