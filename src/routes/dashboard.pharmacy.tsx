@@ -64,6 +64,7 @@ interface Medication {
 
 interface Order {
   id: string;
+  order_group_id: string | null;
   patient_id: string;
   medication_name: string;
   quantity: number;
