@@ -81,6 +81,7 @@ const LOW_STOCK_THRESHOLD = 10;
 interface LiveDelivery {
   id: string;
   order_id: string;
+  order_group_id: string | null;
   status: string;
   driver_id: string | null;
   driver_name: string | null;
