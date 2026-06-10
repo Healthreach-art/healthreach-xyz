@@ -43,6 +43,7 @@ import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
 import { Route as DashboardPatientIndexRouteImport } from './routes/dashboard.patient.index'
+import { Route as DashboardPharmacyLowStockRouteImport } from './routes/dashboard.pharmacy.low-stock'
 import { Route as DashboardPharmacyInventoryRouteImport } from './routes/dashboard.pharmacy.inventory'
 import { Route as DashboardPatientWalletRouteImport } from './routes/dashboard.patient.wallet'
 import { Route as DashboardPatientTransactionsRouteImport } from './routes/dashboard.patient.transactions'
@@ -234,6 +235,12 @@ const DashboardPatientIndexRoute = DashboardPatientIndexRouteImport.update({
   path: '/dashboard/patient/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardPharmacyLowStockRoute =
+  DashboardPharmacyLowStockRouteImport.update({
+    id: '/low-stock',
+    path: '/low-stock',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
 const DashboardPharmacyInventoryRoute =
   DashboardPharmacyInventoryRouteImport.update({
     id: '/inventory',
@@ -399,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
   '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
   '/dashboard/pharmacy/inventory': typeof DashboardPharmacyInventoryRoute
+  '/dashboard/pharmacy/low-stock': typeof DashboardPharmacyLowStockRoute
   '/dashboard/patient/': typeof DashboardPatientIndexRoute
   '/dashboard/patient/doctors/$id': typeof DashboardPatientDoctorsIdRoute
 }
@@ -455,6 +463,7 @@ export interface FileRoutesByTo {
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
   '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
   '/dashboard/pharmacy/inventory': typeof DashboardPharmacyInventoryRoute
+  '/dashboard/pharmacy/low-stock': typeof DashboardPharmacyLowStockRoute
   '/dashboard/patient': typeof DashboardPatientIndexRoute
   '/dashboard/patient/doctors/$id': typeof DashboardPatientDoctorsIdRoute
 }
@@ -512,6 +521,7 @@ export interface FileRoutesById {
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
   '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
   '/dashboard/pharmacy/inventory': typeof DashboardPharmacyInventoryRoute
+  '/dashboard/pharmacy/low-stock': typeof DashboardPharmacyLowStockRoute
   '/dashboard/patient/': typeof DashboardPatientIndexRoute
   '/dashboard/patient/doctors/$id': typeof DashboardPatientDoctorsIdRoute
 }
@@ -570,6 +580,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/transactions'
     | '/dashboard/patient/wallet'
     | '/dashboard/pharmacy/inventory'
+    | '/dashboard/pharmacy/low-stock'
     | '/dashboard/patient/'
     | '/dashboard/patient/doctors/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -626,6 +637,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/transactions'
     | '/dashboard/patient/wallet'
     | '/dashboard/pharmacy/inventory'
+    | '/dashboard/pharmacy/low-stock'
     | '/dashboard/patient'
     | '/dashboard/patient/doctors/$id'
   id:
@@ -682,6 +694,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/transactions'
     | '/dashboard/patient/wallet'
     | '/dashboard/pharmacy/inventory'
+    | '/dashboard/pharmacy/low-stock'
     | '/dashboard/patient/'
     | '/dashboard/patient/doctors/$id'
   fileRoutesById: FileRoutesById
@@ -980,6 +993,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/pharmacy/low-stock': {
+      id: '/dashboard/pharmacy/low-stock'
+      path: '/low-stock'
+      fullPath: '/dashboard/pharmacy/low-stock'
+      preLoaderRoute: typeof DashboardPharmacyLowStockRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
     '/dashboard/pharmacy/inventory': {
       id: '/dashboard/pharmacy/inventory'
       path: '/inventory'
@@ -1148,10 +1168,12 @@ const DashboardAdminRouteWithChildren = DashboardAdminRoute._addFileChildren(
 
 interface DashboardPharmacyRouteChildren {
   DashboardPharmacyInventoryRoute: typeof DashboardPharmacyInventoryRoute
+  DashboardPharmacyLowStockRoute: typeof DashboardPharmacyLowStockRoute
 }
 
 const DashboardPharmacyRouteChildren: DashboardPharmacyRouteChildren = {
   DashboardPharmacyInventoryRoute: DashboardPharmacyInventoryRoute,
+  DashboardPharmacyLowStockRoute: DashboardPharmacyLowStockRoute,
 }
 
 const DashboardPharmacyRouteWithChildren =

@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
   FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin,
-  Search, Star as StarIcon,
+  Search, Star as StarIcon, AlertTriangle,
 } from "lucide-react";
 import logoImg from "@/assets/healthreach-logo.png";
 
