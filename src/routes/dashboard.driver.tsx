@@ -30,6 +30,7 @@ type DStatus = "assigned" | "picked_up" | "in_transit" | "delivered" | "failed";
 interface LiveDelivery {
   id: string;
   order_id: string;
+  order_group_id?: string | null;
   status: DStatus;
   pickup_address: string | null;
   delivery_address: string | null;
@@ -41,6 +42,8 @@ interface LiveDelivery {
   pharmacy_name?: string;
   pharmacy_phone?: string;
   earnings?: number;
+  delivery_code?: string | null;
+  items?: Array<{ id: string; medication_name: string; quantity: number }>;
 }
 
 interface CompletedDelivery {
