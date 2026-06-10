@@ -216,7 +216,11 @@ function PatientDashboard() {
                 {/* Unified real-time timeline */}
                 <div>
                   {activeOrderId ? (
-                    <OrderTimeline orderId={activeOrderId} initialOrderStatus={latestActive?.status ?? null} />
+                    {activeGroupId ? (
+                      <OrderGroupTimeline orderGroupId={activeGroupId} deliveryCode={deliveryCode} />
+                    ) : (
+                      <OrderTimeline orderId={activeOrderId} initialOrderStatus={latestActive?.status ?? null} />
+                    )}
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                       No active order. Waiting for your next order to start tracking.
