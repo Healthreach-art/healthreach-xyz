@@ -551,24 +551,12 @@ function PharmacyDashboard() {
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {[
-          { icon: ShoppingCart, label: "Pending Orders", value: String(pendingCount), color: "text-primary", target: "orders-section" },
-          { icon: Package, label: "Total Products", value: String(inventory.length), color: "text-healthcare-teal", target: "inventory-section" },
-          { icon: AlertTriangle, label: "Low Stock", value: String(lowStockItems.length), color: "text-destructive", target: "inventory-section" },
-          { icon: DollarSign, label: "Revenue (Total)", value: `R ${monthRevenue.toFixed(0)}`, color: "text-healthcare-green", target: "orders-section" },
-        ].map((stat) => (
-          <a
-            key={stat.label}
-            href={`#${stat.target}`}
-            onClick={(e) => {
-              e.preventDefault();
-              const el = document.getElementById(stat.target);
-              if (el) {
-                history.replaceState(null, "", `#${stat.target}`);
-                el.scrollIntoView({ behavior: "smooth", block: "start" });
-              }
-            }}
-            className="healthcare-card p-5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
+          { icon: ShoppingCart, label: "Pending Orders", value: String(pendingCount), color: "text-primary", to: null, target: "orders-section" },
+          { icon: Package, label: "Total Products", value: String(inventory.length), color: "text-healthcare-teal", to: "/dashboard/pharmacy/inventory", target: null },
+          { icon: AlertTriangle, label: "Low Stock", value: String(lowStockItems.length), color: "text-destructive", to: "/dashboard/pharmacy/low-stock", target: null },
+          { icon: DollarSign, label: "Revenue (Total)", value: `R ${monthRevenue.toFixed(0)}`, color: "text-healthcare-green", to: null, target: "orders-section" },
+        ].map((stat) => {
+          const body = (
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
@@ -578,8 +566,27 @@ function PharmacyDashboard() {
                 <p className="text-xl font-bold text-foreground">{stat.value}</p>
               </div>
             </div>
-          </a>
-        ))}
+          );
+          const className = "healthcare-card p-5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary block";
+          if (stat.to) {
+            return <Link key={stat.label} to={stat.to} className={className}>{body}</Link>;
+          }
+          return (
+            <a
+              key={stat.label}
+              href={`#${stat.target}`}
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById(stat.target!);
+                if (el) {
+                  history.replaceState(null, "", `#${stat.target}`);
+                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }}
+              className={className}
+            >{body}</a>
+          );
+        })}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 mb-6">
