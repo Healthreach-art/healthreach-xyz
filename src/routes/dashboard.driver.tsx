@@ -250,20 +250,39 @@ function DriverDashboard() {
     async function loadDeliveries() {
       const { data } = await supabase
         .from("deliveries")
-        .select("id, order_id, status, pickup_address, delivery_address, estimated_time, created_at, updated_at")
+        .select("id, order_id, order_group_id, status, pickup_address, delivery_address, estimated_time, created_at, updated_at")
         .eq("driver_id", user!.id)
         .eq("is_demo", false)
         .order("updated_at", { ascending: false });
       const all = (data ?? []) as LiveDelivery[];
       const active = all.filter((d) => d.status !== "delivered");
 
-      // Hydrate active deliveries with patient + pharmacy contact info
+      // Hydrate active deliveries with patient + pharmacy contact info + ALL items in the package
       if (active.length > 0) {
         const orderIds = active.map((d) => d.order_id);
+        const groupIds = Array.from(new Set(active.map((d) => d.order_group_id).filter((v): v is string => !!v)));
         const { data: orders } = await supabase
           .from("orders")
-          .select("id, patient_id, pharmacy_id, delivery_fee")
+          .select("id, order_group_id, patient_id, pharmacy_id, delivery_fee, medication_name, quantity")
           .in("id", orderIds);
+        // Sibling rows in the same group (the rest of the package contents)
+        let siblings: Array<{ id: string; order_group_id: string | null; medication_name: string; quantity: number }> = [];
+        if (groupIds.length > 0) {
+          const { data: sibs } = await supabase
+            .from("orders")
+            .select("id, order_group_id, medication_name, quantity")
+            .in("order_group_id", groupIds);
+          siblings = (sibs ?? []) as typeof siblings;
+        }
+        // Group delivery codes
+        let codeByGroup = new Map<string, string>();
+        if (groupIds.length > 0) {
+          const { data: grs } = await supabase
+            .from("order_groups" as never)
+            .select("id, delivery_code")
+            .in("id", groupIds);
+          codeByGroup = new Map(((grs ?? []) as Array<{ id: string; delivery_code: string | null }>).map((g) => [g.id, g.delivery_code ?? ""]));
+        }
         const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
         const userIds = Array.from(new Set((orders ?? []).flatMap((o) => [o.patient_id, o.pharmacy_id].filter((v): v is string => !!v))));
         const { data: profs } = userIds.length > 0
@@ -275,6 +294,9 @@ function DriverDashboard() {
           const pat = o ? profMap.get(o.patient_id) : null;
           const phar = o?.pharmacy_id ? profMap.get(o.pharmacy_id) : null;
           const fee = Number(o?.delivery_fee ?? 0);
+          const items = d.order_group_id
+            ? siblings.filter((s) => s.order_group_id === d.order_group_id).map((s) => ({ id: s.id, medication_name: s.medication_name, quantity: s.quantity }))
+            : o ? [{ id: o.id, medication_name: o.medication_name, quantity: o.quantity }] : [];
           return {
             ...d,
             patient_name: pat?.full_name || "Customer",
@@ -282,11 +304,14 @@ function DriverDashboard() {
             pharmacy_name: phar?.organization_name || phar?.full_name || "Pharmacy",
             pharmacy_phone: phar?.phone || "",
             earnings: fee > 0 ? fee : estimateEarnings(estimateDistanceKm(d.order_id)),
+            items,
+            delivery_code: d.order_group_id ? (codeByGroup.get(d.order_group_id) || null) : null,
           };
         }));
       } else {
         setLiveDeliveries([]);
       }
+
 
       const done = all.filter((d) => d.status === "delivered");
       // Hydrate patient names and earnings from orders
