@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function fetchUserData(userId: string) {
     const [roleRes, profileRes] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
-      supabase.from("profiles").select("full_name, email, organization_name, phone, address, approval_status").eq("user_id", userId).maybeSingle(),
+      supabase.from("profiles").select("full_name, email, organization_name, phone, address, approval_status, is_demo").eq("user_id", userId).maybeSingle(),
     ]);
 
     if (roleRes.data) setRole(roleRes.data.role as AppRole);
@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         organization_name: profileRes.data.organization_name ?? "",
         phone: profileRes.data.phone ?? "",
         address: profileRes.data.address ?? "",
+        is_demo: !!(profileRes.data as any).is_demo,
       });
     }
   }
