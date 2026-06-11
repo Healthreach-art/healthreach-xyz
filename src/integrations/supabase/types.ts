@@ -2227,6 +2227,7 @@ export type Database = {
           approval_status: Database["public"]["Enums"]["approval_status"] | null
           created_at: string | null
           full_name: string | null
+          is_demo: boolean | null
           latitude: number | null
           longitude: number | null
           opening_hours: string | null
@@ -2245,6 +2246,7 @@ export type Database = {
             | null
           created_at?: string | null
           full_name?: string | null
+          is_demo?: boolean | null
           latitude?: number | null
           longitude?: number | null
           opening_hours?: string | null
@@ -2263,6 +2265,7 @@ export type Database = {
             | null
           created_at?: string | null
           full_name?: string | null
+          is_demo?: boolean | null
           latitude?: number | null
           longitude?: number | null
           opening_hours?: string | null
