@@ -129,6 +129,7 @@ function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  autoComplete="new-password"
                   className="pr-10"
                 />
                 <button
@@ -213,10 +214,13 @@ function LoginPage() {
                   key={d.email}
                   type="button"
                   onClick={() => { setEmail(d.email); setPassword(d.pw); setError(""); }}
-                  className="flex items-center justify-between gap-2 rounded-md border border-border/70 bg-background px-2.5 py-1.5 text-left text-[11px] hover:bg-accent transition"
+                  className="flex flex-col gap-0.5 rounded-md border border-border/70 bg-background px-2.5 py-1.5 text-left text-[11px] hover:bg-accent transition"
                 >
-                  <span className="font-semibold text-foreground w-16 shrink-0">{d.label}</span>
-                  <span className="text-muted-foreground truncate flex-1">{d.email}</span>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-foreground">{d.label}</span>
+                    <span className="text-muted-foreground truncate">{d.email}</span>
+                  </span>
+                  <span className="text-muted-foreground">Password: <span className="font-mono text-foreground">{d.pw}</span></span>
                 </button>
               ))}
             </div>
