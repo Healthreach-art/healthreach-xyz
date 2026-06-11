@@ -485,6 +485,7 @@ export type Database = {
           id: string
           in_person_available: boolean
           is_active: boolean
+          is_demo: boolean
           is_verified: boolean
           languages: string[]
           latitude: number | null
@@ -518,6 +519,7 @@ export type Database = {
           id?: string
           in_person_available?: boolean
           is_active?: boolean
+          is_demo?: boolean
           is_verified?: boolean
           languages?: string[]
           latitude?: number | null
@@ -551,6 +553,7 @@ export type Database = {
           id?: string
           in_person_available?: boolean
           is_active?: boolean
+          is_demo?: boolean
           is_verified?: boolean
           languages?: string[]
           latitude?: number | null
