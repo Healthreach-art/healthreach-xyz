@@ -15,7 +15,9 @@ interface AuthContextType {
     organization_name: string;
     phone: string;
     address: string;
+    is_demo: boolean;
   } | null;
+  isDemo: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
 }
