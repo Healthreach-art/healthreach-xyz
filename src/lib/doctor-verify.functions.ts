@@ -48,7 +48,7 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z.object({
-      doctorUserId: z.string().uuid(),
+      doctorUserId: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
       decision: z.enum(["approve", "reject"]),
       reason: z.string().max(500).optional(),
     }).parse(d),
@@ -137,7 +137,7 @@ export const adminReviewPharmacyDocs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z.object({
-      pharmacyUserId: z.string().uuid(),
+      pharmacyUserId: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
       decision: z.enum(["approve", "reject"]),
       reason: z.string().max(500).optional(),
       verifiedServices: z.array(z.string().max(120)).max(40).optional(),
