@@ -215,7 +215,7 @@ function DoctorDashboard() {
   async function saveProfile() {
     if (!user) return;
     setBusy(true);
-    const payload = {
+    const payload: any = {
       user_id: user.id,
       full_name: fullName,
       specialty,
@@ -230,7 +230,10 @@ function DoctorDashboard() {
       subspecialties,
       photo_url: photoUrl || undefined,
       hospital_id: null,
-      is_active: false, // remains inactive until admin verifies
+      // Demo / testing doctors are immediately bookable; real doctors stay
+      // hidden until an admin verifies their submitted documents.
+      is_active: isDemo ? true : false,
+      ...(isDemo ? { is_demo: true, is_verified: true, verified_at: new Date().toISOString() } : {}),
     };
     let error: any;
     if (doctorRow) {
