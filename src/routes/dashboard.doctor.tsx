@@ -230,10 +230,12 @@ function DoctorDashboard() {
       subspecialties,
       photo_url: photoUrl || undefined,
       hospital_id: null,
-      // Demo / testing doctors are immediately bookable; real doctors stay
-      // hidden until an admin verifies their submitted documents.
-      is_active: isDemo ? true : false,
-      ...(isDemo ? { is_demo: true, is_verified: true, verified_at: new Date().toISOString() } : {}),
+      // TESTING MODE: every doctor is auto-flagged demo and immediately bookable
+      // so newly signed-up doctors show up to patients without admin approval.
+      is_active: true,
+      is_demo: true,
+      is_verified: true,
+      verified_at: new Date().toISOString(),
     };
     let error: any;
     if (doctorRow) {
