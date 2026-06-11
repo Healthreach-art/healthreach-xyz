@@ -50,7 +50,7 @@ interface AvailRow {
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function DoctorDashboard() {
-  const { user, approvalStatus, signOut, profile } = useAuth();
+  const { user, approvalStatus, signOut, profile, isDemo } = useAuth();
   const submit = useServerFn(submitDoctorDocuments);
   const normalize = useServerFn(normalizeServices);
   const [docs, setDocs] = useState<DocRow | null>(null);
