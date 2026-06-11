@@ -95,7 +95,7 @@ interface LiveDelivery {
 }
 
 function PharmacyDashboard() {
-  const { user, profile, approvalStatus, signOut } = useAuth();
+  const { user, profile, approvalStatus, isDemo, signOut } = useAuth();
   const dispatchDrivers = useServerFn(dispatchOrderToNearbyDrivers);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
