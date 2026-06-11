@@ -95,7 +95,7 @@ interface LiveDelivery {
 }
 
 function PharmacyDashboard() {
-  const { user, profile, approvalStatus, signOut } = useAuth();
+  const { user, profile, approvalStatus, isDemo, signOut } = useAuth();
   const dispatchDrivers = useServerFn(dispatchOrderToNearbyDrivers);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
@@ -153,9 +153,11 @@ function PharmacyDashboard() {
   async function loadData() {
     if (!user) return;
     setLoading(true);
+    const medsQ = supabase.from("medications").select("*").eq("pharmacy_id", user.id);
+    const ordersQ = supabase.from("orders").select("*").eq("pharmacy_id", user.id);
     const [medsRes, ordersRes] = await Promise.all([
-      supabase.from("medications").select("*").eq("pharmacy_id", user.id).eq("is_demo", false).order("created_at", { ascending: false }),
-      supabase.from("orders").select("*").eq("pharmacy_id", user.id).eq("is_demo", false).order("created_at", { ascending: false }),
+      (isDemo ? medsQ : medsQ.eq("is_demo", false)).order("created_at", { ascending: false }),
+      (isDemo ? ordersQ : ordersQ.eq("is_demo", false)).order("created_at", { ascending: false }),
     ]);
     setInventory((medsRes.data ?? []) as Medication[]);
     const ordersList = (ordersRes.data ?? []) as Order[];
@@ -472,7 +474,7 @@ function PharmacyDashboard() {
     }
   }
 
-  if (approvalStatus === "pending" || approvalStatus === "rejected" || approvalStatus === "suspended" || approvalStatus === "expired") {
+  if (!isDemo && (approvalStatus === "pending" || approvalStatus === "rejected" || approvalStatus === "suspended" || approvalStatus === "expired")) {
     const titleMap: Record<string, string> = {
       pending: "Complete your pharmacy verification",
       rejected: "Application rejected",
@@ -501,7 +503,7 @@ function PharmacyDashboard() {
     );
   }
 
-  if (approvalStatus === "under_review") {
+  if (!isDemo && approvalStatus === "under_review") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <div className="healthcare-card p-8 max-w-md text-center">

@@ -15,7 +15,7 @@ export const Route = createFileRoute("/doctors/")({
     const { data } = await supabase
       .from("doctors")
       .select("id, full_name, specialty, city, photo_url, consultation_fee, rating_avg, rating_count")
-      .eq("is_active", true).eq("is_verified", true)
+      .or("and(is_active.eq.true,is_verified.eq.true),is_demo.eq.true")
       .not("user_id", "is", null)
       .not("photo_url", "is", null)
       .neq("photo_url", "")

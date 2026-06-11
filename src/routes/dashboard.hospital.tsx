@@ -41,7 +41,7 @@ interface Appt {
 }
 
 function HospitalDashboard() {
-  const { user, profile, approvalStatus, signOut } = useAuth();
+  const { user, profile, approvalStatus, isDemo, signOut } = useAuth();
   const issueRx = useServerFn(issueEPrescription);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [appts, setAppts] = useState<Appt[]>([]);
@@ -68,7 +68,7 @@ function HospitalDashboard() {
   }
   useEffect(() => { load(); }, [user]);
 
-  if (approvalStatus === "pending") {
+  if (!isDemo && approvalStatus === "pending") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <div className="healthcare-card p-8 max-w-md text-center">
