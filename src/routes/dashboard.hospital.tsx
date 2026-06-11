@@ -41,7 +41,7 @@ interface Appt {
 }
 
 function HospitalDashboard() {
-  const { user, profile, approvalStatus, signOut } = useAuth();
+  const { user, profile, approvalStatus, isDemo, signOut } = useAuth();
   const issueRx = useServerFn(issueEPrescription);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [appts, setAppts] = useState<Appt[]>([]);
