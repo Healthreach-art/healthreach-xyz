@@ -180,18 +180,36 @@ function LoginPage() {
             )}
           </div>
 
-          {isAdminMode ? (
-            <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Admin accounts</p>
-              <p className="text-[11px]">Use the credentials shared with you privately. Use "Forgot password?" to reset if needed.</p>
-              <p className="mt-2 text-[11px]">
-                Need an admin account?{" "}
+          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs">
+            <p className="font-medium text-foreground mb-2">Demo logins (click to fill)</p>
+            <div className="grid grid-cols-1 gap-1.5">
+              {[
+                { label: "Admin", email: "admin.demo@healthreach.co.za", pw: "DemoAdmin!2025" },
+                { label: "Patient", email: "patient.demo@healthreach.co.za", pw: "DemoPass!2025" },
+                { label: "Pharmacy", email: "pharmacy.demo@healthreach.co.za", pw: "DemoPass!2025" },
+                { label: "Doctor", email: "doctor.demo@healthreach.co.za", pw: "DemoPass!2025" },
+                { label: "Driver", email: "driver.demo@healthreach.co.za", pw: "DemoPass!2025" },
+              ].map((d) => (
+                <button
+                  key={d.email}
+                  type="button"
+                  onClick={() => { setEmail(d.email); setPassword(d.pw); setError(""); }}
+                  className="flex items-center justify-between gap-2 rounded-md border border-border/70 bg-background px-2.5 py-1.5 text-left text-[11px] hover:bg-accent transition"
+                >
+                  <span className="font-semibold text-foreground w-16 shrink-0">{d.label}</span>
+                  <span className="text-muted-foreground truncate flex-1">{d.email}</span>
+                </button>
+              ))}
+            </div>
+            {isAdminMode && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Need a personal admin account?{" "}
                 <Link to="/signup/admin" className="text-primary font-medium hover:underline">
                   Create one with an invite code
                 </Link>
               </p>
-            </div>
-          ) : null}
+            )}
+          </div>
         </div>
       </div>
     </div>
