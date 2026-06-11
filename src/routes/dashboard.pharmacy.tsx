@@ -153,9 +153,11 @@ function PharmacyDashboard() {
   async function loadData() {
     if (!user) return;
     setLoading(true);
+    const medsQ = supabase.from("medications").select("*").eq("pharmacy_id", user.id);
+    const ordersQ = supabase.from("orders").select("*").eq("pharmacy_id", user.id);
     const [medsRes, ordersRes] = await Promise.all([
-      supabase.from("medications").select("*").eq("pharmacy_id", user.id).eq("is_demo", false).order("created_at", { ascending: false }),
-      supabase.from("orders").select("*").eq("pharmacy_id", user.id).eq("is_demo", false).order("created_at", { ascending: false }),
+      (isDemo ? medsQ : medsQ.eq("is_demo", false)).order("created_at", { ascending: false }),
+      (isDemo ? ordersQ : ordersQ.eq("is_demo", false)).order("created_at", { ascending: false }),
     ]);
     setInventory((medsRes.data ?? []) as Medication[]);
     const ordersList = (ordersRes.data ?? []) as Order[];
