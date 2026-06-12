@@ -16,11 +16,13 @@ import logoImg from "@/assets/healthreach-logo.png";
 type Item = { title: string; url: string; icon: any };
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const { user, role, signOut } = useAuth();
   const currentPath = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (p: string) => currentPath === p;
+  const closeMobile = () => { if (isMobile) setOpenMobile(false); };
+
 
   const dashboardPath = role ? `/dashboard/${role}` : "/login";
 
@@ -95,10 +97,11 @@ export function AppSidebar() {
                 <SidebarMenuItem key={`${label}-${it.title}`}>
                   <SidebarMenuButton asChild isActive={isActive(it.url)}>
                     {isHash ? (
-                      <a href={it.url} className="flex items-center gap-2">{inner}</a>
+                      <a href={it.url} className="flex items-center gap-2" onClick={closeMobile}>{inner}</a>
                     ) : (
-                      <Link to={it.url} className="flex items-center gap-2">{inner}</Link>
+                      <Link to={it.url} className="flex items-center gap-2" onClick={closeMobile}>{inner}</Link>
                     )}
+
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
