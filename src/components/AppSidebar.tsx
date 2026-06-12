@@ -97,10 +97,11 @@ export function AppSidebar() {
                 <SidebarMenuItem key={`${label}-${it.title}`}>
                   <SidebarMenuButton asChild isActive={isActive(it.url)}>
                     {isHash ? (
-                      <a href={it.url} className="flex items-center gap-2">{inner}</a>
+                      <a href={it.url} className="flex items-center gap-2" onClick={closeMobile}>{inner}</a>
                     ) : (
-                      <Link to={it.url} className="flex items-center gap-2">{inner}</Link>
+                      <Link to={it.url} className="flex items-center gap-2" onClick={closeMobile}>{inner}</Link>
                     )}
+
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
