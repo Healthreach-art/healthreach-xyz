@@ -42,7 +42,7 @@ import { groupAndHydrate, type GroupedOrder } from "@/lib/orderGroups";
 
 import { RoleGuard } from "@/components/RoleGuard";
 
-export const Route = createFileRoute("/dashboard/pharmacy")({
+export const Route = createFileRoute("/dashboard/pharmacy/")({
   head: () => ({ meta: [{ title: "Pharmacy Dashboard — HEALTHREACH" }] }),
   component: () => <RoleGuard allow="pharmacy"><PharmacyDashboard /></RoleGuard>,
 });
@@ -536,8 +536,6 @@ function PharmacyDashboard() {
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
       </div>
-
-
       {/* Hero banner */}
       <div className="relative overflow-hidden rounded-2xl mb-6 h-40 sm:h-52">
         <img src={pharmacyHero} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -548,7 +546,6 @@ function PharmacyDashboard() {
           <p className="text-sm opacity-90 mt-1">{pendingCount} pending order{pendingCount === 1 ? "" : "s"} · {inventory.length} item{inventory.length === 1 ? "" : "s"} listed</p>
         </div>
       </div>
-
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {[
@@ -589,13 +586,11 @@ function PharmacyDashboard() {
           );
         })}
       </div>
-
       <div className="grid gap-4 md:grid-cols-2 mb-6">
         <PharmacyOffersInbox />
         <PharmacyLocationCard />
         <PharmacyBranchesManager />
       </div>
-
       {lowStockItems.length > 0 && (
         <Link
           to="/dashboard/pharmacy/low-stock"
@@ -618,11 +613,9 @@ function PharmacyDashboard() {
           </div>
         </Link>
       )}
-
       {loading && (
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       )}
-
       {/* Live Deliveries (in progress) with real-time stage timeline */}
       {liveDeliveries.length > 0 && (
         <div className="mb-6 healthcare-card p-6">
@@ -642,7 +635,6 @@ function PharmacyDashboard() {
           </div>
         </div>
       )}
-
       <div className="space-y-6">
         {/* Incoming Orders */}
         <div id="orders-section" className="healthcare-card p-6 scroll-mt-20">
@@ -680,7 +672,6 @@ function PharmacyDashboard() {
                       </Button>
                     </div>
                   </div>
-
                   <p className="text-xs text-muted-foreground mb-1">
                     {g.items.length} item{g.items.length === 1 ? "" : "s"} · {itemCount} unit{itemCount === 1 ? "" : "s"} · one package
                   </p>
@@ -693,7 +684,6 @@ function PharmacyDashboard() {
                     ))}
                   </ul>
                   <p className="text-xs text-muted-foreground">Package total: <span className="font-semibold text-foreground">R {g.total.toFixed(2)}</span></p>
-
                   {g.status === "pending" && (
                     <div className="flex flex-wrap gap-2 mt-3">
                       <Button size="sm" variant="default" className="gap-1" onClick={() => acceptGroup(g)}>
@@ -704,29 +694,25 @@ function PharmacyDashboard() {
                       </Button>
                     </div>
                   )}
-
                   {g.status === "accepted" && (
                     <Button size="sm" variant="secondary" className="mt-3" onClick={() => markGroupPreparing(g)}>
                       <Pill className="h-3 w-3 mr-1" /> Mark as Preparing
                     </Button>
                   )}
-
                   {g.status === "preparing" && (
                     <Button size="sm" variant="default" className="mt-3 gap-1" onClick={() => markGroupReadyAndBroadcast(g)}>
                       <Truck className="h-3 w-3" /> Mark Ready & Broadcast to Drivers
                     </Button>
                   )}
-
                   {!["pending", "accepted", "preparing"].includes(g.status) && (
                     <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-accent capitalize">{g.status.replace(/_/g, " ")}</span>
                   )}
                 </div>
-              );
+              )
             })}
           </div>
         </div>
       </div>
-
       {/* Prescription Verification Queue */}
       <div id="prescription-queue" className="container-narrow px-4 sm:px-6 mt-6">
         <div className="healthcare-card p-6 scroll-mt-24">
@@ -779,7 +765,6 @@ function PharmacyDashboard() {
           </div>
         </div>
       </div>
-
       {/* Add / Edit Medication Dialog */}
       <Dialog open={medDialogOpen} onOpenChange={(o) => { setMedDialogOpen(o); if (!o) setEditingMed(null); }}>
         <DialogContent>
@@ -866,7 +851,6 @@ function PharmacyDashboard() {
           </form>
         </DialogContent>
       </Dialog>
-
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -888,7 +872,6 @@ function PharmacyDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       {/* Assign Driver Dialog */}
       <Dialog open={!!assignOrder} onOpenChange={(o) => !o && setAssignOrder(null)}>
         <DialogContent>
@@ -923,15 +906,10 @@ function PharmacyDashboard() {
           )}
         </DialogContent>
       </Dialog>
-
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
-
-
-
-
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
-  );
+  )
 }
 
 function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; onChat?: (orderId: string) => void }) {
@@ -987,14 +965,12 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
           </p>
         </div>
       )}
-
       {/* Auto-updating ETA from driver's live location */}
       {delivery.driver_id && delivery.status !== "delivered" && (
         <div className="mt-3">
           <LiveETACard orderId={delivery.order_id} deliveryStatus={delivery.status} />
         </div>
       )}
-
       {/* Unified real-time timeline */}
       <div className="mt-4">
         {delivery.order_group_id ? (
@@ -1006,7 +982,6 @@ function DeliveryTimelineCard({ delivery, onChat }: { delivery: LiveDelivery; on
           Last change {minsAgo === 0 ? "just now" : `${minsAgo}m ago`}
         </p>
       </div>
-
     </div>
-  );
+  )
 }
