@@ -281,6 +281,63 @@ function PharmacyDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // 🔔 Ringtone (5s) + toast when a NEW pharmacy appointment booking arrives.
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`pharmacy-appt-ring-${user.id}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "pharmacy_appointments", filter: `pharmacy_id=eq.${user.id}` },
+        (payload) => {
+          const a = payload.new as { reason?: string; preferred_at?: string };
+          toast.success("📅 New appointment request", {
+            description: `${a?.reason || "Patient booked an appointment"}${a?.preferred_at ? ` — ${new Date(a.preferred_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}` : ""}`,
+            duration: 15_000,
+          });
+          // Browser notification
+          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            try { new Notification("New appointment request", { body: a?.reason || "Patient booked an appointment", icon: "/favicon.ico" }); } catch { /* noop */ }
+          }
+          // Ring like a phone for ~5 seconds (Web Audio oscillating tone)
+          try {
+            const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+            const ctx = new AudioCtx();
+            const start = ctx.currentTime;
+            const stop = start + 5;
+            // Classic two-tone ring: A5/E5 alternating in 0.4s bursts with 0.2s gaps
+            let t = start;
+            while (t < stop) {
+              [880, 660].forEach((freq) => {
+                if (t >= stop) return;
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = "sine";
+                o.frequency.value = freq;
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+                o.connect(g); g.connect(ctx.destination);
+                o.start(t); o.stop(t + 0.42);
+                t += 0.5;
+              });
+              t += 0.2;
+            }
+            setTimeout(() => ctx.close().catch(() => {}), 5600);
+          } catch { /* audio may be blocked until user interaction */ }
+          // Vibrate on mobile
+          if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+            try { navigator.vibrate([400, 200, 400, 200, 400, 200, 400, 200, 400]); } catch { /* noop */ }
+          }
+        })
+      .subscribe();
+    // Request notification permission opportunistically
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+    return () => { supabase.removeChannel(ch); };
+  }, [user]);
+
+
   function openAddMedication() {
     setEditingMed(null);
     setForm({ name: "", price: "", stock: "", category: "", requires_prescription: false, image_url: "", expiry_date: "", batch_number: "", description: "" });
@@ -929,13 +986,15 @@ function PharmacyDashboard() {
 
       <div className="mt-8">
         <Tabs defaultValue="analytics" className="w-full">
-          <TabsList>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="appointments">Appointments</TabsTrigger>
-            <TabsTrigger value="booking">Booking setup</TabsTrigger>
-            <TabsTrigger value="finance">Finance</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          </TabsList>
+          <div className="-mx-4 sm:mx-0 overflow-x-auto scrollbar-none">
+            <TabsList className="inline-flex w-max min-w-full px-4 sm:px-0">
+              <TabsTrigger value="analytics" className="whitespace-nowrap">Analytics</TabsTrigger>
+              <TabsTrigger value="appointments" className="whitespace-nowrap">Appointments</TabsTrigger>
+              <TabsTrigger value="booking" className="whitespace-nowrap">Booking setup</TabsTrigger>
+              <TabsTrigger value="finance" className="whitespace-nowrap">Finance</TabsTrigger>
+              <TabsTrigger value="transactions" className="whitespace-nowrap">Transactions</TabsTrigger>
+            </TabsList>
+          </div>
           <TabsContent value="analytics" className="mt-4"><PharmacyAnalytics /></TabsContent>
           <TabsContent value="appointments" className="mt-4"><PharmacyAppointments /></TabsContent>
           <TabsContent value="booking" className="mt-4"><PharmacyBookingSettings /></TabsContent>
@@ -943,6 +1002,7 @@ function PharmacyDashboard() {
           <TabsContent value="transactions" className="mt-4"><TransactionHistory role="pharmacy" /></TabsContent>
         </Tabs>
       </div>
+
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
