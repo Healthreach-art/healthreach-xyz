@@ -16,11 +16,13 @@ import logoImg from "@/assets/healthreach-logo.png";
 type Item = { title: string; url: string; icon: any };
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const { user, role, signOut } = useAuth();
   const currentPath = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (p: string) => currentPath === p;
+  const closeMobile = () => { if (isMobile) setOpenMobile(false); };
+
 
   const dashboardPath = role ? `/dashboard/${role}` : "/login";
 
