@@ -24,20 +24,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
-import { TransactionHistory } from "@/components/TransactionHistory";
 import { PharmacyReviewActions, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { customerPrice } from "@/lib/pricing";
-import { PharmacyAnalytics } from "@/components/PharmacyAnalytics";
-import { PharmacyFinance } from "@/components/PharmacyFinance";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { PharmacyOffersInbox } from "@/components/PharmacyOffersInbox";
 import { PharmacyLocationCard } from "@/components/PharmacyLocationCard";
 import { PharmacyBranchesManager } from "@/components/PharmacyBranchesManager";
 import { BulkMedicineImportDialog } from "@/components/BulkMedicineImportDialog";
-import { PharmacyAppointments } from "@/components/PharmacyAppointments";
-import { PharmacyBookingSettings } from "@/components/PharmacyBookingSettings";
+
 import { LiveETACard } from "@/components/LiveETACard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
@@ -984,24 +979,8 @@ function PharmacyDashboard() {
 
       <OrderChatDialog orderId={chatOrderId} orderLabel={chatOrderId ? `Order ${chatOrderId.slice(0, 8)}` : ""} onClose={() => setChatOrderId(null)} />
 
-      <div className="mt-8">
-        <Tabs defaultValue="analytics" className="w-full">
-          <div className="-mx-4 sm:mx-0 overflow-x-auto scrollbar-none">
-            <TabsList className="inline-flex w-max min-w-full px-4 sm:px-0">
-              <TabsTrigger value="analytics" className="whitespace-nowrap">Analytics</TabsTrigger>
-              <TabsTrigger value="appointments" className="whitespace-nowrap">Appointments</TabsTrigger>
-              <TabsTrigger value="booking" className="whitespace-nowrap">Booking setup</TabsTrigger>
-              <TabsTrigger value="finance" className="whitespace-nowrap">Finance</TabsTrigger>
-              <TabsTrigger value="transactions" className="whitespace-nowrap">Transactions</TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="analytics" className="mt-4"><PharmacyAnalytics /></TabsContent>
-          <TabsContent value="appointments" className="mt-4"><PharmacyAppointments /></TabsContent>
-          <TabsContent value="booking" className="mt-4"><PharmacyBookingSettings /></TabsContent>
-          <TabsContent value="finance" className="mt-4"><PharmacyFinance /></TabsContent>
-          <TabsContent value="transactions" className="mt-4"><TransactionHistory role="pharmacy" /></TabsContent>
-        </Tabs>
-      </div>
+
+
 
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
