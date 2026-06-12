@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
   FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin,
-  Search, Star as StarIcon, AlertTriangle, BarChart3, Calendar, Settings as SettingsIcon, DollarSign, Receipt,
+  Search, Star as StarIcon, AlertTriangle, BarChart3, Calendar, DollarSign, Receipt,
 } from "lucide-react";
 
 import logoImg from "@/assets/healthreach-logo.png";
@@ -50,10 +50,10 @@ export function AppSidebar() {
       { title: "Prescription Queue", url: "/dashboard/pharmacy#prescription-queue", icon: FileText },
       { title: "Analytics", url: "/dashboard/pharmacy/analytics", icon: BarChart3 },
       { title: "Appointments", url: "/dashboard/pharmacy/appointments", icon: Calendar },
-      { title: "Booking setup", url: "/dashboard/pharmacy/booking", icon: SettingsIcon },
       { title: "Finance", url: "/dashboard/pharmacy/finance", icon: DollarSign },
       { title: "Transactions", url: "/dashboard/pharmacy/transactions", icon: Receipt },
     ] : []),
+
 
     ...(role === "driver" ? [
       { title: "Wallet", url: "/driver/wallet", icon: Wallet },
