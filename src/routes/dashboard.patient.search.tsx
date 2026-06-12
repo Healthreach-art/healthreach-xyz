@@ -110,7 +110,13 @@ function SearchPage() {
               <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
                 <div>
                   <p className="text-sm font-semibold line-clamp-1">{med.name}</p>
-                  <p className="text-[11px] text-muted-foreground line-clamp-1">{ph?.organization_name || ph?.full_name || "Pharmacy"}</p>
+                  <Link
+                    to="/pharmacy/$id"
+                    params={{ id: med.pharmacy_id }}
+                    className="text-[11px] text-primary hover:underline line-clamp-1"
+                  >
+                    {ph?.organization_name || ph?.full_name || "Pharmacy"}
+                  </Link>
                   {med.description && (
                     <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{med.description}</p>
                   )}
