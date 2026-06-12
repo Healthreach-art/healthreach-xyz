@@ -86,7 +86,7 @@ export function AppSidebar() {
         <SidebarGroupContent>
           <SidebarMenu>
             {items.map((it) => {
-              const isHash = it.url.includes("#");
+              const [path, hash] = it.url.split("#");
               const inner = (
                 <>
                   <it.icon className="h-4 w-4" />
@@ -96,11 +96,15 @@ export function AppSidebar() {
               return (
                 <SidebarMenuItem key={`${label}-${it.title}`}>
                   <SidebarMenuButton asChild isActive={isActive(it.url)}>
-                    {isHash ? (
-                      <a href={it.url} className="flex items-center gap-2" onClick={closeMobile}>{inner}</a>
-                    ) : (
-                      <Link to={it.url} className="flex items-center gap-2" onClick={closeMobile}>{inner}</Link>
-                    )}
+                    <Link
+                      to={path}
+                      hash={hash || undefined}
+                      className="flex items-center gap-2"
+                      onClick={closeMobile}
+                    >
+                      {inner}
+                    </Link>
+
 
                   </SidebarMenuButton>
                 </SidebarMenuItem>
