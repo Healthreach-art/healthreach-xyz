@@ -8,8 +8,9 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
   FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin,
-  Search, Star as StarIcon, AlertTriangle,
+  Search, Star as StarIcon, AlertTriangle, BarChart3, Calendar, Settings as SettingsIcon, DollarSign, Receipt,
 } from "lucide-react";
+
 import logoImg from "@/assets/healthreach-logo.png";
 
 type Item = { title: string; url: string; icon: any };

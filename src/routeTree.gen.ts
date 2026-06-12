@@ -43,8 +43,13 @@ import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
 import { Route as DashboardPatientIndexRouteImport } from './routes/dashboard.patient.index'
+import { Route as DashboardPharmacyTransactionsRouteImport } from './routes/dashboard.pharmacy.transactions'
 import { Route as DashboardPharmacyLowStockRouteImport } from './routes/dashboard.pharmacy.low-stock'
 import { Route as DashboardPharmacyInventoryRouteImport } from './routes/dashboard.pharmacy.inventory'
+import { Route as DashboardPharmacyFinanceRouteImport } from './routes/dashboard.pharmacy.finance'
+import { Route as DashboardPharmacyBookingRouteImport } from './routes/dashboard.pharmacy.booking'
+import { Route as DashboardPharmacyAppointmentsRouteImport } from './routes/dashboard.pharmacy.appointments'
+import { Route as DashboardPharmacyAnalyticsRouteImport } from './routes/dashboard.pharmacy.analytics'
 import { Route as DashboardPatientWalletRouteImport } from './routes/dashboard.patient.wallet'
 import { Route as DashboardPatientTransactionsRouteImport } from './routes/dashboard.patient.transactions'
 import { Route as DashboardPatientSupportRouteImport } from './routes/dashboard.patient.support'
@@ -235,6 +240,12 @@ const DashboardPatientIndexRoute = DashboardPatientIndexRouteImport.update({
   path: '/dashboard/patient/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardPharmacyTransactionsRoute =
+  DashboardPharmacyTransactionsRouteImport.update({
+    id: '/transactions',
+    path: '/transactions',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
 const DashboardPharmacyLowStockRoute =
   DashboardPharmacyLowStockRouteImport.update({
     id: '/low-stock',
@@ -245,6 +256,30 @@ const DashboardPharmacyInventoryRoute =
   DashboardPharmacyInventoryRouteImport.update({
     id: '/inventory',
     path: '/inventory',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
+const DashboardPharmacyFinanceRoute =
+  DashboardPharmacyFinanceRouteImport.update({
+    id: '/finance',
+    path: '/finance',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
+const DashboardPharmacyBookingRoute =
+  DashboardPharmacyBookingRouteImport.update({
+    id: '/booking',
+    path: '/booking',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
+const DashboardPharmacyAppointmentsRoute =
+  DashboardPharmacyAppointmentsRouteImport.update({
+    id: '/appointments',
+    path: '/appointments',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
+const DashboardPharmacyAnalyticsRoute =
+  DashboardPharmacyAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
     getParentRoute: () => DashboardPharmacyRoute,
   } as any)
 const DashboardPatientWalletRoute = DashboardPatientWalletRouteImport.update({
@@ -405,8 +440,13 @@ export interface FileRoutesByFullPath {
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
   '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
+  '/dashboard/pharmacy/analytics': typeof DashboardPharmacyAnalyticsRoute
+  '/dashboard/pharmacy/appointments': typeof DashboardPharmacyAppointmentsRoute
+  '/dashboard/pharmacy/booking': typeof DashboardPharmacyBookingRoute
+  '/dashboard/pharmacy/finance': typeof DashboardPharmacyFinanceRoute
   '/dashboard/pharmacy/inventory': typeof DashboardPharmacyInventoryRoute
   '/dashboard/pharmacy/low-stock': typeof DashboardPharmacyLowStockRoute
+  '/dashboard/pharmacy/transactions': typeof DashboardPharmacyTransactionsRoute
   '/dashboard/patient/': typeof DashboardPatientIndexRoute
   '/dashboard/patient/doctors/$id': typeof DashboardPatientDoctorsIdRoute
 }
@@ -462,8 +502,13 @@ export interface FileRoutesByTo {
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
   '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
+  '/dashboard/pharmacy/analytics': typeof DashboardPharmacyAnalyticsRoute
+  '/dashboard/pharmacy/appointments': typeof DashboardPharmacyAppointmentsRoute
+  '/dashboard/pharmacy/booking': typeof DashboardPharmacyBookingRoute
+  '/dashboard/pharmacy/finance': typeof DashboardPharmacyFinanceRoute
   '/dashboard/pharmacy/inventory': typeof DashboardPharmacyInventoryRoute
   '/dashboard/pharmacy/low-stock': typeof DashboardPharmacyLowStockRoute
+  '/dashboard/pharmacy/transactions': typeof DashboardPharmacyTransactionsRoute
   '/dashboard/patient': typeof DashboardPatientIndexRoute
   '/dashboard/patient/doctors/$id': typeof DashboardPatientDoctorsIdRoute
 }
@@ -520,8 +565,13 @@ export interface FileRoutesById {
   '/dashboard/patient/support': typeof DashboardPatientSupportRoute
   '/dashboard/patient/transactions': typeof DashboardPatientTransactionsRoute
   '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
+  '/dashboard/pharmacy/analytics': typeof DashboardPharmacyAnalyticsRoute
+  '/dashboard/pharmacy/appointments': typeof DashboardPharmacyAppointmentsRoute
+  '/dashboard/pharmacy/booking': typeof DashboardPharmacyBookingRoute
+  '/dashboard/pharmacy/finance': typeof DashboardPharmacyFinanceRoute
   '/dashboard/pharmacy/inventory': typeof DashboardPharmacyInventoryRoute
   '/dashboard/pharmacy/low-stock': typeof DashboardPharmacyLowStockRoute
+  '/dashboard/pharmacy/transactions': typeof DashboardPharmacyTransactionsRoute
   '/dashboard/patient/': typeof DashboardPatientIndexRoute
   '/dashboard/patient/doctors/$id': typeof DashboardPatientDoctorsIdRoute
 }
@@ -579,8 +629,13 @@ export interface FileRouteTypes {
     | '/dashboard/patient/support'
     | '/dashboard/patient/transactions'
     | '/dashboard/patient/wallet'
+    | '/dashboard/pharmacy/analytics'
+    | '/dashboard/pharmacy/appointments'
+    | '/dashboard/pharmacy/booking'
+    | '/dashboard/pharmacy/finance'
     | '/dashboard/pharmacy/inventory'
     | '/dashboard/pharmacy/low-stock'
+    | '/dashboard/pharmacy/transactions'
     | '/dashboard/patient/'
     | '/dashboard/patient/doctors/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -636,8 +691,13 @@ export interface FileRouteTypes {
     | '/dashboard/patient/support'
     | '/dashboard/patient/transactions'
     | '/dashboard/patient/wallet'
+    | '/dashboard/pharmacy/analytics'
+    | '/dashboard/pharmacy/appointments'
+    | '/dashboard/pharmacy/booking'
+    | '/dashboard/pharmacy/finance'
     | '/dashboard/pharmacy/inventory'
     | '/dashboard/pharmacy/low-stock'
+    | '/dashboard/pharmacy/transactions'
     | '/dashboard/patient'
     | '/dashboard/patient/doctors/$id'
   id:
@@ -693,8 +753,13 @@ export interface FileRouteTypes {
     | '/dashboard/patient/support'
     | '/dashboard/patient/transactions'
     | '/dashboard/patient/wallet'
+    | '/dashboard/pharmacy/analytics'
+    | '/dashboard/pharmacy/appointments'
+    | '/dashboard/pharmacy/booking'
+    | '/dashboard/pharmacy/finance'
     | '/dashboard/pharmacy/inventory'
     | '/dashboard/pharmacy/low-stock'
+    | '/dashboard/pharmacy/transactions'
     | '/dashboard/patient/'
     | '/dashboard/patient/doctors/$id'
   fileRoutesById: FileRoutesById
@@ -993,6 +1058,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/pharmacy/transactions': {
+      id: '/dashboard/pharmacy/transactions'
+      path: '/transactions'
+      fullPath: '/dashboard/pharmacy/transactions'
+      preLoaderRoute: typeof DashboardPharmacyTransactionsRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
     '/dashboard/pharmacy/low-stock': {
       id: '/dashboard/pharmacy/low-stock'
       path: '/low-stock'
@@ -1005,6 +1077,34 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/dashboard/pharmacy/inventory'
       preLoaderRoute: typeof DashboardPharmacyInventoryRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
+    '/dashboard/pharmacy/finance': {
+      id: '/dashboard/pharmacy/finance'
+      path: '/finance'
+      fullPath: '/dashboard/pharmacy/finance'
+      preLoaderRoute: typeof DashboardPharmacyFinanceRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
+    '/dashboard/pharmacy/booking': {
+      id: '/dashboard/pharmacy/booking'
+      path: '/booking'
+      fullPath: '/dashboard/pharmacy/booking'
+      preLoaderRoute: typeof DashboardPharmacyBookingRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
+    '/dashboard/pharmacy/appointments': {
+      id: '/dashboard/pharmacy/appointments'
+      path: '/appointments'
+      fullPath: '/dashboard/pharmacy/appointments'
+      preLoaderRoute: typeof DashboardPharmacyAppointmentsRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
+    '/dashboard/pharmacy/analytics': {
+      id: '/dashboard/pharmacy/analytics'
+      path: '/analytics'
+      fullPath: '/dashboard/pharmacy/analytics'
+      preLoaderRoute: typeof DashboardPharmacyAnalyticsRouteImport
       parentRoute: typeof DashboardPharmacyRoute
     }
     '/dashboard/patient/wallet': {
@@ -1167,13 +1267,23 @@ const DashboardAdminRouteWithChildren = DashboardAdminRoute._addFileChildren(
 )
 
 interface DashboardPharmacyRouteChildren {
+  DashboardPharmacyAnalyticsRoute: typeof DashboardPharmacyAnalyticsRoute
+  DashboardPharmacyAppointmentsRoute: typeof DashboardPharmacyAppointmentsRoute
+  DashboardPharmacyBookingRoute: typeof DashboardPharmacyBookingRoute
+  DashboardPharmacyFinanceRoute: typeof DashboardPharmacyFinanceRoute
   DashboardPharmacyInventoryRoute: typeof DashboardPharmacyInventoryRoute
   DashboardPharmacyLowStockRoute: typeof DashboardPharmacyLowStockRoute
+  DashboardPharmacyTransactionsRoute: typeof DashboardPharmacyTransactionsRoute
 }
 
 const DashboardPharmacyRouteChildren: DashboardPharmacyRouteChildren = {
+  DashboardPharmacyAnalyticsRoute: DashboardPharmacyAnalyticsRoute,
+  DashboardPharmacyAppointmentsRoute: DashboardPharmacyAppointmentsRoute,
+  DashboardPharmacyBookingRoute: DashboardPharmacyBookingRoute,
+  DashboardPharmacyFinanceRoute: DashboardPharmacyFinanceRoute,
   DashboardPharmacyInventoryRoute: DashboardPharmacyInventoryRoute,
   DashboardPharmacyLowStockRoute: DashboardPharmacyLowStockRoute,
+  DashboardPharmacyTransactionsRoute: DashboardPharmacyTransactionsRoute,
 }
 
 const DashboardPharmacyRouteWithChildren =
