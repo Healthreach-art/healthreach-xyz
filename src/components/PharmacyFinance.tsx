@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Wallet, Receipt, TrendingUp } from "lucide-react";
+import { Loader2, Wallet, Receipt, TrendingUp, FileDown } from "lucide-react";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { downloadPharmacyTaxStatementPdf, type TaxStatementRow } from "@/lib/receipt";
+import { toast } from "sonner";
 
 interface PaymentRow {
   id: string; order_id: string; amount: number; status: string; created_at: string;
