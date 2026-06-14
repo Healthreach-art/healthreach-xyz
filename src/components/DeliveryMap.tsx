@@ -27,7 +27,9 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
   const [ready, setReady] = useState(false);
   const [liveCoords, setLiveCoords] = useState<Coords | null>(null);
   const [info, setInfo] = useState<{ km: number | null; min: number | null }>({ km: null, min: null });
+  const [collapsed, setCollapsed] = useState(false);
   const fetchDirections = useServerFn(getDirections);
+
 
   useEffect(() => {
     let cancelled = false;
