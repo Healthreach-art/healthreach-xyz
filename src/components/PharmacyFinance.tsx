@@ -18,8 +18,13 @@ interface PaymentRow {
 const FEE_PCT = (PLATFORM_RULES as { PLATFORM_FEE_PCT?: number }).PLATFORM_FEE_PCT ?? 0.15;
 
 export function PharmacyFinance() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [rows, setRows] = useState<PaymentRow[]>([]);
+  const monthStart = (() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); })();
+  const today = new Date().toISOString().slice(0, 10);
+  const [from, setFrom] = useState(monthStart);
+  const [to, setTo] = useState(today);
+  const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
