@@ -76,6 +76,77 @@ export function PharmacyFinance() {
         <Stat icon={Wallet} label="Pending payouts" value={`R ${summary.pending.toFixed(2)}`} sub={`${summary.refunded} refunded`} accent="text-muted-foreground" />
       </div>
 
+      <div className="healthcare-card p-6 space-y-3">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="text-sm font-semibold flex items-center gap-2"><FileDown className="h-4 w-4 text-primary"/> Tax statement (PDF)</h3>
+            <p className="text-xs text-muted-foreground">Per-transaction line items with VAT (15%) breakdown for SARS / accountant.</p>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] items-end">
+          <div className="min-w-0">
+            <Label htmlFor="tax-from" className="text-xs">From</Label>
+            <Input id="tax-from" type="date" value={from} onChange={e=>setFrom(e.target.value)} />
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor="tax-to" className="text-xs">To</Label>
+            <Input id="tax-to" type="date" value={to} onChange={e=>setTo(e.target.value)} />
+          </div>
+          <Button
+            disabled={exporting}
+            onClick={async () => {
+              if (!user) return;
+              setExporting(true);
+              try {
+                const fromIso = new Date(from + "T00:00:00").toISOString();
+                const toIso = new Date(to + "T23:59:59").toISOString();
+                const { data: ord } = await supabase.from("orders").select("id, medication_name").eq("pharmacy_id", user.id);
+                const idMap = new Map((ord ?? []).map(o => [o.id, o.medication_name as string]));
+                const ids = Array.from(idMap.keys());
+                if (!ids.length) { toast.info("No transactions in this period."); return; }
+                const { data: pays } = await supabase
+                  .from("payments")
+                  .select("id, order_id, amount, status, created_at, pharmacy_amount, platform_fee, delivery_fee, total_paid, invoice_number")
+                  .in("order_id", ids)
+                  .gte("created_at", fromIso)
+                  .lte("created_at", toIso)
+                  .eq("status", "completed")
+                  .order("created_at", { ascending: true });
+                const taxRows: TaxStatementRow[] = (pays ?? []).map((p: any) => {
+                  const gross = Number(p.total_paid ?? p.amount ?? 0);
+                  const platform_fee = Number(p.platform_fee ?? gross * FEE_PCT);
+                  const delivery_fee = Number(p.delivery_fee ?? 0);
+                  const net_earned = Number(p.pharmacy_amount ?? (gross - platform_fee - delivery_fee));
+                  return {
+                    invoice_number: p.invoice_number || p.id.slice(0,8),
+                    created_at: p.created_at,
+                    medication_name: idMap.get(p.order_id) ?? "Order",
+                    gross, platform_fee, delivery_fee, net_earned,
+                    status: p.status,
+                  };
+                });
+                if (!taxRows.length) { toast.info("No completed transactions in this period."); return; }
+                downloadPharmacyTaxStatementPdf({
+                  pharmacy_name: profile?.organization_name || profile?.full_name || "Pharmacy",
+                  vat_number: (profile as any)?.vat_number || undefined,
+                  address: (profile as any)?.address || undefined,
+                  period_from: fromIso,
+                  period_to: toIso,
+                  rows: taxRows,
+                });
+                toast.success("Tax statement downloaded");
+              } catch (e: any) {
+                toast.error(e?.message ?? "Export failed");
+              } finally { setExporting(false); }
+            }}
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}
+            <span className="ml-2">Download PDF</span>
+          </Button>
+        </div>
+      </div>
+
+
       <div className="healthcare-card p-6">
         <h3 className="text-sm font-semibold mb-4">Recent transactions</h3>
         {rows.length === 0 ? (
