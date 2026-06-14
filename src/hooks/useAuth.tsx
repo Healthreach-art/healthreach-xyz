@@ -94,6 +94,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Live-sync approval/role when admin updates the current user.
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`auth-profile-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` }, () => {
+        fetchUserData(user.id);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` }, () => {
+        fetchUserData(user.id);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);

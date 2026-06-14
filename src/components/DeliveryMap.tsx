@@ -27,7 +27,9 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
   const [ready, setReady] = useState(false);
   const [liveCoords, setLiveCoords] = useState<Coords | null>(null);
   const [info, setInfo] = useState<{ km: number | null; min: number | null }>({ km: null, min: null });
+  const [collapsed, setCollapsed] = useState(false);
   const fetchDirections = useServerFn(getDirections);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -123,19 +125,38 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
     if (liveCoords) map.panTo(pos, { animate: true });
   }, [ready, liveCoords, status, pickup, dropoff]);
 
+  // Leaflet needs invalidateSize when the container is re-shown from display:none
+  useEffect(() => {
+    if (!collapsed && mapRef.current?.map) {
+      setTimeout(() => mapRef.current?.map?.invalidateSize(), 50);
+    }
+  }, [collapsed]);
+
+
+
   return (
-    <div className={className ?? "h-56 w-full rounded-xl overflow-hidden border border-border relative"}>
-      <div ref={ref} className="h-full w-full" />
-      {(info.km !== null || info.min !== null) && (
-        <div className="absolute top-2 left-2 z-[400] rounded-md bg-background/90 backdrop-blur px-2 py-1 text-[11px] font-medium border border-border shadow-sm">
+    <div className={className ?? "w-full rounded-xl overflow-hidden border border-border relative"}>
+      <div className="flex items-center justify-between gap-2 px-2 py-1 border-b border-border bg-background/95 text-[11px] font-medium">
+        <span className="truncate">
           {info.km !== null && <span>{info.km} km</span>}
           {info.km !== null && info.min !== null && <span className="mx-1 text-muted-foreground">·</span>}
           {info.min !== null && <span>{info.min} min</span>}
-        </div>
-      )}
+          {info.km === null && info.min === null && <span className="text-muted-foreground">Route map</span>}
+        </span>
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          className="rounded-md border border-border px-2 py-0.5 text-[10px] hover:bg-accent shrink-0"
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? "Show map" : "Hide map"}
+        </button>
+      </div>
+      <div ref={ref} className={collapsed ? "h-0 w-full" : "h-full w-full min-h-[160px]"} style={collapsed ? { display: "none" } : undefined} />
     </div>
   );
 }
+
 
 function pinIcon(L: any, color: string, label: string) {
   return L.divIcon({
