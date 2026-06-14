@@ -125,6 +125,15 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
     if (liveCoords) map.panTo(pos, { animate: true });
   }, [ready, liveCoords, status, pickup, dropoff]);
 
+  // Leaflet needs invalidateSize when the container is re-shown from display:none
+  useEffect(() => {
+    if (!collapsed && mapRef.current?.map) {
+      setTimeout(() => mapRef.current?.map?.invalidateSize(), 50);
+    }
+  }, [collapsed]);
+
+
+
   return (
     <div className={className ?? "w-full rounded-xl overflow-hidden border border-border relative"}>
       <div className="flex items-center justify-between gap-2 px-2 py-1 border-b border-border bg-background/95 text-[11px] font-medium">
