@@ -59,6 +59,10 @@ function SignupPage() {
     }
     setLoading(true);
 
+    // Clear any lingering session from a previous account so the new
+    // signup doesn't get redirected into someone else's dashboard.
+    try { await supabase.auth.signOut(); } catch {}
+
     const { error: authError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -75,6 +79,7 @@ function SignupPage() {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
+
 
     if (authError) {
       setError(authError.message);
