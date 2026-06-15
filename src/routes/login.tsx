@@ -237,39 +237,14 @@ function LoginPage() {
             )}
           </div>
 
-          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs">
-            <p className="font-medium text-foreground mb-2">Demo logins (click to fill)</p>
-            <div className="grid grid-cols-1 gap-1.5">
-              {[
-                { label: "Admin", email: "admin.demo@healthreach.co.za", pw: "DemoAdmin!2025" },
-                { label: "Patient", email: "patient.demo@healthreach.co.za", pw: "DemoPass!2025" },
-                { label: "Pharmacy", email: "pharmacy.demo@healthreach.co.za", pw: "DemoPass!2025" },
-                { label: "Doctor", email: "doctor.demo@healthreach.co.za", pw: "DemoPass!2025" },
-                { label: "Driver", email: "driver.demo@healthreach.co.za", pw: "DemoPass!2025" },
-              ].map((d) => (
-                <button
-                  key={d.email}
-                  type="button"
-                  onClick={() => { setEmail(d.email); setPassword(d.pw); setError(""); }}
-                  className="flex flex-col gap-0.5 rounded-md border border-border/70 bg-background px-2.5 py-1.5 text-left text-[11px] hover:bg-accent transition"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-foreground">{d.label}</span>
-                    <span className="text-muted-foreground truncate">{d.email}</span>
-                  </span>
-                  <span className="text-muted-foreground">Password: <span className="font-mono text-foreground">{d.pw}</span></span>
-                </button>
-              ))}
-            </div>
-            {isAdminMode && (
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                Need a personal admin account?{" "}
-                <Link to="/signup/admin" className="text-primary font-medium hover:underline">
-                  Create one with an invite code
-                </Link>
-              </p>
-            )}
-          </div>
+          {isAdminMode && (
+            <p className="mt-6 text-xs text-muted-foreground text-center">
+              Need a personal admin account?{" "}
+              <Link to="/signup/admin" className="text-primary font-medium hover:underline">
+                Create one with an invite code
+              </Link>
+            </p>
+          )}
           </div>
         </div>
       </div>
