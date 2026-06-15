@@ -1,22 +1,14 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
-
-type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor";
+import { resolveUserAccount, type AppRole, type ResolvedProfile } from "@/lib/auth-session";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
   approvalStatus: string | null;
-  profile: {
-    full_name: string;
-    email: string;
-    organization_name: string;
-    phone: string;
-    address: string;
-    is_demo: boolean;
-  } | null;
+  profile: ResolvedProfile | null;
   isDemo: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -44,51 +36,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
   const [loading, setLoading] = useState(true);
+  const hydrateId = useRef(0);
 
-  async function fetchUserData(userId: string) {
-    const [roleRes, profileRes] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
-      supabase.from("profiles").select("full_name, email, organization_name, phone, address, approval_status, is_demo").eq("user_id", userId).maybeSingle(),
-    ]);
+  async function hydrateSession(nextSession: Session | null) {
+    const currentHydrate = ++hydrateId.current;
+    setLoading(true);
+    setSession(nextSession);
+    setUser(nextSession?.user ?? null);
+    setRole(null);
+    setApprovalStatus(null);
+    setProfile(null);
 
-    if (roleRes.data) setRole(roleRes.data.role as AppRole);
-    if (profileRes.data) {
-      setApprovalStatus(profileRes.data.approval_status);
+    if (!nextSession?.user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const account = await resolveUserAccount(nextSession.user);
+      if (currentHydrate !== hydrateId.current) return;
+      setRole(account.role);
+      setApprovalStatus(account.approvalStatus);
+      setProfile(account.profile);
+    } catch {
+      if (currentHydrate !== hydrateId.current) return;
+      setRole("patient");
+      setApprovalStatus(null);
       setProfile({
-        full_name: profileRes.data.full_name,
-        email: profileRes.data.email,
-        organization_name: profileRes.data.organization_name ?? "",
-        phone: profileRes.data.phone ?? "",
-        address: profileRes.data.address ?? "",
-        is_demo: !!(profileRes.data as any).is_demo,
+        full_name: nextSession.user.user_metadata?.full_name ?? "",
+        email: nextSession.user.email ?? "",
+        organization_name: "",
+        phone: "",
+        address: "",
+        is_demo: false,
       });
+    } finally {
+      if (currentHydrate === hydrateId.current) setLoading(false);
     }
   }
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          setTimeout(() => fetchUserData(session.user.id), 0);
-        } else {
-          setRole(null);
-          setApprovalStatus(null);
-          setProfile(null);
-        }
-        setLoading(false);
+      (_event, session) => {
+        window.setTimeout(() => void hydrateSession(session), 0);
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserData(session.user.id);
-      }
-      setLoading(false);
+      void hydrateSession(session);
     });
 
     return () => subscription.unsubscribe();
@@ -100,17 +95,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const channel = supabase
       .channel(`auth-profile-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` }, () => {
-        fetchUserData(user.id);
+        if (session) void hydrateSession(session);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` }, () => {
-        fetchUserData(user.id);
+        if (session) void hydrateSession(session);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user?.id]);
+  }, [user?.id, session]);
 
 
   const signOut = async () => {
+    hydrateId.current += 1;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

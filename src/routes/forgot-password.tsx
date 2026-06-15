@@ -11,6 +11,7 @@ export const Route = createFileRoute("/forgot-password")({
   head: () => ({
     meta: [
       { title: "Forgot Password — HEALTHREACH" },
+      { name: "description", content: "Request a HEALTHREACH password reset email." },
     ],
   }),
   component: ForgotPasswordPage,
@@ -27,7 +28,7 @@ function ForgotPasswordPage() {
     setError("");
     setLoading(true);
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
 
@@ -50,7 +51,7 @@ function ForgotPasswordPage() {
           </div>
           <h2 className="text-xl font-bold text-foreground">Check Your Email</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            We've sent a password reset link to <strong>{email}</strong>
+            We've sent a password reset link to <strong>{email.trim()}</strong>. Open it from your email to choose a new password.
           </p>
           <Link to="/login">
             <Button variant="outline" className="mt-6">Back to Login</Button>
@@ -82,7 +83,7 @@ function ForgotPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Sending..." : "Send Reset Link"}

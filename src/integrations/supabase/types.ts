@@ -2379,6 +2379,7 @@ export type Database = {
       }
       release_scheduled_orders: { Args: never; Returns: Json }
       resolve_actor_name: { Args: { _user_id: string }; Returns: string }
+      user_has_any_role: { Args: { _user_id: string }; Returns: boolean }
       wallet_credit: {
         Args: {
           _amount_cents: number
