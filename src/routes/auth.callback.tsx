@@ -31,10 +31,10 @@ function AuthCallback() {
       const intent = typeof window !== "undefined" ? localStorage.getItem("hr_oauth_role") : null;
       const fallbackRole = isAppRole(intent) && intent !== "admin" ? intent : "patient";
       const role = await resolveUserRole(user, { fallbackRole, repairMissing: true });
-      try { localStorage.removeItem("hr_oauth_role"); } catch {}
+      try { localStorage.removeItem("hr_oauth_role"); } catch { /* ignore */ }
 
       setMsg(`Welcome! Redirecting to your ${role} dashboard…`);
-      navigate({ to: dashboardPathForRole(role) as any, replace: true });
+      navigate({ to: dashboardPathForRole(role) as never, replace: true });
     };
     run();
     return () => { cancelled = true; };
