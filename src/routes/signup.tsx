@@ -5,10 +5,9 @@ import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { useServerFn } from "@tanstack/react-start";
-import { setSignupLocation } from "@/lib/dispatch.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
-import { UserPlus, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
+
 
 type SignupSearch = { role?: "patient" | "pharmacy" | "driver" | "doctor" };
 
@@ -50,7 +49,6 @@ function SignupPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const saveLocation = useServerFn(setSignupLocation);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,11 +60,19 @@ function SignupPage() {
     setLoading(true);
 
     const { error: authError } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
       options: {
-        data: { full_name: fullName, role },
-        emailRedirectTo: window.location.origin,
+        data: {
+          full_name: fullName,
+          role,
+          address: address.address,
+          lat: address.lat,
+          lng: address.lng,
+          phone: phone || undefined,
+          organization_name: needsOrg ? orgName : undefined,
+        },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
@@ -74,22 +80,6 @@ function SignupPage() {
       setError(authError.message);
       setLoading(false);
       return;
-    }
-
-    // Auto-confirm is on, so we already have a session. Write address+coords.
-    try {
-      await saveLocation({
-        data: {
-          address: address.address,
-          lat: address.lat,
-          lng: address.lng,
-          organizationName: needsOrg ? orgName : undefined,
-          phone: phone || undefined,
-        },
-      });
-    } catch (err) {
-      // Profile update failure is non-fatal for the signup flow; surface a soft warning.
-      console.warn("Saving signup location failed:", err);
     }
 
     setSuccess(true);
@@ -101,22 +91,27 @@ function SignupPage() {
     return (
       <div className="flex min-h-[80vh] items-center justify-center px-4">
         <div className="healthcare-card p-8 max-w-md text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-healthcare-green/20">
-            <CheckCircle className="h-6 w-6 text-healthcare-green" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+            <MailCheck className="h-7 w-7 text-primary" />
           </div>
-          <h2 className="text-xl font-bold text-foreground">Account Created!</h2>
+          <h2 className="text-xl font-bold text-foreground">Check your email</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {needsApproval
-              ? "Your account is pending admin approval. You'll be notified once approved."
-              : "Please check your email to verify your account."}
+            We sent a confirmation link to <span className="font-medium text-foreground">{email}</span>.
+            Click it to verify your account and finish signing in.
           </p>
-          <Button className="mt-6" onClick={() => navigate({ to: "/login" })}>
+          {needsApproval && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              After verifying your email, your {meta.label.toLowerCase()} account will be reviewed by an admin before going live.
+            </p>
+          )}
+          <Button className="mt-6 w-full" onClick={() => navigate({ to: "/login" })}>
             Go to Login
           </Button>
         </div>
       </div>
     );
   }
+
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4 py-8">
