@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { dashboardPathForRole, isAppRole, resolveUserRole } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({ meta: [{ title: "Signing you in… — HEALTHREACH" }] }),
@@ -15,7 +16,6 @@ function AuthCallback() {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      // Wait briefly for session hydration after OAuth redirect
       for (let i = 0; i < 20; i++) {
         const { data } = await supabase.auth.getUser();
         if (data.user) break;
@@ -28,30 +28,13 @@ function AuthCallback() {
         return;
       }
 
-      // Lookup role
-      const { data: roleRow } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      let role = roleRow?.role as string | undefined;
-
-      // No role yet (fresh Google signup) → use stashed intent or default to patient
-      if (!role) {
-        const intent = (typeof window !== "undefined" && localStorage.getItem("hr_oauth_role")) || "patient";
-        const allowed = ["patient", "pharmacy", "driver"];
-        const chosen = allowed.includes(intent) ? intent : "patient";
-        const { error: insErr } = await supabase
-          .from("user_roles")
-          .insert({ user_id: user.id, role: chosen as any });
-        if (!insErr) role = chosen;
-        else role = "patient";
-        try { localStorage.removeItem("hr_oauth_role"); } catch {}
-      }
+      const intent = typeof window !== "undefined" ? localStorage.getItem("hr_oauth_role") : null;
+      const fallbackRole = isAppRole(intent) && intent !== "admin" ? intent : "patient";
+      const role = await resolveUserRole(user, { fallbackRole, repairMissing: true });
+      try { localStorage.removeItem("hr_oauth_role"); } catch { /* ignore */ }
 
       setMsg(`Welcome! Redirecting to your ${role} dashboard…`);
-      navigate({ to: `/dashboard/${role}` as any });
+      navigate({ to: dashboardPathForRole(role) as never, replace: true });
     };
     run();
     return () => { cancelled = true; };

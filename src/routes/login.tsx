@@ -8,6 +8,7 @@ import { lovable } from "@/integrations/lovable";
 import { Link } from "@tanstack/react-router";
 import { LogIn, AlertCircle, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { dashboardPathForRole, resolveUserRole } from "@/lib/auth-session";
 
 type LoginSearch = { mode?: "admin"; denied?: "admin"; redirect?: string };
 
@@ -49,9 +50,10 @@ function LoginPage() {
     setError("");
     setLoading(true);
 
-    // Always start from a clean slate so a stale session can't carry over
-    // into a different account.
-    try { await supabase.auth.signOut(); } catch {}
+    const existing = await supabase.auth.getSession();
+    if (existing.data.session?.user.email?.toLowerCase() !== email.trim().toLowerCase()) {
+      await supabase.auth.signOut({ scope: "local" });
+    }
 
     const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -75,13 +77,7 @@ function LoginPage() {
       return;
     }
 
-    // Single role lookup — the trigger creates the row at signup time, so it's there.
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle();
-    const role = (roleData?.role as string | undefined) || "patient";
+    const role = await resolveUserRole(signInData.user, { repairMissing: true });
 
     if (isAdminMode && role !== "admin") {
       await supabase.auth.signOut();
@@ -90,9 +86,7 @@ function LoginPage() {
       return;
     }
 
-    // SPA navigation — the AuthProvider's onAuthStateChange already hydrated
-    // the session, so the dashboard mounts instantly.
-    navigate({ to: `/dashboard/${role}` as never });
+    navigate({ to: dashboardPathForRole(role) as never, replace: true });
   };
 
 
