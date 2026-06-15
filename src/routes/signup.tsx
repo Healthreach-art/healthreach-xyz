@@ -210,6 +210,7 @@ function SignupPage() {
             onClick={async () => {
               setError("");
               try { localStorage.setItem("hr_oauth_role", role); } catch {}
+              try { await supabase.auth.signOut(); } catch {}
               const result = await lovable.auth.signInWithOAuth("google", {
                 redirect_uri: `${window.location.origin}/auth/callback`,
               });
@@ -217,6 +218,7 @@ function SignupPage() {
                 setError(result.error.message ?? "Google sign-up failed");
               }
             }}
+
           >
             <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48" aria-hidden="true">
               <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.5 29.5 4.5 24 4.5 12.7 4.5 3.5 13.7 3.5 25S12.7 45.5 24 45.5 44.5 36.3 44.5 25c0-1.5-.2-3-.4-4.5z"/>
