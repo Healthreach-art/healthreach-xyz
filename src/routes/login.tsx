@@ -49,7 +49,10 @@ function LoginPage() {
     setError("");
     setLoading(true);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() });
+    const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password.trim(),
+    });
 
     if (authError) {
       setError(authError.message);
@@ -57,28 +60,37 @@ function LoginPage() {
       return;
     }
 
-    // Fetch role to redirect to correct dashboard
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+    const userId = signInData.user?.id;
+    if (!userId) {
+      setError("Sign in succeeded but no user was returned. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    // Fetch role with a short retry in case the trigger is still firing.
+    let role: string | null = null;
+    for (let i = 0; i < 4; i++) {
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .maybeSingle();
-
-      const role = roleData?.role || "patient";
-
-      if (isAdminMode && role !== "admin") {
-        await supabase.auth.signOut();
-        setError("This account is not an admin account. Please use an admin login or switch to the standard login.");
-        setLoading(false);
-        return;
-      }
-
-      navigate({ to: `/dashboard/${role}` as any });
+      if (roleData?.role) { role = roleData.role; break; }
+      await new Promise((r) => setTimeout(r, 200));
     }
-    setLoading(false);
+    role = role || "patient";
+
+    if (isAdminMode && role !== "admin") {
+      await supabase.auth.signOut();
+      setError("This account is not an admin account. Please use an admin login or switch to the standard login.");
+      setLoading(false);
+      return;
+    }
+
+    // Hard navigation — fastest path; the dashboard hydrates with a fresh auth context.
+    window.location.assign(`/dashboard/${role}`);
   };
+
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4">
