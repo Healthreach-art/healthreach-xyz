@@ -1,4 +1,4 @@
-import { createFileRoute, useSearch } from "@tanstack/react-router";
+import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  
+  const navigate = useNavigate();
   const { mode, denied } = useSearch({ from: "/login" });
   const isAdminMode = mode === "admin";
   const [email, setEmail] = useState("");
@@ -49,13 +49,21 @@ function LoginPage() {
     setError("");
     setLoading(true);
 
+    // Always start from a clean slate so a stale session can't carry over
+    // into a different account.
+    try { await supabase.auth.signOut(); } catch {}
+
     const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password: password.trim(),
     });
 
     if (authError) {
-      setError(authError.message);
+      // Friendlier message for the common "needs email confirm" case.
+      const msg = /email.*not.*confirm/i.test(authError.message)
+        ? "Please confirm your email first — check your inbox for the verification link."
+        : authError.message;
+      setError(msg);
       setLoading(false);
       return;
     }
@@ -67,18 +75,13 @@ function LoginPage() {
       return;
     }
 
-    // Fetch role with a short retry in case the trigger is still firing.
-    let role: string | null = null;
-    for (let i = 0; i < 4; i++) {
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (roleData?.role) { role = roleData.role; break; }
-      await new Promise((r) => setTimeout(r, 200));
-    }
-    role = role || "patient";
+    // Single role lookup — the trigger creates the row at signup time, so it's there.
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const role = (roleData?.role as string | undefined) || "patient";
 
     if (isAdminMode && role !== "admin") {
       await supabase.auth.signOut();
@@ -87,9 +90,11 @@ function LoginPage() {
       return;
     }
 
-    // Hard navigation — fastest path; the dashboard hydrates with a fresh auth context.
-    window.location.assign(`/dashboard/${role}`);
+    // SPA navigation — the AuthProvider's onAuthStateChange already hydrated
+    // the session, so the dashboard mounts instantly.
+    navigate({ to: `/dashboard/${role}` as never });
   };
+
 
 
   return (
