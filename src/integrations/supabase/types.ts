@@ -2238,44 +2238,6 @@ export type Database = {
           user_id: string | null
           walkins_enabled: boolean | null
         }
-        Insert: {
-          address?: string | null
-          appointments_enabled?: boolean | null
-          approval_status?:
-            | Database["public"]["Enums"]["approval_status"]
-            | null
-          created_at?: string | null
-          full_name?: string | null
-          is_demo?: boolean | null
-          latitude?: number | null
-          longitude?: number | null
-          opening_hours?: string | null
-          organization_name?: string | null
-          phone?: string | null
-          services?: string[] | null
-          services_tags?: string[] | null
-          user_id?: string | null
-          walkins_enabled?: boolean | null
-        }
-        Update: {
-          address?: string | null
-          appointments_enabled?: boolean | null
-          approval_status?:
-            | Database["public"]["Enums"]["approval_status"]
-            | null
-          created_at?: string | null
-          full_name?: string | null
-          is_demo?: boolean | null
-          latitude?: number | null
-          longitude?: number | null
-          opening_hours?: string | null
-          organization_name?: string | null
-          phone?: string | null
-          services?: string[] | null
-          services_tags?: string[] | null
-          user_id?: string | null
-          walkins_enabled?: boolean | null
-        }
         Relationships: []
       }
     }
@@ -2362,6 +2324,26 @@ export type Database = {
           note: string
           source: string
           stage: string
+        }[]
+      }
+      get_pharmacy_directory: {
+        Args: never
+        Returns: {
+          address: string
+          appointments_enabled: boolean
+          approval_status: Database["public"]["Enums"]["approval_status"]
+          created_at: string
+          full_name: string
+          is_demo: boolean
+          latitude: number
+          longitude: number
+          opening_hours: string
+          organization_name: string
+          phone: string
+          services: string[]
+          services_tags: string[]
+          user_id: string
+          walkins_enabled: boolean
         }[]
       }
       get_user_role: {
