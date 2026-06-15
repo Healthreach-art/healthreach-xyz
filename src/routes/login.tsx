@@ -93,9 +93,34 @@ function LoginPage() {
 
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="healthcare-card p-8">
+    <div className="relative min-h-[calc(100vh-4rem)] grid lg:grid-cols-2 overflow-hidden">
+      {/* Decorative gradient panel (desktop) */}
+      <div className="hidden lg:flex relative items-center justify-center p-12 bg-gradient-to-br from-primary/90 via-primary to-primary-glow text-primary-foreground overflow-hidden">
+        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" aria-hidden />
+        <div className="absolute -bottom-24 -right-16 h-80 w-80 rounded-full bg-white/10 blur-3xl" aria-hidden />
+        <div className="relative max-w-md space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur px-3 py-1 text-xs font-medium ring-1 ring-white/20">
+            <ShieldCheck className="h-3.5 w-3.5" /> Secure healthcare access
+          </div>
+          <h2 className="text-4xl font-bold leading-tight tracking-tight">
+            Your health,<br/>delivered with care.
+          </h2>
+          <p className="text-primary-foreground/85">
+            Order medication, book doctors, and track deliveries — all in one HEALTHREACH account.
+          </p>
+          <ul className="space-y-2 text-sm text-primary-foreground/90">
+            <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/70" /> SAPC-verified pharmacies and HPCSA doctors</li>
+            <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/70" /> Live delivery tracking nationwide</li>
+            <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/70" /> Secure payments in ZAR</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Auth panel */}
+      <div className="flex items-center justify-center px-4 py-10 sm:px-6">
+        <div className="w-full max-w-md">
+          <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl p-7 sm:p-9">
+
           <div className="mb-6 text-center">
             <div className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ${isAdminMode ? "bg-foreground" : "healthcare-gradient"}`}>
               {isAdminMode ? (
