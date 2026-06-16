@@ -9,13 +9,13 @@ import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
 
 
-type SignupSearch = { role?: "patient" | "pharmacy" | "driver" | "doctor" };
+type SignupSearch = { role?: "patient" | "pharmacy" | "driver" | "doctor" | "hospital" };
 
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>): SignupSearch => {
     const r = search.role;
-    return { role: r === "pharmacy" || r === "driver" || r === "doctor" ? r : "patient" };
+    return { role: r === "pharmacy" || r === "driver" || r === "doctor" || r === "hospital" ? r : "patient" };
   },
   head: () => ({
     meta: [
@@ -31,14 +31,15 @@ const ROLE_META = {
   pharmacy: { label: "Pharmacy", title: "Become a Pharmacy Partner", desc: "Manage inventory and fulfill orders" },
   driver: { label: "Driver", title: "Become a Driver", desc: "Deliver medications to patients" },
   doctor: { label: "Doctor", title: "Register as a Doctor", desc: "Self-register, upload HPCSA + legal docs, get approved" },
+  hospital: { label: "Hospital", title: "Register your Hospital", desc: "Issue digital prescriptions and manage your doctors" },
 } as const;
 
 function SignupPage() {
   const navigate = useNavigate();
   const { role = "patient" } = useSearch({ from: "/signup" }) as SignupSearch;
   const meta = ROLE_META[role];
-  const needsOrg = role === "pharmacy";
-  const needsApproval = role === "pharmacy" || role === "driver" || role === "doctor";
+  const needsOrg = role === "pharmacy" || role === "hospital";
+  const needsApproval = role === "pharmacy" || role === "driver" || role === "doctor" || role === "hospital";
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -165,8 +166,8 @@ function SignupPage() {
 
             {needsOrg && (
               <div className="space-y-2">
-                <Label htmlFor="orgName">Pharmacy Name</Label>
-                <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="e.g. City Pharmacy" required maxLength={200} />
+                <Label htmlFor="orgName">{role === "hospital" ? "Hospital Name" : "Pharmacy Name"}</Label>
+                <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder={role === "hospital" ? "e.g. City General Hospital" : "e.g. City Pharmacy"} required maxLength={200} />
               </div>
             )}
 
