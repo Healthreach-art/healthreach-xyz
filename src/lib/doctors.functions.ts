@@ -69,6 +69,40 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
+    if (!paystackSecret) throw new Error("Payment provider not configured");
+
+    // Verify the reference against Paystack before marking the appointment paid.
+    const verifyRes = await fetch(
+      `https://api.paystack.co/transaction/verify/${encodeURIComponent(data.reference)}`,
+      { headers: { Authorization: `Bearer ${paystackSecret}` } },
+    );
+    const verifyJson = (await verifyRes.json().catch(() => ({}))) as {
+      status?: boolean;
+      data?: { status?: string; amount?: number; currency?: string };
+    };
+    if (!verifyRes.ok || !verifyJson.status || verifyJson.data?.status !== "success") {
+      throw new Error("Payment could not be verified");
+    }
+    // Paystack amounts are in the lowest currency unit (kobo / cents).
+    const paidMinor = Number(verifyJson.data?.amount ?? 0);
+    const expectedMinor = PLATFORM_FEE * 100;
+    if (paidMinor < expectedMinor) {
+      throw new Error("Payment amount does not match the appointment fee");
+    }
+
+    // Ensure the appointment belongs to this user and hasn't already been paid with a different reference.
+    const { data: existing, error: lookupErr } = await supabaseAdmin
+      .from("doctor_appointments")
+      .select("id, patient_id, payment_status, payment_reference")
+      .eq("id", data.appointmentId)
+      .maybeSingle();
+    if (lookupErr || !existing) throw new Error("Appointment not found");
+    if (existing.patient_id !== context.userId) throw new Error("Not your appointment");
+    if (existing.payment_status === "paid" && existing.payment_reference && existing.payment_reference !== data.reference) {
+      throw new Error("Appointment already paid");
+    }
+
     const { error } = await supabaseAdmin
       .from("doctor_appointments")
       .update({
