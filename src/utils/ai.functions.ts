@@ -280,13 +280,14 @@ export const verifyPrescription = createServerFn({ method: "POST" })
     // Download & base64 encode
     let imageDataUrl: string;
     try {
+      assertSupabaseStorageUrl(data.fileUrl);
       const r = await fetch(data.fileUrl);
       if (!r.ok) return { ...EMPTY_RESULT, error: `Could not fetch file (${r.status})` };
       const buf = new Uint8Array(await r.arrayBuffer());
       let bin = ""; for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
       imageDataUrl = `data:${data.mimeType};base64,${btoa(bin)}`;
-    } catch {
-      return { ...EMPTY_RESULT, error: "Could not download prescription file" };
+    } catch (e: any) {
+      return { ...EMPTY_RESULT, error: e?.message || "Could not download prescription file" };
     }
 
     const tool = {
