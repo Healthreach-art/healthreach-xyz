@@ -131,6 +131,7 @@ const interactionsInput = z.object({
 });
 
 export const checkDrugInteractions = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .inputValidator((input) => interactionsInput.parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
