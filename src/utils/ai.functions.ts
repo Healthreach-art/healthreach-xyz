@@ -12,7 +12,19 @@ const ocrInput = z.object({
   mimeType: z.string().min(3).max(100),
 });
 
+function assertSupabaseStorageUrl(rawUrl: string) {
+  const allowedHost = (() => {
+    try { return new URL(process.env.SUPABASE_URL ?? "").hostname; } catch { return ""; }
+  })();
+  let target: URL;
+  try { target = new URL(rawUrl); } catch { throw new Error("Invalid file URL"); }
+  if (target.protocol !== "https:") throw new Error("Invalid file URL");
+  if (!allowedHost || target.hostname !== allowedHost) throw new Error("File URL must be a Supabase Storage URL");
+  if (!target.pathname.startsWith("/storage/")) throw new Error("File URL must be a Supabase Storage URL");
+}
+
 export const parsePrescription = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .inputValidator((input) => ocrInput.parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
@@ -21,6 +33,7 @@ export const parsePrescription = createServerFn({ method: "POST" })
     // Fetch the file and convert to base64 data URL (gateway accepts image_url)
     let imageDataUrl: string | null = null;
     try {
+      assertSupabaseStorageUrl(data.fileUrl);
       const r = await fetch(data.fileUrl);
       if (!r.ok) return { error: `Could not fetch file (${r.status})`, medications: [], doctor: null, notes: null };
       const buf = new Uint8Array(await r.arrayBuffer());
@@ -29,8 +42,8 @@ export const parsePrescription = createServerFn({ method: "POST" })
       for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
       const b64 = btoa(bin);
       imageDataUrl = `data:${data.mimeType};base64,${b64}`;
-    } catch (e) {
-      return { error: "Could not download prescription file", medications: [], doctor: null, notes: null };
+    } catch (e: any) {
+      return { error: e?.message || "Could not download prescription file", medications: [], doctor: null, notes: null };
     }
 
     const tools = [{
@@ -118,6 +131,7 @@ const interactionsInput = z.object({
 });
 
 export const checkDrugInteractions = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .inputValidator((input) => interactionsInput.parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
@@ -266,13 +280,14 @@ export const verifyPrescription = createServerFn({ method: "POST" })
     // Download & base64 encode
     let imageDataUrl: string;
     try {
+      assertSupabaseStorageUrl(data.fileUrl);
       const r = await fetch(data.fileUrl);
       if (!r.ok) return { ...EMPTY_RESULT, error: `Could not fetch file (${r.status})` };
       const buf = new Uint8Array(await r.arrayBuffer());
       let bin = ""; for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
       imageDataUrl = `data:${data.mimeType};base64,${btoa(bin)}`;
-    } catch {
-      return { ...EMPTY_RESULT, error: "Could not download prescription file" };
+    } catch (e: any) {
+      return { ...EMPTY_RESULT, error: e?.message || "Could not download prescription file" };
     }
 
     const tool = {

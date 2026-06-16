@@ -131,10 +131,29 @@ export type NearbyOffer = {
   offer_round: number;
 };
 
+async function assertPharmacyOrAdmin(userId: string, orderId?: string) {
+  const { data: roles } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  const roleSet = new Set((roles ?? []).map((r: any) => r.role as string));
+  if (roleSet.has("admin")) return;
+  if (!roleSet.has("pharmacy")) throw new Error("Pharmacy or admin role required");
+  if (orderId) {
+    const { data: ord } = await supabaseAdmin
+      .from("orders")
+      .select("pharmacy_id")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (!ord || ord.pharmacy_id !== userId) throw new Error("Not authorized for this order");
+  }
+}
+
 export const dispatchOrderToNearbyDrivers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => z.object({ orderId: z.string().uuid() }).parse(i))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPharmacyOrAdmin(context.userId, data.orderId);
     const { data: result, error } = await (supabaseAdmin as any).rpc("dispatch_ready_order_to_drivers", {
       _order_id: data.orderId,
       _max_drivers: DRIVER_OFFER_BATCH,
@@ -147,7 +166,8 @@ export const dispatchOrderToNearbyDrivers = createServerFn({ method: "POST" })
 export const rebroadcastUnacceptedDriverOrders = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => z.object({ maxOrders: z.number().int().min(1).max(50).default(25) }).parse(i ?? {}))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPharmacyOrAdmin(context.userId);
     const { data: result, error } = await (supabaseAdmin as any).rpc("rebroadcast_unaccepted_delivery_orders", {
       _max_orders: data.maxOrders,
       _max_drivers: DRIVER_OFFER_BATCH,
