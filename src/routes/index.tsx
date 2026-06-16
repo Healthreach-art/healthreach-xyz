@@ -136,7 +136,7 @@ const roles = [
     img: roleHospital,
     title: "Hospitals",
     description: "Issue digital prescriptions and coordinate patient care seamlessly.",
-    to: "/for-pharmacies",
+    to: "/signup?role=hospital",
   },
   {
     icon: Truck,
