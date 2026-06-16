@@ -166,8 +166,8 @@ function SignupPage() {
 
             {needsOrg && (
               <div className="space-y-2">
-                <Label htmlFor="orgName">Pharmacy Name</Label>
-                <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="e.g. City Pharmacy" required maxLength={200} />
+                <Label htmlFor="orgName">{role === "hospital" ? "Hospital Name" : "Pharmacy Name"}</Label>
+                <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder={role === "hospital" ? "e.g. City General Hospital" : "e.g. City Pharmacy"} required maxLength={200} />
               </div>
             )}
 
