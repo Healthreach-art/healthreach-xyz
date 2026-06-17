@@ -495,7 +495,8 @@ function PharmacyDashboard() {
           <p className="mt-2 text-sm text-muted-foreground">{descMap[status]}</p>
           <div className="mt-6 flex flex-col gap-2">
             <Button asChild><a href="/pharmacy/onboarding">Open verification wizard</a></Button>
-            <Button variant="outline" onClick={signOut}>Sign Out</Button>
+            <Button asChild variant="outline"><a href="/dashboard/pharmacy/documents">View my documents & admin notes</a></Button>
+            <Button variant="ghost" onClick={signOut}>Sign Out</Button>
           </div>
         </div>
       </div>
@@ -511,7 +512,8 @@ function PharmacyDashboard() {
           <p className="mt-2 text-sm text-muted-foreground">Thanks — your documents are with our admin team. We'll notify you as soon as you're approved.</p>
           <div className="mt-6 flex flex-col gap-2">
             <Button asChild variant="outline"><a href="/pharmacy/onboarding">Review my submission</a></Button>
-            <Button variant="outline" onClick={signOut}>Sign Out</Button>
+            <Button asChild variant="outline"><a href="/dashboard/pharmacy/documents">My documents & admin notes</a></Button>
+            <Button variant="ghost" onClick={signOut}>Sign Out</Button>
           </div>
         </div>
       </div>
