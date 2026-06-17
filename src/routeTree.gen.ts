@@ -17,6 +17,7 @@ import { Route as SitemapPatientsDotxmlRouteImport } from './routes/sitemap-pati
 import { Route as SitemapHospitalsDotxmlRouteImport } from './routes/sitemap-hospitals[.]xml'
 import { Route as SitemapDriversDotxmlRouteImport } from './routes/sitemap-drivers[.]xml'
 import { Route as SitemapCoreDotxmlRouteImport } from './routes/sitemap-core[.]xml'
+import { Route as SitemapAdminDotxmlRouteImport } from './routes/sitemap-admin[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -114,6 +115,11 @@ const SitemapDriversDotxmlRoute = SitemapDriversDotxmlRouteImport.update({
 const SitemapCoreDotxmlRoute = SitemapCoreDotxmlRouteImport.update({
   id: '/sitemap-core.xml',
   path: '/sitemap-core.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapAdminDotxmlRoute = SitemapAdminDotxmlRouteImport.update({
+  id: '/sitemap-admin.xml',
+  path: '/sitemap-admin.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -441,6 +447,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
+  '/sitemap-admin.xml': typeof SitemapAdminDotxmlRoute
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
   '/sitemap-drivers.xml': typeof SitemapDriversDotxmlRoute
   '/sitemap-hospitals.xml': typeof SitemapHospitalsDotxmlRoute
@@ -509,6 +516,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
+  '/sitemap-admin.xml': typeof SitemapAdminDotxmlRoute
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
   '/sitemap-drivers.xml': typeof SitemapDriversDotxmlRoute
   '/sitemap-hospitals.xml': typeof SitemapHospitalsDotxmlRoute
@@ -577,6 +585,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
+  '/sitemap-admin.xml': typeof SitemapAdminDotxmlRoute
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
   '/sitemap-drivers.xml': typeof SitemapDriversDotxmlRoute
   '/sitemap-hospitals.xml': typeof SitemapHospitalsDotxmlRoute
@@ -647,6 +656,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/signup'
+    | '/sitemap-admin.xml'
     | '/sitemap-core.xml'
     | '/sitemap-drivers.xml'
     | '/sitemap-hospitals.xml'
@@ -715,6 +725,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/signup'
+    | '/sitemap-admin.xml'
     | '/sitemap-core.xml'
     | '/sitemap-drivers.xml'
     | '/sitemap-hospitals.xml'
@@ -782,6 +793,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/signup'
+    | '/sitemap-admin.xml'
     | '/sitemap-core.xml'
     | '/sitemap-drivers.xml'
     | '/sitemap-hospitals.xml'
@@ -851,6 +863,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRouteWithChildren
+  SitemapAdminDotxmlRoute: typeof SitemapAdminDotxmlRoute
   SitemapCoreDotxmlRoute: typeof SitemapCoreDotxmlRoute
   SitemapDriversDotxmlRoute: typeof SitemapDriversDotxmlRoute
   SitemapHospitalsDotxmlRoute: typeof SitemapHospitalsDotxmlRoute
@@ -949,6 +962,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap-core.xml'
       fullPath: '/sitemap-core.xml'
       preLoaderRoute: typeof SitemapCoreDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-admin.xml': {
+      id: '/sitemap-admin.xml'
+      path: '/sitemap-admin.xml'
+      fullPath: '/sitemap-admin.xml'
+      preLoaderRoute: typeof SitemapAdminDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -1425,6 +1445,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRouteWithChildren,
+  SitemapAdminDotxmlRoute: SitemapAdminDotxmlRoute,
   SitemapCoreDotxmlRoute: SitemapCoreDotxmlRoute,
   SitemapDriversDotxmlRoute: SitemapDriversDotxmlRoute,
   SitemapHospitalsDotxmlRoute: SitemapHospitalsDotxmlRoute,
