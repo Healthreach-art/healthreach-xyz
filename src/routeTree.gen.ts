@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackRouteImport } from './routes/track'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SitemapPharmaciesDotxmlRouteImport } from './routes/sitemap-pharmacies[.]xml'
 import { Route as SitemapPatientsDotxmlRouteImport } from './routes/sitemap-patients[.]xml'
 import { Route as SitemapCoreDotxmlRouteImport } from './routes/sitemap-core[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -86,6 +87,11 @@ const TermsRoute = TermsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapPharmaciesDotxmlRoute = SitemapPharmaciesDotxmlRouteImport.update({
+  id: '/sitemap-pharmacies.xml',
+  path: '/sitemap-pharmacies.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapPatientsDotxmlRoute = SitemapPatientsDotxmlRouteImport.update({
@@ -425,6 +431,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRouteWithChildren
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
   '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
+  '/sitemap-pharmacies.xml': typeof SitemapPharmaciesDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
@@ -490,6 +497,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRouteWithChildren
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
   '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
+  '/sitemap-pharmacies.xml': typeof SitemapPharmaciesDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
@@ -555,6 +563,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRouteWithChildren
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
   '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
+  '/sitemap-pharmacies.xml': typeof SitemapPharmaciesDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
@@ -622,6 +631,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap-core.xml'
     | '/sitemap-patients.xml'
+    | '/sitemap-pharmacies.xml'
     | '/sitemap.xml'
     | '/terms'
     | '/track'
@@ -687,6 +697,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap-core.xml'
     | '/sitemap-patients.xml'
+    | '/sitemap-pharmacies.xml'
     | '/sitemap.xml'
     | '/terms'
     | '/track'
@@ -751,6 +762,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap-core.xml'
     | '/sitemap-patients.xml'
+    | '/sitemap-pharmacies.xml'
     | '/sitemap.xml'
     | '/terms'
     | '/track'
@@ -817,6 +829,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRouteWithChildren
   SitemapCoreDotxmlRoute: typeof SitemapCoreDotxmlRoute
   SitemapPatientsDotxmlRoute: typeof SitemapPatientsDotxmlRoute
+  SitemapPharmaciesDotxmlRoute: typeof SitemapPharmaciesDotxmlRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   TrackRoute: typeof TrackRoute
@@ -875,6 +888,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-pharmacies.xml': {
+      id: '/sitemap-pharmacies.xml'
+      path: '/sitemap-pharmacies.xml'
+      fullPath: '/sitemap-pharmacies.xml'
+      preLoaderRoute: typeof SitemapPharmaciesDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap-patients.xml': {
@@ -1367,6 +1387,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRouteWithChildren,
   SitemapCoreDotxmlRoute: SitemapCoreDotxmlRoute,
   SitemapPatientsDotxmlRoute: SitemapPatientsDotxmlRoute,
+  SitemapPharmaciesDotxmlRoute: SitemapPharmaciesDotxmlRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   TrackRoute: TrackRoute,
