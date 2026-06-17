@@ -48,6 +48,7 @@ import { Route as DashboardPharmacyTransactionsRouteImport } from './routes/dash
 import { Route as DashboardPharmacyLowStockRouteImport } from './routes/dashboard.pharmacy.low-stock'
 import { Route as DashboardPharmacyInventoryRouteImport } from './routes/dashboard.pharmacy.inventory'
 import { Route as DashboardPharmacyFinanceRouteImport } from './routes/dashboard.pharmacy.finance'
+import { Route as DashboardPharmacyDocumentsRouteImport } from './routes/dashboard.pharmacy.documents'
 import { Route as DashboardPharmacyAppointmentsRouteImport } from './routes/dashboard.pharmacy.appointments'
 import { Route as DashboardPharmacyAnalyticsRouteImport } from './routes/dashboard.pharmacy.analytics'
 import { Route as DashboardPatientWalletRouteImport } from './routes/dashboard.patient.wallet'
@@ -269,6 +270,12 @@ const DashboardPharmacyFinanceRoute =
     path: '/finance',
     getParentRoute: () => DashboardPharmacyRoute,
   } as any)
+const DashboardPharmacyDocumentsRoute =
+  DashboardPharmacyDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
 const DashboardPharmacyAppointmentsRoute =
   DashboardPharmacyAppointmentsRouteImport.update({
     id: '/appointments',
@@ -441,6 +448,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
   '/dashboard/pharmacy/analytics': typeof DashboardPharmacyAnalyticsRoute
   '/dashboard/pharmacy/appointments': typeof DashboardPharmacyAppointmentsRoute
+  '/dashboard/pharmacy/documents': typeof DashboardPharmacyDocumentsRoute
   '/dashboard/pharmacy/finance': typeof DashboardPharmacyFinanceRoute
   '/dashboard/pharmacy/inventory': typeof DashboardPharmacyInventoryRoute
   '/dashboard/pharmacy/low-stock': typeof DashboardPharmacyLowStockRoute
@@ -502,6 +510,7 @@ export interface FileRoutesByTo {
   '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
   '/dashboard/pharmacy/analytics': typeof DashboardPharmacyAnalyticsRoute
   '/dashboard/pharmacy/appointments': typeof DashboardPharmacyAppointmentsRoute
+  '/dashboard/pharmacy/documents': typeof DashboardPharmacyDocumentsRoute
   '/dashboard/pharmacy/finance': typeof DashboardPharmacyFinanceRoute
   '/dashboard/pharmacy/inventory': typeof DashboardPharmacyInventoryRoute
   '/dashboard/pharmacy/low-stock': typeof DashboardPharmacyLowStockRoute
@@ -565,6 +574,7 @@ export interface FileRoutesById {
   '/dashboard/patient/wallet': typeof DashboardPatientWalletRoute
   '/dashboard/pharmacy/analytics': typeof DashboardPharmacyAnalyticsRoute
   '/dashboard/pharmacy/appointments': typeof DashboardPharmacyAppointmentsRoute
+  '/dashboard/pharmacy/documents': typeof DashboardPharmacyDocumentsRoute
   '/dashboard/pharmacy/finance': typeof DashboardPharmacyFinanceRoute
   '/dashboard/pharmacy/inventory': typeof DashboardPharmacyInventoryRoute
   '/dashboard/pharmacy/low-stock': typeof DashboardPharmacyLowStockRoute
@@ -629,6 +639,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/wallet'
     | '/dashboard/pharmacy/analytics'
     | '/dashboard/pharmacy/appointments'
+    | '/dashboard/pharmacy/documents'
     | '/dashboard/pharmacy/finance'
     | '/dashboard/pharmacy/inventory'
     | '/dashboard/pharmacy/low-stock'
@@ -690,6 +701,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/wallet'
     | '/dashboard/pharmacy/analytics'
     | '/dashboard/pharmacy/appointments'
+    | '/dashboard/pharmacy/documents'
     | '/dashboard/pharmacy/finance'
     | '/dashboard/pharmacy/inventory'
     | '/dashboard/pharmacy/low-stock'
@@ -752,6 +764,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/wallet'
     | '/dashboard/pharmacy/analytics'
     | '/dashboard/pharmacy/appointments'
+    | '/dashboard/pharmacy/documents'
     | '/dashboard/pharmacy/finance'
     | '/dashboard/pharmacy/inventory'
     | '/dashboard/pharmacy/low-stock'
@@ -1090,6 +1103,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPharmacyFinanceRouteImport
       parentRoute: typeof DashboardPharmacyRoute
     }
+    '/dashboard/pharmacy/documents': {
+      id: '/dashboard/pharmacy/documents'
+      path: '/documents'
+      fullPath: '/dashboard/pharmacy/documents'
+      preLoaderRoute: typeof DashboardPharmacyDocumentsRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
     '/dashboard/pharmacy/appointments': {
       id: '/dashboard/pharmacy/appointments'
       path: '/appointments'
@@ -1266,6 +1286,7 @@ const DashboardAdminRouteWithChildren = DashboardAdminRoute._addFileChildren(
 interface DashboardPharmacyRouteChildren {
   DashboardPharmacyAnalyticsRoute: typeof DashboardPharmacyAnalyticsRoute
   DashboardPharmacyAppointmentsRoute: typeof DashboardPharmacyAppointmentsRoute
+  DashboardPharmacyDocumentsRoute: typeof DashboardPharmacyDocumentsRoute
   DashboardPharmacyFinanceRoute: typeof DashboardPharmacyFinanceRoute
   DashboardPharmacyInventoryRoute: typeof DashboardPharmacyInventoryRoute
   DashboardPharmacyLowStockRoute: typeof DashboardPharmacyLowStockRoute
@@ -1276,6 +1297,7 @@ interface DashboardPharmacyRouteChildren {
 const DashboardPharmacyRouteChildren: DashboardPharmacyRouteChildren = {
   DashboardPharmacyAnalyticsRoute: DashboardPharmacyAnalyticsRoute,
   DashboardPharmacyAppointmentsRoute: DashboardPharmacyAppointmentsRoute,
+  DashboardPharmacyDocumentsRoute: DashboardPharmacyDocumentsRoute,
   DashboardPharmacyFinanceRoute: DashboardPharmacyFinanceRoute,
   DashboardPharmacyInventoryRoute: DashboardPharmacyInventoryRoute,
   DashboardPharmacyLowStockRoute: DashboardPharmacyLowStockRoute,
