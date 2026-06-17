@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackRouteImport } from './routes/track'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SitemapPatientsDotxmlRouteImport } from './routes/sitemap-patients[.]xml'
 import { Route as SitemapCoreDotxmlRouteImport } from './routes/sitemap-core[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -85,6 +86,11 @@ const TermsRoute = TermsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapPatientsDotxmlRoute = SitemapPatientsDotxmlRouteImport.update({
+  id: '/sitemap-patients.xml',
+  path: '/sitemap-patients.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapCoreDotxmlRoute = SitemapCoreDotxmlRouteImport.update({
@@ -418,6 +424,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
+  '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
@@ -482,6 +489,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
+  '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
@@ -546,6 +554,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
+  '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
@@ -612,6 +621,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap-core.xml'
+    | '/sitemap-patients.xml'
     | '/sitemap.xml'
     | '/terms'
     | '/track'
@@ -676,6 +686,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap-core.xml'
+    | '/sitemap-patients.xml'
     | '/sitemap.xml'
     | '/terms'
     | '/track'
@@ -739,6 +750,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap-core.xml'
+    | '/sitemap-patients.xml'
     | '/sitemap.xml'
     | '/terms'
     | '/track'
@@ -804,6 +816,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRouteWithChildren
   SitemapCoreDotxmlRoute: typeof SitemapCoreDotxmlRoute
+  SitemapPatientsDotxmlRoute: typeof SitemapPatientsDotxmlRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   TrackRoute: typeof TrackRoute
@@ -862,6 +875,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-patients.xml': {
+      id: '/sitemap-patients.xml'
+      path: '/sitemap-patients.xml'
+      fullPath: '/sitemap-patients.xml'
+      preLoaderRoute: typeof SitemapPatientsDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap-core.xml': {
@@ -1346,6 +1366,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRouteWithChildren,
   SitemapCoreDotxmlRoute: SitemapCoreDotxmlRoute,
+  SitemapPatientsDotxmlRoute: SitemapPatientsDotxmlRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   TrackRoute: TrackRoute,
