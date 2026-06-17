@@ -1553,6 +1553,7 @@ export type Database = {
           bank_confirmation_path: string | null
           business_reg_path: string | null
           created_at: string
+          document_reviews: Json
           id: string
           license_path: string | null
           pharmacist_cert_path: string | null
@@ -1578,6 +1579,7 @@ export type Database = {
           bank_confirmation_path?: string | null
           business_reg_path?: string | null
           created_at?: string
+          document_reviews?: Json
           id?: string
           license_path?: string | null
           pharmacist_cert_path?: string | null
@@ -1603,6 +1605,7 @@ export type Database = {
           bank_confirmation_path?: string | null
           business_reg_path?: string | null
           created_at?: string
+          document_reviews?: Json
           id?: string
           license_path?: string | null
           pharmacist_cert_path?: string | null
@@ -2251,6 +2254,15 @@ export type Database = {
         Returns: Json
       }
       accept_pharmacy_offer: { Args: { _offer_id: string }; Returns: string }
+      admin_set_pharmacy_document_review: {
+        Args: {
+          _doc_key: string
+          _notes?: string
+          _pharmacy_id: string
+          _status: string
+        }
+        Returns: Json
+      }
       cancel_order_safely: {
         Args: { _order_id: string; _reason?: string }
         Returns: Json
@@ -2369,6 +2381,7 @@ export type Database = {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
       }
+      pharmacy_resubmit_document: { Args: { _doc_key: string }; Returns: Json }
       rebroadcast_unaccepted_delivery_orders: {
         Args: {
           _max_drivers?: number
