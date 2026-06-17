@@ -50,7 +50,7 @@ export const Route = createRootRoute({
       { title: "HEALTHREACH" },
       { name: "description", content: "Integrated healthcare management for South Africa." },
       { name: "author", content: "HEALTHREACH" },
-      { name: "google-site-verification", content: "Gkfb-CiZBB_nnA4rdpo-EGkrnExvQzPKHhH04qbhsKw" },
+      { name: "google-site-verification", content: "Pm7nkjuqZnyhc0ERvlAt_BKybHDoigtifu6vlCj3Bqo" },
       { name: "theme-color", content: "#3aa8f0" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
