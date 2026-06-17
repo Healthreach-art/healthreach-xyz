@@ -12,6 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackRouteImport } from './routes/track'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SitemapPharmaciesDotxmlRouteImport } from './routes/sitemap-pharmacies[.]xml'
+import { Route as SitemapPatientsDotxmlRouteImport } from './routes/sitemap-patients[.]xml'
+import { Route as SitemapHospitalsDotxmlRouteImport } from './routes/sitemap-hospitals[.]xml'
+import { Route as SitemapDriversDotxmlRouteImport } from './routes/sitemap-drivers[.]xml'
+import { Route as SitemapCoreDotxmlRouteImport } from './routes/sitemap-core[.]xml'
+import { Route as SitemapAdminDotxmlRouteImport } from './routes/sitemap-admin[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -84,6 +90,36 @@ const TermsRoute = TermsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapPharmaciesDotxmlRoute = SitemapPharmaciesDotxmlRouteImport.update({
+  id: '/sitemap-pharmacies.xml',
+  path: '/sitemap-pharmacies.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapPatientsDotxmlRoute = SitemapPatientsDotxmlRouteImport.update({
+  id: '/sitemap-patients.xml',
+  path: '/sitemap-patients.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapHospitalsDotxmlRoute = SitemapHospitalsDotxmlRouteImport.update({
+  id: '/sitemap-hospitals.xml',
+  path: '/sitemap-hospitals.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDriversDotxmlRoute = SitemapDriversDotxmlRouteImport.update({
+  id: '/sitemap-drivers.xml',
+  path: '/sitemap-drivers.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapCoreDotxmlRoute = SitemapCoreDotxmlRouteImport.update({
+  id: '/sitemap-core.xml',
+  path: '/sitemap-core.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapAdminDotxmlRoute = SitemapAdminDotxmlRouteImport.update({
+  id: '/sitemap-admin.xml',
+  path: '/sitemap-admin.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -411,6 +447,12 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
+  '/sitemap-admin.xml': typeof SitemapAdminDotxmlRoute
+  '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
+  '/sitemap-drivers.xml': typeof SitemapDriversDotxmlRoute
+  '/sitemap-hospitals.xml': typeof SitemapHospitalsDotxmlRoute
+  '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
+  '/sitemap-pharmacies.xml': typeof SitemapPharmaciesDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
@@ -474,6 +516,12 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
+  '/sitemap-admin.xml': typeof SitemapAdminDotxmlRoute
+  '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
+  '/sitemap-drivers.xml': typeof SitemapDriversDotxmlRoute
+  '/sitemap-hospitals.xml': typeof SitemapHospitalsDotxmlRoute
+  '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
+  '/sitemap-pharmacies.xml': typeof SitemapPharmaciesDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
@@ -537,6 +585,12 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
+  '/sitemap-admin.xml': typeof SitemapAdminDotxmlRoute
+  '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
+  '/sitemap-drivers.xml': typeof SitemapDriversDotxmlRoute
+  '/sitemap-hospitals.xml': typeof SitemapHospitalsDotxmlRoute
+  '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
+  '/sitemap-pharmacies.xml': typeof SitemapPharmaciesDotxmlRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
@@ -602,6 +656,12 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/signup'
+    | '/sitemap-admin.xml'
+    | '/sitemap-core.xml'
+    | '/sitemap-drivers.xml'
+    | '/sitemap-hospitals.xml'
+    | '/sitemap-patients.xml'
+    | '/sitemap-pharmacies.xml'
     | '/sitemap.xml'
     | '/terms'
     | '/track'
@@ -665,6 +725,12 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/signup'
+    | '/sitemap-admin.xml'
+    | '/sitemap-core.xml'
+    | '/sitemap-drivers.xml'
+    | '/sitemap-hospitals.xml'
+    | '/sitemap-patients.xml'
+    | '/sitemap-pharmacies.xml'
     | '/sitemap.xml'
     | '/terms'
     | '/track'
@@ -727,6 +793,12 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/signup'
+    | '/sitemap-admin.xml'
+    | '/sitemap-core.xml'
+    | '/sitemap-drivers.xml'
+    | '/sitemap-hospitals.xml'
+    | '/sitemap-patients.xml'
+    | '/sitemap-pharmacies.xml'
     | '/sitemap.xml'
     | '/terms'
     | '/track'
@@ -791,6 +863,12 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRouteWithChildren
+  SitemapAdminDotxmlRoute: typeof SitemapAdminDotxmlRoute
+  SitemapCoreDotxmlRoute: typeof SitemapCoreDotxmlRoute
+  SitemapDriversDotxmlRoute: typeof SitemapDriversDotxmlRoute
+  SitemapHospitalsDotxmlRoute: typeof SitemapHospitalsDotxmlRoute
+  SitemapPatientsDotxmlRoute: typeof SitemapPatientsDotxmlRoute
+  SitemapPharmaciesDotxmlRoute: typeof SitemapPharmaciesDotxmlRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   TrackRoute: typeof TrackRoute
@@ -849,6 +927,48 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-pharmacies.xml': {
+      id: '/sitemap-pharmacies.xml'
+      path: '/sitemap-pharmacies.xml'
+      fullPath: '/sitemap-pharmacies.xml'
+      preLoaderRoute: typeof SitemapPharmaciesDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-patients.xml': {
+      id: '/sitemap-patients.xml'
+      path: '/sitemap-patients.xml'
+      fullPath: '/sitemap-patients.xml'
+      preLoaderRoute: typeof SitemapPatientsDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-hospitals.xml': {
+      id: '/sitemap-hospitals.xml'
+      path: '/sitemap-hospitals.xml'
+      fullPath: '/sitemap-hospitals.xml'
+      preLoaderRoute: typeof SitemapHospitalsDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-drivers.xml': {
+      id: '/sitemap-drivers.xml'
+      path: '/sitemap-drivers.xml'
+      fullPath: '/sitemap-drivers.xml'
+      preLoaderRoute: typeof SitemapDriversDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-core.xml': {
+      id: '/sitemap-core.xml'
+      path: '/sitemap-core.xml'
+      fullPath: '/sitemap-core.xml'
+      preLoaderRoute: typeof SitemapCoreDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-admin.xml': {
+      id: '/sitemap-admin.xml'
+      path: '/sitemap-admin.xml'
+      fullPath: '/sitemap-admin.xml'
+      preLoaderRoute: typeof SitemapAdminDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -1325,6 +1445,12 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRouteWithChildren,
+  SitemapAdminDotxmlRoute: SitemapAdminDotxmlRoute,
+  SitemapCoreDotxmlRoute: SitemapCoreDotxmlRoute,
+  SitemapDriversDotxmlRoute: SitemapDriversDotxmlRoute,
+  SitemapHospitalsDotxmlRoute: SitemapHospitalsDotxmlRoute,
+  SitemapPatientsDotxmlRoute: SitemapPatientsDotxmlRoute,
+  SitemapPharmaciesDotxmlRoute: SitemapPharmaciesDotxmlRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   TrackRoute: TrackRoute,
