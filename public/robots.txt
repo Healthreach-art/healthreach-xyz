@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://healthreachhub.lovable.app/sitemap.xml
+Sitemap: https://healthreach.xyz/sitemap.xml
