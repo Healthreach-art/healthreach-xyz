@@ -15,6 +15,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SitemapPharmaciesDotxmlRouteImport } from './routes/sitemap-pharmacies[.]xml'
 import { Route as SitemapPatientsDotxmlRouteImport } from './routes/sitemap-patients[.]xml'
 import { Route as SitemapHospitalsDotxmlRouteImport } from './routes/sitemap-hospitals[.]xml'
+import { Route as SitemapDriversDotxmlRouteImport } from './routes/sitemap-drivers[.]xml'
 import { Route as SitemapCoreDotxmlRouteImport } from './routes/sitemap-core[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -103,6 +104,11 @@ const SitemapPatientsDotxmlRoute = SitemapPatientsDotxmlRouteImport.update({
 const SitemapHospitalsDotxmlRoute = SitemapHospitalsDotxmlRouteImport.update({
   id: '/sitemap-hospitals.xml',
   path: '/sitemap-hospitals.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDriversDotxmlRoute = SitemapDriversDotxmlRouteImport.update({
+  id: '/sitemap-drivers.xml',
+  path: '/sitemap-drivers.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapCoreDotxmlRoute = SitemapCoreDotxmlRouteImport.update({
@@ -436,6 +442,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
+  '/sitemap-drivers.xml': typeof SitemapDriversDotxmlRoute
   '/sitemap-hospitals.xml': typeof SitemapHospitalsDotxmlRoute
   '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
   '/sitemap-pharmacies.xml': typeof SitemapPharmaciesDotxmlRoute
@@ -503,6 +510,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
+  '/sitemap-drivers.xml': typeof SitemapDriversDotxmlRoute
   '/sitemap-hospitals.xml': typeof SitemapHospitalsDotxmlRoute
   '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
   '/sitemap-pharmacies.xml': typeof SitemapPharmaciesDotxmlRoute
@@ -570,6 +578,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRouteWithChildren
   '/sitemap-core.xml': typeof SitemapCoreDotxmlRoute
+  '/sitemap-drivers.xml': typeof SitemapDriversDotxmlRoute
   '/sitemap-hospitals.xml': typeof SitemapHospitalsDotxmlRoute
   '/sitemap-patients.xml': typeof SitemapPatientsDotxmlRoute
   '/sitemap-pharmacies.xml': typeof SitemapPharmaciesDotxmlRoute
@@ -639,6 +648,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap-core.xml'
+    | '/sitemap-drivers.xml'
     | '/sitemap-hospitals.xml'
     | '/sitemap-patients.xml'
     | '/sitemap-pharmacies.xml'
@@ -706,6 +716,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap-core.xml'
+    | '/sitemap-drivers.xml'
     | '/sitemap-hospitals.xml'
     | '/sitemap-patients.xml'
     | '/sitemap-pharmacies.xml'
@@ -772,6 +783,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/sitemap-core.xml'
+    | '/sitemap-drivers.xml'
     | '/sitemap-hospitals.xml'
     | '/sitemap-patients.xml'
     | '/sitemap-pharmacies.xml'
@@ -840,6 +852,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRouteWithChildren
   SitemapCoreDotxmlRoute: typeof SitemapCoreDotxmlRoute
+  SitemapDriversDotxmlRoute: typeof SitemapDriversDotxmlRoute
   SitemapHospitalsDotxmlRoute: typeof SitemapHospitalsDotxmlRoute
   SitemapPatientsDotxmlRoute: typeof SitemapPatientsDotxmlRoute
   SitemapPharmaciesDotxmlRoute: typeof SitemapPharmaciesDotxmlRoute
@@ -922,6 +935,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap-hospitals.xml'
       fullPath: '/sitemap-hospitals.xml'
       preLoaderRoute: typeof SitemapHospitalsDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-drivers.xml': {
+      id: '/sitemap-drivers.xml'
+      path: '/sitemap-drivers.xml'
+      fullPath: '/sitemap-drivers.xml'
+      preLoaderRoute: typeof SitemapDriversDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap-core.xml': {
@@ -1406,6 +1426,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRouteWithChildren,
   SitemapCoreDotxmlRoute: SitemapCoreDotxmlRoute,
+  SitemapDriversDotxmlRoute: SitemapDriversDotxmlRoute,
   SitemapHospitalsDotxmlRoute: SitemapHospitalsDotxmlRoute,
   SitemapPatientsDotxmlRoute: SitemapPatientsDotxmlRoute,
   SitemapPharmaciesDotxmlRoute: SitemapPharmaciesDotxmlRoute,
