@@ -56,7 +56,7 @@ interface Med { id: string; pharmacy_id: string; name: string; price: number; st
 export const Route = createFileRoute("/pharmacy/$id")({
   loader: async ({ params }) => {
     const { data } = await supabase
-      .from("profiles")
+      .from("pharmacy_directory")
       .select("organization_name, full_name, address")
       .eq("user_id", params.id)
       .maybeSingle();
@@ -123,7 +123,7 @@ function Storefront() {
   useEffect(() => {
     (async () => {
       const [{ data: prof }, { data: medsData }] = await Promise.all([
-        supabase.from("profiles").select("user_id, organization_name, full_name, address, appointments_enabled, walkins_enabled, opening_hours, services, phone").eq("user_id", id).maybeSingle(),
+        supabase.from("pharmacy_directory").select("user_id, organization_name, full_name, address, appointments_enabled, walkins_enabled, opening_hours, services, phone").eq("user_id", id).maybeSingle(),
         supabase.from("medications").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, description").eq("pharmacy_id", id).gt("stock_quantity", 0).order("name"),
       ]);
       setPharmacy(prof as Pharmacy | null);

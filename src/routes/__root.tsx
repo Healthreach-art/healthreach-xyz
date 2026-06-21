@@ -1,6 +1,4 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState, useRouter } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -59,13 +57,16 @@ export const Route = createRootRoute({
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "HEALTHREACH" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6de31345-24a7-4c2c-8465-25d7c705c8de/id-preview-8ba30e54--2e5d99c7-52f1-4a97-ba21-799533cca0bc.lovable.app-1776727367211.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6de31345-24a7-4c2c-8465-25d7c705c8de/id-preview-8ba30e54--2e5d99c7-52f1-4a97-ba21-799533cca0bc.lovable.app-1776727367211.png" },
+      { property: "og:image", content: "https://healthreach.xyz/og-image.png" },
+      { name: "twitter:image", content: "https://healthreach.xyz/og-image.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", crossOrigin: "" },
       { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+      { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16.png" },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" },
       { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
       { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
@@ -116,7 +117,6 @@ function AppShell() {
     return (
       <div className="flex min-h-screen flex-col w-full">
         <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-4">
-          <BackButton />
           <Link to="/" aria-label="HealthReach home">
             <img src={logoUrl} alt="HealthReach" width={120} height={32} className="h-7 w-auto" />
           </Link>
@@ -158,7 +158,6 @@ function SidebarShell() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-3">
             <SidebarTrigger />
-            <BackButton />
             <Link to="/" aria-label="HealthReach home">
               <img src={logoUrl} alt="HealthReach" width={120} height={32} className="h-7 w-auto" />
             </Link>
@@ -173,25 +172,3 @@ function SidebarShell() {
   );
 }
 
-function BackButton() {
-  const router = useRouter();
-  const pathname = useRouterState({ select: (r) => r.location.pathname });
-  if (pathname === "/") return null;
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-7 w-7"
-      aria-label="Go back"
-      onClick={() => {
-        if (typeof window !== "undefined" && window.history.length > 1) {
-          router.history.back();
-        } else {
-          router.navigate({ to: "/" });
-        }
-      }}
-    >
-      <ArrowLeft className="h-4 w-4" />
-    </Button>
-  );
-}

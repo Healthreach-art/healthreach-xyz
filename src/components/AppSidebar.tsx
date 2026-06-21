@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
   FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin,
-  Search, Star as StarIcon, AlertTriangle, BarChart3, Calendar, DollarSign, Receipt,
+  Search, AlertTriangle, BarChart3, Calendar, DollarSign, Receipt,
 } from "lucide-react";
 
 import logoImg from "@/assets/healthreach-logo.png";
@@ -34,7 +34,7 @@ export function AppSidebar() {
     { title: "Prescriptions & Documents", url: "/dashboard/patient/prescriptions", icon: Pill },
     { title: "Deliveries", url: "/track", icon: Truck },
     { title: "My Consultations", url: "/dashboard/patient/consultations", icon: FileText },
-    { title: "My Ratings", url: "/dashboard/patient/ratings", icon: StarIcon },
+    
     { title: "Reminders", url: "/dashboard/patient/reminders", icon: Bell },
     { title: "Health Records", url: "/dashboard/patient/activity", icon: ClipboardList },
     { title: "Family Profiles", url: "/dashboard/patient/family", icon: Users },
