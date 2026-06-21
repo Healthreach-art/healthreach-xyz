@@ -56,7 +56,7 @@ interface Med { id: string; pharmacy_id: string; name: string; price: number; st
 export const Route = createFileRoute("/pharmacy/$id")({
   loader: async ({ params }) => {
     const { data } = await supabase
-      .from("profiles")
+      .from("pharmacy_directory")
       .select("organization_name, full_name, address")
       .eq("user_id", params.id)
       .maybeSingle();
