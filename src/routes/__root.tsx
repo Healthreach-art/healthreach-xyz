@@ -114,7 +114,6 @@ function AppShell() {
     return (
       <div className="flex min-h-screen flex-col w-full">
         <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-4">
-          <BackButton />
           <Link to="/" aria-label="HealthReach home">
             <img src={logoUrl} alt="HealthReach" width={120} height={32} className="h-7 w-auto" />
           </Link>
