@@ -155,7 +155,6 @@ function SidebarShell() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-3">
             <SidebarTrigger />
-            <BackButton />
             <Link to="/" aria-label="HealthReach home">
               <img src={logoUrl} alt="HealthReach" width={120} height={32} className="h-7 w-auto" />
             </Link>
@@ -170,25 +169,3 @@ function SidebarShell() {
   );
 }
 
-function BackButton() {
-  const router = useRouter();
-  const pathname = useRouterState({ select: (r) => r.location.pathname });
-  if (pathname === "/") return null;
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-7 w-7"
-      aria-label="Go back"
-      onClick={() => {
-        if (typeof window !== "undefined" && window.history.length > 1) {
-          router.history.back();
-        } else {
-          router.navigate({ to: "/" });
-        }
-      }}
-    >
-      <ArrowLeft className="h-4 w-4" />
-    </Button>
-  );
-}
