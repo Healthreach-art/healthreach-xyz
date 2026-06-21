@@ -1,5 +1,5 @@
 import { Navigate } from "@tanstack/react-router";
-import { Loader2, ShieldCheck } from "lucide-react";
+
 import { useAuth } from "@/hooks/useAuth";
 import type { ReactNode } from "react";
 import { dashboardPathForRole } from "@/lib/auth-session";
