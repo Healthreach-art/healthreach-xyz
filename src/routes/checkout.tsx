@@ -219,27 +219,33 @@ function CheckoutPage() {
     setProcessing(true);
     setRxIssues([]);
 
-    try {
-      const result = await validateRx({
-        data: {
-          items: items.map((i) => ({
-            medId: i.medId,
-            pharmacyId: i.pharmacyId,
-            prescriptionUploadId: i.prescriptionUploadId ?? null,
-          })),
-        },
-      });
-      if (!result.valid) {
-        setRxIssues(result.issues.map((i: any) => ({ medId: i.medId, message: i.message })));
-        toast.error("Prescription check failed — see issues above.");
+    const hasRxItems = items.some((i) => i.requiresPrescription);
+    if (hasRxItems) {
+      try {
+        const result = await validateRx({
+          data: {
+            items: items
+              .filter((i) => i.requiresPrescription)
+              .map((i) => ({
+                medId: i.medId,
+                pharmacyId: i.pharmacyId,
+                prescriptionUploadId: i.prescriptionUploadId ?? null,
+              })),
+          },
+        });
+        if (!result.valid) {
+          setRxIssues(result.issues.map((i: any) => ({ medId: i.medId, message: i.message })));
+          toast.error("Prescription check failed — see issues above.");
+          setProcessing(false);
+          return;
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Could not verify prescriptions.");
         setProcessing(false);
         return;
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Could not verify prescriptions.");
-      setProcessing(false);
-      return;
     }
+
 
     const totalCents = Math.round(total * 100);
 
