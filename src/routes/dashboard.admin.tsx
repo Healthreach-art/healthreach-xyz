@@ -246,6 +246,14 @@ function AdminDashboard() {
   const userMap = useMemo(() => new Map(users.map((u) => [u.user_id, u])), [users]);
   const nameOf = (id: string) => userMap.get(id)?.full_name || userMap.get(id)?.organization_name || id.slice(0, 8);
 
+  async function logAction(action: string, target_type: string | null, target_id: string | null, payload: Record<string, unknown> = {}) {
+    try {
+      await supabase.rpc("log_admin_action" as never, {
+        _action: action, _target_type: target_type, _target_id: target_id, _payload: payload,
+      } as never);
+    } catch { /* non-fatal */ }
+  }
+
   async function updateApproval(userId: string, status: ApprovalStatus, notes?: string) {
     setUpdatingId(userId);
     const { error } = await supabase.from("profiles").update({ approval_status: status }).eq("user_id", userId);
@@ -256,6 +264,7 @@ function AdminDashboard() {
     }
     setUpdatingId(null);
     if (error) return toast.error(error.message);
+    await logAction(`profile.${status}`, "user", userId, { notes: notes ?? null });
     toast.success(`User ${status}`);
   }
 
@@ -264,6 +273,7 @@ function AdminDashboard() {
     const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "admin" });
     setUpdatingId(null);
     if (error) return toast.error(error.message);
+    await logAction("role.promote_admin", "user", userId);
     toast.success("Promoted to admin");
   }
 
@@ -272,6 +282,7 @@ function AdminDashboard() {
     const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
     setUpdatingId(null);
     if (error) return toast.error(error.message);
+    await logAction("role.demote_admin", "user", userId);
     toast.success("Admin revoked");
   }
 
