@@ -806,31 +806,63 @@ function AdminDashboard() {
       )}
 
       {/* USERS */}
-      {activeTab === "users" && (
-        <div className="healthcare-card p-6">
-          <h2 className="text-lg font-semibold mb-4">All Users ({users.length})</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b text-left text-muted-foreground">
-                <th className="pb-2">User</th><th className="pb-2">Role</th><th className="pb-2">Status</th><th className="pb-2">Actions</th>
-              </tr></thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.user_id} className="border-b last:border-0">
-                    <td className="py-2"><p className="font-medium">{u.full_name || "—"}</p><p className="text-xs text-muted-foreground">{u.email}</p></td>
-                    <td className="py-2">{u.role && <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${roleColors[u.role]}`}>{u.role}</span>}</td>
-                    <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(u.approval_status || "")}`}>{u.approval_status}</span></td>
-                    <td className="py-2 flex flex-wrap gap-1">
-                      {u.role !== "admin" && <Button size="sm" variant="outline" className="h-7" onClick={() => setConfirmRole({ user: u, action: "promote" })}><Crown className="h-3 w-3" /> Make Admin</Button>}
-                      {u.role === "admin" && <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => setConfirmRole({ user: u, action: "demote" })}><ShieldOff className="h-3 w-3" /> Demote</Button>}
-                    </td>
-                  </tr>
+      {activeTab === "users" && (() => {
+        const filteredUsers = roleFilter === "all" ? users : users.filter((u) => u.role === roleFilter);
+        const roleChips: { id: "all" | AppRole; label: string }[] = [
+          { id: "all", label: `All (${users.length})` },
+          { id: "patient", label: `Patients (${users.filter((u) => u.role === "patient").length})` },
+          { id: "pharmacy", label: `Pharmacies (${users.filter((u) => u.role === "pharmacy").length})` },
+          { id: "driver", label: `Drivers (${users.filter((u) => u.role === "driver").length})` },
+          { id: "doctor", label: `Doctors (${users.filter((u) => u.role === "doctor").length})` },
+          { id: "hospital", label: `Hospitals (${users.filter((u) => u.role === "hospital").length})` },
+          { id: "admin", label: `Admins (${users.filter((u) => u.role === "admin").length})` },
+        ];
+        return (
+          <div className="healthcare-card p-6">
+            <div className="flex flex-col gap-3 mb-4">
+              <h2 className="text-lg font-semibold">Users ({filteredUsers.length})</h2>
+              <div className="flex flex-wrap gap-2">
+                {roleChips.map((c) => (
+                  <button key={c.id} type="button" onClick={() => setRoleFilter(c.id)}
+                    className={`rounded-full border px-3 py-1 text-xs capitalize transition-colors ${roleFilter === c.id ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/30"}`}>
+                    {c.label}
+                  </button>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b text-left text-muted-foreground">
+                  <th className="pb-2">User</th><th className="pb-2">Role</th><th className="pb-2">Status</th><th className="pb-2">Actions</th>
+                </tr></thead>
+                <tbody>
+                  {filteredUsers.map((u) => (
+                    <tr key={u.user_id} className="border-b last:border-0">
+                      <td className="py-2">
+                        <p className="font-medium">{u.full_name || u.organization_name || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      </td>
+                      <td className="py-2">{u.role && <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${roleColors[u.role]}`}>{u.role}</span>}</td>
+                      <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(u.approval_status || "")}`}>{u.approval_status || "—"}</span></td>
+                      <td className="py-2 flex flex-wrap gap-1">
+                        {u.role !== "admin" && <Button size="sm" variant="outline" className="h-7" onClick={() => setConfirmRole({ user: u, action: "promote" })}><Crown className="h-3 w-3 mr-1" />Make Admin</Button>}
+                        {u.role === "admin" && <Button size="sm" variant="outline" className="h-7 text-destructive" onClick={() => setConfirmRole({ user: u, action: "demote" })}><ShieldOff className="h-3 w-3 mr-1" />Demote</Button>}
+                        {u.approval_status !== "approved" && u.role && ["pharmacy","driver","doctor","hospital"].includes(u.role) && (
+                          <Button size="sm" className="h-7" onClick={() => updateApproval(u.user_id, "approved")}><CheckCircle className="h-3 w-3 mr-1" />Approve</Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredUsers.length === 0 && (
+                    <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">No users in this category.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
 
       {/* BROADCASTS */}
       {activeTab === "broadcasts" && (
