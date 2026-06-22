@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { broadcastNotification, seedJohannesburgDemo } from "@/lib/admin.functions";
+import { broadcastNotification } from "@/lib/admin.functions";
 import { adminReviewDoctor, adminReviewPharmacyDocs } from "@/lib/doctor-verify.functions";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { Input } from "@/components/ui/input";
@@ -186,19 +186,8 @@ function AdminDashboard() {
   const [broadcastBody, setBroadcastBody] = useState("");
   const [broadcastSending, setBroadcastSending] = useState(false);
   const broadcastFn = useServerFn(broadcastNotification);
-  const seedFn = useServerFn(seedJohannesburgDemo);
-  const [seeding, setSeeding] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<"all" | AppRole>("all");
 
-  async function runSeed() {
-    setSeeding(true);
-    try {
-      const res = await seedFn({} as never);
-      toast.success(`Seeded ${res.pharmacies} pharmacies, ${res.drivers} drivers, +${res.medications} medications. Demo password: ${res.password}`);
-      await loadAll();
-    } catch (e: any) {
-      toast.error(e?.message || "Seed failed");
-    } finally { setSeeding(false); }
-  }
 
   useEffect(() => {
     if (authLoading) return;
@@ -402,12 +391,11 @@ function AdminDashboard() {
           <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Administrator"}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => navigate({ to: "/dashboard/admin/logs" as any })}>
+            <FileText className="h-4 w-4 mr-1" /> Admin Logs
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigate({ to: "/dashboard/admin/live" as any })}>
             <Activity className="h-4 w-4 mr-1" /> Live map
-          </Button>
-          <Button variant="outline" size="sm" onClick={runSeed} disabled={seeding}>
-            {seeding ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Pill className="h-4 w-4 mr-1" />}
-            {seeding ? "Seeding…" : "Seed JHB demo"}
           </Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4 mr-1" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
