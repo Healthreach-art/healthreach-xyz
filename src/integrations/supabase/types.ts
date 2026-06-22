@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_email: string | null
+          admin_id: string | null
+          created_at: string
+          id: string
+          payload: Json | null
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          admin_email?: string | null
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          admin_email?: string | null
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
       appointment_messages: {
         Row: {
           appointment_id: string
@@ -2380,6 +2413,15 @@ export type Database = {
       is_order_participant: {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
+      }
+      log_admin_action: {
+        Args: {
+          _action: string
+          _payload?: Json
+          _target_id?: string
+          _target_type?: string
+        }
+        Returns: string
       }
       pharmacy_resubmit_document: { Args: { _doc_key: string }; Returns: Json }
       rebroadcast_unaccepted_delivery_orders: {

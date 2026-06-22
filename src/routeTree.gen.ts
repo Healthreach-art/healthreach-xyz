@@ -73,6 +73,7 @@ import { Route as DashboardPatientConsultationsRouteImport } from './routes/dash
 import { Route as DashboardPatientAssistantRouteImport } from './routes/dashboard.patient.assistant'
 import { Route as DashboardPatientAddressesRouteImport } from './routes/dashboard.patient.addresses'
 import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard.patient.activity'
+import { Route as DashboardAdminLogsRouteImport } from './routes/dashboard.admin.logs'
 import { Route as DashboardAdminLiveRouteImport } from './routes/dashboard.admin.live'
 import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
 import { Route as DashboardPatientDoctorsIdRouteImport } from './routes/dashboard.patient.doctors.$id'
@@ -413,6 +414,11 @@ const DashboardPatientActivityRoute =
     path: '/dashboard/patient/activity',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DashboardAdminLogsRoute = DashboardAdminLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => DashboardAdminRoute,
+} as any)
 const DashboardAdminLiveRoute = DashboardAdminLiveRouteImport.update({
   id: '/live',
   path: '/live',
@@ -472,6 +478,7 @@ export interface FileRoutesByFullPath {
   '/doctors/': typeof DoctorsIndexRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
+  '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/assistant': typeof DashboardPatientAssistantRoute
@@ -540,6 +547,7 @@ export interface FileRoutesByTo {
   '/doctors': typeof DoctorsIndexRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
+  '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/assistant': typeof DashboardPatientAssistantRoute
@@ -610,6 +618,7 @@ export interface FileRoutesById {
   '/doctors/': typeof DoctorsIndexRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
+  '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
   '/dashboard/patient/addresses': typeof DashboardPatientAddressesRoute
   '/dashboard/patient/assistant': typeof DashboardPatientAssistantRoute
@@ -681,6 +690,7 @@ export interface FileRouteTypes {
     | '/doctors/'
     | '/api/public/payment-webhook'
     | '/dashboard/admin/live'
+    | '/dashboard/admin/logs'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/assistant'
@@ -749,6 +759,7 @@ export interface FileRouteTypes {
     | '/doctors'
     | '/api/public/payment-webhook'
     | '/dashboard/admin/live'
+    | '/dashboard/admin/logs'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/assistant'
@@ -818,6 +829,7 @@ export interface FileRouteTypes {
     | '/doctors/'
     | '/api/public/payment-webhook'
     | '/dashboard/admin/live'
+    | '/dashboard/admin/logs'
     | '/dashboard/patient/activity'
     | '/dashboard/patient/addresses'
     | '/dashboard/patient/assistant'
@@ -1356,6 +1368,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/admin/logs': {
+      id: '/dashboard/admin/logs'
+      path: '/logs'
+      fullPath: '/dashboard/admin/logs'
+      preLoaderRoute: typeof DashboardAdminLogsRouteImport
+      parentRoute: typeof DashboardAdminRoute
+    }
     '/dashboard/admin/live': {
       id: '/dashboard/admin/live'
       path: '/live'
@@ -1393,10 +1412,12 @@ const SignupRouteWithChildren =
 
 interface DashboardAdminRouteChildren {
   DashboardAdminLiveRoute: typeof DashboardAdminLiveRoute
+  DashboardAdminLogsRoute: typeof DashboardAdminLogsRoute
 }
 
 const DashboardAdminRouteChildren: DashboardAdminRouteChildren = {
   DashboardAdminLiveRoute: DashboardAdminLiveRoute,
+  DashboardAdminLogsRoute: DashboardAdminLogsRoute,
 }
 
 const DashboardAdminRouteWithChildren = DashboardAdminRoute._addFileChildren(
@@ -1490,13 +1511,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
