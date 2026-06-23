@@ -61,39 +61,39 @@
   --card-foreground: oklch(0.2 0.01 160);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0.01 160);
-  --primary: oklch(0.58 0.045 180);
-  --primary-foreground: oklch(0.98 0.005 180);
-  --secondary: oklch(0.98 0 0);
-  --secondary-foreground: oklch(0.2 0.01 180);
-  --muted: oklch(0.98 0 0);
-  --muted-foreground: oklch(0.5 0.01 180);
-  --accent: oklch(0.94 0.02 180);
-  --accent-foreground: oklch(0.35 0.05 180);
+  --primary: oklch(0.58 0.14 180);
+  --primary-foreground: oklch(0.99 0.01 180);
+  --secondary: oklch(0.97 0.02 180);
+  --secondary-foreground: oklch(0.2 0.04 180);
+  --muted: oklch(0.97 0.01 180);
+  --muted-foreground: oklch(0.5 0.04 180);
+  --accent: oklch(0.92 0.07 180);
+  --accent-foreground: oklch(0.32 0.12 180);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.93 0 0);
-  --input: oklch(0.93 0 0);
-  --ring: oklch(0.58 0.045 180);
-  --chart-1: oklch(0.58 0.045 180);
-  --chart-2: oklch(0.65 0.035 180);
-  --chart-3: oklch(0.72 0.03 175);
-  --chart-4: oklch(0.5 0.05 180);
-  --chart-5: oklch(0.4 0.04 180);
+  --border: oklch(0.91 0.02 180);
+  --input: oklch(0.91 0.02 180);
+  --ring: oklch(0.58 0.14 180);
+  --chart-1: oklch(0.58 0.14 180);
+  --chart-2: oklch(0.65 0.13 200);
+  --chart-3: oklch(0.7 0.14 155);
+  --chart-4: oklch(0.5 0.15 220);
+  --chart-5: oklch(0.62 0.16 140);
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.2 0.01 180);
-  --sidebar-primary: oklch(0.58 0.045 180);
-  --sidebar-primary-foreground: oklch(0.98 0.005 180);
-  --sidebar-accent: oklch(0.94 0.02 180);
-  --sidebar-accent-foreground: oklch(0.35 0.05 180);
-  --sidebar-border: oklch(0.93 0 0);
-  --sidebar-ring: oklch(0.58 0.045 180);
+  --sidebar-primary: oklch(0.58 0.14 180);
+  --sidebar-primary-foreground: oklch(0.99 0.01 180);
+  --sidebar-accent: oklch(0.92 0.07 180);
+  --sidebar-accent-foreground: oklch(0.32 0.12 180);
+  --sidebar-border: oklch(0.91 0.02 180);
+  --sidebar-ring: oklch(0.58 0.14 180);
 
   /* Healthcare tokens — sage/teal scale matching the HealthReach mark. */
-  --healthcare-light: oklch(0.985 0.005 180);
-  --healthcare-sky: oklch(0.985 0.005 180);
-  --healthcare-teal: oklch(0.55 0.05 185);
-  --healthcare-mint: oklch(0.985 0.005 180);
-  --healthcare-green: oklch(0.58 0.045 180);
+  --healthcare-light: oklch(0.97 0.03 180);
+  --healthcare-sky: oklch(0.7 0.13 220);
+  --healthcare-teal: oklch(0.6 0.14 195);
+  --healthcare-mint: oklch(0.78 0.13 165);
+  --healthcare-green: oklch(0.62 0.16 150);
 }
 
 .dark {
