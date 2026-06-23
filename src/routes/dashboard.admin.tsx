@@ -405,9 +405,6 @@ function AdminDashboard() {
           <Button variant="outline" size="sm" onClick={() => navigate({ to: "/dashboard/admin/logs" as any })}>
             <FileText className="h-4 w-4 mr-1" /> Admin Logs
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate({ to: "/dashboard/admin/live" as any })}>
-            <Activity className="h-4 w-4 mr-1" /> Live map
-          </Button>
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4 mr-1" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
