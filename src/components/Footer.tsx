@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { MessageCircle, Phone } from "lucide-react";
+import logo from "@/assets/healthreach-logo.png";
 
 const WA_NUMBER = "27797285078";
 const WA_LINK = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi HEALTHREACH, I'd like to ask a quick question.")}`;
@@ -11,9 +12,7 @@ export function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg healthcare-gradient">
-                <span className="text-sm font-bold text-primary-foreground">H</span>
-              </div>
+              <img src={logo} alt="HealthReach" className="h-9 w-auto" />
               <span className="text-lg font-bold tracking-tight text-foreground">
                 HEALTH<span className="text-primary">REACH</span>
               </span>
