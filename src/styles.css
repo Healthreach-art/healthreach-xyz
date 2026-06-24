@@ -61,39 +61,39 @@
   --card-foreground: oklch(0.2 0.01 160);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0.01 160);
-  --primary: oklch(0.58 0.14 180);
-  --primary-foreground: oklch(0.99 0.01 180);
-  --secondary: oklch(0.97 0.02 180);
-  --secondary-foreground: oklch(0.2 0.04 180);
-  --muted: oklch(0.97 0.01 180);
-  --muted-foreground: oklch(0.5 0.04 180);
-  --accent: oklch(0.92 0.07 180);
-  --accent-foreground: oklch(0.32 0.12 180);
-  --destructive: oklch(0.577 0.245 27.325);
+  --primary: oklch(0.6 0.18 160);
+  --primary-foreground: oklch(0.99 0.01 160);
+  --secondary: oklch(0.96 0.04 160);
+  --secondary-foreground: oklch(0.2 0.06 160);
+  --muted: oklch(0.96 0.02 160);
+  --muted-foreground: oklch(0.48 0.05 160);
+  --accent: oklch(0.9 0.1 160);
+  --accent-foreground: oklch(0.28 0.14 160);
+  --destructive: oklch(0.62 0.24 27);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.91 0.02 180);
-  --input: oklch(0.91 0.02 180);
-  --ring: oklch(0.58 0.14 180);
-  --chart-1: oklch(0.58 0.14 180);
-  --chart-2: oklch(0.65 0.13 200);
-  --chart-3: oklch(0.7 0.14 155);
-  --chart-4: oklch(0.5 0.15 220);
-  --chart-5: oklch(0.62 0.16 140);
+  --border: oklch(0.9 0.03 160);
+  --input: oklch(0.9 0.03 160);
+  --ring: oklch(0.6 0.18 160);
+  --chart-1: oklch(0.6 0.18 160);
+  --chart-2: oklch(0.62 0.16 185);
+  --chart-3: oklch(0.7 0.17 145);
+  --chart-4: oklch(0.55 0.18 200);
+  --chart-5: oklch(0.68 0.18 130);
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.2 0.01 180);
-  --sidebar-primary: oklch(0.58 0.14 180);
-  --sidebar-primary-foreground: oklch(0.99 0.01 180);
-  --sidebar-accent: oklch(0.92 0.07 180);
-  --sidebar-accent-foreground: oklch(0.32 0.12 180);
-  --sidebar-border: oklch(0.91 0.02 180);
-  --sidebar-ring: oklch(0.58 0.14 180);
+  --sidebar-foreground: oklch(0.2 0.02 160);
+  --sidebar-primary: oklch(0.6 0.18 160);
+  --sidebar-primary-foreground: oklch(0.99 0.01 160);
+  --sidebar-accent: oklch(0.9 0.1 160);
+  --sidebar-accent-foreground: oklch(0.28 0.14 160);
+  --sidebar-border: oklch(0.9 0.03 160);
+  --sidebar-ring: oklch(0.6 0.18 160);
 
-  /* Healthcare tokens — all in the sage/teal family of the HealthReach mark (no blue). */
-  --healthcare-light: oklch(0.97 0.03 165);
-  --healthcare-sky:   oklch(0.55 0.13 175);  /* deep teal (replaces previous blue) */
-  --healthcare-teal:  oklch(0.6  0.14 185);
-  --healthcare-mint:  oklch(0.78 0.14 160);
-  --healthcare-green: oklch(0.62 0.16 155);  /* matches logo sage */
+  /* Healthcare tokens — pure sage/teal of the HealthReach logo (no mist). */
+  --healthcare-light: oklch(0.96 0.05 160);
+  --healthcare-sky:   oklch(0.6  0.17 185);
+  --healthcare-teal:  oklch(0.62 0.17 175);
+  --healthcare-mint:  oklch(0.78 0.17 160);
+  --healthcare-green: oklch(0.6  0.19 155);
 }
 
 .dark {

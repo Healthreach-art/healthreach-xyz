@@ -120,9 +120,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <Link to={user ? dashboardPath : "/"} className="flex items-center px-2 py-2" aria-label="HealthReach home">
           {collapsed ? (
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-healthcare-green/15 text-healthcare-green">
-              <HeartPulse className="h-5 w-5" />
-            </div>
+            <img src={logoImg} alt="HealthReach" width={36} height={36} className="h-9 w-9 rounded-xl object-contain" />
           ) : (
             <img src={logoImg} alt="HealthReach" width={160} height={44} className="h-8 w-auto" />
           )}
