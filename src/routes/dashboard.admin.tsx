@@ -402,6 +402,25 @@ function AdminDashboard() {
           <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || "Administrator"}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const email = window.prompt("Invite a new admin by email:");
+              if (!email) return;
+              const note = window.prompt("Optional note (e.g. team, role):") || null;
+              const { data, error } = await supabase.rpc("invite_admin" as never, { _email: email, _note: note } as never);
+              if (error) {
+                toast.error("Invite failed", { description: error.message });
+                return;
+              }
+              const payload = (data ?? {}) as { granted?: boolean; invited?: boolean };
+              if (payload.granted) toast.success("Admin granted", { description: `${email} is now an admin.` });
+              else toast.success("Invite saved", { description: `${email} will become admin on signup.` });
+            }}
+          >
+            <Users className="h-4 w-4 mr-1" /> Invite Admin
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigate({ to: "/dashboard/admin/logs" as any })}>
             <FileText className="h-4 w-4 mr-1" /> Admin Logs
           </Button>
