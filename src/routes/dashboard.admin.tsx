@@ -1062,31 +1062,52 @@ function AdminDashboard() {
 function VerificationsPanel() {
   const [doctorDocs, setDoctorDocs] = useState<any[]>([]);
   const [pharmDocs, setPharmDocs] = useState<any[]>([]);
+  const [driverDocs, setDriverDocs] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const reviewDoctor = useServerFn(adminReviewDoctor);
   const reviewPharm = useServerFn(adminReviewPharmacyDocs);
 
   async function load() {
-    const [{ data: dd }, { data: pd }] = await Promise.all([
-      supabase.from("doctor_documents").select("*").order("submitted_at", { ascending: false }),
-      supabase.from("pharmacy_documents").select("*").order("submitted_at", { ascending: false }),
+    const [{ data: dd }, { data: pd }, { data: drv }] = await Promise.all([
+      supabase.from("doctor_documents").select("*").order("updated_at", { ascending: false }),
+      supabase.from("pharmacy_documents").select("*").order("updated_at", { ascending: false }),
+      supabase.from("driver_documents").select("*").order("updated_at", { ascending: false }),
     ]);
     setDoctorDocs(dd ?? []);
     setPharmDocs(pd ?? []);
+    setDriverDocs(drv ?? []);
     const ids = Array.from(new Set([
       ...(dd ?? []).map((x: any) => x.doctor_user_id),
       ...(pd ?? []).map((x: any) => x.pharmacy_id),
+      ...(drv ?? []).map((x: any) => x.driver_id),
     ]));
     if (ids.length) {
       const { data: ps } = await supabase.from("profiles")
-        .select("user_id, full_name, email, organization_name").in("user_id", ids);
+        .select("user_id, full_name, email, organization_name, approval_status").in("user_id", ids);
       const m: Record<string, any> = {};
       (ps ?? []).forEach((p: any) => { m[p.user_id] = p; });
       setProfiles(m);
     }
   }
   useEffect(() => { load(); }, []);
+
+  async function setDriverApproval(driverId: string, status: "approved" | "rejected") {
+    setBusy(driverId);
+    try {
+      const reason = status === "rejected" ? (window.prompt("Rejection reason?") ?? "") : "";
+      const patch = { approval_status: status as ApprovalStatus, updated_at: new Date().toISOString() };
+      const { error } = await supabase.from("profiles").update(patch).eq("user_id", driverId);
+      if (error) throw error;
+      await supabase.from("driver_documents")
+        .update({ reviewed_at: new Date().toISOString(), review_notes: reason || null } as never)
+        .eq("driver_id", driverId);
+      toast.success(status === "approved" ? "Driver approved" : "Driver rejected");
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    finally { setBusy(null); }
+  }
+
 
   async function signedUrl(bucket: string, path: string | null) {
     if (!path) return null;
@@ -1191,6 +1212,47 @@ function VerificationsPanel() {
                   ))}
                 </div>
                 {d.rejection_reason && <p className="text-xs text-destructive">Rejection: {d.rejection_reason}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="healthcare-card p-6">
+        <h2 className="text-lg font-semibold mb-4">Driver verifications ({driverDocs.length})</h2>
+        {driverDocs.length === 0 && <p className="text-sm text-muted-foreground">No driver submissions yet.</p>}
+        <div className="space-y-3">
+          {driverDocs.map((d) => {
+            const p = profiles[d.driver_id] || {};
+            const status = p.approval_status === "approved"
+              ? "verified"
+              : d.reviewed_at && p.approval_status === "rejected"
+                ? "rejected"
+                : d.submitted_at ? "pending" : "draft";
+            return (
+              <div key={d.id} className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{p.full_name || p.email || d.driver_id.slice(0, 8)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {d.vehicle_type || "Vehicle"} · {d.vehicle_registration || "no plate"} · Status: <span className="capitalize">{status}</span>
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setDriverApproval(d.driver_id, "approved")} disabled={busy === d.driver_id || status === "verified"}>Approve</Button>
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => setDriverApproval(d.driver_id, "rejected")} disabled={busy === d.driver_id}>Reject</Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {d.id_document_path && <Button size="sm" variant="ghost" onClick={() => openFile("driver-docs", d.id_document_path)}>ID</Button>}
+                  {d.license_path && <Button size="sm" variant="ghost" onClick={() => openFile("driver-docs", d.license_path)}>License</Button>}
+                  {d.selfie_path && <Button size="sm" variant="ghost" onClick={() => openFile("driver-docs", d.selfie_path)}>Selfie</Button>}
+                  {d.vehicle_photo_path && <Button size="sm" variant="ghost" onClick={() => openFile("driver-docs", d.vehicle_photo_path)}>Vehicle photo</Button>}
+                  {!d.id_document_path && !d.license_path && !d.selfie_path && !d.vehicle_photo_path && (
+                    <span className="text-muted-foreground">No files uploaded yet.</span>
+                  )}
+                </div>
+                {d.review_notes && <p className="text-xs text-destructive">Notes: {d.review_notes}</p>}
               </div>
             );
           })}
