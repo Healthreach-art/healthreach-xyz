@@ -1062,31 +1062,55 @@ function AdminDashboard() {
 function VerificationsPanel() {
   const [doctorDocs, setDoctorDocs] = useState<any[]>([]);
   const [pharmDocs, setPharmDocs] = useState<any[]>([]);
+  const [driverDocs, setDriverDocs] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const reviewDoctor = useServerFn(adminReviewDoctor);
   const reviewPharm = useServerFn(adminReviewPharmacyDocs);
 
   async function load() {
-    const [{ data: dd }, { data: pd }] = await Promise.all([
-      supabase.from("doctor_documents").select("*").order("submitted_at", { ascending: false }),
-      supabase.from("pharmacy_documents").select("*").order("submitted_at", { ascending: false }),
+    const [{ data: dd }, { data: pd }, { data: drv }] = await Promise.all([
+      supabase.from("doctor_documents").select("*").order("updated_at", { ascending: false }),
+      supabase.from("pharmacy_documents").select("*").order("updated_at", { ascending: false }),
+      supabase.from("driver_documents").select("*").order("updated_at", { ascending: false }),
     ]);
     setDoctorDocs(dd ?? []);
     setPharmDocs(pd ?? []);
+    setDriverDocs(drv ?? []);
     const ids = Array.from(new Set([
       ...(dd ?? []).map((x: any) => x.doctor_user_id),
       ...(pd ?? []).map((x: any) => x.pharmacy_id),
+      ...(drv ?? []).map((x: any) => x.driver_id),
     ]));
     if (ids.length) {
       const { data: ps } = await supabase.from("profiles")
-        .select("user_id, full_name, email, organization_name").in("user_id", ids);
+        .select("user_id, full_name, email, organization_name, approval_status").in("user_id", ids);
       const m: Record<string, any> = {};
       (ps ?? []).forEach((p: any) => { m[p.user_id] = p; });
       setProfiles(m);
     }
   }
   useEffect(() => { load(); }, []);
+
+  async function setDriverApproval(driverId: string, status: "approved" | "rejected") {
+    setBusy(driverId);
+    try {
+      const reason = status === "rejected" ? (window.prompt("Rejection reason?") ?? "") : "";
+      const patch: Record<string, unknown> = { approval_status: status, updated_at: new Date().toISOString() };
+      const { error } = await supabase.from("profiles").update(patch).eq("user_id", driverId);
+      if (error) throw error;
+      await supabase.from("driver_documents")
+        .update({
+          reviewed_at: new Date().toISOString(),
+          review_notes: reason || null,
+        } as never)
+        .eq("driver_id", driverId);
+      toast.success(status === "approved" ? "Driver approved" : "Driver rejected");
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    finally { setBusy(null); }
+  }
+
 
   async function signedUrl(bucket: string, path: string | null) {
     if (!path) return null;
