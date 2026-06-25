@@ -184,10 +184,27 @@ function DoctorDashboard() {
     if (!user) return null;
     const ext = file.name.split(".").pop() || "bin";
     const path = `${user.id}/${slot}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("doctor-docs").upload(path, file, { upsert: true });
+    const { error } = await supabase.storage.from("doctor-docs").upload(path, file, { upsert: true, contentType: file.type });
     if (error) {
       toast.error(error.message);
       return null;
+    }
+    // Persist draft immediately so files survive refresh and admins can see progress
+    const draft: Record<string, unknown> = { doctor_user_id: user.id };
+    if (slot === "hpcsa") draft.hpcsa_cert_path = path;
+    else if (slot === "id") draft.id_document_path = path;
+    else if (slot === "malpractice") draft.malpractice_cert_path = path;
+    else if (slot === "practice") draft.practice_letter_path = path;
+    else if (slot === "indemnity") draft.indemnity_path = path;
+    else if (slot.startsWith("qual")) {
+      const next = Array.from(new Set([...(qualPaths || []), path]));
+      draft.qualification_paths = next;
+    }
+    if (Object.keys(draft).length > 1) {
+      const { error: dbErr } = await supabase
+        .from("doctor_documents")
+        .upsert(draft as never, { onConflict: "doctor_user_id" });
+      if (dbErr) toast.error(`Saved file but draft save failed: ${dbErr.message}`);
     }
     return path;
   }
