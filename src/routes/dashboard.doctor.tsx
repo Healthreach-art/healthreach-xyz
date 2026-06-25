@@ -189,7 +189,12 @@ function DoctorDashboard() {
       if (error) throw error;
 
       // Persist draft immediately so files survive refresh and admins can see progress
-      const draft: Record<string, unknown> = { doctor_user_id: user.id };
+      const draft: Record<string, unknown> = {
+        doctor_user_id: user.id,
+        hpcsa_number: hpcsaNumber || null,
+        malpractice_expires_at: malpracticeExpiry || null,
+        notes: notes || null,
+      };
       if (slot === "hpcsa") draft.hpcsa_cert_path = path;
       else if (slot === "id") draft.id_document_path = path;
       else if (slot === "malpractice") draft.malpractice_cert_path = path;
@@ -211,6 +216,14 @@ function DoctorDashboard() {
       toast.error(error?.message ?? "Upload failed. Please try again.");
       return null;
     }
+  }
+
+  async function saveDocDraft(patch: Partial<DocRow>) {
+    if (!user) return;
+    const { error } = await supabase
+      .from("doctor_documents")
+      .upsert({ doctor_user_id: user.id, ...patch } as never, { onConflict: "doctor_user_id" });
+    if (error) toast.error(`Draft save failed: ${error.message}`);
   }
 
   async function uploadPhoto(file: File) {
@@ -393,7 +406,13 @@ function DoctorDashboard() {
 
             <div className="space-y-2">
               <Label>HPCSA registration number *</Label>
-              <Input value={hpcsaNumber} onChange={(e) => setHpcsaNumber(e.target.value)} placeholder="e.g. MP0123456" maxLength={64} />
+              <Input
+                value={hpcsaNumber}
+                onChange={(e) => setHpcsaNumber(e.target.value)}
+                onBlur={() => saveDocDraft({ hpcsa_number: hpcsaNumber })}
+                placeholder="e.g. MP0123456"
+                maxLength={64}
+              />
             </div>
 
             <FileSlot
@@ -422,7 +441,12 @@ function DoctorDashboard() {
             />
             <div className="space-y-2">
               <Label>Malpractice cover expiry</Label>
-              <Input type="date" value={malpracticeExpiry} onChange={(e) => setMalpracticeExpiry(e.target.value)} />
+              <Input
+                type="date"
+                value={malpracticeExpiry}
+                onChange={(e) => setMalpracticeExpiry(e.target.value)}
+                onBlur={() => saveDocDraft({ malpractice_expires_at: malpracticeExpiry || null })}
+              />
             </div>
             <FileSlot
               label="Practice / clinic letter (optional)"
@@ -436,7 +460,13 @@ function DoctorDashboard() {
             />
             <div className="space-y-2">
               <Label>Notes for the reviewer</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} maxLength={1000} />
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onBlur={() => saveDocDraft({ notes })}
+                rows={3}
+                maxLength={1000}
+              />
             </div>
 
             <Button onClick={submitDocs} disabled={busy} className="w-full">
