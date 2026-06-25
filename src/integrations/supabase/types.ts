@@ -47,6 +47,39 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_invites: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          invited_by: string | null
+          invited_by_email: string | null
+          note: string | null
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          invited_by?: string | null
+          invited_by_email?: string | null
+          note?: string | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string | null
+          invited_by_email?: string | null
+          note?: string | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       appointment_messages: {
         Row: {
           appointment_id: string
@@ -2410,6 +2443,7 @@ export type Database = {
         Args: { _group_id: string }
         Returns: Json
       }
+      invite_admin: { Args: { _email: string; _note?: string }; Returns: Json }
       is_order_participant: {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
@@ -2434,6 +2468,7 @@ export type Database = {
       }
       release_scheduled_orders: { Args: never; Returns: Json }
       resolve_actor_name: { Args: { _user_id: string }; Returns: string }
+      revoke_admin_invite: { Args: { _email: string }; Returns: Json }
       user_has_any_role: { Args: { _user_id: string }; Returns: boolean }
       wallet_credit: {
         Args: {
