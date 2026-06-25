@@ -3,6 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Crosshair, MapPin, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { autocompleteAddress, resolvePlace, reverseGeocodeOne } from "@/lib/places.functions";
+
 
 export interface PickedAddress {
   address: string;
@@ -54,6 +56,7 @@ export function AddressPicker({ value, onChange, placeholder = "Start typing you
     if (!text || text.length < 3) { setSuggestions([]); return; }
     if (text === value?.address) { setSuggestions([]); return; }
     const handle = setTimeout(async () => {
+      // Try client-side Google Places first
       try {
         await loadGoogleMaps();
         const places: any = await (window as any).google.maps.importLibrary("places");
@@ -61,14 +64,22 @@ export function AddressPicker({ value, onChange, placeholder = "Start typing you
         const { suggestions: s } = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
           input: text, sessionToken: sessionTokenRef.current,
         });
-        setSuggestions((s ?? []).slice(0, 5).map((sg: any) => ({
+        const mapped = (s ?? []).slice(0, 5).map((sg: any) => ({
           placeId: sg.placePrediction?.placeId,
           primary: sg.placePrediction?.mainText?.text ?? sg.placePrediction?.text?.text ?? "",
           secondary: sg.placePrediction?.secondaryText?.text ?? "",
-        })).filter((x: any) => x.placeId));
-        setOpen(true);
-      } catch (e) { /* silent */ }
-    }, 250);
+        })).filter((x: any) => x.placeId);
+        if (mapped.length) { setSuggestions(mapped); setOpen(true); return; }
+        throw new Error("no client results");
+      } catch {
+        // Server fallback (works on any domain regardless of key referrer restrictions)
+        try {
+          const res = await autocompleteAddress({ data: { input: text } });
+          setSuggestions(res.suggestions);
+          setOpen(res.suggestions.length > 0);
+        } catch { /* silent */ }
+      }
+    }, 300);
     return () => clearTimeout(handle);
   }, [text, value?.address]);
 
@@ -76,18 +87,28 @@ export function AddressPicker({ value, onChange, placeholder = "Start typing you
     setOpen(false);
     setBusy(true);
     try {
-      const places: any = await (window as any).google.maps.importLibrary("places");
-      const place = new places.Place({ id: placeId });
-      await place.fetchFields({ fields: ["location", "formattedAddress"] });
-      const loc = place.location;
-      const lat = typeof loc.lat === "function" ? loc.lat() : loc.lat;
-      const lng = typeof loc.lng === "function" ? loc.lng() : loc.lng;
-      const address = place.formattedAddress ?? label;
+      // Server-side resolution handles both Google place IDs and OSM IDs and works on every domain
+      const res = await resolvePlace({ data: { placeId } });
+      const address = res.address || label;
       setText(address);
       sessionTokenRef.current = null;
-      onChange({ address, lat, lng });
-    } catch (e: any) {
-      toast.error("Could not resolve address");
+      onChange({ address, lat: res.lat, lng: res.lng });
+    } catch {
+      // Last resort: try client SDK (only works in lovable preview / allowed origins)
+      try {
+        const places: any = await (window as any).google.maps.importLibrary("places");
+        const place = new places.Place({ id: placeId });
+        await place.fetchFields({ fields: ["location", "formattedAddress"] });
+        const loc = place.location;
+        const lat = typeof loc.lat === "function" ? loc.lat() : loc.lat;
+        const lng = typeof loc.lng === "function" ? loc.lng() : loc.lng;
+        const address = place.formattedAddress ?? label;
+        setText(address);
+        sessionTokenRef.current = null;
+        onChange({ address, lat, lng });
+      } catch {
+        toast.error("Could not resolve address");
+      }
     } finally { setBusy(false); }
   }
 
@@ -98,13 +119,9 @@ export function AddressPicker({ value, onChange, placeholder = "Start typing you
       async (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
         try {
-          // Reverse geocode via Maps JS (browser key allows Geocoder)
-          await loadGoogleMaps();
-          const geocoder = new (window as any).google.maps.Geocoder();
-          const res = await geocoder.geocode({ location: { lat, lng } });
-          const address = res.results?.[0]?.formatted_address ?? "Current location";
-          setText(address);
-          onChange({ address, lat, lng });
+          const res = await reverseGeocodeOne({ data: { lat, lng } });
+          setText(res.address);
+          onChange({ address: res.address, lat, lng });
           toast.success("Current location pinned");
         } catch {
           const fallback = "Current location";
@@ -116,6 +133,7 @@ export function AddressPicker({ value, onChange, placeholder = "Start typing you
       { enableHighAccuracy: true, timeout: 10000 },
     );
   }
+
 
   return (
     <div className="space-y-2">
