@@ -50,7 +50,7 @@ interface AvailRow {
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function DoctorDashboard() {
-  const { user, approvalStatus, signOut, profile, isDemo } = useAuth();
+  const { user, approvalStatus, signOut, profile } = useAuth();
   const submit = useServerFn(submitDoctorDocuments);
   const normalize = useServerFn(normalizeServices);
   const [docs, setDocs] = useState<DocRow | null>(null);
@@ -182,50 +182,73 @@ function DoctorDashboard() {
 
   async function uploadTo(file: File, slot: string): Promise<string | null> {
     if (!user) return null;
-    const ext = file.name.split(".").pop() || "bin";
-    const path = `${user.id}/${slot}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("doctor-docs").upload(path, file, { upsert: true, contentType: file.type });
-    if (error) {
-      toast.error(error.message);
+    try {
+      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+      const path = `${user.id}/${slot}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("doctor-docs").upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" });
+      if (error) throw error;
+
+      // Persist draft immediately so files survive refresh and admins can see progress
+      const draft: Record<string, unknown> = {
+        doctor_user_id: user.id,
+        hpcsa_number: hpcsaNumber || null,
+        malpractice_expires_at: malpracticeExpiry || null,
+        notes: notes || null,
+      };
+      if (slot === "hpcsa") draft.hpcsa_cert_path = path;
+      else if (slot === "id") draft.id_document_path = path;
+      else if (slot === "malpractice") draft.malpractice_cert_path = path;
+      else if (slot === "practice") draft.practice_letter_path = path;
+      else if (slot === "indemnity") draft.indemnity_path = path;
+      else if (slot.startsWith("qual")) {
+        const next = Array.from(new Set([...(qualPaths || []), path]));
+        draft.qualification_paths = next;
+      }
+      if (Object.keys(draft).length > 1) {
+        const { error: dbErr } = await supabase
+          .from("doctor_documents")
+          .upsert(draft as never, { onConflict: "doctor_user_id" });
+        if (dbErr) throw dbErr;
+      }
+      toast.success("Document uploaded");
+      return path;
+    } catch (error: any) {
+      toast.error(error?.message ?? "Upload failed. Please try again.");
       return null;
     }
-    // Persist draft immediately so files survive refresh and admins can see progress
-    const draft: Record<string, unknown> = { doctor_user_id: user.id };
-    if (slot === "hpcsa") draft.hpcsa_cert_path = path;
-    else if (slot === "id") draft.id_document_path = path;
-    else if (slot === "malpractice") draft.malpractice_cert_path = path;
-    else if (slot === "practice") draft.practice_letter_path = path;
-    else if (slot === "indemnity") draft.indemnity_path = path;
-    else if (slot.startsWith("qual")) {
-      const next = Array.from(new Set([...(qualPaths || []), path]));
-      draft.qualification_paths = next;
-    }
-    if (Object.keys(draft).length > 1) {
-      const { error: dbErr } = await supabase
-        .from("doctor_documents")
-        .upsert(draft as never, { onConflict: "doctor_user_id" });
-      if (dbErr) toast.error(`Saved file but draft save failed: ${dbErr.message}`);
-    }
-    return path;
+  }
+
+  async function saveDocDraft(patch: Partial<DocRow>) {
+    if (!user) return;
+    const { error } = await supabase
+      .from("doctor_documents")
+      .upsert({ doctor_user_id: user.id, ...patch } as never, { onConflict: "doctor_user_id" });
+    if (error) toast.error(`Draft save failed: ${error.message}`);
   }
 
   async function uploadPhoto(file: File) {
     if (!user) return;
     setPhotoBusy(true);
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const path = `${user.id}/profile-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("doctor-photos").upload(path, file, { upsert: true, contentType: file.type });
-    if (error) { setPhotoBusy(false); return toast.error(error.message); }
-    const { data: pub } = supabase.storage.from("doctor-photos").getPublicUrl(path);
-    setPhotoUrl(pub.publicUrl);
-    if (doctorRow) {
-      const { error: upErr } = await supabase.from("doctors").update({ photo_url: pub.publicUrl }).eq("id", doctorRow.id);
-      if (upErr) toast.error(upErr.message);
-      else toast.success("Profile photo updated");
-    } else {
-      toast.success("Photo ready — click Save profile to publish it");
+    try {
+      if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `${user.id}/doctor-profile-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      setPhotoUrl(pub.publicUrl);
+      if (doctorRow) {
+        const { error: upErr } = await supabase.from("doctors").update({ photo_url: pub.publicUrl }).eq("id", doctorRow.id);
+        if (upErr) throw upErr;
+        toast.success("Profile photo updated");
+      } else {
+        toast.success("Photo ready — click Save profile to publish it");
+      }
+    } catch (error: any) {
+      toast.error(error?.message ?? "Photo upload failed. Please try again.");
+    } finally {
+      setPhotoBusy(false);
     }
-    setPhotoBusy(false);
   }
 
 
@@ -247,18 +270,18 @@ function DoctorDashboard() {
       subspecialties,
       photo_url: photoUrl || undefined,
       hospital_id: null,
-      // TESTING MODE: every doctor is auto-flagged demo and immediately bookable
-      // so newly signed-up doctors show up to patients without admin approval.
-      is_active: true,
-      is_demo: true,
-      is_verified: true,
-      verified_at: new Date().toISOString(),
     };
     let error: any;
     if (doctorRow) {
       ({ error } = await supabase.from("doctors").update(payload).eq("id", doctorRow.id));
     } else {
-      ({ error } = await supabase.from("doctors").insert(payload));
+      ({ error } = await supabase.from("doctors").insert({
+        ...payload,
+        is_active: false,
+        is_demo: false,
+        is_verified: false,
+        verified_at: null,
+      }));
     }
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -383,7 +406,13 @@ function DoctorDashboard() {
 
             <div className="space-y-2">
               <Label>HPCSA registration number *</Label>
-              <Input value={hpcsaNumber} onChange={(e) => setHpcsaNumber(e.target.value)} placeholder="e.g. MP0123456" maxLength={64} />
+              <Input
+                value={hpcsaNumber}
+                onChange={(e) => setHpcsaNumber(e.target.value)}
+                onBlur={() => saveDocDraft({ hpcsa_number: hpcsaNumber })}
+                placeholder="e.g. MP0123456"
+                maxLength={64}
+              />
             </div>
 
             <FileSlot
@@ -412,7 +441,12 @@ function DoctorDashboard() {
             />
             <div className="space-y-2">
               <Label>Malpractice cover expiry</Label>
-              <Input type="date" value={malpracticeExpiry} onChange={(e) => setMalpracticeExpiry(e.target.value)} />
+              <Input
+                type="date"
+                value={malpracticeExpiry}
+                onChange={(e) => setMalpracticeExpiry(e.target.value)}
+                onBlur={() => saveDocDraft({ malpractice_expires_at: malpracticeExpiry || null })}
+              />
             </div>
             <FileSlot
               label="Practice / clinic letter (optional)"
@@ -426,7 +460,13 @@ function DoctorDashboard() {
             />
             <div className="space-y-2">
               <Label>Notes for the reviewer</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} maxLength={1000} />
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onBlur={() => saveDocDraft({ notes })}
+                rows={3}
+                maxLength={1000}
+              />
             </div>
 
             <Button onClick={submitDocs} disabled={busy} className="w-full">
@@ -712,15 +752,26 @@ function DoctorDashboard() {
 
 function FileSlot({ label, currentPath, onUpload }: { label: string; currentPath: string; onUpload: (f: File) => Promise<void>; }) {
   const ref = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  async function handleFile(file?: File) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      await onUpload(file);
+    } finally {
+      setUploading(false);
+      if (ref.current) ref.current.value = "";
+    }
+  }
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
       <div className="flex items-center gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={() => ref.current?.click()}>
-          <Upload className="mr-1 h-3 w-3" /> {currentPath ? "Replace" : "Upload"}
+        <Button type="button" size="sm" variant="outline" disabled={uploading} onClick={() => ref.current?.click()}>
+          <Upload className="mr-1 h-3 w-3" /> {uploading ? "Uploading…" : currentPath ? "Replace" : "Upload"}
         </Button>
         {currentPath && <span className="truncate text-xs text-muted-foreground">{currentPath.split("/").pop()}</span>}
-        <input ref={ref} type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }} />
+        <input ref={ref} type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => void handleFile(e.target.files?.[0])} />
       </div>
     </div>
   );
@@ -728,6 +779,17 @@ function FileSlot({ label, currentPath, onUpload }: { label: string; currentPath
 
 function MultiFileSlot({ label, paths, onUpload, onRemove }: { label: string; paths: string[]; onUpload: (f: File) => Promise<void>; onRemove: (p: string) => void; }) {
   const ref = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  async function handleFile(file?: File) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      await onUpload(file);
+    } finally {
+      setUploading(false);
+      if (ref.current) ref.current.value = "";
+    }
+  }
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
@@ -739,10 +801,10 @@ function MultiFileSlot({ label, paths, onUpload, onRemove }: { label: string; pa
             <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(p)}>Remove</Button>
           </div>
         ))}
-        <Button type="button" size="sm" variant="outline" onClick={() => ref.current?.click()}>
-          <Upload className="mr-1 h-3 w-3" /> Add document
+        <Button type="button" size="sm" variant="outline" disabled={uploading} onClick={() => ref.current?.click()}>
+          <Upload className="mr-1 h-3 w-3" /> {uploading ? "Uploading…" : "Add document"}
         </Button>
-        <input ref={ref} type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { onUpload(f); e.target.value = ""; } }} />
+        <input ref={ref} type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => void handleFile(e.target.files?.[0])} />
       </div>
     </div>
   );
