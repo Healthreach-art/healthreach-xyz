@@ -1217,6 +1217,47 @@ function VerificationsPanel() {
           })}
         </div>
       </div>
+
+      <div className="healthcare-card p-6">
+        <h2 className="text-lg font-semibold mb-4">Driver verifications ({driverDocs.length})</h2>
+        {driverDocs.length === 0 && <p className="text-sm text-muted-foreground">No driver submissions yet.</p>}
+        <div className="space-y-3">
+          {driverDocs.map((d) => {
+            const p = profiles[d.driver_id] || {};
+            const status = p.approval_status === "approved"
+              ? "verified"
+              : d.reviewed_at && p.approval_status === "rejected"
+                ? "rejected"
+                : d.submitted_at ? "pending" : "draft";
+            return (
+              <div key={d.id} className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{p.full_name || p.email || d.driver_id.slice(0, 8)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {d.vehicle_type || "Vehicle"} · {d.vehicle_registration || "no plate"} · Status: <span className="capitalize">{status}</span>
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setDriverApproval(d.driver_id, "approved")} disabled={busy === d.driver_id || status === "verified"}>Approve</Button>
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => setDriverApproval(d.driver_id, "rejected")} disabled={busy === d.driver_id}>Reject</Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {d.id_document_path && <Button size="sm" variant="ghost" onClick={() => openFile("driver-docs", d.id_document_path)}>ID</Button>}
+                  {d.license_path && <Button size="sm" variant="ghost" onClick={() => openFile("driver-docs", d.license_path)}>License</Button>}
+                  {d.selfie_path && <Button size="sm" variant="ghost" onClick={() => openFile("driver-docs", d.selfie_path)}>Selfie</Button>}
+                  {d.vehicle_photo_path && <Button size="sm" variant="ghost" onClick={() => openFile("driver-docs", d.vehicle_photo_path)}>Vehicle photo</Button>}
+                  {!d.id_document_path && !d.license_path && !d.selfie_path && !d.vehicle_photo_path && (
+                    <span className="text-muted-foreground">No files uploaded yet.</span>
+                  )}
+                </div>
+                {d.review_notes && <p className="text-xs text-destructive">Notes: {d.review_notes}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
