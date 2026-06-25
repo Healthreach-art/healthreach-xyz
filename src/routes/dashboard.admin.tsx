@@ -1096,14 +1096,11 @@ function VerificationsPanel() {
     setBusy(driverId);
     try {
       const reason = status === "rejected" ? (window.prompt("Rejection reason?") ?? "") : "";
-      const patch: Record<string, unknown> = { approval_status: status, updated_at: new Date().toISOString() };
+      const patch = { approval_status: status as ApprovalStatus, updated_at: new Date().toISOString() };
       const { error } = await supabase.from("profiles").update(patch).eq("user_id", driverId);
       if (error) throw error;
       await supabase.from("driver_documents")
-        .update({
-          reviewed_at: new Date().toISOString(),
-          review_notes: reason || null,
-        } as never)
+        .update({ reviewed_at: new Date().toISOString(), review_notes: reason || null } as never)
         .eq("driver_id", driverId);
       toast.success(status === "approved" ? "Driver approved" : "Driver rejected");
       load();
