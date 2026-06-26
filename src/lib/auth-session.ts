@@ -85,7 +85,7 @@ export async function resolveUserRole(
 async function resolveProfile(user: User): Promise<{ profile: ResolvedProfile; approvalStatus: string | null }> {
   const { data } = await supabase
     .from("profiles")
-    .select("full_name, email, organization_name, phone, address, approval_status, is_demo")
+    .select("full_name, email, organization_name, phone, address, approval_status, is_demo, avatar_url")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -98,6 +98,7 @@ async function resolveProfile(user: User): Promise<{ profile: ResolvedProfile; a
       phone: data?.phone ?? "",
       address: data?.address ?? "",
       is_demo: !!data?.is_demo,
+      avatar_url: (data as any)?.avatar_url ?? "",
     },
   };
 }
