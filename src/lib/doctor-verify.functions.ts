@@ -128,14 +128,17 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
     await supabaseAdmin.from("notifications").insert({
       user_id: data.doctorUserId,
       category: "system",
-      title: approve ? "You're verified" : "Verification rejected",
+      title: approve ? (publishReady ? "You're verified" : "Documents approved") : "Verification rejected",
       body: approve
-        ? "Your HEALTHREACH doctor account is approved. Patients can now book you."
+        ? (publishReady
+            ? "Your HEALTHREACH doctor account is approved. Patients can now book you."
+            : `Your documents are approved. Complete your public profile to go live: ${readinessNote.replace(/^Approved\. Doctor still needs to complete: /, "").replace(/ before going live\.$/, "")}.`)
         : `Your verification was rejected. ${data.reason ?? "Please review the requested documents and resubmit."}`,
       link: "/dashboard/doctor",
     });
 
-    return { ok: true };
+    return { ok: true, publishReady, note: readinessNote || undefined };
+
   });
 
 // Admin: review pharmacy documents
