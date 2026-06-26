@@ -237,13 +237,14 @@ function DoctorDashboard() {
       if (error) throw error;
       const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
       setPhotoUrl(pub.publicUrl);
+      // Persist on profiles.avatar_url so the photo survives refresh even before
+      // the doctor row exists. Once the doctor row exists, mirror it there too.
+      await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("user_id", user.id);
       if (doctorRow) {
         const { error: upErr } = await supabase.from("doctors").update({ photo_url: pub.publicUrl }).eq("id", doctorRow.id);
         if (upErr) throw upErr;
-        toast.success("Profile photo updated");
-      } else {
-        toast.success("Photo ready — click Save profile to publish it");
       }
+      toast.success("Profile photo updated");
     } catch (error: any) {
       toast.error(error?.message ?? "Photo upload failed. Please try again.");
     } finally {
