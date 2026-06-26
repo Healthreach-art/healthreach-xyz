@@ -63,29 +63,33 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
     const approve = data.decision === "approve";
     const ts = new Date().toISOString();
 
-    // Pre-flight readiness check (matches the DB trigger guard_doctor_publish_ready)
+    // Check publish-readiness (matches DB trigger guard_doctor_publish_ready).
+    // If not ready, we still approve the documents/profile but keep is_verified/is_active false
+    // so the doctor can finish their public profile before going live.
+    let publishReady = false;
+    let readinessNote = "";
     if (approve) {
       const { data: doc } = await supabaseAdmin
         .from("doctors")
         .select("id, full_name, specialty, qualifications, city, consultation_fee, photo_url")
         .eq("user_id", data.doctorUserId)
         .maybeSingle();
-      if (!doc) throw new Error("Doctor profile not found — ask the doctor to save their public profile first.");
-      const missing: string[] = [];
-      if (!doc.photo_url) missing.push("profile photo");
-      if (!doc.full_name || doc.full_name.trim().length < 2) missing.push("full name");
-      if (!doc.specialty || doc.specialty.trim().length < 2) missing.push("specialty");
-      if (!doc.qualifications || doc.qualifications.trim().length < 2) missing.push("qualifications");
-      if (!doc.city || doc.city.trim().length < 2) missing.push("city");
-      if (!doc.consultation_fee || Number(doc.consultation_fee) <= 0) missing.push("consultation fee");
-      const { count: windows } = await supabaseAdmin
-        .from("doctor_availability")
-        .select("*", { count: "exact", head: true })
-        .eq("doctor_id", doc.id)
-        .eq("is_active", true);
-      if (!windows || windows === 0) missing.push("at least one weekly availability window");
-      if (missing.length) {
-        throw new Error(`Cannot approve — doctor must complete: ${missing.join(", ")}.`);
+      if (doc) {
+        const missing: string[] = [];
+        if (!doc.photo_url) missing.push("profile photo");
+        if (!doc.full_name || doc.full_name.trim().length < 2) missing.push("full name");
+        if (!doc.specialty || doc.specialty.trim().length < 2) missing.push("specialty");
+        if (!doc.qualifications || doc.qualifications.trim().length < 2) missing.push("qualifications");
+        if (!doc.city || doc.city.trim().length < 2) missing.push("city");
+        if (!doc.consultation_fee || Number(doc.consultation_fee) <= 0) missing.push("consultation fee");
+        const { count: windows } = await supabaseAdmin
+          .from("doctor_availability")
+          .select("*", { count: "exact", head: true })
+          .eq("doctor_id", doc.id)
+          .eq("is_active", true);
+        if (!windows || windows === 0) missing.push("at least one weekly availability window");
+        publishReady = missing.length === 0;
+        if (!publishReady) readinessNote = `Approved. Doctor still needs to complete: ${missing.join(", ")} before going live.`;
       }
     }
 
@@ -107,16 +111,18 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
     const { data: existingDoc } = await supabaseAdmin
       .from("doctors").select("id").eq("user_id", data.doctorUserId).maybeSingle();
     if (existingDoc) {
+      const goLive = approve && publishReady;
       await supabaseAdmin.from("doctors")
         .update({
-          is_verified: approve,
-          verified_at: approve ? ts : null,
-          verified_by: approve ? context.userId : null,
+          is_verified: goLive,
+          verified_at: goLive ? ts : null,
+          verified_by: goLive ? context.userId : null,
           rejection_reason: approve ? null : (data.reason ?? "Documents rejected"),
-          is_active: approve,
+          is_active: goLive,
         })
         .eq("id", existingDoc.id);
     }
+
 
     // Notify the doctor
     await supabaseAdmin.from("notifications").insert({
