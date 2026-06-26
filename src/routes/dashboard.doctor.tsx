@@ -130,10 +130,12 @@ function DoctorDashboard() {
       setServicesDescription((doc as any).services_description ?? "");
       setServicesTags(((doc as any).services_tags as string[]) ?? []);
       setSubspecialties(((doc as any).subspecialties as string[]) ?? []);
-      setPhotoUrl((doc as any).photo_url ?? "");
+      setPhotoUrl((doc as any).photo_url ?? profile?.avatar_url ?? "");
     } else {
       setFullName(profile?.full_name ?? "");
+      setPhotoUrl(profile?.avatar_url ?? "");
     }
+
     setLoading(false);
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
