@@ -344,19 +344,20 @@ function DoctorDashboard() {
   const wasRejected = !!docs?.rejection_reason;
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full healthcare-gradient">
-            <Stethoscope className="h-6 w-6 text-primary-foreground" />
+    <div className="container mx-auto max-w-5xl px-3 sm:px-4 py-4 sm:py-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full healthcare-gradient">
+            <Stethoscope className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">Doctor Dashboard</h1>
-            <p className="text-sm text-muted-foreground">{profile?.full_name || profile?.email}</p>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold truncate">Doctor Dashboard</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{profile?.full_name || profile?.email}</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={signOut}>Sign out</Button>
       </div>
+
 
       <Card className="mb-6 p-4">
         {isVerified ? (
