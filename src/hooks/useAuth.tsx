@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: "",
         address: "",
         is_demo: false,
+        avatar_url: "",
       });
     } finally {
       if (currentHydrate === hydrateId.current) setLoading(false);
