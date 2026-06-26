@@ -10,6 +10,7 @@ export interface ResolvedProfile {
   phone: string;
   address: string;
   is_demo: boolean;
+  avatar_url: string;
 }
 
 export interface ResolvedAccount {
