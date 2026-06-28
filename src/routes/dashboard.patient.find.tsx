@@ -95,6 +95,7 @@ function FindCarePage() {
     );
   };
 
+  const MAX_RADIUS_KM = 100;
   const withDistance = <T extends { latitude: number | null; longitude: number | null }>(rows: T[]) => {
     if (!userLoc) return rows.map((r) => ({ ...r, distance_km: null as number | null }));
     return rows.map((r) => ({
@@ -102,7 +103,9 @@ function FindCarePage() {
       distance_km: r.latitude != null && r.longitude != null
         ? Math.round(haversineKm(userLoc.lat, userLoc.lng, Number(r.latitude), Number(r.longitude)) * 10) / 10
         : null,
-    })).sort((a, b) => (a.distance_km ?? 9e9) - (b.distance_km ?? 9e9));
+    }))
+    .filter((r) => r.distance_km == null || r.distance_km <= MAX_RADIUS_KM)
+    .sort((a, b) => (a.distance_km ?? 9e9) - (b.distance_km ?? 9e9));
   };
 
   const filteredDoctors = useMemo(() => {
