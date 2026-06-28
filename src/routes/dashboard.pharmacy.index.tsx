@@ -503,7 +503,7 @@ function PharmacyDashboard() {
     );
   }
 
-  if (!isDemo && approvalStatus === "under_review") {
+  if (!authLoading && !isDemo && approvalStatus === "under_review") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <div className="healthcare-card p-8 max-w-md text-center">
