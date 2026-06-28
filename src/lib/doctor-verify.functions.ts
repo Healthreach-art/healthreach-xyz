@@ -98,6 +98,15 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
       .update({ approval_status: approve ? "approved" : "rejected", updated_at: ts })
       .eq("user_id", data.doctorUserId);
 
+    await supabaseAdmin.from("admin_audit_log").insert({
+      admin_id: context.userId,
+      action: approve ? "doctor.approve" : "doctor.reject",
+      target_type: "doctor",
+      target_id: data.doctorUserId,
+      payload: { reason: data.reason ?? null },
+    });
+
+
     // Update doctor documents
     await supabaseAdmin.from("doctor_documents")
       .update({
@@ -170,6 +179,20 @@ export const adminReviewPharmacyDocs = createServerFn({ method: "POST" })
       })
       .eq("pharmacy_id", data.pharmacyUserId);
 
+    // CRITICAL: also flip the pharmacy's profile approval_status so the
+    // dashboard gate stops showing "Complete your pharmacy verification".
+    await supabaseAdmin.from("profiles")
+      .update({ approval_status: approve ? "approved" : "rejected", updated_at: ts })
+      .eq("user_id", data.pharmacyUserId);
+
+    await supabaseAdmin.from("admin_audit_log").insert({
+      admin_id: context.userId,
+      action: approve ? "pharmacy.approve" : "pharmacy.reject",
+      target_type: "pharmacy",
+      target_id: data.pharmacyUserId,
+      payload: { reason: data.reason ?? null, verified_services: data.verifiedServices ?? [] },
+    });
+
     await supabaseAdmin.from("notifications").insert({
       user_id: data.pharmacyUserId,
       category: "system",
@@ -182,3 +205,4 @@ export const adminReviewPharmacyDocs = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+

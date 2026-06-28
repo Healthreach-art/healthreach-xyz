@@ -473,7 +473,9 @@ function PharmacyDashboard() {
     }
   }
 
-  if (!authLoading && !isDemo && approvalStatus && approvalStatus !== "approved" && approvalStatus !== "under_review") {
+  const gateStatuses = new Set(["pending", "rejected", "suspended", "expired"]);
+  if (!authLoading && !isDemo && approvalStatus && gateStatuses.has(approvalStatus) && approvalStatus !== "approved") {
+
     const titleMap: Record<string, string> = {
       pending: "Complete your pharmacy verification",
       rejected: "Application rejected",
