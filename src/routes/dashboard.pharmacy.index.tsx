@@ -90,7 +90,7 @@ interface LiveDelivery {
 }
 
 function PharmacyDashboard() {
-  const { user, profile, approvalStatus, isDemo, signOut } = useAuth();
+  const { user, profile, approvalStatus, isDemo, signOut, loading: authLoading } = useAuth();
   const dispatchDrivers = useServerFn(dispatchOrderToNearbyDrivers);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inventory, setInventory] = useState<Medication[]>([]);
@@ -473,7 +473,7 @@ function PharmacyDashboard() {
     }
   }
 
-  if (!isDemo && approvalStatus !== "approved" && approvalStatus !== "under_review") {
+  if (!authLoading && !isDemo && approvalStatus && approvalStatus !== "approved" && approvalStatus !== "under_review") {
     const titleMap: Record<string, string> = {
       pending: "Complete your pharmacy verification",
       rejected: "Application rejected",
@@ -503,7 +503,7 @@ function PharmacyDashboard() {
     );
   }
 
-  if (!isDemo && approvalStatus === "under_review") {
+  if (!authLoading && !isDemo && approvalStatus === "under_review") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <div className="healthcare-card p-8 max-w-md text-center">
