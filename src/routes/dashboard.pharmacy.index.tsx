@@ -473,7 +473,7 @@ function PharmacyDashboard() {
     }
   }
 
-  if (!isDemo && approvalStatus !== "approved" && approvalStatus !== "under_review") {
+  if (!authLoading && !isDemo && approvalStatus && approvalStatus !== "approved" && approvalStatus !== "under_review") {
     const titleMap: Record<string, string> = {
       pending: "Complete your pharmacy verification",
       rejected: "Application rejected",
