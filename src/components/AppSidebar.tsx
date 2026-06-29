@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import logoImg from "@/assets/healthreach-logo.png";
+import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
 type Item = { title: string; url: string; icon: any };
 
@@ -165,6 +166,9 @@ export function AppSidebar() {
                 <LogOut className="h-4 w-4" />
                 {!collapsed && <span>Sign out</span>}
               </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <DeleteAccountButton variant="sidebar" collapsed={collapsed} />
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>

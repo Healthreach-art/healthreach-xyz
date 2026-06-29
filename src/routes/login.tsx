@@ -196,6 +196,10 @@ function LoginPage() {
                 className="w-full"
                 onClick={async () => {
                   setError("");
+                  // Force the patient intent for the /login Google button so a
+                  // stale "doctor"/"pharmacy" value left over from a previous
+                  // /signup?role=… tab can never reroute a patient sign-in.
+                  try { localStorage.setItem("hr_oauth_role", "patient"); } catch { /* ignore */ }
                   const result = await lovable.auth.signInWithOAuth("google", {
                     redirect_uri: `${window.location.origin}/auth/callback`,
                   });
