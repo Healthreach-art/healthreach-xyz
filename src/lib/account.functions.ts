@@ -19,12 +19,16 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     // Best-effort cleanup of every table that stores user-owned rows.
     // We swallow individual table errors so one missing/renamed table
     // can't block account deletion.
-    const wipe = async (
-      table: string,
-      column: "user_id" | "patient_id" | "pharmacy_id" | "driver_id" | "doctor_id" | "admin_id" | "sender_id" | "invited_by" | "used_by" | "actor_id" | "dispensed_by",
-    ) => {
+    const admin = supabaseAdmin as unknown as {
+      from: (table: string) => {
+        delete: () => { eq: (col: string, val: string) => Promise<{ error: unknown }> };
+      };
+      auth: typeof supabaseAdmin.auth;
+    };
+
+    const wipe = async (table: string, column: string) => {
       try {
-        await supabaseAdmin.from(table).delete().eq(column, uid);
+        await admin.from(table).delete().eq(column, uid);
       } catch {
         /* ignore */
       }
