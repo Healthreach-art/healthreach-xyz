@@ -41,7 +41,7 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     await wipe("prescription_audit_log", "actor_id");
     await wipe("admin_audit_log", "admin_id");
     await wipe("delivery_offers", "pharmacy_id");
-    await wipe("delivery_offers", "driver_id" as never);
+    await wipe("delivery_offers", "driver_id");
     await wipe("pharmacy_offers", "pharmacy_id");
     await wipe("deliveries", "driver_id");
     await wipe("driver_locations", "driver_id");
@@ -82,14 +82,14 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     await wipe("wallets", "user_id");
     await wipe("saved_payment_methods", "user_id");
     await wipe("card_pins", "user_id");
-    await wipe("patient_verifications", "patient_id" as never);
+    await wipe("patient_verifications", "patient_id");
     await wipe("admin_invites", "invited_by");
     await wipe("admin_invites", "used_by");
     await wipe("user_roles", "user_id");
     await wipe("profiles", "user_id");
 
     // Finally remove the auth user — this also clears their session.
-    const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(uid);
+    const { error: delErr } = await admin.auth.admin.deleteUser(uid);
     if (delErr) throw new Error(`Could not delete account: ${delErr.message}`);
 
     return { ok: true };
