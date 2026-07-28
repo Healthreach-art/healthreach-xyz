@@ -31,8 +31,17 @@ function AuthCallback() {
       const intent = typeof window !== "undefined" ? localStorage.getItem("hr_oauth_role") : null;
       const fallbackRole = isAppRole(intent) && intent !== "admin" ? intent : "patient";
       const role = await resolveUserRole(user, { fallbackRole, repairMissing: true });
-      try { localStorage.removeItem("hr_oauth_role"); } catch { /* ignore */ }
+      const stored = typeof window !== "undefined" ? localStorage.getItem("hr_post_login_redirect") : null;
+      const safeRedirect = stored && stored.startsWith("/") && !stored.startsWith("//") ? stored : null;
+      try {
+        localStorage.removeItem("hr_oauth_role");
+        localStorage.removeItem("hr_post_login_redirect");
+      } catch { /* ignore */ }
 
+      if (safeRedirect) {
+        window.location.assign(safeRedirect);
+        return;
+      }
       setMsg(`Welcome! Redirecting to your ${role} dashboard…`);
       navigate({ to: dashboardPathForRole(role) as never, replace: true });
     };

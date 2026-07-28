@@ -29,8 +29,9 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { mode, denied } = useSearch({ from: "/login" });
+  const { mode, denied, redirect: redirectTo } = useSearch({ from: "/login" });
   const isAdminMode = mode === "admin";
+  const safeRedirect = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -86,6 +87,10 @@ function LoginPage() {
       return;
     }
 
+    if (safeRedirect) {
+      window.location.assign(safeRedirect);
+      return;
+    }
     navigate({ to: dashboardPathForRole(role) as never, replace: true });
   };
 
@@ -199,7 +204,11 @@ function LoginPage() {
                   // Force the patient intent for the /login Google button so a
                   // stale "doctor"/"pharmacy" value left over from a previous
                   // /signup?role=… tab can never reroute a patient sign-in.
-                  try { localStorage.setItem("hr_oauth_role", "patient"); } catch { /* ignore */ }
+                  try {
+                    localStorage.setItem("hr_oauth_role", "patient");
+                    if (safeRedirect) localStorage.setItem("hr_post_login_redirect", safeRedirect);
+                    else localStorage.removeItem("hr_post_login_redirect");
+                  } catch { /* ignore */ }
                   const result = await lovable.auth.signInWithOAuth("google", {
                     redirect_uri: `${window.location.origin}/auth/callback`,
                   });
