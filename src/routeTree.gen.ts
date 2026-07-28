@@ -22,6 +22,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PaymentRouteImport } from './routes/payment'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkAccountRouteImport } from './routes/link-account'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -48,6 +49,8 @@ import { Route as DashboardDoctorRouteImport } from './routes/dashboard.doctor'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as DashboardPharmacyIndexRouteImport } from './routes/dashboard.pharmacy.index'
 import { Route as DashboardPatientIndexRouteImport } from './routes/dashboard.patient.index'
 import { Route as DashboardPharmacyTransactionsRouteImport } from './routes/dashboard.pharmacy.transactions'
@@ -76,6 +79,8 @@ import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard
 import { Route as DashboardAdminLogsRouteImport } from './routes/dashboard.admin.logs'
 import { Route as DashboardAdminLiveRouteImport } from './routes/dashboard.admin.live'
 import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as DashboardPatientDoctorsIdRouteImport } from './routes/dashboard.patient.doctors.$id'
 
 const TrackRoute = TrackRouteImport.update({
@@ -141,6 +146,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const PaymentRoute = PaymentRouteImport.update({
   id: '/payment',
   path: '/payment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -273,6 +283,18 @@ const ApiMockPayRoute = ApiMockPayRouteImport.update({
   path: '/api/mock-pay',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DashboardPharmacyIndexRoute = DashboardPharmacyIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -429,6 +451,17 @@ const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
   path: '/api/public/payment-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardPatientDoctorsIdRoute =
   DashboardPatientDoctorsIdRouteImport.update({
     id: '/dashboard/patient/doctors/$id',
@@ -449,6 +482,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/payment': typeof PaymentRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -462,6 +496,8 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
@@ -476,6 +512,8 @@ export interface FileRoutesByFullPath {
   '/pharmacy/onboarding': typeof PharmacyOnboardingRoute
   '/signup/admin': typeof SignupAdminRoute
   '/doctors/': typeof DoctorsIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
@@ -519,6 +557,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/payment': typeof PaymentRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -532,6 +571,8 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
@@ -545,6 +586,8 @@ export interface FileRoutesByTo {
   '/pharmacy/onboarding': typeof PharmacyOnboardingRoute
   '/signup/admin': typeof SignupAdminRoute
   '/doctors': typeof DoctorsIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
@@ -589,6 +632,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/payment': typeof PaymentRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -602,6 +646,8 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
@@ -616,6 +662,8 @@ export interface FileRoutesById {
   '/pharmacy/onboarding': typeof PharmacyOnboardingRoute
   '/signup/admin': typeof SignupAdminRoute
   '/doctors/': typeof DoctorsIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
@@ -661,6 +709,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/link-account'
     | '/login'
+    | '/mcp'
     | '/payment'
     | '/privacy'
     | '/reset-password'
@@ -674,6 +723,8 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/track'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
@@ -688,6 +739,8 @@ export interface FileRouteTypes {
     | '/pharmacy/onboarding'
     | '/signup/admin'
     | '/doctors/'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/api/public/payment-webhook'
     | '/dashboard/admin/live'
     | '/dashboard/admin/logs'
@@ -731,6 +784,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/link-account'
     | '/login'
+    | '/mcp'
     | '/payment'
     | '/privacy'
     | '/reset-password'
@@ -744,6 +798,8 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/track'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
@@ -757,6 +813,8 @@ export interface FileRouteTypes {
     | '/pharmacy/onboarding'
     | '/signup/admin'
     | '/doctors'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/api/public/payment-webhook'
     | '/dashboard/admin/live'
     | '/dashboard/admin/logs'
@@ -800,6 +858,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/link-account'
     | '/login'
+    | '/mcp'
     | '/payment'
     | '/privacy'
     | '/reset-password'
@@ -813,6 +872,8 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/track'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/api/mock-pay'
     | '/auth/callback'
     | '/dashboard/admin'
@@ -827,6 +888,8 @@ export interface FileRouteTypes {
     | '/pharmacy/onboarding'
     | '/signup/admin'
     | '/doctors/'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/api/public/payment-webhook'
     | '/dashboard/admin/live'
     | '/dashboard/admin/logs'
@@ -871,6 +934,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LinkAccountRoute: typeof LinkAccountRoute
   LoginRoute: typeof LoginRoute
+  McpRoute: typeof McpRoute
   PaymentRoute: typeof PaymentRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -884,6 +948,8 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   TrackRoute: typeof TrackRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiMockPayRoute: typeof ApiMockPayRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   DashboardAdminRoute: typeof DashboardAdminRouteWithChildren
@@ -897,6 +963,8 @@ export interface RootRouteChildren {
   PharmacyIdRoute: typeof PharmacyIdRoute
   PharmacyOnboardingRoute: typeof PharmacyOnboardingRoute
   DoctorsIndexRoute: typeof DoctorsIndexRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicPaymentWebhookRoute: typeof ApiPublicPaymentWebhookRoute
   DashboardPatientActivityRoute: typeof DashboardPatientActivityRoute
   DashboardPatientAddressesRoute: typeof DashboardPatientAddressesRoute
@@ -1009,6 +1077,13 @@ declare module '@tanstack/react-router' {
       path: '/payment'
       fullPath: '/payment'
       preLoaderRoute: typeof PaymentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1191,6 +1266,20 @@ declare module '@tanstack/react-router' {
       path: '/api/mock-pay'
       fullPath: '/api/mock-pay'
       preLoaderRoute: typeof ApiMockPayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/pharmacy/': {
@@ -1389,6 +1478,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/patient/doctors/$id': {
       id: '/dashboard/patient/doctors/$id'
       path: '/dashboard/patient/doctors/$id'
@@ -1462,6 +1565,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LinkAccountRoute: LinkAccountRoute,
   LoginRoute: LoginRoute,
+  McpRoute: McpRoute,
   PaymentRoute: PaymentRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
@@ -1475,6 +1579,9 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   TrackRoute: TrackRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiMockPayRoute: ApiMockPayRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   DashboardAdminRoute: DashboardAdminRouteWithChildren,
@@ -1488,6 +1595,8 @@ const rootRouteChildren: RootRouteChildren = {
   PharmacyIdRoute: PharmacyIdRoute,
   PharmacyOnboardingRoute: PharmacyOnboardingRoute,
   DoctorsIndexRoute: DoctorsIndexRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicPaymentWebhookRoute: ApiPublicPaymentWebhookRoute,
   DashboardPatientActivityRoute: DashboardPatientActivityRoute,
   DashboardPatientAddressesRoute: DashboardPatientAddressesRoute,
