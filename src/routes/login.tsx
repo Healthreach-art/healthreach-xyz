@@ -29,8 +29,9 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { mode, denied } = useSearch({ from: "/login" });
+  const { mode, denied, redirect: redirectTo } = useSearch({ from: "/login" });
   const isAdminMode = mode === "admin";
+  const safeRedirect = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
