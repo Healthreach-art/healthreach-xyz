@@ -38,11 +38,10 @@ interface OrderRow {
 }
 
 const ACTION_CARDS: Array<{ title: string; subtitle?: string; img?: string; icon?: any; to: string; bg: string }> = [
-  { title: "Book Appointment", subtitle: "Doctor or Pharmacist", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-purple-50" },
+  { title: "Book Appointment", subtitle: "Doctor or Homecare", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-purple-50" },
   { title: "Order Medicine", img: tileMed, to: "/dashboard/patient/search", bg: "bg-healthcare-green/10" },
   { title: "Upload Prescription", img: tileRx, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20" },
-  { title: "Track Delivery", img: tileTrack, to: "/track", bg: "bg-healthcare-light" },
-  { title: "AI Medicine Assistant", img: tileAI, to: "/dashboard/patient/assistant", bg: "bg-healthcare-mint/20" },
+  { title: "Track Delivery", img: tileTrack, to: "/dashboard/patient/orders", bg: "bg-healthcare-light" },
 ];
 
 
