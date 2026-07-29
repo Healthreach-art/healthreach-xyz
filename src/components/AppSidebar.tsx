@@ -131,7 +131,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         {role === "patient"
-          ? renderGroup("Menu", patientItems)
+          ? (<>{renderGroup("Menu", patientItems)}{renderGroup("Settings", patientSettingsItems)}</>)
           : (
             <>
               {renderGroup("Navigate", otherRoleItems)}
