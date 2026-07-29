@@ -102,7 +102,7 @@ function RootComponent() {
         <Toaster />
         <NotificationCenter />
         <ServiceRatingPrompt />
-        <AskProviderFab />
+        
       </CartProvider>
 
     </AuthProvider>
