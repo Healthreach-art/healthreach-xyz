@@ -25,7 +25,7 @@ import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
 import tileTrack from "@/assets/tile-track-delivery.png";
 import tileAppt from "@/assets/tile-book-appointment.png";
-import tileAI from "@/assets/tile-ai-assistant.png";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
