@@ -17,7 +17,7 @@ import tileAppt from "@/assets/tile-book-appointment.png";
 import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
 import tileTrack from "@/assets/tile-track-delivery.png";
-import tileAI from "@/assets/tile-ai-assistant.png";
+
 
 export const Route = createFileRoute("/dashboard/patient/")({
   head: () => ({ meta: [{ title: "Dashboard — Healthreach" }] }),
