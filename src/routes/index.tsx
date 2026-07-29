@@ -96,12 +96,6 @@ const features = [
     description: "Real-time delivery tracking from pharmacy to your doorstep.",
   },
   {
-    icon: Activity,
-    img: tileAI,
-    title: "AI Medicine Assistant",
-    description: "Chat with an AI assistant about medicines, dosage, and side effects.",
-  },
-  {
     icon: ShieldCheck,
     img: undefined,
     title: "Secure & Compliant",
