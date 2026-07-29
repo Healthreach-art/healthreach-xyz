@@ -25,7 +25,7 @@ import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
 import tileTrack from "@/assets/tile-track-delivery.png";
 import tileAppt from "@/assets/tile-book-appointment.png";
-import tileAI from "@/assets/tile-ai-assistant.png";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -94,12 +94,6 @@ const features = [
     img: tileTrack,
     title: "Delivery Tracking",
     description: "Real-time delivery tracking from pharmacy to your doorstep.",
-  },
-  {
-    icon: Activity,
-    img: tileAI,
-    title: "AI Medicine Assistant",
-    description: "Chat with an AI assistant about medicines, dosage, and side effects.",
   },
   {
     icon: ShieldCheck,

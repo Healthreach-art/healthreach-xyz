@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Home, LogIn, UserPlus, ShoppingBag, Pill, Truck, ShieldCheck, LogOut, Info, Phone,
   FileText, Bell, ClipboardList, Users, Wallet, LifeBuoy, HeartPulse, MapPin,
-  Search, AlertTriangle, BarChart3, Calendar, DollarSign, Receipt,
+  Search, AlertTriangle, BarChart3, Calendar, DollarSign, Receipt, Settings,
 } from "lucide-react";
 
 import logoImg from "@/assets/healthreach-logo.png";
@@ -31,12 +31,13 @@ export function AppSidebar() {
     { title: "Home", url: "/dashboard/patient", icon: Home },
     { title: "Book Appointment", url: "/dashboard/patient/find", icon: Search },
     { title: "Order Medicine", url: "/dashboard/patient/search", icon: ShoppingBag },
-    { title: "Orders", url: "/dashboard/patient/orders", icon: ShoppingBag },
+    { title: "Orders & Deliveries", url: "/dashboard/patient/orders", icon: Truck },
     { title: "Prescriptions & Documents", url: "/dashboard/patient/prescriptions", icon: Pill },
-    { title: "Deliveries", url: "/track", icon: Truck },
     { title: "My Consultations", url: "/dashboard/patient/consultations", icon: FileText },
-    
     { title: "Reminders", url: "/dashboard/patient/reminders", icon: Bell },
+  ];
+
+  const patientSettingsItems: Item[] = [
     { title: "Health Records", url: "/dashboard/patient/activity", icon: ClipboardList },
     { title: "Family Profiles", url: "/dashboard/patient/family", icon: Users },
     { title: "Addresses", url: "/dashboard/patient/addresses", icon: MapPin },
@@ -130,7 +131,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         {role === "patient"
-          ? renderGroup("Menu", patientItems)
+          ? (<>{renderGroup("Menu", patientItems)}{renderGroup("Settings", patientSettingsItems)}</>)
           : (
             <>
               {renderGroup("Navigate", otherRoleItems)}
