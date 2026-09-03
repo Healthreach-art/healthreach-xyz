@@ -213,7 +213,9 @@ function LoginPage() {
                     redirect_uri: `${window.location.origin}/auth/callback`,
                   });
                   if (result.error) {
-                    setError(result.error.message ?? "Google sign-in failed");
+                    setError(
+                      "Google sign-in couldn't complete. Please allow pop-ups and try again, or sign in with your email and password below."
+                    );
                   }
                 }}
               >
