@@ -1,64 +1,82 @@
+# Home care providers on HealthReach
 
-# HealthReach admin + cleanup overhaul
+Adds home care companies and individual home care providers to the existing platform: sign-up, their own staff, admin approval, then assignments. No redesign — new pages follow the current look and sit beside the existing pharmacy, doctor and driver flows.
 
-## 1. Wipe the two emails and seed them as admins
+## Blocked right now
 
-**Destructive — runs once.** Migration that:
-- Deletes `auth.users` rows for `jasonbayman5@gmail.com` and `hlawumal@gmail.com` (cascades to `profiles`, `user_roles`, `orders`, `prescriptions`, etc. through existing FKs).
-- Installs a `handle_new_user_seed_admin` trigger on `auth.users` insert: when either of those two emails signs up, auto-create their `profile` (approved) and `user_roles` row with role `admin`. **The password they set on that fresh signup becomes their permanent admin password** (Supabase stores it hashed — nothing special to do beyond letting them sign up normally).
-- They can promote other users to `admin` from the admin panel (existing `claimAdminWithCode` / a new "Grant admin" button on the user row).
+The hosted database is paused, and I cannot resume it from here — resuming has been switched off for this project. You need to resume it in your project's Cloud settings (or ask support if the button is unavailable). Nothing below can be built or tested until it is awake, because every step needs the live database.
 
-## 2. Remove ALL demo data + demo logins
+## 1. Home care sign-up
 
-**Migration:**
-- `DELETE FROM public.medications WHERE is_demo = true`
-- `DELETE FROM public.doctors  WHERE is_demo = true`
-- `DELETE` demo profiles / user_roles / driver_status / driver_locations tied to `profiles.is_demo = true`, then `DELETE FROM auth.users` for those user_ids.
+Two new account kinds chosen at sign-up:
 
-**Code:**
-- Remove `seedJohannesburgDemo` from `src/lib/admin.functions.ts` and any "Seed demo data" button in admin UI.
-- Remove any "Try demo" / prefilled demo credentials from `src/routes/login.tsx`, `signup.tsx`, and admin signup.
+- **Home care company** — business name, registration number, contact person, email, phone, address (with a real map pin), service areas, services offered, operating hours, pricing, banking details, documents.
+- **Individual home care provider** — full name, email, phone, address (map pin), service areas, services offered, weekly availability, qualifications, certifications, identity and supporting documents, banking details.
 
-## 3. Admin dashboard — partner approvals & operational UX
+Everything saves as you type/leave a field, so a refresh never loses work — the same behaviour the doctor and pharmacy pages now have. Documents go to private storage, never a public link.
 
-- `dashboard.admin.tsx`: ensure the **Pending Approvals** queue shows pharmacies + drivers + doctors with Approve / Reject actions. Approve sets `profiles.approval_status = 'approved'` (and `doctors.is_verified = true` for doctors). After approval, partner dashboards already gate on `approval_status` — they begin operating.
-- **Users tab**: include partners *and* patients (currently filtered). Add role filter chips: All / Patients / Pharmacies / Drivers / Doctors / Admins. Add a "Grant admin" action per row (admin-only RPC).
-- **No location requirement**: remove any `geolocation`/live-map gate on the admin pages. The live map view stays as an optional tab; the rest of admin works without it.
-- **New Admin Logs page** (`/dashboard/admin/logs`):
-  - New `admin_audit_log` table (admin_id, action, target_user_id, target_type, payload jsonb, created_at) + RLS (admins read all, system inserts).
-  - Triggers/RPCs that mutate approval status, grant roles, or broadcast notifications insert an audit row.
-  - Page lists recent entries with filters by action/admin/date.
+New accounts start as **Pending review** and can do nothing operational until an admin approves.
 
-## 4. Partner dashboards start operating on approval
+## 2. Company staff
 
-- Audit `dashboard.pharmacy.tsx`, `dashboard.driver.tsx`, `dashboard.doctor.tsx`, `dashboard.hospital.tsx` — when `approval_status='approved'`, the "awaiting approval" placeholder is replaced with the live operational view. Fix any remaining cases that still block.
+A company can invite staff by email. Staff belong to that company and can only see their own profile, their assigned visits, the schedule, their required documents, and messages about their own assignments. Staff can never become admins and never see another company's data. A company manager manages only its own staff.
 
-## 5. Password reset flow
+## 3. Admin approval screens (built before assignments)
 
-- `forgot-password.tsx`: pass `redirectTo: ${window.location.origin}/reset-password` (already on the right shape — verify and fix if missing). Auth's redirect-URL allow-list will be widened via Supabase configure if needed.
-- `reset-password.tsx`: confirm it handles `type=recovery` from the URL hash, calls `supabase.auth.updateUser({ password })`, then routes to `/dashboard/patient` (or role-correct home).
-- Test end-to-end against `healthreach.xyz`.
+New admin section for home care, matching the existing approvals style:
 
-## 6. Data persistence on refresh / re-login
+- **Pending review queue** — every new company and individual, with their details and documents.
+- **Document viewer** — open each uploaded file as picture or PDF through a short-lived private link.
+- **Actions** — Approve, Reject (with reason), Request more documents (pick which ones), Suspend, Reactivate.
+- **Requested documents** — the provider sees exactly what is still missing, and the list ticks itself off as files arrive.
+- **Approval history** — who did what, when, and why, for every provider.
 
-- Audit pages that fetch user-scoped data behind an unguarded `useEffect`: gate every fetch on `authReady && user` (same fix already applied to orders). Specific files: `dashboard.patient.prescriptions.tsx`, `dashboard.patient.transactions.tsx`, `dashboard.patient.addresses.tsx`, `dashboard.patient.payment-methods.tsx`, `dashboard.patient.reminders.tsx`, `dashboard.pharmacy.inventory.tsx`, `dashboard.driver.tsx`, `dashboard.doctor.tsx`.
+Only admins can approve. Providers cannot approve themselves.
 
-## 7. Logo refresh
+## 4. Coordinates and the 100 km radius
 
-- Use the uploaded HealthReach logo as the canonical brand asset.
-- Regenerate favicons + apple-touch + og-image from it.
-- Update `--primary` / brand surface tokens in `src/styles.css` to match the sage-green from the logo (approx `oklch(0.68 0.05 175)` background, deep-teal accent).
-- Header/sidebar logo swap to the new image.
+Every approved company and individual stores a real latitude/longitude captured from its address. The patient Find page gains a **Home care** tab that lists approved companies and individuals within 100 km of the patient, using the same distance logic already used for doctors. Providers without a saved pin cannot be approved, so nobody ends up invisible.
+
+## 5. Connecting to the existing workflow
+
+Once approval screens are in place, home care requests reuse the current request → assignment → completion pipeline:
+
+customer request → admin review → provider chosen → provider notified → provider accepts → visit scheduled → visit performed → completion confirmed → payment/settlement → shows in customer history.
+
+Statuses update live from the database on both sides. A provider only ever sees the customer details needed for their own visit.
+
+## 6. Prescriptions and sensitive documents
+
+Prescription and document files stay private: no public links, access granted only to the customer, admins, and the specific pharmacy/doctor/provider attached to that order, through short-lived links. Every open of a sensitive file is recorded in the audit log. Medicine orders keep working exactly as today.
+
+## 7. Data residency report (partial — needs the database awake)
+
+Confirmed now:
+
+- Backend, database, file storage and logins are all on Lovable Cloud, hosted in the provider's **Frankfurt, Germany** region.
+- That means customer records, orders, prescriptions and provider documents are currently stored **outside South Africa**.
+
+Still to confirm once the database is running: exactly which file areas exist, and whether any prescription or document area is publicly readable. I will report this before touching anything.
+
+No migration will be started. When you want South-Africa-hosted production data, I'll write a separate migration plan that preserves all existing users, orders, providers, documents and their relationships.
+
+## 8. AI
+
+No new AI in any of this. The whole flow works on plain database and application rules. AI stays only for understanding a customer's written request, asking for missing details, explaining services and summarising conversations — it never invents customers, providers, prices, payments, orders, documents or approval decisions, and gives no medical advice.
 
 ## Technical details
 
-- Sole-admin trigger uses `SECURITY DEFINER`, reads `NEW.email`, inserts into `public.profiles` + `public.user_roles` only when role row is missing.
-- Cascading delete relies on existing `ON DELETE CASCADE` on `profiles.user_id → auth.users.id`; tables without cascade (orders, prescriptions) get cleaned explicitly in the migration.
-- Audit log uses `SECURITY DEFINER` insert RPC so triggers can write without granting INSERT to admins directly.
-- All changes ship behind one migration + a batch of file edits. No edge functions added; everything stays inside `createServerFn` / DB triggers.
+- New account roles `homecare_company` and `homecare_staff` added to the `app_role` enum; existing roles untouched.
+- New tables: `homecare_providers` (company/individual, contact, service areas, services, hours, pricing, lat/lng, approval fields), `homecare_staff`, `homecare_documents`, `homecare_requests`, `homecare_assignments`, `homecare_approval_events`. Each gets GRANTs, RLS enabled, and policies scoped by `auth.uid()` plus `has_role`; company scoping via a security-definer `is_homecare_member(company_id)` helper to avoid recursive policies.
+- Approval fields: `approval_status` (reuses the existing enum: pending, under_review, approved, rejected, suspended), `approved_by`, `approved_at`, `rejection_reason`, `requested_documents jsonb`.
+- Approvals, rejections, document requests and sensitive-file reads write to the existing `admin_audit_log` via `log_admin_action`.
+- Private bucket `homecare-docs` with owner/admin/assigned-party policies; signed URLs only, file type and size validated server-side.
+- All approval, assignment and staff-invite mutations run in `createServerFn` handlers with `requireSupabaseAuth` and a server-side role check; no service-role key reaches the browser; frontend role values are never trusted.
+- Radius filter reuses the existing `haversine_km` SQL function; new `find_homecare_near(lat, lng, radius_km)` mirrors `find_pharmacies_near`.
+- Realtime status updates reuse the existing `postgres_changes` subscription pattern.
+- No existing table, column, route or component is removed; all changes are additive and backward compatible.
 
-## Out of scope (flag if you want them)
+## Smoke tests after build
 
-- Email template branding (the recovery email body itself).
-- Migrating existing patient passwords.
-- Rebuilding the live map — it stays, just no longer required to use admin.
+1. Customer home care request → admin approval → provider assignment → provider accepts → completion → customer confirmation.
+2. Customer medicine order → prescription upload → admin and the authorised pharmacy/doctor can open it; nobody else can, and each open is logged.
