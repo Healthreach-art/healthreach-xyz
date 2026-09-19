@@ -43,7 +43,7 @@ function PatientHomecarePage() {
     if (!user) return;
     const { data } = await supabase
       .from("homecare_requests")
-      .select("*, homecare_assignments(*), homecare_providers(business_name, full_name, phone)")
+      .select("*, homecare_assignments(*, homecare_staff(full_name, job_title)), homecare_providers(business_name, full_name, phone, provider_type, approval_status)")
       .eq("patient_id", user.id).order("created_at", { ascending: false });
     setRequests(data ?? []);
     setLoading(false);
