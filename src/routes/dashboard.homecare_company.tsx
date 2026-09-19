@@ -227,7 +227,13 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
         value={String(form[key] ?? "")}
         placeholder={opts.placeholder}
         onChange={(e) => set(key, e.target.value)}
-        onBlur={() => saveField({ [key]: key === "hourly_rate" ? (form.hourly_rate === "" ? null : Number(form.hourly_rate)) : (form[key] || null) })}
+        onBlur={() => saveField({
+          [key]: key === "hourly_rate"
+            ? (form.hourly_rate === "" ? null : Number(form.hourly_rate))
+            : key === "service_radius_km"
+              ? (Number(form.service_radius_km) > 0 ? Number(form.service_radius_km) : 25)
+              : (form[key] || null),
+        })}
       />
     </div>
   );
@@ -254,13 +260,15 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
         {field("hourly_rate", "Rate per hour (R)", { type: "number" })}
         {field("service_areas", "Service areas", { placeholder: "Sandton, Midrand, Randburg" })}
         {field("certifications", "Certifications", { placeholder: "SANC, First aid level 3" })}
+        {field("service_radius_km", "Maximum distance you will travel (km)", { type: "number", placeholder: "25" })}
       </div>
 
       <div className="space-y-2">
         <Label>Address (pinned on the map)</Label>
         <AddressPicker value={address} onChange={saveAddress} placeholder="Start typing your real street address…" />
         <p className="text-[11px] text-muted-foreground">
-          A verified pin is required before an administrator can approve you, and it is how customers find you within 100 km.
+          A verified pin is required before an administrator can approve you. Customers only see you if they are inside
+          the maximum distance you are willing to travel.
         </p>
       </div>
 
