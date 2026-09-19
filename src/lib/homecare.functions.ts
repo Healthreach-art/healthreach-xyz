@@ -123,7 +123,7 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
       category: "system",
       title,
       body,
-      link: "/homecare/onboarding",
+      link: "/dashboard/homecare_company",
     });
 
     return { ok: true };
