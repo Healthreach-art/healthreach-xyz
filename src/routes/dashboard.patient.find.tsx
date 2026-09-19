@@ -74,16 +74,17 @@ function FindCarePage() {
         return;
       }
       const { data } = await supabase.from("homecare_providers")
-        .select("id, provider_type, business_name, full_name, address, services, service_areas, operating_hours, hourly_rate")
+        .select("id, provider_type, business_name, full_name, address, services, service_areas, operating_hours, hourly_rate, service_radius_km")
         .eq("approval_status", "approved").eq("is_active", true).limit(60);
       setHomecare((data ?? []).map((r: any) => ({
         id: r.id, provider_type: r.provider_type,
         display_name: r.provider_type === "individual" ? (r.full_name || r.business_name) : r.business_name,
         address: r.address, city: null, services: r.services, service_areas: r.service_areas,
-        operating_hours: r.operating_hours, hourly_rate: r.hourly_rate, distance_km: null,
+        operating_hours: r.operating_hours, hourly_rate: r.hourly_rate,
+        service_radius_km: r.service_radius_km, distance_km: null,
       })));
     })();
-  }, [userLoc]);
+  }, [userLoc, homecareRadius]);
 
 
   const useMyLocation = () => {
