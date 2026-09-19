@@ -1136,6 +1136,7 @@ export type Database = {
           rejection_reason: string | null
           requested_documents: Json
           service_areas: string[]
+          service_radius_km: number
           services: string[]
           updated_at: string
           user_id: string
@@ -1170,6 +1171,7 @@ export type Database = {
           rejection_reason?: string | null
           requested_documents?: Json
           service_areas?: string[]
+          service_radius_km?: number
           services?: string[]
           updated_at?: string
           user_id: string
@@ -1204,6 +1206,7 @@ export type Database = {
           rejection_reason?: string | null
           requested_documents?: Json
           service_areas?: string[]
+          service_radius_km?: number
           services?: string[]
           updated_at?: string
           user_id?: string
@@ -2778,6 +2781,7 @@ export type Database = {
           operating_hours: string
           provider_type: string
           service_areas: string[]
+          service_radius_km: number
           services: string[]
         }[]
       }

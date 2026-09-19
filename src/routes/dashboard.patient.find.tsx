@@ -35,14 +35,17 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 interface HomecareProvider {
   id: string; provider_type: string; display_name: string; address: string | null; city: string | null;
   services: string[] | null; service_areas: string[] | null; operating_hours: string | null;
-  hourly_rate: number | null; distance_km: number | null;
+  hourly_rate: number | null; distance_km: number | null; service_radius_km?: number | null;
 }
+
+const HOMECARE_RADIUS_OPTIONS = [25, 50, 100] as const;
 
 function FindCarePage() {
   const [q, setQ] = useState("");
   const [specialty, setSpecialty] = useState<string>("any");
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [homecare, setHomecare] = useState<HomecareProvider[]>([]);
+  const [homecareRadius, setHomecareRadius] = useState<number>(25);
   const [loading, setLoading] = useState(true);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -60,27 +63,28 @@ function FindCarePage() {
     })();
   }, []);
 
-  // Approved home care providers — within 100 km once we know the patient's location.
+  // Approved home care providers — within the chosen radius (and the provider's own service area).
   useEffect(() => {
     (async () => {
       if (userLoc) {
         const { data } = await supabase.rpc("find_homecare_near", {
-          _lat: userLoc.lat, _lng: userLoc.lng, _max_km: 100,
+          _lat: userLoc.lat, _lng: userLoc.lng, _max_km: homecareRadius,
         });
         setHomecare((data ?? []) as unknown as HomecareProvider[]);
         return;
       }
       const { data } = await supabase.from("homecare_providers")
-        .select("id, provider_type, business_name, full_name, address, services, service_areas, operating_hours, hourly_rate")
+        .select("id, provider_type, business_name, full_name, address, services, service_areas, operating_hours, hourly_rate, service_radius_km")
         .eq("approval_status", "approved").eq("is_active", true).limit(60);
       setHomecare((data ?? []).map((r: any) => ({
         id: r.id, provider_type: r.provider_type,
         display_name: r.provider_type === "individual" ? (r.full_name || r.business_name) : r.business_name,
         address: r.address, city: null, services: r.services, service_areas: r.service_areas,
-        operating_hours: r.operating_hours, hourly_rate: r.hourly_rate, distance_km: null,
+        operating_hours: r.operating_hours, hourly_rate: r.hourly_rate,
+        service_radius_km: r.service_radius_km, distance_km: null,
       })));
     })();
-  }, [userLoc]);
+  }, [userLoc, homecareRadius]);
 
 
   const useMyLocation = () => {
@@ -177,10 +181,36 @@ function FindCarePage() {
             <p className="text-sm text-muted-foreground mb-3">Doctors offering in-person / home visits.</p>
             <DoctorGrid doctors={filteredHomecare} />
           </TabsContent>
-          <TabsContent value="providers" className="mt-4">
-            <p className="text-sm text-muted-foreground mb-3">
-              Approved home care companies and individual carers{userLoc ? " within 100 km of you" : " — use your location to see distances"}.
+          <TabsContent value="providers" className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">Search within</span>
+              {HOMECARE_RADIUS_OPTIONS.map((km) => (
+                <Button
+                  key={km}
+                  size="sm"
+                  variant={homecareRadius === km ? "default" : "outline"}
+                  onClick={() => setHomecareRadius(km)}
+                >
+                  {km} km
+                </Button>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {userLoc
+                ? `Approved home care companies and individual carers within ${homecareRadius} km of you who also travel to your area.`
+                : "Approved home care companies and individual carers — use your location to filter by distance."}
             </p>
+            {userLoc && filteredProviders.length === 0 && homecareRadius < 100 && (
+              <p className="text-sm">
+                None within {homecareRadius} km.{" "}
+                <button
+                  className="font-semibold text-primary underline"
+                  onClick={() => setHomecareRadius(homecareRadius === 25 ? 50 : 100)}
+                >
+                  Expand to {homecareRadius === 25 ? 50 : 100} km
+                </button>
+              </p>
+            )}
             <ProviderGrid providers={filteredProviders} />
           </TabsContent>
         </Tabs>

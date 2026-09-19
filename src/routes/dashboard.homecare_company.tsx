@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { docsFor, APPROVAL_LABEL, ASSIGNMENT_LABEL, HOMECARE_SERVICES } from "@/lib/homecare";
 import { getHomecareDocumentUrl } from "@/lib/homecare.functions";
+import { PLATFORM_RULES } from "@/lib/platform-rules";
 
 export const Route = createFileRoute("/dashboard/homecare_company")({
   head: () => ({
@@ -135,7 +136,7 @@ function HomecareProviderPage() {
           </TabsContent>
         )}
         <TabsContent value="assignments" className="mt-4">
-          <AssignmentsPanel assignments={assignments} onChanged={load} />
+          <AssignmentsPanel assignments={assignments} provider={provider} onChanged={load} />
         </TabsContent>
       </Tabs>
     </div>
@@ -157,6 +158,7 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
     availability: provider.availability ?? "",
     pricing_notes: provider.pricing_notes ?? "",
     hourly_rate: provider.hourly_rate ?? "",
+    service_radius_km: provider.service_radius_km ?? 25,
     qualifications: provider.qualifications ?? "",
     service_areas: (provider.service_areas ?? []).join(", "),
     certifications: (provider.certifications ?? []).join(", "),
@@ -201,6 +203,7 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
       availability: form.availability,
       pricing_notes: form.pricing_notes || null,
       hourly_rate: form.hourly_rate === "" ? null : Number(form.hourly_rate),
+      service_radius_km: Number(form.service_radius_km) > 0 ? Number(form.service_radius_km) : 25,
       qualifications: form.qualifications || null,
       service_areas: String(form.service_areas).split(",").map((s: string) => s.trim()).filter(Boolean),
       certifications: String(form.certifications).split(",").map((s: string) => s.trim()).filter(Boolean),
@@ -225,7 +228,13 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
         value={String(form[key] ?? "")}
         placeholder={opts.placeholder}
         onChange={(e) => set(key, e.target.value)}
-        onBlur={() => saveField({ [key]: key === "hourly_rate" ? (form.hourly_rate === "" ? null : Number(form.hourly_rate)) : (form[key] || null) })}
+        onBlur={() => saveField({
+          [key]: key === "hourly_rate"
+            ? (form.hourly_rate === "" ? null : Number(form.hourly_rate))
+            : key === "service_radius_km"
+              ? (Number(form.service_radius_km) > 0 ? Number(form.service_radius_km) : 25)
+              : (form[key] || null),
+        })}
       />
     </div>
   );
@@ -252,13 +261,15 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
         {field("hourly_rate", "Rate per hour (R)", { type: "number" })}
         {field("service_areas", "Service areas", { placeholder: "Sandton, Midrand, Randburg" })}
         {field("certifications", "Certifications", { placeholder: "SANC, First aid level 3" })}
+        {field("service_radius_km", "Maximum distance you will travel (km)", { type: "number", placeholder: "25" })}
       </div>
 
       <div className="space-y-2">
         <Label>Address (pinned on the map)</Label>
         <AddressPicker value={address} onChange={saveAddress} placeholder="Start typing your real street address…" />
         <p className="text-[11px] text-muted-foreground">
-          A verified pin is required before an administrator can approve you, and it is how customers find you within 100 km.
+          A verified pin is required before an administrator can approve you. Customers only see you if they are inside
+          the maximum distance you are willing to travel.
         </p>
       </div>
 
@@ -459,7 +470,23 @@ function StaffPanel({ provider, staff, onChanged }: { provider: any; staff: any[
 
 /* ---------------- assignments ---------------- */
 
-function AssignmentsPanel({ assignments, onChanged }: { assignments: any[]; onChanged: () => void }) {
+function kmBetween(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)) * 10) / 10;
+}
+
+/** Suburb-level location, used before the provider accepts the job. */
+function suburbOf(address?: string | null) {
+  if (!address) return "Location shared once accepted";
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  return parts.length > 1 ? parts.slice(1).join(", ") : parts[0];
+}
+
+function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: any[]; provider: any; onChanged: () => void }) {
   const update = async (row: any, patch: Record<string, unknown>) => {
     const { error } = await supabase.from("homecare_assignments").update(patch as never).eq("id", row.id);
     if (error) { toast.error(error.message); return; }
@@ -474,17 +501,38 @@ function AssignmentsPanel({ assignments, onChanged }: { assignments: any[]; onCh
     <div className="space-y-3">
       {assignments.map((a) => {
         const r = a.homecare_requests;
+        const pending = a.status === "offered";
+        const when = a.scheduled_at ?? r?.preferred_at ?? null;
+        const travelKm = provider?.latitude != null && provider?.longitude != null && r?.latitude != null && r?.longitude != null
+          ? kmBetween(Number(provider.latitude), Number(provider.longitude), Number(r.latitude), Number(r.longitude))
+          : null;
+        const charge = a.amount == null ? null : Number(a.amount);
+        const fee = charge == null ? null : Math.round(charge * PLATFORM_RULES.PLATFORM_FEE_PCT * 100) / 100;
+        const earnings = charge == null || fee == null ? null : Math.round((charge - fee) * 100) / 100;
         return (
           <div key={a.id} className="healthcare-card p-4 space-y-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-semibold">{r?.service_type ?? "Home care visit"}</p>
-                <p className="text-xs text-muted-foreground">{r?.address}</p>
+                <p className="text-xs text-muted-foreground">{pending ? suburbOf(r?.address) : r?.address}</p>
                 {r?.preferred_at && <p className="text-xs text-muted-foreground">Preferred: {new Date(r.preferred_at).toLocaleString()}</p>}
                 {a.scheduled_at && <p className="text-xs text-muted-foreground">Scheduled: {new Date(a.scheduled_at).toLocaleString()}</p>}
               </div>
               <Badge variant={a.status === "confirmed" ? "default" : "secondary"}>{ASSIGNMENT_LABEL[a.status] ?? a.status}</Badge>
             </div>
+
+            <div className="grid gap-x-4 gap-y-1 rounded-xl border p-3 text-xs sm:grid-cols-2">
+              <p><span className="text-muted-foreground">Service: </span><span className="font-semibold">{r?.service_type ?? "—"}</span></p>
+              <p><span className="text-muted-foreground">Area: </span><span className="font-semibold">{suburbOf(r?.address)}</span></p>
+              <p><span className="text-muted-foreground">Date: </span><span className="font-semibold">{when ? new Date(when).toLocaleDateString() : "To be confirmed"}</span></p>
+              <p><span className="text-muted-foreground">Time: </span><span className="font-semibold">{when ? new Date(when).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "To be confirmed"}</span></p>
+              <p><span className="text-muted-foreground">Expected duration: </span><span className="font-semibold">{r?.duration_hours ? `${r.duration_hours} hour(s)` : "Not given"}</span></p>
+              <p><span className="text-muted-foreground">Travel distance: </span><span className="font-semibold">{travelKm != null ? `≈ ${travelKm} km` : "Unknown"}</span></p>
+              <p><span className="text-muted-foreground">Customer charge: </span><span className="font-semibold">{charge != null ? `R ${charge.toFixed(2)}` : "To be confirmed"}</span></p>
+              <p><span className="text-muted-foreground">Service fee ({Math.round(PLATFORM_RULES.PLATFORM_FEE_PCT * 100)}%): </span><span className="font-semibold">{fee != null ? `R ${fee.toFixed(2)}` : "—"}</span></p>
+              <p className="sm:col-span-2"><span className="text-muted-foreground">Your earnings: </span><span className="font-bold">{earnings != null ? `R ${earnings.toFixed(2)}` : "To be confirmed"}</span></p>
+            </div>
+
             {r?.description && <p className="text-sm">{r.description}</p>}
             <div className="flex flex-wrap gap-2">
               {a.status === "offered" && (
