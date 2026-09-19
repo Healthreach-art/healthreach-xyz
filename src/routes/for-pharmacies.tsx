@@ -7,9 +7,9 @@ import { Store, Package, TrendingUp, Bell, ShieldCheck, Receipt } from "lucide-r
 export const Route = createFileRoute("/for-pharmacies")({
   head: () => ({
     meta: [
-      { title: "For Pharmacies — HealthReachCareCare" },
-      { name: "description", content: "Reach more patients, manage stock, accept orders in real time, and grow with HealthReachCareCare." },
-      { property: "og:title", content: "For Pharmacies — HealthReachCareCare" },
+      { title: "For Pharmacies — HealthReachCare" },
+      { name: "description", content: "Reach more patients, manage stock, accept orders in real time, and grow with HealthReachCare." },
+      { property: "og:title", content: "For Pharmacies — HealthReachCare" },
       { property: "og:description", content: "Online storefront, live orders, prescription verification, and analytics for South African pharmacies." },
     ],
   }),
@@ -35,7 +35,7 @@ function ForPharmaciesPage() {
             <span className="inline-block text-xs font-semibold uppercase tracking-wider text-primary mb-3">For Pharmacies</span>
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4">More patients. Less admin.</h1>
             <p className="text-lg text-muted-foreground leading-relaxed mb-6">
-              Join the HealthReachCareCare network and start receiving orders from patients in your area — with delivery already handled.
+              Join the HealthReachCare network and start receiving orders from patients in your area — with delivery already handled.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg"><Link to="/signup" search={{ role: "pharmacy" }}>Register pharmacy</Link></Button>

@@ -25,10 +25,10 @@ export const Route = createFileRoute("/doctors/")({
   },
   head: () => ({
     meta: [
-      { title: "Find a Doctor in South Africa | HealthReachCareCare" },
-      { name: "description", content: "Search and book trusted doctors across South Africa. Browse profiles, specialties, fees and availability — book in seconds with HealthReachCareCare." },
-      { property: "og:title", content: "Find a Doctor in South Africa | HealthReachCareCare" },
-      { property: "og:description", content: "Search and book trusted doctors across South Africa on HealthReachCareCare." },
+      { title: "Find a Doctor in South Africa | HealthReachCare" },
+      { name: "description", content: "Search and book trusted doctors across South Africa. Browse profiles, specialties, fees and availability — book in seconds with HealthReachCare." },
+      { property: "og:title", content: "Find a Doctor in South Africa | HealthReachCare" },
+      { property: "og:description", content: "Search and book trusted doctors across South Africa on HealthReachCare." },
       { property: "og:url", content: `${SITE}/doctors` },
     ],
     links: [{ rel: "canonical", href: `${SITE}/doctors` }],

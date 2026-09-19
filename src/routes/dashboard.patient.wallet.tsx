@@ -36,7 +36,7 @@ function loadPaystack(): Promise<void> {
 }
 
 export const Route = createFileRoute("/dashboard/patient/wallet")({
-  head: () => ({ meta: [{ title: "Wallet — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Wallet — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><WalletPage /></RoleGuard>,
 });
 
@@ -186,7 +186,7 @@ function WalletPage() {
         <Button type="submit" disabled={busy} className="w-full h-11 rounded-xl">
           {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <>Top up R{amount || "0"}</>}
         </Button>
-        <p className="text-[11px] text-muted-foreground">Wallet is store credit only — used for HealthReachCareCare orders. Refunds go back to wallet by default.</p>
+        <p className="text-[11px] text-muted-foreground">Wallet is store credit only — used for HealthReachCare orders. Refunds go back to wallet by default.</p>
       </form>
 
       <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">

@@ -13,7 +13,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { saveDriverProfilePhoto } from "@/lib/driver-onboarding.functions";
 
 export const Route = createFileRoute("/driver/onboarding")({
-  head: () => ({ meta: [{ title: "Driver Onboarding — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Driver Onboarding — HealthReachCare" }] }),
   component: () => <RoleGuard allow="driver"><Onboarding /></RoleGuard>,
 });
 

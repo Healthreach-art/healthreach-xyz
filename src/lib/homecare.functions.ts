@@ -78,7 +78,7 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
       patch.rejection_reason = null;
       patch.requested_documents = [];
       title = "Home care account approved";
-      body = "Your HealthReachCareCare home care account is approved. You can now receive assignments.";
+      body = "Your HealthReachCare home care account is approved. You can now receive assignments.";
     } else if (data.action === "reject") {
       patch.approval_status = "rejected";
       patch.is_active = false;

@@ -17,9 +17,9 @@ import { HOMECARE_SERVICES, REQUEST_LABEL, ASSIGNMENT_LABEL } from "@/lib/homeca
 export const Route = createFileRoute("/dashboard/patient/homecare")({
   head: () => ({
     meta: [
-      { title: "Home Care Requests — HealthReachCareCare" },
+      { title: "Home Care Requests — HealthReachCare" },
       { name: "description", content: "Request a home care visit and follow its progress from review to completion." },
-      { property: "og:title", content: "Home Care Requests — HealthReachCareCare" },
+      { property: "og:title", content: "Home Care Requests — HealthReachCare" },
       { property: "og:description", content: "Request a home care visit and follow its progress." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -155,7 +155,7 @@ function PatientHomecarePage() {
                   <p className="text-xs">
                     Verification:{" "}
                     <span className={r.homecare_providers.approval_status === "approved" ? "font-semibold text-healthcare-green" : "font-semibold"}>
-                      {r.homecare_providers.approval_status === "approved" ? "Approved by HealthReachCareCare" : (r.homecare_providers.approval_status ?? "Pending review")}
+                      {r.homecare_providers.approval_status === "approved" ? "Approved by HealthReachCare" : (r.homecare_providers.approval_status ?? "Pending review")}
                     </span>
                   </p>
                   {latest?.homecare_staff?.full_name && (

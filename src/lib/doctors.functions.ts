@@ -29,7 +29,7 @@ export const bookDoctorAppointment = createServerFn({ method: "POST" })
     if (docErr || !doc) throw new Error("Doctor not found");
     if (!(doc as any).is_demo) {
       if (!doc.is_active) throw new Error("Doctor is not accepting appointments");
-      if (!doc.is_verified) throw new Error("Doctor is not yet verified by HealthReachCareCare");
+      if (!doc.is_verified) throw new Error("Doctor is not yet verified by HealthReachCare");
     }
 
     // Self-registered doctors have no hospital — fall back to the doctor's own user_id

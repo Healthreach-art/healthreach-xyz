@@ -19,7 +19,7 @@ interface Doctor {
 }
 
 export const Route = createFileRoute("/dashboard/patient/find")({
-  head: () => ({ meta: [{ title: "Book Appointment — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Book Appointment — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><FindCarePage /></RoleGuard>,
 });
 

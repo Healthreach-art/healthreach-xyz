@@ -7,7 +7,7 @@ import { reverseGeocodeBatch } from "@/lib/geocode.functions";
 import { ArrowLeft, Activity, Truck, Pill, Package } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/admin/live")({
-  head: () => ({ meta: [{ title: "Live Map — HealthReachCareCare Admin" }] }),
+  head: () => ({ meta: [{ title: "Live Map — HealthReachCare Admin" }] }),
   component: () => (
     <RoleGuard allow="admin">
       <LiveMapPage />

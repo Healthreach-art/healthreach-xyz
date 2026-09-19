@@ -25,7 +25,7 @@ const paymentSearchSchema = z.object({
 export const Route = createFileRoute("/payment")({
   head: () => ({
     meta: [
-      { title: "Payment — HealthReachCareCare" },
+      { title: "Payment — HealthReachCare" },
       { name: "description", content: "Secure payment for your medication order." },
     ],
   }),

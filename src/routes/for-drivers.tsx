@@ -7,9 +7,9 @@ import { Bike, MapPin, Wallet, ShieldCheck, Clock, Star } from "lucide-react";
 export const Route = createFileRoute("/for-drivers")({
   head: () => ({
     meta: [
-      { title: "For Drivers — HealthReachCareCare" },
+      { title: "For Drivers — HealthReachCare" },
       { name: "description", content: "Earn flexibly delivering medications across South Africa. Daily payouts, smart routing, and clear pickup codes." },
-      { property: "og:title", content: "For Drivers — HealthReachCareCare" },
+      { property: "og:title", content: "For Drivers — HealthReachCare" },
       { property: "og:description", content: "Flexible medication delivery work. Daily ZAR payouts and live route navigation." },
     ],
   }),
@@ -35,7 +35,7 @@ function ForDriversPage() {
             <span className="inline-block text-xs font-semibold uppercase tracking-wider text-primary mb-3">For Drivers</span>
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4">Deliver care. Earn flexibly.</h1>
             <p className="text-lg text-muted-foreground leading-relaxed mb-6">
-              Become a HealthReachCareCare driver and deliver medications to patients in your area. Daily payouts, your schedule, your hustle.
+              Become a HealthReachCare driver and deliver medications to patients in your area. Daily payouts, your schedule, your hustle.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg"><Link to="/signup" search={{ role: "driver" }}>Become a driver</Link></Button>

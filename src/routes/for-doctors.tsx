@@ -7,9 +7,9 @@ import { CalendarCheck, ClipboardCheck, FileText, MessageSquareText, ShieldCheck
 export const Route = createFileRoute("/for-doctors")({
   head: () => ({
     meta: [
-      { title: "For Doctors — HealthReachCareCare" },
-      { name: "description", content: "HPCSA-registered doctors can join HealthReachCareCare, upload verification documents, take bookings, and support patients online." },
-      { property: "og:title", content: "For Doctors — HealthReachCareCare" },
+      { title: "For Doctors — HealthReachCare" },
+      { name: "description", content: "HPCSA-registered doctors can join HealthReachCare, upload verification documents, take bookings, and support patients online." },
+      { property: "og:title", content: "For Doctors — HealthReachCare" },
       { property: "og:description", content: "Doctor verification, appointment bookings, digital care notes, and provider messaging for South African clinicians." },
     ],
   }),
@@ -33,7 +33,7 @@ function ForDoctorsPage() {
         <section className="container-narrow px-4 sm:px-6 py-16">
           <div className="max-w-2xl">
             <span className="inline-block text-xs font-semibold uppercase tracking-wider text-primary mb-3">For Doctors</span>
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4">Bring your practice onto HealthReachCareCare.</h1>
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4">Bring your practice onto HealthReachCare.</h1>
             <p className="text-lg text-muted-foreground leading-relaxed mb-6">
               HPCSA-registered doctors can self-register, upload legal documents, receive approval updates, and start taking patient bookings.
             </p>
