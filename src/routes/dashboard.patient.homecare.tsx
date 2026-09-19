@@ -145,10 +145,31 @@ function PatientHomecarePage() {
                 <Badge variant={r.status === "confirmed" ? "default" : "secondary"}>{REQUEST_LABEL[r.status] ?? r.status}</Badge>
               </div>
               {r.homecare_providers && (
-                <p className="text-sm">
-                  Provider: <span className="font-semibold">{r.homecare_providers.business_name || r.homecare_providers.full_name}</span>
-                  {r.homecare_providers.phone ? ` · ${r.homecare_providers.phone}` : ""}
-                </p>
+                <div className="rounded-xl border p-3 space-y-1 text-sm">
+                  <p>
+                    Provider: <span className="font-semibold">{r.homecare_providers.business_name || r.homecare_providers.full_name}</span>
+                    <span className="text-muted-foreground">
+                      {" "}· {r.homecare_providers.provider_type === "individual" ? "Individual carer" : "Home care company"}
+                    </span>
+                  </p>
+                  <p className="text-xs">
+                    Verification:{" "}
+                    <span className={r.homecare_providers.approval_status === "approved" ? "font-semibold text-healthcare-green" : "font-semibold"}>
+                      {r.homecare_providers.approval_status === "approved" ? "Approved by HEALTHREACH" : (r.homecare_providers.approval_status ?? "Pending review")}
+                    </span>
+                  </p>
+                  {latest?.homecare_staff?.full_name && (
+                    <p className="text-xs">
+                      Caregiver: <span className="font-semibold">{latest.homecare_staff.full_name}</span>
+                      {latest.homecare_staff.job_title ? ` · ${latest.homecare_staff.job_title}` : ""}
+                    </p>
+                  )}
+                  {r.homecare_providers.phone && <p className="text-xs text-muted-foreground">Contact: {r.homecare_providers.phone}</p>}
+                  <p className="text-xs text-muted-foreground">Service: {r.service_type}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Scheduled: {latest?.scheduled_at ? new Date(latest.scheduled_at).toLocaleString() : r.preferred_at ? `${new Date(r.preferred_at).toLocaleString()} (requested)` : "To be confirmed"}
+                  </p>
+                </div>
               )}
               {latest && <p className="text-xs text-muted-foreground">Visit status: {ASSIGNMENT_LABEL[latest.status] ?? latest.status}</p>}
               {latest?.status === "completed" && (
