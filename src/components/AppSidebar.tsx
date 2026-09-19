@@ -30,6 +30,7 @@ export function AppSidebar() {
   const patientItems: Item[] = [
     { title: "Home", url: "/dashboard/patient", icon: Home },
     { title: "Book Appointment", url: "/dashboard/patient/find", icon: Search },
+    { title: "Home Care", url: "/dashboard/patient/homecare", icon: HeartPulse },
     { title: "Order Medicine", url: "/dashboard/patient/search", icon: ShoppingBag },
     { title: "Orders & Deliveries", url: "/dashboard/patient/orders", icon: Truck },
     { title: "Prescriptions & Documents", url: "/dashboard/patient/prescriptions", icon: Pill },
@@ -64,8 +65,10 @@ export function AppSidebar() {
     ] : []),
     
     ...(role === "hospital" ? [{ title: "Hospital", url: "/dashboard/hospital", icon: HeartPulse }] : []),
+    ...(role === "homecare_staff" ? [{ title: "My Schedule", url: "/dashboard/homecare_staff", icon: ClipboardList }] : []),
     ...(role === "admin" ? [
       { title: "Admin Panel", url: "/dashboard/admin", icon: ShieldCheck },
+      { title: "Home Care", url: "/dashboard/admin/homecare", icon: HeartPulse },
       { title: "Live Map", url: "/dashboard/admin/live", icon: MapPin },
     ] : []),
   ] : [];

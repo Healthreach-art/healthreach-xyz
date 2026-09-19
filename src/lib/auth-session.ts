@@ -1,7 +1,9 @@
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor";
+export type AppRole =
+  | "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor"
+  | "homecare_company" | "homecare_staff";
 
 export interface ResolvedProfile {
   full_name: string;
@@ -19,8 +21,12 @@ export interface ResolvedAccount {
   profile: ResolvedProfile;
 }
 
-const APP_ROLES: AppRole[] = ["patient", "pharmacy", "hospital", "driver", "admin", "doctor"];
-const SELF_SERVICE_ROLES: AppRole[] = ["patient", "pharmacy", "hospital", "driver", "doctor"];
+const APP_ROLES: AppRole[] = [
+  "patient", "pharmacy", "hospital", "driver", "admin", "doctor", "homecare_company", "homecare_staff",
+];
+const SELF_SERVICE_ROLES: AppRole[] = [
+  "patient", "pharmacy", "hospital", "driver", "doctor", "homecare_company", "homecare_staff",
+];
 const RETRY_DELAYS_MS = [0, 150, 350, 700, 1100, 1600];
 
 const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));

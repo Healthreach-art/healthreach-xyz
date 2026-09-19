@@ -928,6 +928,410 @@ export type Database = {
         }
         Relationships: []
       }
+      homecare_approval_events: {
+        Row: {
+          action: string
+          admin_email: string | null
+          admin_id: string | null
+          created_at: string
+          id: string
+          provider_id: string
+          reason: string | null
+          requested_documents: Json | null
+        }
+        Insert: {
+          action: string
+          admin_email?: string | null
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          provider_id: string
+          reason?: string | null
+          requested_documents?: Json | null
+        }
+        Update: {
+          action?: string
+          admin_email?: string | null
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          provider_id?: string
+          reason?: string | null
+          requested_documents?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homecare_approval_events_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "homecare_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homecare_assignments: {
+        Row: {
+          accepted_at: string | null
+          amount: number | null
+          assigned_by: string | null
+          completed_at: string | null
+          completion_notes: string | null
+          created_at: string
+          declined_reason: string | null
+          id: string
+          patient_confirmed_at: string | null
+          provider_id: string
+          request_id: string
+          scheduled_at: string | null
+          staff_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          amount?: number | null
+          assigned_by?: string | null
+          completed_at?: string | null
+          completion_notes?: string | null
+          created_at?: string
+          declined_reason?: string | null
+          id?: string
+          patient_confirmed_at?: string | null
+          provider_id: string
+          request_id: string
+          scheduled_at?: string | null
+          staff_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          amount?: number | null
+          assigned_by?: string | null
+          completed_at?: string | null
+          completion_notes?: string | null
+          created_at?: string
+          declined_reason?: string | null
+          id?: string
+          patient_confirmed_at?: string | null
+          provider_id?: string
+          request_id?: string
+          scheduled_at?: string | null
+          staff_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homecare_assignments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "homecare_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homecare_assignments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "homecare_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homecare_assignments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "homecare_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homecare_documents: {
+        Row: {
+          created_at: string
+          doc_key: string
+          file_path: string
+          id: string
+          mime_type: string
+          notes: string | null
+          provider_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          staff_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc_key: string
+          file_path: string
+          id?: string
+          mime_type?: string
+          notes?: string | null
+          provider_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc_key?: string
+          file_path?: string
+          id?: string
+          mime_type?: string
+          notes?: string | null
+          provider_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homecare_documents_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "homecare_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homecare_documents_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "homecare_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homecare_providers: {
+        Row: {
+          account_holder: string | null
+          account_number: string | null
+          address: string | null
+          approval_status: Database["public"]["Enums"]["approval_status"]
+          approved_at: string | null
+          approved_by: string | null
+          availability: string
+          bank_name: string | null
+          branch_code: string | null
+          business_name: string
+          certifications: string[]
+          contact_person: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          hourly_rate: number | null
+          id: string
+          is_active: boolean
+          latitude: number | null
+          longitude: number | null
+          operating_hours: string
+          phone: string | null
+          pricing_notes: string | null
+          provider_type: string
+          qualifications: string | null
+          registration_number: string | null
+          rejection_reason: string | null
+          requested_documents: Json
+          service_areas: string[]
+          services: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_holder?: string | null
+          account_number?: string | null
+          address?: string | null
+          approval_status?: Database["public"]["Enums"]["approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
+          availability?: string
+          bank_name?: string | null
+          branch_code?: string | null
+          business_name?: string
+          certifications?: string[]
+          contact_person?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          operating_hours?: string
+          phone?: string | null
+          pricing_notes?: string | null
+          provider_type?: string
+          qualifications?: string | null
+          registration_number?: string | null
+          rejection_reason?: string | null
+          requested_documents?: Json
+          service_areas?: string[]
+          services?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_holder?: string | null
+          account_number?: string | null
+          address?: string | null
+          approval_status?: Database["public"]["Enums"]["approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
+          availability?: string
+          bank_name?: string | null
+          branch_code?: string | null
+          business_name?: string
+          certifications?: string[]
+          contact_person?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          operating_hours?: string
+          phone?: string | null
+          pricing_notes?: string | null
+          provider_type?: string
+          qualifications?: string | null
+          registration_number?: string | null
+          rejection_reason?: string | null
+          requested_documents?: Json
+          service_areas?: string[]
+          services?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      homecare_requests: {
+        Row: {
+          address: string
+          admin_notes: string | null
+          created_at: string
+          description: string
+          duration_hours: number | null
+          family_member_id: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          patient_id: string
+          preferred_at: string | null
+          provider_id: string | null
+          service_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string
+          admin_notes?: string | null
+          created_at?: string
+          description?: string
+          duration_hours?: number | null
+          family_member_id?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          patient_id: string
+          preferred_at?: string | null
+          provider_id?: string | null
+          service_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          admin_notes?: string | null
+          created_at?: string
+          description?: string
+          duration_hours?: number | null
+          family_member_id?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          patient_id?: string
+          preferred_at?: string | null
+          provider_id?: string | null
+          service_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homecare_requests_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homecare_requests_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "homecare_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homecare_staff: {
+        Row: {
+          accepted_at: string | null
+          company_id: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          invited_at: string
+          is_active: boolean
+          job_title: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          company_id: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          invited_at?: string
+          is_active?: boolean
+          job_title?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          company_id?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          invited_at?: string
+          is_active?: boolean
+          job_title?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homecare_staff_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "homecare_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medication_reminders: {
         Row: {
           active: boolean
@@ -2360,6 +2764,23 @@ export type Database = {
       }
       expire_pharmacy_licenses: { Args: never; Returns: Json }
       expire_stale_offers: { Args: never; Returns: undefined }
+      find_homecare_near: {
+        Args: { _lat: number; _lng: number; _max_km?: number }
+        Returns: {
+          address: string
+          city: string
+          display_name: string
+          distance_km: number
+          hourly_rate: number
+          id: string
+          latitude: number
+          longitude: number
+          operating_hours: string
+          provider_type: string
+          service_areas: string[]
+          services: string[]
+        }[]
+      }
       find_pharmacies_near: {
         Args: { _lat: number; _lng: number; _max_km: number }
         Returns: {
@@ -2443,7 +2864,9 @@ export type Database = {
         Args: { _group_id: string }
         Returns: Json
       }
+      homecare_company_id_for: { Args: { _user_id: string }; Returns: string }
       invite_admin: { Args: { _email: string; _note?: string }; Returns: Json }
+      is_homecare_member: { Args: { _company_id: string }; Returns: boolean }
       is_order_participant: {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
@@ -2500,6 +2923,8 @@ export type Database = {
         | "driver"
         | "admin"
         | "doctor"
+        | "homecare_company"
+        | "homecare_staff"
       approval_status:
         | "pending"
         | "approved"
@@ -2545,12 +2970,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2574,11 +2999,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2599,11 +3024,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2624,11 +3049,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2641,11 +3066,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2664,6 +3089,8 @@ export const Constants = {
         "driver",
         "admin",
         "doctor",
+        "homecare_company",
+        "homecare_staff",
       ],
       approval_status: [
         "pending",

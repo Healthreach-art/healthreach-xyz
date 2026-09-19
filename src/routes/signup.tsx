@@ -9,13 +9,15 @@ import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
 
 
-type SignupSearch = { role?: "patient" | "pharmacy" | "driver" | "doctor" | "hospital" };
+type SignupRole = "patient" | "pharmacy" | "driver" | "doctor" | "hospital" | "homecare_company" | "homecare_individual";
+type SignupSearch = { role?: SignupRole };
 
+const SIGNUP_ROLES: SignupRole[] = ["patient", "pharmacy", "driver", "doctor", "hospital", "homecare_company", "homecare_individual"];
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>): SignupSearch => {
     const r = search.role;
-    return { role: r === "pharmacy" || r === "driver" || r === "doctor" || r === "hospital" ? r : "patient" };
+    return { role: SIGNUP_ROLES.includes(r as SignupRole) ? (r as SignupRole) : "patient" };
   },
   head: () => ({
     meta: [
@@ -32,14 +34,17 @@ const ROLE_META = {
   driver: { label: "Driver", title: "Become a Driver", desc: "Deliver medications to patients" },
   doctor: { label: "Doctor", title: "Register as a Doctor", desc: "Self-register, upload HPCSA + legal docs, get approved" },
   hospital: { label: "Hospital", title: "Register your Hospital", desc: "Issue digital prescriptions and manage your doctors" },
+  homecare_company: { label: "Home Care Company", title: "Register your Home Care Company", desc: "Register your business, add your staff and get approved" },
+  homecare_individual: { label: "Home Care Provider", title: "Register as a Home Care Provider", desc: "Offer home visits as an individual carer or nurse" },
 } as const;
 
 function SignupPage() {
   const navigate = useNavigate();
   const { role = "patient" } = useSearch({ from: "/signup" }) as SignupSearch;
   const meta = ROLE_META[role];
-  const needsOrg = role === "pharmacy" || role === "hospital";
-  const needsApproval = role === "pharmacy" || role === "driver" || role === "doctor" || role === "hospital";
+  const isHomecare = role === "homecare_company" || role === "homecare_individual";
+  const needsOrg = role === "pharmacy" || role === "hospital" || role === "homecare_company";
+  const needsApproval = role !== "patient";
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -70,7 +75,8 @@ function SignupPage() {
       options: {
         data: {
           full_name: fullName,
-          role,
+          role: isHomecare ? "homecare_company" : role,
+          homecare_type: role === "homecare_individual" ? "individual" : role === "homecare_company" ? "company" : undefined,
           address: address.address,
           lat: address.lat,
           lng: address.lng,
@@ -166,8 +172,8 @@ function SignupPage() {
 
             {needsOrg && (
               <div className="space-y-2">
-                <Label htmlFor="orgName">{role === "hospital" ? "Hospital Name" : "Pharmacy Name"}</Label>
-                <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder={role === "hospital" ? "e.g. City General Hospital" : "e.g. City Pharmacy"} required maxLength={200} />
+                <Label htmlFor="orgName">{role === "hospital" ? "Hospital Name" : role === "homecare_company" ? "Business Name" : "Pharmacy Name"}</Label>
+                <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder={role === "hospital" ? "e.g. City General Hospital" : role === "homecare_company" ? "e.g. Bright Care Home Services" : "e.g. City Pharmacy"} required maxLength={200} />
               </div>
             )}
 
@@ -177,7 +183,7 @@ function SignupPage() {
             </div>
 
             <div className="space-y-1">
-              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : role === "doctor" ? "Practice address" : "Delivery address"}</Label>
+              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : role === "doctor" ? "Practice address" : isHomecare ? "Base address" : "Delivery address"}</Label>
               <AddressPicker
                 value={address}
                 onChange={setAddress}

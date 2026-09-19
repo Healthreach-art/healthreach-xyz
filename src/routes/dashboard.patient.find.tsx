@@ -32,10 +32,17 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+interface HomecareProvider {
+  id: string; provider_type: string; display_name: string; address: string | null; city: string | null;
+  services: string[] | null; service_areas: string[] | null; operating_hours: string | null;
+  hourly_rate: number | null; distance_km: number | null;
+}
+
 function FindCarePage() {
   const [q, setQ] = useState("");
   const [specialty, setSpecialty] = useState<string>("any");
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [homecare, setHomecare] = useState<HomecareProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -52,6 +59,29 @@ function FindCarePage() {
       setLoading(false);
     })();
   }, []);
+
+  // Approved home care providers — within 100 km once we know the patient's location.
+  useEffect(() => {
+    (async () => {
+      if (userLoc) {
+        const { data } = await supabase.rpc("find_homecare_near", {
+          _lat: userLoc.lat, _lng: userLoc.lng, _max_km: 100,
+        });
+        setHomecare((data ?? []) as unknown as HomecareProvider[]);
+        return;
+      }
+      const { data } = await supabase.from("homecare_providers")
+        .select("id, provider_type, business_name, full_name, address, services, service_areas, operating_hours, hourly_rate")
+        .eq("approval_status", "approved").eq("is_active", true).limit(60);
+      setHomecare((data ?? []).map((r: any) => ({
+        id: r.id, provider_type: r.provider_type,
+        display_name: r.provider_type === "individual" ? (r.full_name || r.business_name) : r.business_name,
+        address: r.address, city: null, services: r.services, service_areas: r.service_areas,
+        operating_hours: r.operating_hours, hourly_rate: r.hourly_rate, distance_km: null,
+      })));
+    })();
+  }, [userLoc]);
+
 
   const useMyLocation = () => {
     if (!navigator.geolocation) { toast.error("Geolocation not supported"); return; }
@@ -94,6 +124,14 @@ function FindCarePage() {
 
   const filteredDoctors = useMemo(() => filterList(false), [doctors, q, specialty, userLoc]);
   const filteredHomecare = useMemo(() => filterList(true), [doctors, q, specialty, userLoc]);
+  const filteredProviders = useMemo(() => {
+    const needle = q.toLowerCase();
+    return homecare.filter((p) => {
+      if (!needle) return true;
+      const hay = [p.display_name, p.address, p.city, ...(p.services ?? []), ...(p.service_areas ?? [])].join(" ").toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [homecare, q]);
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
@@ -129,6 +167,7 @@ function FindCarePage() {
           <TabsList>
             <TabsTrigger value="doctors"><Stethoscope className="h-4 w-4 mr-1" /> Doctors ({filteredDoctors.length})</TabsTrigger>
             <TabsTrigger value="homecare"><HomeIcon className="h-4 w-4 mr-1" /> Homecare ({filteredHomecare.length})</TabsTrigger>
+            <TabsTrigger value="providers"><HomeIcon className="h-4 w-4 mr-1" /> Home care providers ({filteredProviders.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="doctors" className="mt-4">
@@ -137,6 +176,12 @@ function FindCarePage() {
           <TabsContent value="homecare" className="mt-4">
             <p className="text-sm text-muted-foreground mb-3">Doctors offering in-person / home visits.</p>
             <DoctorGrid doctors={filteredHomecare} />
+          </TabsContent>
+          <TabsContent value="providers" className="mt-4">
+            <p className="text-sm text-muted-foreground mb-3">
+              Approved home care companies and individual carers{userLoc ? " within 100 km of you" : " — use your location to see distances"}.
+            </p>
+            <ProviderGrid providers={filteredProviders} />
           </TabsContent>
         </Tabs>
       )}

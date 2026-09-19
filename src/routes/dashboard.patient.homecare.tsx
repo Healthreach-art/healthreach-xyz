@@ -1,0 +1,163 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
+import { RoleGuard } from "@/components/RoleGuard";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
+import { toast } from "sonner";
+import { HomeIcon, Loader2 } from "lucide-react";
+import { HOMECARE_SERVICES, REQUEST_LABEL, ASSIGNMENT_LABEL } from "@/lib/homecare";
+
+export const Route = createFileRoute("/dashboard/patient/homecare")({
+  head: () => ({
+    meta: [
+      { title: "Home Care Requests — HEALTHREACH" },
+      { name: "description", content: "Request a home care visit and follow its progress from review to completion." },
+      { property: "og:title", content: "Home Care Requests — HEALTHREACH" },
+      { property: "og:description", content: "Request a home care visit and follow its progress." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: () => <RoleGuard allow="patient"><PatientHomecarePage /></RoleGuard>,
+});
+
+function PatientHomecarePage() {
+  const { user, profile } = useAuth();
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [serviceType, setServiceType] = useState<string>(HOMECARE_SERVICES[0]);
+  const [description, setDescription] = useState("");
+  const [preferredAt, setPreferredAt] = useState("");
+  const [hours, setHours] = useState("4");
+  const [address, setAddress] = useState<PickedAddress | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("homecare_requests")
+      .select("*, homecare_assignments(*), homecare_providers(business_name, full_name, phone)")
+      .eq("patient_id", user.id).order("created_at", { ascending: false });
+    setRequests(data ?? []);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const ch = supabase.channel(`hc-patient-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "homecare_requests", filter: `patient_id=eq.${user.id}` }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "homecare_assignments" }, () => void load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id, load]);
+
+  const submit = async () => {
+    const addr = address ?? (profile?.address ? { address: profile.address } as PickedAddress : null);
+    if (!addr?.address) { toast.error("Please give the address for the visit"); return; }
+    setSaving(true);
+    const { error } = await supabase.from("homecare_requests").insert({
+      patient_id: user!.id,
+      service_type: serviceType,
+      description,
+      address: addr.address,
+      latitude: addr.lat ?? null,
+      longitude: addr.lng ?? null,
+      preferred_at: preferredAt ? new Date(preferredAt).toISOString() : null,
+      duration_hours: hours ? Number(hours) : null,
+    });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    setDescription(""); setPreferredAt("");
+    toast.success("Request sent. An administrator will review it and assign a provider.");
+    load();
+  };
+
+  const confirmVisit = async (assignmentId: string) => {
+    const { error } = await supabase.from("homecare_assignments")
+      .update({ status: "confirmed", patient_confirmed_at: new Date().toISOString() }).eq("id", assignmentId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Thank you — visit confirmed");
+    load();
+  };
+
+  return (
+    <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><HomeIcon className="h-6 w-6 text-primary" /> Home care</h1>
+        <p className="text-sm text-muted-foreground">Request a carer or nurse to visit at home. Every request is reviewed before a provider is assigned.</p>
+      </div>
+
+      <div className="healthcare-card p-5 space-y-4">
+        <p className="font-semibold text-sm">New request</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Service needed</Label>
+            <Select value={serviceType} onValueChange={setServiceType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {HOMECARE_SERVICES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="preferred">Preferred date & time</Label>
+            <Input id="preferred" type="datetime-local" value={preferredAt} onChange={(e) => setPreferredAt(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="hours">Hours needed</Label>
+            <Input id="hours" type="number" min="1" max="24" value={hours} onChange={(e) => setHours(e.target.value)} />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Visit address</Label>
+          <AddressPicker value={address} onChange={setAddress} placeholder={profile?.address || "Start typing the street address…"} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="desc">What is needed?</Label>
+          <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tell us about the care needed, mobility, medication and anything the carer should know." />
+        </div>
+        <Button onClick={submit} disabled={saving}>{saving ? "Sending…" : "Send request"}</Button>
+      </div>
+
+      <div className="space-y-3">
+        <p className="font-semibold text-sm">My requests</p>
+        {loading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
+        {!loading && requests.length === 0 && <p className="text-sm text-muted-foreground">No requests yet.</p>}
+        {requests.map((r) => {
+          const latest = (r.homecare_assignments ?? []).slice().sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : -1))[0];
+          return (
+            <div key={r.id} className="healthcare-card p-4 space-y-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{r.service_type}</p>
+                  <p className="text-xs text-muted-foreground">{r.address}</p>
+                  {r.preferred_at && <p className="text-xs text-muted-foreground">Preferred: {new Date(r.preferred_at).toLocaleString()}</p>}
+                </div>
+                <Badge variant={r.status === "confirmed" ? "default" : "secondary"}>{REQUEST_LABEL[r.status] ?? r.status}</Badge>
+              </div>
+              {r.homecare_providers && (
+                <p className="text-sm">
+                  Provider: <span className="font-semibold">{r.homecare_providers.business_name || r.homecare_providers.full_name}</span>
+                  {r.homecare_providers.phone ? ` · ${r.homecare_providers.phone}` : ""}
+                </p>
+              )}
+              {latest && <p className="text-xs text-muted-foreground">Visit status: {ASSIGNMENT_LABEL[latest.status] ?? latest.status}</p>}
+              {latest?.status === "completed" && (
+                <Button size="sm" onClick={() => confirmVisit(latest.id)}>Confirm the visit happened</Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

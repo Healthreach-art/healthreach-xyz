@@ -44,6 +44,8 @@ import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding
 import { Route as DoctorsIdRouteImport } from './routes/doctors.$id'
 import { Route as DashboardPharmacyRouteImport } from './routes/dashboard.pharmacy'
 import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
+import { Route as DashboardHomecare_staffRouteImport } from './routes/dashboard.homecare_staff'
+import { Route as DashboardHomecare_companyRouteImport } from './routes/dashboard.homecare_company'
 import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardDoctorRouteImport } from './routes/dashboard.doctor'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
@@ -70,6 +72,7 @@ import { Route as DashboardPatientPrescriptionsRouteImport } from './routes/dash
 import { Route as DashboardPatientPaymentMethodsRouteImport } from './routes/dashboard.patient.payment-methods'
 import { Route as DashboardPatientOrdersRouteImport } from './routes/dashboard.patient.orders'
 import { Route as DashboardPatientMedicalAidRouteImport } from './routes/dashboard.patient.medical-aid'
+import { Route as DashboardPatientHomecareRouteImport } from './routes/dashboard.patient.homecare'
 import { Route as DashboardPatientFindRouteImport } from './routes/dashboard.patient.find'
 import { Route as DashboardPatientFamilyRouteImport } from './routes/dashboard.patient.family'
 import { Route as DashboardPatientConsultationsRouteImport } from './routes/dashboard.patient.consultations'
@@ -77,6 +80,7 @@ import { Route as DashboardPatientAddressesRouteImport } from './routes/dashboar
 import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard.patient.activity'
 import { Route as DashboardAdminLogsRouteImport } from './routes/dashboard.admin.logs'
 import { Route as DashboardAdminLiveRouteImport } from './routes/dashboard.admin.live'
+import { Route as DashboardAdminHomecareRouteImport } from './routes/dashboard.admin.homecare'
 import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -257,6 +261,17 @@ const DashboardHospitalRoute = DashboardHospitalRouteImport.update({
   path: '/dashboard/hospital',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardHomecare_staffRoute = DashboardHomecare_staffRouteImport.update({
+  id: '/dashboard/homecare_staff',
+  path: '/dashboard/homecare_staff',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardHomecare_companyRoute =
+  DashboardHomecare_companyRouteImport.update({
+    id: '/dashboard/homecare_company',
+    path: '/dashboard/homecare_company',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DashboardDriverRoute = DashboardDriverRouteImport.update({
   id: '/dashboard/driver',
   path: '/dashboard/driver',
@@ -401,6 +416,12 @@ const DashboardPatientMedicalAidRoute =
     path: '/dashboard/patient/medical-aid',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DashboardPatientHomecareRoute =
+  DashboardPatientHomecareRouteImport.update({
+    id: '/dashboard/patient/homecare',
+    path: '/dashboard/patient/homecare',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DashboardPatientFindRoute = DashboardPatientFindRouteImport.update({
   id: '/dashboard/patient/find',
   path: '/dashboard/patient/find',
@@ -437,6 +458,11 @@ const DashboardAdminLogsRoute = DashboardAdminLogsRouteImport.update({
 const DashboardAdminLiveRoute = DashboardAdminLiveRouteImport.update({
   id: '/live',
   path: '/live',
+  getParentRoute: () => DashboardAdminRoute,
+} as any)
+const DashboardAdminHomecareRoute = DashboardAdminHomecareRouteImport.update({
+  id: '/homecare',
+  path: '/homecare',
   getParentRoute: () => DashboardAdminRoute,
 } as any)
 const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
@@ -496,6 +522,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
+  '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
+  '/dashboard/homecare_staff': typeof DashboardHomecare_staffRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRouteWithChildren
   '/doctors/$id': typeof DoctorsIdRoute
@@ -508,6 +536,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/admin/homecare': typeof DashboardAdminHomecareRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
@@ -515,6 +544,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
   '/dashboard/patient/find': typeof DashboardPatientFindRoute
+  '/dashboard/patient/homecare': typeof DashboardPatientHomecareRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
@@ -570,6 +600,8 @@ export interface FileRoutesByTo {
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
+  '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
+  '/dashboard/homecare_staff': typeof DashboardHomecare_staffRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/doctors/$id': typeof DoctorsIdRoute
   '/driver/onboarding': typeof DriverOnboardingRoute
@@ -581,6 +613,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/admin/homecare': typeof DashboardAdminHomecareRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
@@ -588,6 +621,7 @@ export interface FileRoutesByTo {
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
   '/dashboard/patient/find': typeof DashboardPatientFindRoute
+  '/dashboard/patient/homecare': typeof DashboardPatientHomecareRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
@@ -644,6 +678,8 @@ export interface FileRoutesById {
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
+  '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
+  '/dashboard/homecare_staff': typeof DashboardHomecare_staffRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRouteWithChildren
   '/doctors/$id': typeof DoctorsIdRoute
@@ -656,6 +692,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/admin/homecare': typeof DashboardAdminHomecareRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
@@ -663,6 +700,7 @@ export interface FileRoutesById {
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
   '/dashboard/patient/find': typeof DashboardPatientFindRoute
+  '/dashboard/patient/homecare': typeof DashboardPatientHomecareRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
@@ -720,6 +758,8 @@ export interface FileRouteTypes {
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/driver'
+    | '/dashboard/homecare_company'
+    | '/dashboard/homecare_staff'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
     | '/doctors/$id'
@@ -732,6 +772,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/payment-webhook'
+    | '/dashboard/admin/homecare'
     | '/dashboard/admin/live'
     | '/dashboard/admin/logs'
     | '/dashboard/patient/activity'
@@ -739,6 +780,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/consultations'
     | '/dashboard/patient/family'
     | '/dashboard/patient/find'
+    | '/dashboard/patient/homecare'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
@@ -794,6 +836,8 @@ export interface FileRouteTypes {
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/driver'
+    | '/dashboard/homecare_company'
+    | '/dashboard/homecare_staff'
     | '/dashboard/hospital'
     | '/doctors/$id'
     | '/driver/onboarding'
@@ -805,6 +849,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/payment-webhook'
+    | '/dashboard/admin/homecare'
     | '/dashboard/admin/live'
     | '/dashboard/admin/logs'
     | '/dashboard/patient/activity'
@@ -812,6 +857,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/consultations'
     | '/dashboard/patient/family'
     | '/dashboard/patient/find'
+    | '/dashboard/patient/homecare'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
@@ -867,6 +913,8 @@ export interface FileRouteTypes {
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/driver'
+    | '/dashboard/homecare_company'
+    | '/dashboard/homecare_staff'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
     | '/doctors/$id'
@@ -879,6 +927,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/payment-webhook'
+    | '/dashboard/admin/homecare'
     | '/dashboard/admin/live'
     | '/dashboard/admin/logs'
     | '/dashboard/patient/activity'
@@ -886,6 +935,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/consultations'
     | '/dashboard/patient/family'
     | '/dashboard/patient/find'
+    | '/dashboard/patient/homecare'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
@@ -942,6 +992,8 @@ export interface RootRouteChildren {
   DashboardAdminRoute: typeof DashboardAdminRouteWithChildren
   DashboardDoctorRoute: typeof DashboardDoctorRoute
   DashboardDriverRoute: typeof DashboardDriverRoute
+  DashboardHomecare_companyRoute: typeof DashboardHomecare_companyRoute
+  DashboardHomecare_staffRoute: typeof DashboardHomecare_staffRoute
   DashboardHospitalRoute: typeof DashboardHospitalRoute
   DashboardPharmacyRoute: typeof DashboardPharmacyRouteWithChildren
   DoctorsIdRoute: typeof DoctorsIdRoute
@@ -958,6 +1010,7 @@ export interface RootRouteChildren {
   DashboardPatientConsultationsRoute: typeof DashboardPatientConsultationsRoute
   DashboardPatientFamilyRoute: typeof DashboardPatientFamilyRoute
   DashboardPatientFindRoute: typeof DashboardPatientFindRoute
+  DashboardPatientHomecareRoute: typeof DashboardPatientHomecareRoute
   DashboardPatientMedicalAidRoute: typeof DashboardPatientMedicalAidRoute
   DashboardPatientOrdersRoute: typeof DashboardPatientOrdersRoute
   DashboardPatientPaymentMethodsRoute: typeof DashboardPatientPaymentMethodsRoute
@@ -1219,6 +1272,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardHospitalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/homecare_staff': {
+      id: '/dashboard/homecare_staff'
+      path: '/dashboard/homecare_staff'
+      fullPath: '/dashboard/homecare_staff'
+      preLoaderRoute: typeof DashboardHomecare_staffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/homecare_company': {
+      id: '/dashboard/homecare_company'
+      path: '/dashboard/homecare_company'
+      fullPath: '/dashboard/homecare_company'
+      preLoaderRoute: typeof DashboardHomecare_companyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/driver': {
       id: '/dashboard/driver'
       path: '/dashboard/driver'
@@ -1401,6 +1468,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientMedicalAidRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/patient/homecare': {
+      id: '/dashboard/patient/homecare'
+      path: '/dashboard/patient/homecare'
+      fullPath: '/dashboard/patient/homecare'
+      preLoaderRoute: typeof DashboardPatientHomecareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/patient/find': {
       id: '/dashboard/patient/find'
       path: '/dashboard/patient/find'
@@ -1450,6 +1524,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAdminLiveRouteImport
       parentRoute: typeof DashboardAdminRoute
     }
+    '/dashboard/admin/homecare': {
+      id: '/dashboard/admin/homecare'
+      path: '/homecare'
+      fullPath: '/dashboard/admin/homecare'
+      preLoaderRoute: typeof DashboardAdminHomecareRouteImport
+      parentRoute: typeof DashboardAdminRoute
+    }
     '/api/public/payment-webhook': {
       id: '/api/public/payment-webhook'
       path: '/api/public/payment-webhook'
@@ -1493,11 +1574,13 @@ const SignupRouteWithChildren =
   SignupRoute._addFileChildren(SignupRouteChildren)
 
 interface DashboardAdminRouteChildren {
+  DashboardAdminHomecareRoute: typeof DashboardAdminHomecareRoute
   DashboardAdminLiveRoute: typeof DashboardAdminLiveRoute
   DashboardAdminLogsRoute: typeof DashboardAdminLogsRoute
 }
 
 const DashboardAdminRouteChildren: DashboardAdminRouteChildren = {
+  DashboardAdminHomecareRoute: DashboardAdminHomecareRoute,
   DashboardAdminLiveRoute: DashboardAdminLiveRoute,
   DashboardAdminLogsRoute: DashboardAdminLogsRoute,
 }
@@ -1566,6 +1649,8 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardAdminRoute: DashboardAdminRouteWithChildren,
   DashboardDoctorRoute: DashboardDoctorRoute,
   DashboardDriverRoute: DashboardDriverRoute,
+  DashboardHomecare_companyRoute: DashboardHomecare_companyRoute,
+  DashboardHomecare_staffRoute: DashboardHomecare_staffRoute,
   DashboardHospitalRoute: DashboardHospitalRoute,
   DashboardPharmacyRoute: DashboardPharmacyRouteWithChildren,
   DoctorsIdRoute: DoctorsIdRoute,
@@ -1582,6 +1667,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardPatientConsultationsRoute: DashboardPatientConsultationsRoute,
   DashboardPatientFamilyRoute: DashboardPatientFamilyRoute,
   DashboardPatientFindRoute: DashboardPatientFindRoute,
+  DashboardPatientHomecareRoute: DashboardPatientHomecareRoute,
   DashboardPatientMedicalAidRoute: DashboardPatientMedicalAidRoute,
   DashboardPatientOrdersRoute: DashboardPatientOrdersRoute,
   DashboardPatientPaymentMethodsRoute: DashboardPatientPaymentMethodsRoute,
