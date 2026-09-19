@@ -7,6 +7,7 @@ import { FloatingCart } from "@/components/FloatingCart";
 import { Toaster } from "@/components/ui/sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ServiceRatingPrompt } from "@/components/ServiceRatingPrompt";
+import { CookieConsent } from "@/components/CookieConsent";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -99,6 +100,7 @@ function RootComponent() {
         <FloatingCart />
         <Toaster />
         <NotificationCenter />
+        <CookieConsent />
         <ServiceRatingPrompt />
         
       </CartProvider>

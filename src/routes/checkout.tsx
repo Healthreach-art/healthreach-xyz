@@ -98,6 +98,9 @@ function CheckoutPage() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactLoaded, setContactLoaded] = useState(false);
 
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
   useEffect(() => { loadPaystackScript().catch(() => {}); }, []);
 
 

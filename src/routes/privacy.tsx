@@ -63,7 +63,7 @@ function PrivacyPage() {
           </Section>
 
           <Section title="8. Contact">
-            Information Officer — <a className="text-primary" href="mailto:support@healthreachcare.co.za">support@healthreachcare.co.za</a> · Cape Town, South Africa.
+            Information Officer — <a className="text-primary" href="mailto:support@healthreachcare.co.za">support@healthreachcare.co.za</a> · Cape Town, South Africa. Data may be stored on international cloud servers (e.g. Supabase, Cloudflare) for operational security and performance, ensuring equal protection under POPIA.
           </Section>
         </article>
       </main>
@@ -76,7 +76,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section className="mb-6">
       <h2 className="text-xl font-semibold text-foreground mb-2">{title}</h2>
-      <div className="text-sm text-muted-foreground leading-relaxed">{children}</div>
+      <div className="text-base text-muted-foreground leading-relaxed">{children}</div>
     </section>
   );
 }
