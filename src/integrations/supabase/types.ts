@@ -967,13 +967,6 @@ export type Database = {
             referencedRelation: "homecare_providers"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "homecare_approval_events_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "homecare_providers_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       homecare_assignments: {
@@ -1034,13 +1027,6 @@ export type Database = {
             columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "homecare_providers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homecare_assignments_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "homecare_providers_public"
             referencedColumns: ["id"]
           },
           {
@@ -1108,13 +1094,6 @@ export type Database = {
             columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "homecare_providers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homecare_documents_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "homecare_providers_public"
             referencedColumns: ["id"]
           },
           {
@@ -1301,13 +1280,6 @@ export type Database = {
             referencedRelation: "homecare_providers"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "homecare_requests_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "homecare_providers_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       homecare_staff: {
@@ -1359,13 +1331,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "homecare_providers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "homecare_staff_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "homecare_providers_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2689,82 +2654,6 @@ export type Database = {
       }
     }
     Views: {
-      homecare_providers_public: {
-        Row: {
-          address: string | null
-          approval_status: Database["public"]["Enums"]["approval_status"] | null
-          availability: string | null
-          business_name: string | null
-          certifications: string[] | null
-          contact_person: string | null
-          created_at: string | null
-          full_name: string | null
-          hourly_rate: number | null
-          id: string | null
-          is_active: boolean | null
-          latitude: number | null
-          longitude: number | null
-          operating_hours: string | null
-          phone: string | null
-          pricing_notes: string | null
-          provider_type: string | null
-          qualifications: string | null
-          service_areas: string[] | null
-          service_radius_km: number | null
-          services: string[] | null
-        }
-        Insert: {
-          address?: string | null
-          approval_status?:
-            | Database["public"]["Enums"]["approval_status"]
-            | null
-          availability?: string | null
-          business_name?: string | null
-          certifications?: string[] | null
-          contact_person?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          hourly_rate?: number | null
-          id?: string | null
-          is_active?: boolean | null
-          latitude?: number | null
-          longitude?: number | null
-          operating_hours?: string | null
-          phone?: string | null
-          pricing_notes?: string | null
-          provider_type?: string | null
-          qualifications?: string | null
-          service_areas?: string[] | null
-          service_radius_km?: number | null
-          services?: string[] | null
-        }
-        Update: {
-          address?: string | null
-          approval_status?:
-            | Database["public"]["Enums"]["approval_status"]
-            | null
-          availability?: string | null
-          business_name?: string | null
-          certifications?: string[] | null
-          contact_person?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          hourly_rate?: number | null
-          id?: string | null
-          is_active?: boolean | null
-          latitude?: number | null
-          longitude?: number | null
-          operating_hours?: string | null
-          phone?: string | null
-          pricing_notes?: string | null
-          provider_type?: string | null
-          qualifications?: string | null
-          service_areas?: string[] | null
-          service_radius_km?: number | null
-          services?: string[] | null
-        }
-        Relationships: []
-      }
       medications_public: {
         Row: {
           category: string | null
