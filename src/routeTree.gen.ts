@@ -44,6 +44,7 @@ import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding
 import { Route as DoctorsIdRouteImport } from './routes/doctors.$id'
 import { Route as DashboardPharmacyRouteImport } from './routes/dashboard.pharmacy'
 import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
+import { Route as DashboardHomecare_companyRouteImport } from './routes/dashboard.homecare_company'
 import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardDoctorRouteImport } from './routes/dashboard.doctor'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
@@ -257,6 +258,12 @@ const DashboardHospitalRoute = DashboardHospitalRouteImport.update({
   path: '/dashboard/hospital',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardHomecare_companyRoute =
+  DashboardHomecare_companyRouteImport.update({
+    id: '/dashboard/homecare_company',
+    path: '/dashboard/homecare_company',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DashboardDriverRoute = DashboardDriverRouteImport.update({
   id: '/dashboard/driver',
   path: '/dashboard/driver',
@@ -496,6 +503,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
+  '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRouteWithChildren
   '/doctors/$id': typeof DoctorsIdRoute
@@ -570,6 +578,7 @@ export interface FileRoutesByTo {
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
+  '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/doctors/$id': typeof DoctorsIdRoute
   '/driver/onboarding': typeof DriverOnboardingRoute
@@ -644,6 +653,7 @@ export interface FileRoutesById {
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
+  '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRouteWithChildren
   '/doctors/$id': typeof DoctorsIdRoute
@@ -720,6 +730,7 @@ export interface FileRouteTypes {
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/driver'
+    | '/dashboard/homecare_company'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
     | '/doctors/$id'
@@ -794,6 +805,7 @@ export interface FileRouteTypes {
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/driver'
+    | '/dashboard/homecare_company'
     | '/dashboard/hospital'
     | '/doctors/$id'
     | '/driver/onboarding'
@@ -867,6 +879,7 @@ export interface FileRouteTypes {
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/driver'
+    | '/dashboard/homecare_company'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
     | '/doctors/$id'
@@ -942,6 +955,7 @@ export interface RootRouteChildren {
   DashboardAdminRoute: typeof DashboardAdminRouteWithChildren
   DashboardDoctorRoute: typeof DashboardDoctorRoute
   DashboardDriverRoute: typeof DashboardDriverRoute
+  DashboardHomecare_companyRoute: typeof DashboardHomecare_companyRoute
   DashboardHospitalRoute: typeof DashboardHospitalRoute
   DashboardPharmacyRoute: typeof DashboardPharmacyRouteWithChildren
   DoctorsIdRoute: typeof DoctorsIdRoute
@@ -1217,6 +1231,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/hospital'
       fullPath: '/dashboard/hospital'
       preLoaderRoute: typeof DashboardHospitalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/homecare_company': {
+      id: '/dashboard/homecare_company'
+      path: '/dashboard/homecare_company'
+      fullPath: '/dashboard/homecare_company'
+      preLoaderRoute: typeof DashboardHomecare_companyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/driver': {
@@ -1566,6 +1587,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardAdminRoute: DashboardAdminRouteWithChildren,
   DashboardDoctorRoute: DashboardDoctorRoute,
   DashboardDriverRoute: DashboardDriverRoute,
+  DashboardHomecare_companyRoute: DashboardHomecare_companyRoute,
   DashboardHospitalRoute: DashboardHospitalRoute,
   DashboardPharmacyRoute: DashboardPharmacyRouteWithChildren,
   DoctorsIdRoute: DoctorsIdRoute,
