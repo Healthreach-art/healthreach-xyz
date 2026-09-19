@@ -94,7 +94,7 @@ const deliveryStatusLabels: Record<DStatus, { label: string; color: string }> = 
 import { RoleGuard } from "@/components/RoleGuard";
 
 export const Route = createFileRoute("/dashboard/driver")({
-  head: () => ({ meta: [{ title: "Driver Dashboard — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Driver Dashboard — HealthReachCare" }] }),
   component: () => <RoleGuard allow="driver"><DriverDashboard /></RoleGuard>,
 });
 

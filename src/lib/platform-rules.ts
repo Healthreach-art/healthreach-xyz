@@ -1,4 +1,4 @@
-// Global platform rules for HealthReachCareCare delivery system.
+// Global platform rules for HealthReachCare delivery system.
 // These constants are referenced across pharmacy, driver, and patient flows.
 
 export const PLATFORM_RULES = {

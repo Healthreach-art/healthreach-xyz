@@ -17,7 +17,7 @@ const PROVIDERS = [
 ];
 
 export const Route = createFileRoute("/dashboard/patient/medical-aid")({
-  head: () => ({ meta: [{ title: "Medical Aid — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Medical Aid — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 

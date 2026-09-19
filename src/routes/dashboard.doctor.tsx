@@ -19,7 +19,7 @@ import { normalizeServices } from "@/lib/normalize-services.functions";
 import { Sparkles, X } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/doctor")({
-  head: () => ({ meta: [{ title: "Doctor Dashboard — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Doctor Dashboard — HealthReachCare" }] }),
   component: () => (
     <RoleGuard allow="doctor">
       <DoctorDashboard />
@@ -385,7 +385,7 @@ function DoctorDashboard() {
             <div>
               <div className="font-medium">No document, no operation.</div>
               <div className="text-muted-foreground">
-                HealthReachCareCare only connects patients with verified providers. Upload your HPCSA registration, ID, qualifications and malpractice cover. Admin verifies before patients can book you.
+                HealthReachCare only connects patients with verified providers. Upload your HPCSA registration, ID, qualifications and malpractice cover. Admin verifies before patients can book you.
               </div>
             </div>
           </div>
@@ -405,7 +405,7 @@ function DoctorDashboard() {
         <TabsContent value="docs">
           <Card className="p-6 space-y-5">
             <p className="text-xs text-muted-foreground">
-              South Africa: HPCSA registration is mandatory. Malpractice cover is required to take patients via HealthReachCareCare.
+              South Africa: HPCSA registration is mandatory. Malpractice cover is required to take patients via HealthReachCare.
             </p>
 
             <div className="space-y-2">
@@ -734,7 +734,7 @@ function DoctorDashboard() {
       </Tabs>
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
-        HealthReachCareCare is a discovery & booking platform only. All medical services, prescriptions, and treatment remain the responsibility of the doctor.
+        HealthReachCare is a discovery & booking platform only. All medical services, prescriptions, and treatment remain the responsibility of the doctor.
       </p>
 
       {chatFor && user && (

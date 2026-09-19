@@ -311,7 +311,7 @@ function HomePage() {
           <div className="text-center mb-10">
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground">Become a Partner</h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Grow your pharmacy or earn on the road — join the HealthReachCareCare network.
+              Grow your pharmacy or earn on the road — join the HealthReachCare network.
             </p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
@@ -362,7 +362,7 @@ function HomePage() {
             Ready to Transform Healthcare?
           </h2>
           <p className="mt-4 text-lg text-primary-foreground/80 max-w-xl mx-auto">
-            Join thousands of healthcare professionals and patients already using HealthReachCareCare.
+            Join thousands of healthcare professionals and patients already using HealthReachCare.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link to="/signup">

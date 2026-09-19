@@ -17,7 +17,7 @@ interface Med { id: string; pharmacy_id: string; name: string; price: number; st
 interface Ph { user_id: string; organization_name: string | null; full_name: string; }
 
 export const Route = createFileRoute("/dashboard/patient/search")({
-  head: () => ({ meta: [{ title: "Search Medicines — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Search Medicines — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><SearchPage /></RoleGuard>,
 });
 

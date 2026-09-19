@@ -148,7 +148,7 @@ export function buildReminderIcs(r: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//HealthReachCareCare//Reminders//EN",
+    "PRODID:-//HealthReachCare//Reminders//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
     `UID:reminder-${r.id}@healthreach`,

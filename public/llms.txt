@@ -1,16 +1,16 @@
-# HealthReachCareCare
+# HealthReachCare
 
 > Integrated healthcare management platform for South Africa — connecting patients, pharmacies, hospitals, and delivery drivers in one place.
 
-HealthReachCareCare lets patients order medication from verified pharmacies, upload prescriptions, track deliveries in real time, manage medication reminders, and pay securely. Pharmacies manage inventory and fulfilment; hospitals issue digital prescriptions; drivers handle last-mile delivery.
+HealthReachCare lets patients order medication from verified pharmacies, upload prescriptions, track deliveries in real time, manage medication reminders, and pay securely. Pharmacies manage inventory and fulfilment; hospitals issue digital prescriptions; drivers handle last-mile delivery.
 
 ## Pages
 
-- [Home](/): Overview of the HealthReachCareCare platform and roles it serves.
-- [About](/about): Mission, vision, and the team behind HealthReachCareCare.
-- [Contact](/contact): Get in touch with HealthReachCareCare support and sales.
+- [Home](/): Overview of the HealthReachCare platform and roles it serves.
+- [About](/about): Mission, vision, and the team behind HealthReachCare.
+- [Contact](/contact): Get in touch with HealthReachCare support and sales.
 - [Sign up](/signup): Create a patient, pharmacy, hospital, driver, or admin account.
-- [Log in](/login): Sign in to your HealthReachCareCare dashboard.
+- [Log in](/login): Sign in to your HealthReachCare dashboard.
 
 ## Optional
 

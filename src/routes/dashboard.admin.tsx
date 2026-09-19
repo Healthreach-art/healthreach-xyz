@@ -29,7 +29,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { PharmacyReviewDialog, type PharmacyApprovalStatus } from "@/components/PharmacyReviewDialog";
 
 export const Route = createFileRoute("/dashboard/admin")({
-  head: () => ({ meta: [{ title: "Admin Dashboard — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Admin Dashboard — HealthReachCare" }] }),
   component: () => <RoleGuard allow="admin"><AdminDashboard /></RoleGuard>,
 });
 

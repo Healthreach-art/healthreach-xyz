@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Link2, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/link-account")({
-  head: () => ({ meta: [{ title: "Link Google Account — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Link Google Account — HealthReachCare" }] }),
   component: LinkAccount,
 });
 

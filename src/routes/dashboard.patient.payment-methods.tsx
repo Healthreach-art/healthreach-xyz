@@ -13,7 +13,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { deleteSavedCard } from "@/lib/paystack.functions";
 
 export const Route = createFileRoute("/dashboard/patient/payment-methods")({
-  head: () => ({ meta: [{ title: "Wallet & Payments — HealthReachCareCare" }] }),
+  head: () => ({ meta: [{ title: "Wallet & Payments — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 

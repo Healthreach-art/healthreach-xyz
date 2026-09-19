@@ -10,7 +10,7 @@ import { DeliveryMap } from "@/components/DeliveryMap";
 export const Route = createFileRoute("/track")({
   head: () => ({
     meta: [
-      { title: "Track Order — HealthReachCareCare" },
+      { title: "Track Order — HealthReachCare" },
       { name: "description", content: "Track your medication delivery in real time." },
     ],
   }),
