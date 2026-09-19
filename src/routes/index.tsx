@@ -181,10 +181,10 @@ function HomePage() {
               Healthcare, simplified
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-primary-foreground leading-[1.1]">
-              Your Central Hub for Integrated Healthcare
+              HealthReachCare
             </h1>
             <p className="mt-6 text-lg text-primary-foreground/80 leading-relaxed max-w-xl">
-              Connecting patients, pharmacies, hospitals, and delivery services in one seamless platform. Order medication, coordinate care, and track everything in real-time.
+              Your central hub for integrated healthcare. Connect with doctors, pharmacies, home care providers, hospitals, and delivery services in one seamless platform.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link to="/login">

@@ -40,6 +40,7 @@ interface DocRow {
   submitted_at: string | null;
   verified_at: string | null;
   rejection_reason: string | null;
+  requested_documents: string[];
 }
 
 interface AvailRow {
@@ -342,6 +343,7 @@ function DoctorDashboard() {
   const isVerified = approvalStatus === "approved" && !!docs?.verified_at;
   const isPending = !!docs?.submitted_at && !docs?.verified_at && !docs?.rejection_reason;
   const wasRejected = !!docs?.rejection_reason;
+  const requestedDocuments = docs?.requested_documents ?? [];
 
   return (
     <div className="container mx-auto max-w-5xl px-3 sm:px-4 py-4 sm:py-8">
@@ -364,6 +366,14 @@ function DoctorDashboard() {
           <div className="flex items-center gap-3 text-sm">
             <CheckCircle2 className="h-5 w-5 text-healthcare-green" />
             <span>Your account is verified. You appear in the public directory.</span>
+          </div>
+        ) : requestedDocuments.length > 0 ? (
+          <div className="flex items-start gap-3 text-sm">
+            <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+            <div>
+              <div className="font-medium">More documents requested</div>
+              <div className="text-muted-foreground">Update and resubmit: {requestedDocuments.join(", ")}.</div>
+            </div>
           </div>
         ) : isPending ? (
           <div className="flex items-center gap-3 text-sm">

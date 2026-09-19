@@ -29,6 +29,7 @@ export function Footer() {
               <li><Link to="/for-doctors" className="hover:text-foreground transition-colors">For Doctors</Link></li>
               <li><Link to="/for-pharmacies" className="hover:text-foreground transition-colors">For Pharmacies</Link></li>
               <li><Link to="/for-drivers" className="hover:text-foreground transition-colors">For Drivers</Link></li>
+              <li><Link to="/signup" search={{ role: "homecare_company" }} className="hover:text-foreground transition-colors">For Home Care Providers</Link></li>
             </ul>
           </div>
 
