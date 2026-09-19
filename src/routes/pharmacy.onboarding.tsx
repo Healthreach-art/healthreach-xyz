@@ -234,8 +234,8 @@ function Onboarding() {
       <div className="healthcare-card p-5 mb-6">
         <h2 className="font-semibold mb-3 flex items-center gap-2"><UserCheck className="h-4 w-4" /> Responsible pharmacist</h2>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Full name" value={fields.pharmacist_name ?? ""} onChange={(v) => setField("pharmacist_name", v)} onBlur={() => supabase.from("profiles").update({ pharmacist_name: fields.pharmacist_name }).eq("user_id", user.id)} />
-          <Field label="SAPC council number" value={fields.pharmacist_council_number ?? ""} onChange={(v) => setField("pharmacist_council_number", v)} onBlur={() => supabase.from("profiles").update({ pharmacist_council_number: fields.pharmacist_council_number }).eq("user_id", user.id)} />
+          <Field label="Full name" value={fields.pharmacist_name ?? ""} onChange={(v) => setField("pharmacist_name", v)} onBlur={() => user && void supabase.from("profiles").update({ pharmacist_name: fields.pharmacist_name }).eq("user_id", user.id)} />
+          <Field label="SAPC council number" value={fields.pharmacist_council_number ?? ""} onChange={(v) => setField("pharmacist_council_number", v)} onBlur={() => user && void supabase.from("profiles").update({ pharmacist_council_number: fields.pharmacist_council_number }).eq("user_id", user.id)} />
           <Field label="Pharmacist phone (optional)" value={fields.responsible_pharmacist_phone ?? ""} onChange={(v) => setField("responsible_pharmacist_phone", v)} />
         </div>
       </div>
