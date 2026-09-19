@@ -1,17 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, Trash2, Cake, AlertCircle, Heart, FileText, ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "sonner";
-import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
-import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
+import { ArrowLeft,  createFileRoute } from "@tanstack/react-router";
+import { ArrowLeft,  useEffect, useState } from "react";
+import { ArrowLeft,  RoleGuard } from "@/components/RoleGuard";
+import { ArrowLeft,  supabase } from "@/integrations/supabase/client";
+import { ArrowLeft,  useAuth } from "@/hooks/useAuth";
+import { ArrowLeft,  Button } from "@/components/ui/button";
+import { ArrowLeft,  Input } from "@/components/ui/input";
+import { ArrowLeft,  Label } from "@/components/ui/label";
+import { ArrowLeft,  Textarea } from "@/components/ui/textarea";
+import { ArrowLeft,  Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft,  Users, Plus, Trash2, Cake, AlertCircle, Heart, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft,  toast } from "sonner";
+import { ArrowLeft,  RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
+import { ArrowLeft,  PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 
 export const Route = createFileRoute("/dashboard/patient/family")({
   head: () => ({ meta: [{ title: "Family Profiles — HealthReachCare" }] }),
@@ -69,6 +69,9 @@ function Page() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">

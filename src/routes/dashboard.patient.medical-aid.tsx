@@ -1,15 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { RoleGuard } from "@/components/RoleGuard";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { ShieldCheck, BadgeCheck, Clock } from "lucide-react";
+import { ArrowLeft,  createFileRoute } from "@tanstack/react-router";
+import { ArrowLeft,  RoleGuard } from "@/components/RoleGuard";
+import { ArrowLeft,  useEffect, useState } from "react";
+import { ArrowLeft,  useAuth } from "@/hooks/useAuth";
+import { ArrowLeft,  supabase } from "@/integrations/supabase/client";
+import { ArrowLeft,  Button } from "@/components/ui/button";
+import { ArrowLeft,  Input } from "@/components/ui/input";
+import { ArrowLeft,  Label } from "@/components/ui/label";
+import { ArrowLeft,  Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft,  Textarea } from "@/components/ui/textarea";
+import { ArrowLeft,  toast } from "sonner";
+import { ArrowLeft,  ShieldCheck, BadgeCheck, Clock } from "lucide-react";
 
 const PROVIDERS = [
   "Discovery Health", "Bonitas", "Momentum Health", "Medihelp",
@@ -78,9 +78,15 @@ function Page() {
   }
 
   if (loading) return <div className="container-narrow px-4 sm:px-6 py-8 text-sm text-muted-foreground">Loading…</div>;
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <ShieldCheck className="h-6 w-6 text-primary" /> Personal & Medical Aid
