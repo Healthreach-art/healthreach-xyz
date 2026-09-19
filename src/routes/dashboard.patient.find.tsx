@@ -167,6 +167,7 @@ function FindCarePage() {
           <TabsList>
             <TabsTrigger value="doctors"><Stethoscope className="h-4 w-4 mr-1" /> Doctors ({filteredDoctors.length})</TabsTrigger>
             <TabsTrigger value="homecare"><HomeIcon className="h-4 w-4 mr-1" /> Homecare ({filteredHomecare.length})</TabsTrigger>
+            <TabsTrigger value="providers"><HomeIcon className="h-4 w-4 mr-1" /> Home care providers ({filteredProviders.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="doctors" className="mt-4">
@@ -175,6 +176,12 @@ function FindCarePage() {
           <TabsContent value="homecare" className="mt-4">
             <p className="text-sm text-muted-foreground mb-3">Doctors offering in-person / home visits.</p>
             <DoctorGrid doctors={filteredHomecare} />
+          </TabsContent>
+          <TabsContent value="providers" className="mt-4">
+            <p className="text-sm text-muted-foreground mb-3">
+              Approved home care companies and individual carers{userLoc ? " within 100 km of you" : " — use your location to see distances"}.
+            </p>
+            <ProviderGrid providers={filteredProviders} />
           </TabsContent>
         </Tabs>
       )}
