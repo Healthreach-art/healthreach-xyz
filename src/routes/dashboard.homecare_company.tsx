@@ -44,7 +44,9 @@ function HomecareProviderPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data: p } = await supabase.from("homecare_providers").select("*").eq("user_id", user.id).maybeSingle();
+    const { data: p } = await supabase.from("homecare_providers")
+      .select("id, user_id, provider_type, business_name, registration_number, contact_person, full_name, email, phone, address, latitude, longitude, service_areas, services, operating_hours, availability, pricing_notes, hourly_rate, qualifications, certifications, approval_status, approved_by, approved_at, rejection_reason, requested_documents, is_active, service_radius_km, created_at, updated_at")
+      .eq("user_id", user.id).maybeSingle();
     setProvider(p);
     if (p) {
       const [{ data: d }, { data: s }, { data: a }] = await Promise.all([
