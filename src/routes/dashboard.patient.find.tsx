@@ -35,14 +35,17 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 interface HomecareProvider {
   id: string; provider_type: string; display_name: string; address: string | null; city: string | null;
   services: string[] | null; service_areas: string[] | null; operating_hours: string | null;
-  hourly_rate: number | null; distance_km: number | null;
+  hourly_rate: number | null; distance_km: number | null; service_radius_km?: number | null;
 }
+
+const HOMECARE_RADIUS_OPTIONS = [25, 50, 100] as const;
 
 function FindCarePage() {
   const [q, setQ] = useState("");
   const [specialty, setSpecialty] = useState<string>("any");
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [homecare, setHomecare] = useState<HomecareProvider[]>([]);
+  const [homecareRadius, setHomecareRadius] = useState<number>(25);
   const [loading, setLoading] = useState(true);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -60,12 +63,12 @@ function FindCarePage() {
     })();
   }, []);
 
-  // Approved home care providers — within 100 km once we know the patient's location.
+  // Approved home care providers — within the chosen radius (and the provider's own service area).
   useEffect(() => {
     (async () => {
       if (userLoc) {
         const { data } = await supabase.rpc("find_homecare_near", {
-          _lat: userLoc.lat, _lng: userLoc.lng, _max_km: 100,
+          _lat: userLoc.lat, _lng: userLoc.lng, _max_km: homecareRadius,
         });
         setHomecare((data ?? []) as unknown as HomecareProvider[]);
         return;
