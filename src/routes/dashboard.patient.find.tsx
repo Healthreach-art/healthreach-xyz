@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Loader2, Stethoscope, Star, MapPin, Navigation, Home as HomeIcon } from "lucide-react";
+import { Search, Loader2, Stethoscope, Star, MapPin, Navigation, Home as HomeIcon, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -255,7 +255,7 @@ function ProviderGrid({ providers }: { providers: HomecareProvider[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {providers.map((p) => (
-        <Link key={p.id} to="/dashboard/patient/homecare" className="healthcare-card p-4 hover:shadow-lg transition">
+        <div key={p.id} className="healthcare-card p-4 flex flex-col gap-3">
           <div className="flex gap-3">
             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
               <HomeIcon className="h-5 w-5" />
@@ -267,7 +267,12 @@ function ProviderGrid({ providers }: { providers: HomecareProvider[] }) {
               </p>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                 <MapPin className="h-3 w-3" />{p.city || p.address || "South Africa"}
-                {p.distance_km != null && <span className="ml-1 font-semibold text-foreground">· {Math.round(Number(p.distance_km) * 10) / 10} km</span>}
+                {p.distance_km != null && <span className="ml-1 font-semibold text-foreground">· {Math.round(Number(p.distance_km) * 10) / 10} km away</span>}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Service area: {(p.service_areas ?? []).length > 0
+                  ? (p.service_areas ?? []).join(", ")
+                  : p.service_radius_km != null ? `Travels up to ${p.service_radius_km} km` : "On request"}
               </p>
               {(p.services ?? []).length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{(p.services ?? []).join(", ")}</p>
@@ -275,7 +280,15 @@ function ProviderGrid({ providers }: { providers: HomecareProvider[] }) {
               {p.hourly_rate != null && <p className="text-xs font-bold mt-1">R{Number(p.hourly_rate).toFixed(0)}/hr</p>}
             </div>
           </div>
-        </Link>
+          <div className="flex items-center justify-between gap-2 mt-auto">
+            <span className="inline-flex items-center gap-1 rounded-full bg-healthcare-green/10 px-2 py-0.5 text-[11px] font-semibold text-healthcare-green">
+              <CheckCircle2 className="h-3 w-3" /> Approved &amp; active
+            </span>
+            <Button asChild size="sm">
+              <Link to="/dashboard/patient/homecare">Book</Link>
+            </Button>
+          </div>
+        </div>
       ))}
     </div>
   );
