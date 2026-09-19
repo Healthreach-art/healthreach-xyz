@@ -80,6 +80,7 @@ import { Route as DashboardPatientAddressesRouteImport } from './routes/dashboar
 import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard.patient.activity'
 import { Route as DashboardAdminLogsRouteImport } from './routes/dashboard.admin.logs'
 import { Route as DashboardAdminLiveRouteImport } from './routes/dashboard.admin.live'
+import { Route as DashboardAdminHomecareRouteImport } from './routes/dashboard.admin.homecare'
 import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -459,6 +460,11 @@ const DashboardAdminLiveRoute = DashboardAdminLiveRouteImport.update({
   path: '/live',
   getParentRoute: () => DashboardAdminRoute,
 } as any)
+const DashboardAdminHomecareRoute = DashboardAdminHomecareRouteImport.update({
+  id: '/homecare',
+  path: '/homecare',
+  getParentRoute: () => DashboardAdminRoute,
+} as any)
 const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
   id: '/api/public/payment-webhook',
   path: '/api/public/payment-webhook',
@@ -530,6 +536,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/admin/homecare': typeof DashboardAdminHomecareRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
@@ -606,6 +613,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/admin/homecare': typeof DashboardAdminHomecareRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
@@ -684,6 +692,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/payment-webhook': typeof ApiPublicPaymentWebhookRoute
+  '/dashboard/admin/homecare': typeof DashboardAdminHomecareRoute
   '/dashboard/admin/live': typeof DashboardAdminLiveRoute
   '/dashboard/admin/logs': typeof DashboardAdminLogsRoute
   '/dashboard/patient/activity': typeof DashboardPatientActivityRoute
@@ -763,6 +772,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/payment-webhook'
+    | '/dashboard/admin/homecare'
     | '/dashboard/admin/live'
     | '/dashboard/admin/logs'
     | '/dashboard/patient/activity'
@@ -839,6 +849,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/payment-webhook'
+    | '/dashboard/admin/homecare'
     | '/dashboard/admin/live'
     | '/dashboard/admin/logs'
     | '/dashboard/patient/activity'
@@ -916,6 +927,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/payment-webhook'
+    | '/dashboard/admin/homecare'
     | '/dashboard/admin/live'
     | '/dashboard/admin/logs'
     | '/dashboard/patient/activity'
@@ -1512,6 +1524,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAdminLiveRouteImport
       parentRoute: typeof DashboardAdminRoute
     }
+    '/dashboard/admin/homecare': {
+      id: '/dashboard/admin/homecare'
+      path: '/homecare'
+      fullPath: '/dashboard/admin/homecare'
+      preLoaderRoute: typeof DashboardAdminHomecareRouteImport
+      parentRoute: typeof DashboardAdminRoute
+    }
     '/api/public/payment-webhook': {
       id: '/api/public/payment-webhook'
       path: '/api/public/payment-webhook'
@@ -1555,11 +1574,13 @@ const SignupRouteWithChildren =
   SignupRoute._addFileChildren(SignupRouteChildren)
 
 interface DashboardAdminRouteChildren {
+  DashboardAdminHomecareRoute: typeof DashboardAdminHomecareRoute
   DashboardAdminLiveRoute: typeof DashboardAdminLiveRoute
   DashboardAdminLogsRoute: typeof DashboardAdminLogsRoute
 }
 
 const DashboardAdminRouteChildren: DashboardAdminRouteChildren = {
+  DashboardAdminHomecareRoute: DashboardAdminHomecareRoute,
   DashboardAdminLiveRoute: DashboardAdminLiveRoute,
   DashboardAdminLogsRoute: DashboardAdminLogsRoute,
 }

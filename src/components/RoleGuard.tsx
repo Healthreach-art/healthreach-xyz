@@ -2,9 +2,7 @@ import { Navigate } from "@tanstack/react-router";
 
 import { useAuth } from "@/hooks/useAuth";
 import type { ReactNode } from "react";
-import { dashboardPathForRole } from "@/lib/auth-session";
-
-type AppRole = "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor";
+import { dashboardPathForRole, type AppRole } from "@/lib/auth-session";
 
 interface Props {
   allow: AppRole;
