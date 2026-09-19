@@ -96,8 +96,6 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("homecare_providers").update(patch).eq("id", data.providerId);
     if (error) throw new Error(error.message);
 
-    await supabaseAdmin.from("homecare_providers").select("id").eq("id", data.providerId);
-
     // keep the shared profile approval status in step so dashboard gates agree
     await supabaseAdmin.from("profiles")
       .update({ approval_status: patch.approval_status as string, updated_at: ts })
