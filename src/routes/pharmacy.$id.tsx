@@ -65,13 +65,13 @@ export const Route = createFileRoute("/pharmacy/$id")({
   },
   head: ({ params, loaderData }) => {
     const name = loaderData?.name ?? "Pharmacy";
-    const url = `https://healthreachhub.lovable.app/pharmacy/${params.id}`;
-    const description = `Browse and order medication from ${name} on HEALTHREACH. Live stock, fast delivery in South Africa.`;
+    const url = `https://healthreachcare.co.za/pharmacy/${params.id}`;
+    const description = `Browse and order medication from ${name} on HealthReachCare. Live stock, fast delivery in South Africa.`;
     return {
       meta: [
-        { title: `${name} — HEALTHREACH` },
+        { title: `${name} — HealthReachCare` },
         { name: "description", content: description },
-        { property: "og:title", content: `${name} — HEALTHREACH` },
+        { property: "og:title", content: `${name} — HealthReachCare` },
         { property: "og:description", content: description },
         { property: "og:url", content: url },
       ],

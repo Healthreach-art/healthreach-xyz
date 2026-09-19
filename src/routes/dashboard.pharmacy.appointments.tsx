@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/pharmacy/appointments")({
-  head: () => ({ meta: [{ title: "Appointments — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Appointments — HealthReachCare" }] }),
   component: () => (
     <RoleGuard allow="pharmacy">
       <AppointmentsPage />

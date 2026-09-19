@@ -43,7 +43,7 @@ import { groupAndHydrate, type GroupedOrder } from "@/lib/orderGroups";
 import { RoleGuard } from "@/components/RoleGuard";
 
 export const Route = createFileRoute("/dashboard/pharmacy/")({
-  head: () => ({ meta: [{ title: "Pharmacy Dashboard — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Pharmacy Dashboard — HealthReachCare" }] }),
   component: () => <RoleGuard allow="pharmacy"><PharmacyDashboard /></RoleGuard>,
 });
 

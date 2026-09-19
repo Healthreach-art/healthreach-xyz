@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Stethoscope } from "lucide-react";
 
-const SITE = "https://healthreachhub.lovable.app";
+const SITE = "https://healthreachcare.co.za";
 
 interface Doctor {
   id: string; full_name: string; specialty: string; qualifications: string;
@@ -31,10 +31,10 @@ export const Route = createFileRoute("/doctors/$id")({
   },
   head: ({ params, loaderData }) => {
     const d = loaderData?.doc;
-    const title = d ? `Dr. ${d.full_name} — ${d.specialty}, ${d.city} | HealthReach RSA` : "Doctor — HealthReach RSA";
+    const title = d ? `Dr. ${d.full_name} — ${d.specialty}, ${d.city} | HealthReachCare` : "Doctor — HealthReachCare";
     const description = d
-      ? `Book an appointment with Dr. ${d.full_name}, ${d.specialty} in ${d.city}. Consultation from R${Number(d.consultation_fee).toFixed(0)}. Verified profile on HealthReach RSA.`
-      : "Find and book trusted doctors across South Africa on HealthReach RSA.";
+      ? `Book an appointment with Dr. ${d.full_name}, ${d.specialty} in ${d.city}. Consultation from R${Number(d.consultation_fee).toFixed(0)}. Verified profile on HealthReachCare.`
+      : "Find and book trusted doctors across South Africa on HealthReachCare.";
     const url = `${SITE}/doctors/${params.id}`;
     const meta: Array<Record<string, string>> = [
       { title },
@@ -269,7 +269,7 @@ function PublicDoctorPage() {
       )}
 
       <p className="text-[11px] text-muted-foreground text-center">
-        HealthReach RSA is a marketplace connecting patients with independent healthcare providers. We do not provide medical services, prescriptions, or treatment.
+        HealthReachCare is a marketplace connecting patients with independent healthcare providers. We do not provide medical services, prescriptions, or treatment.
       </p>
     </div>
   );

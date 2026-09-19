@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, FileText, Loader2, Search } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/admin/logs")({
-  head: () => ({ meta: [{ title: "Admin Logs — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Admin Logs — HealthReachCare" }] }),
   component: () => <RoleGuard allow="admin"><AdminLogsPage /></RoleGuard>,
 });
 

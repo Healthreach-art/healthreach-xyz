@@ -14,7 +14,7 @@ import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
 import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 
 export const Route = createFileRoute("/dashboard/patient/family")({
-  head: () => ({ meta: [{ title: "Family Profiles — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Family Profiles — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 

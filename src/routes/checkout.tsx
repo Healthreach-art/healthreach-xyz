@@ -66,7 +66,7 @@ function loadPaystackScript(): Promise<void> {
 }
 
 export const Route = createFileRoute("/checkout")({
-  head: () => ({ meta: [{ title: "Checkout — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Checkout — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><CheckoutPage /></RoleGuard>,
 });
 
@@ -473,7 +473,7 @@ function CheckoutPage() {
           {/* Payment — Paystack popup */}
           <div className="healthcare-card p-5 space-y-2">
             <h2 className="text-sm font-bold flex items-center gap-2"><Lock className="h-4 w-4 text-primary" /> Payment</h2>
-            <p className="text-xs text-muted-foreground">You'll be redirected to Paystack to complete payment securely. Card details never touch HEALTHREACH.</p>
+            <p className="text-xs text-muted-foreground">You'll be redirected to Paystack to complete payment securely. Card details never touch HealthReachCare.</p>
           </div>
 
           <Button type="submit" size="lg" className="w-full rounded-xl h-12" disabled={processing}>

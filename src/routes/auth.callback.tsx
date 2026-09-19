@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { dashboardPathForRole, isAppRole, resolveUserRole } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/auth/callback")({
-  head: () => ({ meta: [{ title: "Signing you in… — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Signing you in… — HealthReachCare" }] }),
   component: AuthCallback,
 });
 

@@ -4,13 +4,13 @@ import { Heart, Target, Users, Globe } from "lucide-react";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About Us — HEALTHREACH" },
-      { name: "description", content: "Learn about HEALTHREACH's mission to transform healthcare delivery across South Africa." },
-      { property: "og:title", content: "About Us — HEALTHREACH" },
+      { title: "About Us — HealthReachCare" },
+      { name: "description", content: "Learn about HealthReachCare's mission to transform healthcare delivery across South Africa." },
+      { property: "og:title", content: "About Us — HealthReachCare" },
       { property: "og:description", content: "Our mission is to make healthcare accessible, efficient, and transparent for everyone." },
-      { property: "og:url", content: "https://healthreachhub.lovable.app/about" },
+      { property: "og:url", content: "https://healthreachcare.co.za/about" },
     ],
-    links: [{ rel: "canonical", href: "https://healthreachhub.lovable.app/about" }],
+    links: [{ rel: "canonical", href: "https://healthreachcare.co.za/about" }],
   }),
   component: AboutPage,
 });
@@ -43,7 +43,7 @@ function AboutPage() {
     <div>
       <section className="section-padding healthcare-gradient">
         <div className="container-narrow text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-primary-foreground">About HEALTHREACH</h1>
+          <h1 className="text-4xl sm:text-5xl font-bold text-primary-foreground">About HealthReachCare</h1>
           <p className="mt-4 text-lg text-primary-foreground/80 max-w-2xl mx-auto">
             We're on a mission to make healthcare delivery seamless, transparent, and accessible across South Africa.
           </p>
@@ -56,7 +56,7 @@ function AboutPage() {
             <div>
               <h2 className="text-3xl font-bold text-foreground">Our Mission</h2>
               <p className="mt-4 text-muted-foreground leading-relaxed">
-                HEALTHREACH was founded with a simple yet powerful vision: to bridge the gap between patients and healthcare providers through technology. We believe that everyone deserves timely access to medication and quality healthcare coordination.
+                HealthReachCare was founded with a simple yet powerful vision: to bridge the gap between patients and healthcare providers through technology. We believe that everyone deserves timely access to medication and quality healthcare coordination.
               </p>
               <p className="mt-4 text-muted-foreground leading-relaxed">
                 Our platform connects the entire healthcare value chain — from doctors issuing digital prescriptions, to pharmacies managing inventory, to delivery drivers ensuring medications reach patients safely and on time.

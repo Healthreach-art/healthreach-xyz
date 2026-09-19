@@ -13,13 +13,13 @@
     "server": {
       "name": "healthreach-mcp",
       "version": "0.1.0",
-      "title": "HEALTHREACH"
+      "title": "HealthReachCare"
     },
     "tools": [
       {
         "name": "whoami",
         "title": "Who am I",
-        "description": "Return the signed-in HEALTHREACH user's profile: id, email, role, and approval status.",
+        "description": "Return the signed-in HealthReachCare user's profile: id, email, role, and approval status.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -35,7 +35,7 @@
       {
         "name": "list_my_orders",
         "title": "List my orders",
-        "description": "List medication orders belonging to the signed-in HEALTHREACH user. Newest first.",
+        "description": "List medication orders belonging to the signed-in HealthReachCare user. Newest first.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -85,7 +85,7 @@
       {
         "name": "search_medications",
         "title": "Search medications",
-        "description": "Search the HEALTHREACH pharmacy catalog for in-stock medications by name or category.",
+        "description": "Search the HealthReachCare pharmacy catalog for in-stock medications by name or category.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

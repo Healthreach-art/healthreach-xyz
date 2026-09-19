@@ -7,9 +7,9 @@ import { Pill, Clock, ShieldCheck, Truck, Bell, Stethoscope } from "lucide-react
 export const Route = createFileRoute("/for-patients")({
   head: () => ({
     meta: [
-      { title: "For Patients — HEALTHREACH" },
+      { title: "For Patients — HealthReachCare" },
       { name: "description", content: "Order prescriptions, set medication reminders, and get medicines delivered to your door across South Africa." },
-      { property: "og:title", content: "For Patients — HEALTHREACH" },
+      { property: "og:title", content: "For Patients — HealthReachCare" },
       { property: "og:description", content: "Prescriptions, reminders, and same-day medicine delivery in South Africa." },
     ],
   }),

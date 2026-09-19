@@ -94,6 +94,6 @@ export const broadcastNotification = createServerFn({ method: "POST" })
     return { ok: true, count: rows.length };
   });
 
-// Demo seed removed — HealthReach now ships with no demo data.
+// Demo seed removed — HealthReachCare now ships with no demo data.
 
 

@@ -102,13 +102,13 @@ function Consent() {
             <ShieldCheck className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold leading-tight">Connect {clientName} to HEALTHREACH</h1>
+            <h1 className="text-lg font-semibold leading-tight">Connect {clientName} to HealthReachCare</h1>
             {email && <p className="text-xs text-muted-foreground">Signed in as {email}</p>}
           </div>
         </div>
 
         <p className="text-sm text-foreground/90">
-          This lets <span className="font-medium">{clientName}</span> use HEALTHREACH tools as you — reading your profile, orders, prescriptions, and the medication catalog.
+          This lets <span className="font-medium">{clientName}</span> use HealthReachCare tools as you — reading your profile, orders, prescriptions, and the medication catalog.
         </p>
 
         {scopes.length > 0 && (
@@ -120,7 +120,7 @@ function Consent() {
         )}
 
         <p className="mt-4 text-xs text-muted-foreground">
-          This does not bypass HEALTHREACH permissions — data access still follows your account's role and policies.
+          This does not bypass HealthReachCare permissions — data access still follows your account's role and policies.
         </p>
 
         {error && (

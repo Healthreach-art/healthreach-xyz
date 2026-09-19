@@ -5,9 +5,9 @@ import { Footer } from "@/components/Footer";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy Policy — HEALTHREACH" },
-      { name: "description", content: "How HEALTHREACH collects, uses, and protects your personal and health information under POPIA." },
-      { property: "og:title", content: "Privacy Policy — HEALTHREACH" },
+      { title: "Privacy Policy — HealthReachCare" },
+      { name: "description", content: "How HealthReachCare collects, uses, and protects your personal and health information under POPIA." },
+      { property: "og:title", content: "Privacy Policy — HealthReachCare" },
       { property: "og:description", content: "Our commitment to protecting patient health data under South African POPIA law." },
     ],
   }),
@@ -25,7 +25,7 @@ function PrivacyPage() {
           <p className="text-sm text-muted-foreground mb-8">Last updated: {updated}</p>
 
           <Section title="1. Who we are">
-            HEALTHREACH ("we", "us") operates the healthreachhub.lovable.app platform connecting patients, pharmacies, and drivers across South Africa. We comply with the Protection of Personal Information Act (POPIA, Act 4 of 2013).
+            HealthReachCare ("we", "us") operates the healthreachcare.co.za platform connecting patients, pharmacies, and drivers across South Africa. We comply with the Protection of Personal Information Act (POPIA, Act 4 of 2013).
           </Section>
 
           <Section title="2. Information we collect">
@@ -55,7 +55,7 @@ function PrivacyPage() {
           </Section>
 
           <Section title="6. Your rights under POPIA">
-            You may access, correct, or delete your personal information at any time from your account settings, or by emailing <a className="text-primary" href="mailto:privacy@healthreach.co.za">privacy@healthreach.co.za</a>. You may also lodge a complaint with the Information Regulator of South Africa.
+            You may access, correct, or delete your personal information at any time from your account settings, or by emailing <a className="text-primary" href="mailto:support@healthreachcare.co.za">support@healthreachcare.co.za</a>. You may also lodge a complaint with the Information Regulator of South Africa.
           </Section>
 
           <Section title="7. Data retention">
@@ -63,7 +63,7 @@ function PrivacyPage() {
           </Section>
 
           <Section title="8. Contact">
-            Information Officer — <a className="text-primary" href="mailto:privacy@healthreach.co.za">privacy@healthreach.co.za</a> · Cape Town, South Africa.
+            Information Officer — <a className="text-primary" href="mailto:support@healthreachcare.co.za">support@healthreachcare.co.za</a> · Cape Town, South Africa.
           </Section>
         </article>
       </main>

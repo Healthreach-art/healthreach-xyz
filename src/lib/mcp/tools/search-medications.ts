@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 export default defineTool({
   name: "search_medications",
   title: "Search medications",
-  description: "Search the HEALTHREACH pharmacy catalog for in-stock medications by name or category.",
+  description: "Search the HealthReachCare pharmacy catalog for in-stock medications by name or category.",
   inputSchema: {
     query: z.string().min(1).describe("Text to match against medication name, description, or category."),
     limit: z.number().int().min(1).max(50).optional().describe("Max rows to return (default 15)."),

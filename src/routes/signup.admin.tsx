@@ -11,8 +11,8 @@ import { ShieldCheck, AlertCircle, CheckCircle } from "lucide-react";
 export const Route = createFileRoute("/signup/admin")({
   head: () => ({
     meta: [
-      { title: "Admin Signup — HEALTHREACH" },
-      { name: "description", content: "Create a HEALTHREACH admin account with an invite code." },
+      { title: "Admin Signup — HealthReachCare" },
+      { name: "description", content: "Create a HealthReachCare admin account with an invite code." },
     ],
   }),
   component: AdminSignupPage,
