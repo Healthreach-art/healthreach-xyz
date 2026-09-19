@@ -270,3 +270,25 @@ export const adminAssignHomecare = createServerFn({ method: "POST" })
 
     return { ok: true, assignmentId: assignment.id };
   });
+
+/**
+ * Owner-only read of a provider's own banking details.
+ * Banking columns are not readable through the Data API at all, so this is the
+ * single authorised path and it is scoped to the signed-in owner.
+ */
+export const getMyHomecareBanking = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("homecare_providers")
+      .select("bank_name, account_holder, account_number, branch_code")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    return {
+      bank_name: data?.bank_name ?? "",
+      account_holder: data?.account_holder ?? "",
+      account_number: data?.account_number ?? "",
+      branch_code: data?.branch_code ?? "",
+    };
+  });

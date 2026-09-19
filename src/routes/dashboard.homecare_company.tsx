@@ -15,7 +15,7 @@ import {
   HomeIcon, Loader2, Upload, FileText, Users, ClipboardList, Trash2, CheckCircle2, XCircle,
 } from "lucide-react";
 import { docsFor, APPROVAL_LABEL, ASSIGNMENT_LABEL, HOMECARE_SERVICES } from "@/lib/homecare";
-import { getHomecareDocumentUrl } from "@/lib/homecare.functions";
+import { getHomecareDocumentUrl, getMyHomecareBanking } from "@/lib/homecare.functions";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
 
 export const Route = createFileRoute("/dashboard/homecare_company")({
@@ -44,7 +44,9 @@ function HomecareProviderPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data: p } = await supabase.from("homecare_providers").select("*").eq("user_id", user.id).maybeSingle();
+    const { data: p } = await supabase.from("homecare_providers")
+      .select("id, user_id, provider_type, business_name, registration_number, contact_person, full_name, email, phone, address, latitude, longitude, service_areas, services, operating_hours, availability, pricing_notes, hourly_rate, qualifications, certifications, approval_status, approved_by, approved_at, rejection_reason, requested_documents, is_active, service_radius_km, created_at, updated_at")
+      .eq("user_id", user.id).maybeSingle();
     setProvider(p);
     if (p) {
       const [{ data: d }, { data: s }, { data: a }] = await Promise.all([
@@ -162,15 +164,25 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
     qualifications: provider.qualifications ?? "",
     service_areas: (provider.service_areas ?? []).join(", "),
     certifications: (provider.certifications ?? []).join(", "),
-    bank_name: provider.bank_name ?? "",
-    account_holder: provider.account_holder ?? "",
-    account_number: provider.account_number ?? "",
-    branch_code: provider.branch_code ?? "",
+    bank_name: "",
+    account_holder: "",
+    account_number: "",
+    branch_code: "",
   });
   const [services, setServices] = useState<string[]>(provider.services ?? []);
   const [address, setAddress] = useState<PickedAddress | null>(
     provider.address ? { address: provider.address, lat: provider.latitude, lng: provider.longitude } as PickedAddress : null,
   );
+
+  // banking details are protected: they are only readable through this owner-scoped server call
+  useEffect(() => {
+    let cancelled = false;
+    void getMyHomecareBanking().then((b) => {
+      if (cancelled) return;
+      setForm((f) => ({ ...f, ...b }));
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
