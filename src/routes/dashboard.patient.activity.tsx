@@ -1,8 +1,8 @@
-import { ArrowLeft,  createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft,  useEffect, useState } from "react";
-import { ArrowLeft,  RoleGuard } from "@/components/RoleGuard";
-import { ArrowLeft,  supabase } from "@/integrations/supabase/client";
-import { ArrowLeft,  useAuth } from "@/hooks/useAuth";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { RoleGuard } from "@/components/RoleGuard";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft,  ClipboardList, Pill, FileText, Activity, Heart, Calendar, ShoppingBag } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/activity")({

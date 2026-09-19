@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { OrderHistory } from "@/components/OrderHistory";
 

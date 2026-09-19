@@ -1,17 +1,17 @@
-import { ArrowLeft,  createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft,  useEffect, useState } from "react";
-import { ArrowLeft,  RoleGuard } from "@/components/RoleGuard";
-import { ArrowLeft,  supabase } from "@/integrations/supabase/client";
-import { ArrowLeft,  useAuth } from "@/hooks/useAuth";
-import { ArrowLeft,  Button } from "@/components/ui/button";
-import { ArrowLeft,  Input } from "@/components/ui/input";
-import { ArrowLeft,  Label } from "@/components/ui/label";
-import { ArrowLeft,  Textarea } from "@/components/ui/textarea";
-import { ArrowLeft,  Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { RoleGuard } from "@/components/RoleGuard";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft,  Users, Plus, Trash2, Cake, AlertCircle, Heart, FileText, ChevronDown, ChevronUp } from "lucide-react";
-import { ArrowLeft,  toast } from "sonner";
-import { ArrowLeft,  RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
-import { ArrowLeft,  PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
+import { toast } from "sonner";
+import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
+import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 
 export const Route = createFileRoute("/dashboard/patient/family")({
   head: () => ({ meta: [{ title: "Family Profiles — HealthReachCare" }] }),

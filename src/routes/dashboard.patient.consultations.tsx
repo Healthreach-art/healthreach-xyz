@@ -1,14 +1,14 @@
-import { ArrowLeft,  createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft,  RoleGuard } from "@/components/RoleGuard";
-import { ArrowLeft,  useEffect, useState } from "react";
-import { ArrowLeft,  useAuth } from "@/hooks/useAuth";
-import { ArrowLeft,  supabase } from "@/integrations/supabase/client";
-import { ArrowLeft,  Button } from "@/components/ui/button";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { RoleGuard } from "@/components/RoleGuard";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import { ArrowLeft,  Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star, MessageCircle } from "lucide-react";
-import { ArrowLeft,  Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft,  Textarea } from "@/components/ui/textarea";
-import { ArrowLeft,  AppointmentChatDialog } from "@/components/AppointmentChatDialog";
-import { ArrowLeft,  toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient/consultations")({
   head: () => ({ meta: [{ title: "My Consultations — HealthReachCare" }] }),

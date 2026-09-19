@@ -1,11 +1,11 @@
-import { ArrowLeft,  createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft,  RoleGuard } from "@/components/RoleGuard";
-import { ArrowLeft,  useEffect, useState } from "react";
-import { ArrowLeft,  useAuth } from "@/hooks/useAuth";
-import { ArrowLeft,  supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { RoleGuard } from "@/components/RoleGuard";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft,  Star, Loader2, Trash2, Pencil, Save, X } from "lucide-react";
-import { ArrowLeft,  Button } from "@/components/ui/button";
-import { ArrowLeft,  toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient/ratings")({
   head: () => ({ meta: [{ title: "My Ratings — HealthReachCare" }] }),
