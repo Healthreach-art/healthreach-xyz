@@ -93,12 +93,12 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
       body = "Your account is active again and can receive assignments.";
     }
 
-    const { error } = await supabaseAdmin.from("homecare_providers").update(patch).eq("id", data.providerId);
+    const { error } = await supabaseAdmin.from("homecare_providers").update(patch as never).eq("id", data.providerId);
     if (error) throw new Error(error.message);
 
     // keep the shared profile approval status in step so dashboard gates agree
     await supabaseAdmin.from("profiles")
-      .update({ approval_status: patch.approval_status as string, updated_at: ts })
+      .update({ approval_status: patch.approval_status as never, updated_at: ts })
       .eq("user_id", provider.user_id);
 
     await supabaseAdmin.from("homecare_approval_events").insert({

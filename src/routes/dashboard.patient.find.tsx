@@ -219,3 +219,34 @@ function DoctorGrid({ doctors }: { doctors: WithDist[] }) {
     </div>
   );
 }
+
+function ProviderGrid({ providers }: { providers: HomecareProvider[] }) {
+  if (providers.length === 0) return <p className="text-sm text-muted-foreground py-6 text-center">No approved home care providers nearby yet.</p>;
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {providers.map((p) => (
+        <Link key={p.id} to="/dashboard/patient/homecare" className="healthcare-card p-4 hover:shadow-lg transition">
+          <div className="flex gap-3">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
+              <HomeIcon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold truncate">{p.display_name}</p>
+              <p className="text-xs text-primary font-semibold">
+                {p.provider_type === "individual" ? "Individual carer" : "Home care company"}
+              </p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                <MapPin className="h-3 w-3" />{p.city || p.address || "South Africa"}
+                {p.distance_km != null && <span className="ml-1 font-semibold text-foreground">· {Math.round(Number(p.distance_km) * 10) / 10} km</span>}
+              </p>
+              {(p.services ?? []).length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{(p.services ?? []).join(", ")}</p>
+              )}
+              {p.hourly_rate != null && <p className="text-xs font-bold mt-1">R{Number(p.hourly_rate).toFixed(0)}/hr</p>}
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}

@@ -174,7 +174,7 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
 
   // save on blur so nothing is lost on refresh
   const saveField = async (patch: Record<string, unknown>) => {
-    const { error } = await supabase.from("homecare_providers").update(patch).eq("id", provider.id);
+    const { error } = await supabase.from("homecare_providers").update(patch as never).eq("id", provider.id);
     if (error) toast.error(error.message);
   };
 
@@ -202,8 +202,8 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
       pricing_notes: form.pricing_notes || null,
       hourly_rate: form.hourly_rate === "" ? null : Number(form.hourly_rate),
       qualifications: form.qualifications || null,
-      service_areas: form.service_areas.split(",").map((s) => s.trim()).filter(Boolean),
-      certifications: form.certifications.split(",").map((s) => s.trim()).filter(Boolean),
+      service_areas: String(form.service_areas).split(",").map((s: string) => s.trim()).filter(Boolean),
+      certifications: String(form.certifications).split(",").map((s: string) => s.trim()).filter(Boolean),
       services,
       bank_name: form.bank_name || null,
       account_holder: form.account_holder || null,
@@ -461,7 +461,7 @@ function StaffPanel({ provider, staff, onChanged }: { provider: any; staff: any[
 
 function AssignmentsPanel({ assignments, onChanged }: { assignments: any[]; onChanged: () => void }) {
   const update = async (row: any, patch: Record<string, unknown>) => {
-    const { error } = await supabase.from("homecare_assignments").update(patch).eq("id", row.id);
+    const { error } = await supabase.from("homecare_assignments").update(patch as never).eq("id", row.id);
     if (error) { toast.error(error.message); return; }
     onChanged();
   };
