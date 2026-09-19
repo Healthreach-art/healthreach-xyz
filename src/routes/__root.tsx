@@ -45,20 +45,18 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "HealthReachCareCare" },
+      { title: "HealthReachCare" },
       { name: "description", content: "Integrated healthcare management for South Africa." },
-      { name: "author", content: "HealthReachCareCare" },
+      { name: "author", content: "HealthReachCare" },
       { name: "google-site-verification", content: "Pm7nkjuqZnyhc0ERvlAt_BKybHDoigtifu6vlCj3Bqo" },
       { name: "theme-color", content: "#3aa8f0" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-      { name: "apple-mobile-web-app-title", content: "HealthReachCareCare" },
+      { name: "apple-mobile-web-app-title", content: "HealthReachCare" },
       { name: "mobile-web-app-capable", content: "yes" },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "HealthReachCareCare" },
+      { property: "og:site_name", content: "HealthReachCare" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:image", content: "https://healthreachcare.co.za/og-image.png" },
-      { name: "twitter:image", content: "https://healthreachcare.co.za/og-image.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -118,8 +116,8 @@ function AppShell() {
     return (
       <div className="flex min-h-screen flex-col w-full">
         <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-4">
-          <Link to="/" aria-label="HealthReachCareCare home">
-            <img src={logoUrl} alt="HealthReachCareCare" width={120} height={32} className="h-7 w-auto" />
+          <Link to="/" aria-label="HealthReachCare home">
+            <img src={logoUrl} alt="HealthReachCare" width={120} height={32} className="h-7 w-auto" />
           </Link>
         </header>
         <main className="flex-1">
@@ -159,8 +157,8 @@ function SidebarShell() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-3">
             <SidebarTrigger />
-            <Link to="/" aria-label="HealthReachCareCare home">
-              <img src={logoUrl} alt="HealthReachCareCare" width={120} height={32} className="h-7 w-auto" />
+            <Link to="/" aria-label="HealthReachCare home">
+              <img src={logoUrl} alt="HealthReachCare" width={120} height={32} className="h-7 w-auto" />
             </Link>
           </header>
           <main className="flex-1">

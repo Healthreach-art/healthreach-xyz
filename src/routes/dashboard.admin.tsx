@@ -1121,12 +1121,17 @@ function VerificationsPanel() {
     else toast.error("File not available");
   }
 
-  async function decideDoctor(userId: string, decision: "approve" | "reject") {
+  async function decideDoctor(userId: string, decision: "approve" | "reject" | "request_documents") {
+    const requested = decision === "request_documents"
+      ? (window.prompt("Which documents must be replaced or added? Separate items with commas.") ?? "")
+      : "";
+    const requestedDocuments = requested.split(",").map((item) => item.trim()).filter(Boolean);
+    if (decision === "request_documents" && requestedDocuments.length === 0) return;
     const reason = decision === "reject" ? (window.prompt("Rejection reason?") ?? "") : "";
     setBusy(userId);
     try {
-      await reviewDoctor({ data: { doctorUserId: userId, decision, reason: reason || undefined } });
-      toast.success(decision === "approve" ? "Doctor verified" : "Doctor rejected");
+      await reviewDoctor({ data: { doctorUserId: userId, decision, reason: reason || undefined, requestedDocuments } });
+      toast.success(decision === "approve" ? "Doctor verified" : decision === "request_documents" ? "Document request sent" : "Doctor rejected");
       load();
     } catch (e: any) { toast.error(e?.message ?? "Failed"); }
     finally { setBusy(null); }
@@ -1154,13 +1159,14 @@ function VerificationsPanel() {
             const status = d.verified_at ? "verified" : d.rejection_reason ? "rejected" : d.submitted_at ? "pending" : "draft";
             return (
               <div key={d.id} className="rounded-lg border border-border p-3 space-y-2">
-                <div className="flex items-center justify-between">
+                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="font-medium">{p.full_name || p.email || d.doctor_user_id.slice(0, 8)}</p>
                     <p className="text-xs text-muted-foreground">HPCSA: {d.hpcsa_number || "—"} · Status: <span className="capitalize">{status}</span></p>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => decideDoctor(d.doctor_user_id, "approve")} disabled={busy === d.doctor_user_id || status === "verified"}>Approve</Button>
+                     <Button size="sm" variant="outline" onClick={() => decideDoctor(d.doctor_user_id, "request_documents")} disabled={busy === d.doctor_user_id}>Request documents</Button>
                     <Button size="sm" variant="outline" className="text-destructive" onClick={() => decideDoctor(d.doctor_user_id, "reject")} disabled={busy === d.doctor_user_id}>Reject</Button>
                   </div>
                 </div>
@@ -1175,6 +1181,9 @@ function VerificationsPanel() {
                   {d.indemnity_path && <Button size="sm" variant="ghost" onClick={() => openFile("doctor-docs", d.indemnity_path)}>Indemnity</Button>}
                 </div>
                 {d.notes && <p className="text-xs text-muted-foreground">Notes: {d.notes}</p>}
+                 {Array.isArray(d.requested_documents) && d.requested_documents.length > 0 && (
+                   <p className="text-xs text-primary">Requested: {d.requested_documents.join(", ")}</p>
+                 )}
                 {d.rejection_reason && <p className="text-xs text-destructive">Rejection: {d.rejection_reason}</p>}
               </div>
             );

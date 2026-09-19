@@ -10,7 +10,7 @@ import {
   Heart,
   Clock,
   Users,
-  Activity,
+  HousePlus,
   Stethoscope,
   CalendarCheck as CalendarCheckIcon,
 } from "lucide-react";
@@ -20,7 +20,7 @@ import rolePharmacy from "@/assets/role-pharmacy.jpg";
 import roleHospital from "@/assets/role-hospital.jpg";
 import roleDriver from "@/assets/role-driver.jpg";
 import roleDoctor from "@/assets/role-doctor.jpg";
-import roleAdmin from "@/assets/role-admin.jpg";
+import roleHomecare from "@/assets/role-homecare.jpg";
 import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
 import tileTrack from "@/assets/tile-track-delivery.png";
@@ -30,9 +30,9 @@ import tileAppt from "@/assets/tile-book-appointment.png";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HealthReachCareCare — Order Medication & Manage Care in South Africa" },
-      { name: "description", content: "Order medication from verified South African pharmacies, upload prescriptions, track deliveries live, and coordinate care — all in one HealthReachCareCare account." },
-      { property: "og:title", content: "HealthReachCareCare — Order Medication & Manage Care in South Africa" },
+      { title: "HealthReachCare — Order Medication & Manage Care in South Africa" },
+      { name: "description", content: "Order medication from verified South African pharmacies, upload prescriptions, track deliveries live, and coordinate care — all in one HealthReachCare account." },
+      { property: "og:title", content: "HealthReachCare — Order Medication & Manage Care in South Africa" },
       { property: "og:description", content: "Order medication, upload prescriptions, track deliveries live, and coordinate care across pharmacies, hospitals and drivers." },
       { property: "og:url", content: "https://healthreachcare.co.za/" },
     ],
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "HealthReachCareCare",
+          name: "HealthReachCare",
           url: "https://healthreachcare.co.za/",
           email: "support@healthreachcare.co.za",
           telephone: "+27-79-728-5078",
@@ -61,7 +61,7 @@ export const Route = createFileRoute("/")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
-          name: "HealthReachCareCare",
+          name: "HealthReachCare",
           url: "https://healthreachcare.co.za/",
         }),
       },
@@ -140,11 +140,11 @@ const roles = [
     to: "/for-drivers",
   },
   {
-    icon: Activity,
-    img: roleAdmin,
-    title: "Administrators",
-    description: "Oversee the entire platform with analytics, user management, and reports.",
-    to: "/login",
+    icon: HousePlus,
+    img: roleHomecare,
+    title: "Home Care Providers",
+    description: "Provide trusted care at home, manage your profile and documents, receive assignments, schedule visits, and keep customers updated throughout the care journey.",
+    to: "/signup?role=homecare_company",
   },
 ];
 

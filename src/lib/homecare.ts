@@ -44,23 +44,23 @@ export const APPROVAL_LABEL: Record<string, string> = {
 
 export const ASSIGNMENT_LABEL: Record<string, string> = {
   offered: "Awaiting provider",
-  accepted: "Accepted",
+  accepted: "Provider accepted",
   declined: "Declined",
   scheduled: "Scheduled",
   in_progress: "In progress",
   completed: "Completed — awaiting customer",
-  confirmed: "Confirmed",
+  confirmed: "Customer confirmed",
   cancelled: "Cancelled",
 };
 
 export const REQUEST_LABEL: Record<string, string> = {
-  pending_review: "Waiting for admin review",
+  pending_review: "Requested — waiting for admin review",
   assigned: "Provider assigned",
   accepted: "Provider accepted",
   scheduled: "Scheduled",
   in_progress: "Visit in progress",
   completed: "Completed — please confirm",
-  confirmed: "Confirmed",
+  confirmed: "Customer confirmed",
   cancelled: "Cancelled",
   rejected: "Declined",
 };

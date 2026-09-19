@@ -554,6 +554,9 @@ function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: a
                 </>
               )}
               {a.status === "accepted" && (
+                <Button size="sm" onClick={() => update(a, { status: "scheduled" })}>Confirm schedule</Button>
+              )}
+              {a.status === "scheduled" && (
                 <Button size="sm" onClick={() => update(a, { status: "in_progress" })}>Start visit</Button>
               )}
               {a.status === "in_progress" && (

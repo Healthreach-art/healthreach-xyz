@@ -3,7 +3,7 @@ import { MessageCircle, Phone } from "lucide-react";
 import logo from "@/assets/healthreach-logo.png";
 
 const WA_NUMBER = "27797285078";
-const WA_LINK = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi HealthReachCareCare, I'd like to ask a quick question.")}`;
+const WA_LINK = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi HealthReachCare, I'd like to ask a quick question.")}`;
 
 export function Footer() {
   return (
@@ -12,9 +12,9 @@ export function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <img src={logo} alt="HealthReachCareCare" className="h-9 w-auto" />
+              <img src={logo} alt="HealthReachCare" className="h-9 w-auto" />
               <span className="text-lg font-bold tracking-tight text-foreground">
-                HEALTH<span className="text-primary">REACH</span>
+                HealthReach<span className="text-primary">Care</span>
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -46,6 +46,7 @@ export function Footer() {
             <h3 className="mb-3 text-sm font-semibold text-foreground">Contact</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="tel:+27797285078" className="inline-flex items-center gap-2 hover:text-foreground"><Phone className="h-3.5 w-3.5" /> +27 79 728 5078</a></li>
+              <li><a href="mailto:support@healthreachcare.co.za" className="hover:text-foreground">support@healthreachcare.co.za</a></li>
               <li><a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp us</a></li>
               <li>Cape Town, South Africa</li>
             </ul>
@@ -53,7 +54,7 @@ export function Footer() {
         </div>
 
         <div className="mt-10 border-t border-border pt-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} HealthReachCareCare. All rights reserved.
+          © {new Date().getFullYear()} HealthReachCare. All rights reserved.
         </div>
       </div>
 
