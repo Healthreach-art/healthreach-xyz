@@ -469,7 +469,23 @@ function StaffPanel({ provider, staff, onChanged }: { provider: any; staff: any[
 
 /* ---------------- assignments ---------------- */
 
-function AssignmentsPanel({ assignments, onChanged }: { assignments: any[]; onChanged: () => void }) {
+function kmBetween(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)) * 10) / 10;
+}
+
+/** Suburb-level location, used before the provider accepts the job. */
+function suburbOf(address?: string | null) {
+  if (!address) return "Location shared once accepted";
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  return parts.length > 1 ? parts.slice(1).join(", ") : parts[0];
+}
+
+function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: any[]; provider: any; onChanged: () => void }) {
   const update = async (row: any, patch: Record<string, unknown>) => {
     const { error } = await supabase.from("homecare_assignments").update(patch as never).eq("id", row.id);
     if (error) { toast.error(error.message); return; }
