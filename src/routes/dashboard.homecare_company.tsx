@@ -461,7 +461,7 @@ function StaffPanel({ provider, staff, onChanged }: { provider: any; staff: any[
 
 function AssignmentsPanel({ assignments, onChanged }: { assignments: any[]; onChanged: () => void }) {
   const update = async (row: any, patch: Record<string, unknown>) => {
-    const { error } = await supabase.from("homecare_assignments").update(patch).eq("id", row.id);
+    const { error } = await supabase.from("homecare_assignments").update(patch as never).eq("id", row.id);
     if (error) { toast.error(error.message); return; }
     onChanged();
   };
