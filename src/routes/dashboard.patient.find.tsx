@@ -181,10 +181,36 @@ function FindCarePage() {
             <p className="text-sm text-muted-foreground mb-3">Doctors offering in-person / home visits.</p>
             <DoctorGrid doctors={filteredHomecare} />
           </TabsContent>
-          <TabsContent value="providers" className="mt-4">
-            <p className="text-sm text-muted-foreground mb-3">
-              Approved home care companies and individual carers{userLoc ? " within 100 km of you" : " — use your location to see distances"}.
+          <TabsContent value="providers" className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">Search within</span>
+              {HOMECARE_RADIUS_OPTIONS.map((km) => (
+                <Button
+                  key={km}
+                  size="sm"
+                  variant={homecareRadius === km ? "default" : "outline"}
+                  onClick={() => setHomecareRadius(km)}
+                >
+                  {km} km
+                </Button>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {userLoc
+                ? `Approved home care companies and individual carers within ${homecareRadius} km of you who also travel to your area.`
+                : "Approved home care companies and individual carers — use your location to filter by distance."}
             </p>
+            {userLoc && filteredProviders.length === 0 && homecareRadius < 100 && (
+              <p className="text-sm">
+                None within {homecareRadius} km.{" "}
+                <button
+                  className="font-semibold text-primary underline"
+                  onClick={() => setHomecareRadius(homecareRadius === 25 ? 50 : 100)}
+                >
+                  Expand to {homecareRadius === 25 ? 50 : 100} km
+                </button>
+              </p>
+            )}
             <ProviderGrid providers={filteredProviders} />
           </TabsContent>
         </Tabs>
