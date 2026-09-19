@@ -33,8 +33,8 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 }
 
 interface HomecareProvider {
-  id: string; provider_type: string; business_name: string | null; full_name: string | null;
-  address: string | null; services: string[] | null; service_areas: string[] | null;
+  id: string; provider_type: string; display_name: string; address: string | null; city: string | null;
+  services: string[] | null; service_areas: string[] | null; operating_hours: string | null;
   hourly_rate: number | null; distance_km: number | null;
 }
 
