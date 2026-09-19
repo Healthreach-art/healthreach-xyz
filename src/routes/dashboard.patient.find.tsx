@@ -32,10 +32,17 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+interface HomecareProvider {
+  id: string; provider_type: string; business_name: string | null; full_name: string | null;
+  address: string | null; services: string[] | null; service_areas: string[] | null;
+  hourly_rate: number | null; distance_km: number | null;
+}
+
 function FindCarePage() {
   const [q, setQ] = useState("");
   const [specialty, setSpecialty] = useState<string>("any");
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [homecare, setHomecare] = useState<HomecareProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
