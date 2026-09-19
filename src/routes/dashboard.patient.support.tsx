@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { LifeBuoy, Mail, MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/support")({
-  head: () => ({ meta: [{ title: "Support — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Support — HealthReachCareCare" }] }),
   component: () => (
     <RoleGuard allow="patient">
       <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
@@ -22,8 +22,8 @@ export const Route = createFileRoute("/dashboard/patient/support")({
           <div className="healthcare-card p-6">
             <Mail className="h-6 w-6 text-primary mb-3" />
             <h2 className="font-semibold mb-1">Email</h2>
-            <p className="text-sm text-muted-foreground mb-3">support@healthreach.co.za</p>
-            <Button asChild variant="outline"><a href="mailto:support@healthreach.co.za">Send email</a></Button>
+            <p className="text-sm text-muted-foreground mb-3">support@healthreachcare.co.za</p>
+            <Button asChild variant="outline"><a href="mailto:support@healthreachcare.co.za">Send email</a></Button>
           </div>
           <div className="healthcare-card p-6 sm:col-span-2">
             <MessageCircle className="h-6 w-6 text-primary mb-3" />

@@ -17,7 +17,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { issueEPrescription } from "@/lib/doctors.functions";
 
 export const Route = createFileRoute("/dashboard/hospital")({
-  head: () => ({ meta: [{ title: "Hospital Dashboard — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Hospital Dashboard — HealthReachCareCare" }] }),
   component: () => <RoleGuard allow="hospital"><HospitalDashboard /></RoleGuard>,
 });
 

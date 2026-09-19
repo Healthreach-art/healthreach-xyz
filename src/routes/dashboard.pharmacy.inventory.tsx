@@ -3,7 +3,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { PharmacyInventoryPanel } from "@/components/PharmacyInventoryPanel";
 
 export const Route = createFileRoute("/dashboard/pharmacy/inventory")({
-  head: () => ({ meta: [{ title: "Inventory — HEALTHREACH Pharmacy" }] }),
+  head: () => ({ meta: [{ title: "Inventory — HealthReachCareCare Pharmacy" }] }),
   component: () => (
     <RoleGuard allow="pharmacy">
       <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">

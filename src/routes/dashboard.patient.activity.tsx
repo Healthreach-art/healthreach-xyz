@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ClipboardList, Pill, FileText, Activity, Heart, Calendar, ShoppingBag } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/activity")({
-  head: () => ({ meta: [{ title: "Health Records — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Health Records — HealthReachCareCare" }] }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 

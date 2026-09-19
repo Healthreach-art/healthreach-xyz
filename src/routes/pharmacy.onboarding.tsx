@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/pharmacy/onboarding")({
-  head: () => ({ meta: [{ title: "Pharmacy Verification — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Pharmacy Verification — HealthReachCareCare" }] }),
   component: () => <RoleGuard allow="pharmacy"><Onboarding /></RoleGuard>,
 });
 

@@ -9,13 +9,13 @@ import { useState, type FormEvent } from "react";
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact Us — HEALTHREACH" },
-      { name: "description", content: "Get in touch with HEALTHREACH. We'd love to hear from you." },
-      { property: "og:title", content: "Contact Us — HEALTHREACH" },
+      { title: "Contact Us — HealthReachCareCare" },
+      { name: "description", content: "Get in touch with HealthReachCareCare. We'd love to hear from you." },
+      { property: "og:title", content: "Contact Us — HealthReachCareCare" },
       { property: "og:description", content: "Have questions about our healthcare platform? Reach out and we'll get back to you." },
-      { property: "og:url", content: "https://healthreachhub.lovable.app/contact" },
+      { property: "og:url", content: "https://healthreachcare.co.za/contact" },
     ],
-    links: [{ rel: "canonical", href: "https://healthreachhub.lovable.app/contact" }],
+    links: [{ rel: "canonical", href: "https://healthreachcare.co.za/contact" }],
   }),
   component: ContactPage,
 });
@@ -25,7 +25,7 @@ const PHONE_DISPLAY = "+27 79 728 5078";
 
 const contactInfo = [
   { icon: Phone, label: "Phone", value: PHONE_DISPLAY, href: "tel:+27797285078" },
-  { icon: MessageCircle, label: "WhatsApp", value: `Chat on WhatsApp (${PHONE_DISPLAY})`, href: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi HEALTHREACH, I'd like to ask a quick question.")}` },
+  { icon: MessageCircle, label: "WhatsApp", value: `Chat on WhatsApp (${PHONE_DISPLAY})`, href: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi HealthReachCareCare, I'd like to ask a quick question.")}` },
   { icon: MapPin, label: "Address", value: "Cape Town, South Africa" },
 ];
 

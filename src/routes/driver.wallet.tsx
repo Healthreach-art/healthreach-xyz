@@ -10,7 +10,7 @@ import { Wallet, Loader2, ArrowDownToLine, Clock, CheckCircle2, XCircle, Trendin
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/driver/wallet")({
-  head: () => ({ meta: [{ title: "Driver Wallet — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Driver Wallet — HealthReachCareCare" }] }),
   component: () => <RoleGuard allow="driver"><Wallet_ /></RoleGuard>,
 });
 

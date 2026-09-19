@@ -3,7 +3,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { TransactionHistory } from "@/components/TransactionHistory";
 
 export const Route = createFileRoute("/dashboard/patient/transactions")({
-  head: () => ({ meta: [{ title: "Transactions — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Transactions — HealthReachCareCare" }] }),
   component: () => (
     <RoleGuard allow="patient">
       <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">

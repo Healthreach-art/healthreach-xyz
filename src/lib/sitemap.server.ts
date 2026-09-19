@@ -1,4 +1,4 @@
-const BASE_URL = "https://healthreach.xyz";
+const BASE_URL = "https://healthreachcare.co.za";
 
 export interface SitemapEntry {
   path: string;

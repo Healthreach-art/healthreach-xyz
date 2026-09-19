@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 export default defineTool({
   name: "list_my_orders",
   title: "List my orders",
-  description: "List medication orders belonging to the signed-in HEALTHREACH user. Newest first.",
+  description: "List medication orders belonging to the signed-in HealthReachCareCare user. Newest first.",
   inputSchema: {
     limit: z.number().int().min(1).max(50).optional().describe("Max orders to return (default 10)."),
     status: z.string().optional().describe("Optional status filter, e.g. 'pending', 'delivered'."),

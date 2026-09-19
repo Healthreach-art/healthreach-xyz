@@ -5,10 +5,10 @@ import { Footer } from "@/components/Footer";
 export const Route = createFileRoute("/terms")({
   head: () => ({
     meta: [
-      { title: "Terms of Service — HEALTHREACH" },
-      { name: "description", content: "The rules and responsibilities for using the HEALTHREACH platform in South Africa." },
-      { property: "og:title", content: "Terms of Service — HEALTHREACH" },
-      { property: "og:description", content: "Terms governing patient, pharmacy, and driver use of HEALTHREACH." },
+      { title: "Terms of Service — HealthReachCareCare" },
+      { name: "description", content: "The rules and responsibilities for using the HealthReachCareCare platform in South Africa." },
+      { property: "og:title", content: "Terms of Service — HealthReachCareCare" },
+      { property: "og:description", content: "Terms governing patient, pharmacy, and driver use of HealthReachCareCare." },
     ],
   }),
   component: TermsPage,
@@ -25,7 +25,7 @@ function TermsPage() {
           <p className="text-sm text-muted-foreground mb-8">Last updated: {updated}</p>
 
           <Section title="1. Acceptance of terms">
-            By creating a HEALTHREACH account, you agree to these terms. If you do not agree, do not use the service.
+            By creating a HealthReachCareCare account, you agree to these terms. If you do not agree, do not use the service.
           </Section>
 
           <Section title="2. Eligibility">
@@ -33,7 +33,7 @@ function TermsPage() {
           </Section>
 
           <Section title="3. Medical disclaimer">
-            HEALTHREACH is a logistics and ordering platform — not a medical provider. Information from our AI assistant is for guidance only and is not a substitute for professional medical advice. Always consult a registered healthcare practitioner.
+            HealthReachCareCare is a logistics and ordering platform — not a medical provider. Information from our AI assistant is for guidance only and is not a substitute for professional medical advice. Always consult a registered healthcare practitioner.
           </Section>
 
           <Section title="4. Prescriptions">
@@ -53,11 +53,11 @@ function TermsPage() {
           </Section>
 
           <Section title="8. Prohibited use">
-            You may not use HEALTHREACH to traffic controlled substances outside a valid prescription, scrape data, reverse-engineer the platform, or harass other users.
+            You may not use HealthReachCareCare to traffic controlled substances outside a valid prescription, scrape data, reverse-engineer the platform, or harass other users.
           </Section>
 
           <Section title="9. Liability">
-            To the extent permitted by South African law, HEALTHREACH is not liable for indirect or consequential losses. Our total liability is capped at the value of your most recent order.
+            To the extent permitted by South African law, HealthReachCareCare is not liable for indirect or consequential losses. Our total liability is capped at the value of your most recent order.
           </Section>
 
           <Section title="10. Changes">
@@ -69,7 +69,7 @@ function TermsPage() {
           </Section>
 
           <Section title="12. Contact">
-            <a className="text-primary" href="mailto:legal@healthreach.co.za">legal@healthreach.co.za</a>
+            <a className="text-primary" href="mailto:support@healthreachcare.co.za">support@healthreachcare.co.za</a>
           </Section>
         </article>
       </main>

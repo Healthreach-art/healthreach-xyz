@@ -3,7 +3,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { AddressBook } from "@/components/AddressBook";
 
 export const Route = createFileRoute("/dashboard/patient/addresses")({
-  head: () => ({ meta: [{ title: "Saved Addresses — HEALTHREACH" }] }),
+  head: () => ({ meta: [{ title: "Saved Addresses — HealthReachCareCare" }] }),
   component: () => (
     <RoleGuard allow="patient">
       <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">

@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 export default defineTool({
   name: "whoami",
   title: "Who am I",
-  description: "Return the signed-in HEALTHREACH user's profile: id, email, role, and approval status.",
+  description: "Return the signed-in HealthReachCareCare user's profile: id, email, role, and approval status.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (_input, ctx) => {

@@ -10,9 +10,9 @@ import { ASSIGNMENT_LABEL } from "@/lib/homecare";
 export const Route = createFileRoute("/dashboard/homecare_staff")({
   head: () => ({
     meta: [
-      { title: "My Home Care Schedule — HEALTHREACH" },
-      { name: "description", content: "See the home care visits assigned to you and your schedule on HEALTHREACH." },
-      { property: "og:title", content: "My Home Care Schedule — HEALTHREACH" },
+      { title: "My Home Care Schedule — HealthReachCareCare" },
+      { name: "description", content: "See the home care visits assigned to you and your schedule on HealthReachCareCare." },
+      { property: "og:title", content: "My Home Care Schedule — HealthReachCareCare" },
       { property: "og:description", content: "See the home care visits assigned to you and your schedule." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

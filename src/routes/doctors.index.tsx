@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Star, MapPin, User as UserIcon, Search } from "lucide-react";
 
-const SITE = "https://healthreachhub.lovable.app";
+const SITE = "https://healthreachcare.co.za";
 
 interface Doc {
   id: string; full_name: string; specialty: string; city: string;
@@ -25,10 +25,10 @@ export const Route = createFileRoute("/doctors/")({
   },
   head: () => ({
     meta: [
-      { title: "Find a Doctor in South Africa | HealthReach RSA" },
-      { name: "description", content: "Search and book trusted doctors across South Africa. Browse profiles, specialties, fees and availability — book in seconds with HealthReach RSA." },
-      { property: "og:title", content: "Find a Doctor in South Africa | HealthReach RSA" },
-      { property: "og:description", content: "Search and book trusted doctors across South Africa on HealthReach RSA." },
+      { title: "Find a Doctor in South Africa | HealthReachCareCare" },
+      { name: "description", content: "Search and book trusted doctors across South Africa. Browse profiles, specialties, fees and availability — book in seconds with HealthReachCareCare." },
+      { property: "og:title", content: "Find a Doctor in South Africa | HealthReachCareCare" },
+      { property: "og:description", content: "Search and book trusted doctors across South Africa on HealthReachCareCare." },
       { property: "og:url", content: `${SITE}/doctors` },
     ],
     links: [{ rel: "canonical", href: `${SITE}/doctors` }],
