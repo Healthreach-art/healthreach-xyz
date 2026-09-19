@@ -172,8 +172,8 @@ function SignupPage() {
 
             {needsOrg && (
               <div className="space-y-2">
-                <Label htmlFor="orgName">{role === "hospital" ? "Hospital Name" : "Pharmacy Name"}</Label>
-                <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder={role === "hospital" ? "e.g. City General Hospital" : "e.g. City Pharmacy"} required maxLength={200} />
+                <Label htmlFor="orgName">{role === "hospital" ? "Hospital Name" : role === "homecare_company" ? "Business Name" : "Pharmacy Name"}</Label>
+                <Input id="orgName" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder={role === "hospital" ? "e.g. City General Hospital" : role === "homecare_company" ? "e.g. Bright Care Home Services" : "e.g. City Pharmacy"} required maxLength={200} />
               </div>
             )}
 
@@ -183,7 +183,7 @@ function SignupPage() {
             </div>
 
             <div className="space-y-1">
-              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : role === "doctor" ? "Practice address" : "Delivery address"}</Label>
+              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : role === "doctor" ? "Practice address" : isHomecare ? "Base address" : "Delivery address"}</Label>
               <AddressPicker
                 value={address}
                 onChange={setAddress}
