@@ -135,7 +135,7 @@ function HomecareProviderPage() {
           </TabsContent>
         )}
         <TabsContent value="assignments" className="mt-4">
-          <AssignmentsPanel assignments={assignments} onChanged={load} />
+          <AssignmentsPanel assignments={assignments} provider={provider} onChanged={load} />
         </TabsContent>
       </Tabs>
     </div>
