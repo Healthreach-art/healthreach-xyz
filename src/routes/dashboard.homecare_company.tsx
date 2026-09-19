@@ -500,17 +500,38 @@ function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: a
     <div className="space-y-3">
       {assignments.map((a) => {
         const r = a.homecare_requests;
+        const pending = a.status === "offered";
+        const when = a.scheduled_at ?? r?.preferred_at ?? null;
+        const travelKm = provider?.latitude != null && provider?.longitude != null && r?.latitude != null && r?.longitude != null
+          ? kmBetween(Number(provider.latitude), Number(provider.longitude), Number(r.latitude), Number(r.longitude))
+          : null;
+        const charge = a.amount == null ? null : Number(a.amount);
+        const fee = charge == null ? null : Math.round(charge * PLATFORM_RULES.PLATFORM_FEE_PCT * 100) / 100;
+        const earnings = charge == null || fee == null ? null : Math.round((charge - fee) * 100) / 100;
         return (
           <div key={a.id} className="healthcare-card p-4 space-y-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-semibold">{r?.service_type ?? "Home care visit"}</p>
-                <p className="text-xs text-muted-foreground">{r?.address}</p>
+                <p className="text-xs text-muted-foreground">{pending ? suburbOf(r?.address) : r?.address}</p>
                 {r?.preferred_at && <p className="text-xs text-muted-foreground">Preferred: {new Date(r.preferred_at).toLocaleString()}</p>}
                 {a.scheduled_at && <p className="text-xs text-muted-foreground">Scheduled: {new Date(a.scheduled_at).toLocaleString()}</p>}
               </div>
               <Badge variant={a.status === "confirmed" ? "default" : "secondary"}>{ASSIGNMENT_LABEL[a.status] ?? a.status}</Badge>
             </div>
+
+            <div className="grid gap-x-4 gap-y-1 rounded-xl border p-3 text-xs sm:grid-cols-2">
+              <p><span className="text-muted-foreground">Service: </span><span className="font-semibold">{r?.service_type ?? "—"}</span></p>
+              <p><span className="text-muted-foreground">Area: </span><span className="font-semibold">{suburbOf(r?.address)}</span></p>
+              <p><span className="text-muted-foreground">Date: </span><span className="font-semibold">{when ? new Date(when).toLocaleDateString() : "To be confirmed"}</span></p>
+              <p><span className="text-muted-foreground">Time: </span><span className="font-semibold">{when ? new Date(when).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "To be confirmed"}</span></p>
+              <p><span className="text-muted-foreground">Expected duration: </span><span className="font-semibold">{r?.duration_hours ? `${r.duration_hours} hour(s)` : "Not given"}</span></p>
+              <p><span className="text-muted-foreground">Travel distance: </span><span className="font-semibold">{travelKm != null ? `≈ ${travelKm} km` : "Unknown"}</span></p>
+              <p><span className="text-muted-foreground">Customer charge: </span><span className="font-semibold">{charge != null ? `R ${charge.toFixed(2)}` : "To be confirmed"}</span></p>
+              <p><span className="text-muted-foreground">Service fee ({Math.round(PLATFORM_RULES.PLATFORM_FEE_PCT * 100)}%): </span><span className="font-semibold">{fee != null ? `R ${fee.toFixed(2)}` : "—"}</span></p>
+              <p className="sm:col-span-2"><span className="text-muted-foreground">Your earnings: </span><span className="font-bold">{earnings != null ? `R ${earnings.toFixed(2)}` : "To be confirmed"}</span></p>
+            </div>
+
             {r?.description && <p className="text-sm">{r.description}</p>}
             <div className="flex flex-wrap gap-2">
               {a.status === "offered" && (
