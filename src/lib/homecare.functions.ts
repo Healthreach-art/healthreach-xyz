@@ -59,6 +59,18 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
       if (provider.latitude == null || provider.longitude == null) {
         throw new Error("This provider has no verified address pin yet, so they cannot be approved.");
       }
+      // same rule as doctors and drivers: required documents must be reviewed and approved first
+      const { docsFor } = await import("@/lib/homecare");
+      const required = docsFor(provider.provider_type);
+      const { data: docRows } = await supabaseAdmin
+        .from("homecare_documents").select("doc_key, status").eq("provider_id", data.providerId);
+      const missing = required.filter((r) => {
+        const row = (docRows ?? []).find((d) => d.doc_key === r.key);
+        return !row || row.status !== "approved";
+      });
+      if (missing.length > 0) {
+        throw new Error(`Approve these documents first: ${missing.map((m) => m.label).join(", ")}`);
+      }
       patch.approval_status = "approved";
       patch.is_active = true;
       patch.approved_by = context.userId;
