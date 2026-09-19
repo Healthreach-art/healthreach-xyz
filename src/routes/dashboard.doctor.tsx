@@ -312,6 +312,7 @@ function DoctorDashboard() {
   }
 
   async function submitDocs() {
+    if (!user) return;
     // Also update profile status to under_review so the dashboard gate reflects it.
     await supabase.from("profiles").update({ approval_status: "under_review" }).eq("user_id", user.id);
     if (!hpcsaNumber || !hpcsaPath || !idPath || qualPaths.length === 0 || !malpracticePath) {

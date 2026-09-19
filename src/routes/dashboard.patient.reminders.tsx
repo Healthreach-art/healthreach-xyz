@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { MedicationReminders } from "@/components/MedicationReminders";
+import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/reminders")({
   head: () => ({ meta: [{ title: "Reminders & Refills — HealthReachCare" }] }),
