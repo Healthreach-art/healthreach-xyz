@@ -2500,6 +2500,8 @@ export type Database = {
         | "driver"
         | "admin"
         | "doctor"
+        | "homecare_company"
+        | "homecare_staff"
       approval_status:
         | "pending"
         | "approved"
@@ -2664,6 +2666,8 @@ export const Constants = {
         "driver",
         "admin",
         "doctor",
+        "homecare_company",
+        "homecare_staff",
       ],
       approval_status: [
         "pending",
