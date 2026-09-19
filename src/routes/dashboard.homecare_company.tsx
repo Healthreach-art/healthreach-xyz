@@ -15,7 +15,7 @@ import {
   HomeIcon, Loader2, Upload, FileText, Users, ClipboardList, Trash2, CheckCircle2, XCircle,
 } from "lucide-react";
 import { docsFor, APPROVAL_LABEL, ASSIGNMENT_LABEL, HOMECARE_SERVICES } from "@/lib/homecare";
-import { getHomecareDocumentUrl } from "@/lib/homecare.functions";
+import { getHomecareDocumentUrl, getMyHomecareBanking } from "@/lib/homecare.functions";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
 
 export const Route = createFileRoute("/dashboard/homecare_company")({
