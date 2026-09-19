@@ -60,6 +60,29 @@ function FindCarePage() {
     })();
   }, []);
 
+  // Approved home care providers — within 100 km once we know the patient's location.
+  useEffect(() => {
+    (async () => {
+      if (userLoc) {
+        const { data } = await supabase.rpc("find_homecare_near", {
+          _lat: userLoc.lat, _lng: userLoc.lng, _max_km: 100,
+        });
+        setHomecare((data ?? []) as unknown as HomecareProvider[]);
+        return;
+      }
+      const { data } = await supabase.from("homecare_providers")
+        .select("id, provider_type, business_name, full_name, address, services, service_areas, operating_hours, hourly_rate")
+        .eq("approval_status", "approved").eq("is_active", true).limit(60);
+      setHomecare((data ?? []).map((r: any) => ({
+        id: r.id, provider_type: r.provider_type,
+        display_name: r.provider_type === "individual" ? (r.full_name || r.business_name) : r.business_name,
+        address: r.address, city: null, services: r.services, service_areas: r.service_areas,
+        operating_hours: r.operating_hours, hourly_rate: r.hourly_rate, distance_km: null,
+      })));
+    })();
+  }, [userLoc]);
+
+
   const useMyLocation = () => {
     if (!navigator.geolocation) { toast.error("Geolocation not supported"); return; }
     setLocating(true);
