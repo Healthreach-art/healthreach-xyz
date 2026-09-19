@@ -44,6 +44,7 @@ import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding
 import { Route as DoctorsIdRouteImport } from './routes/doctors.$id'
 import { Route as DashboardPharmacyRouteImport } from './routes/dashboard.pharmacy'
 import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
+import { Route as DashboardHomecare_staffRouteImport } from './routes/dashboard.homecare_staff'
 import { Route as DashboardHomecare_companyRouteImport } from './routes/dashboard.homecare_company'
 import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardDoctorRouteImport } from './routes/dashboard.doctor'
@@ -71,6 +72,7 @@ import { Route as DashboardPatientPrescriptionsRouteImport } from './routes/dash
 import { Route as DashboardPatientPaymentMethodsRouteImport } from './routes/dashboard.patient.payment-methods'
 import { Route as DashboardPatientOrdersRouteImport } from './routes/dashboard.patient.orders'
 import { Route as DashboardPatientMedicalAidRouteImport } from './routes/dashboard.patient.medical-aid'
+import { Route as DashboardPatientHomecareRouteImport } from './routes/dashboard.patient.homecare'
 import { Route as DashboardPatientFindRouteImport } from './routes/dashboard.patient.find'
 import { Route as DashboardPatientFamilyRouteImport } from './routes/dashboard.patient.family'
 import { Route as DashboardPatientConsultationsRouteImport } from './routes/dashboard.patient.consultations'
@@ -258,6 +260,11 @@ const DashboardHospitalRoute = DashboardHospitalRouteImport.update({
   path: '/dashboard/hospital',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardHomecare_staffRoute = DashboardHomecare_staffRouteImport.update({
+  id: '/dashboard/homecare_staff',
+  path: '/dashboard/homecare_staff',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardHomecare_companyRoute =
   DashboardHomecare_companyRouteImport.update({
     id: '/dashboard/homecare_company',
@@ -408,6 +415,12 @@ const DashboardPatientMedicalAidRoute =
     path: '/dashboard/patient/medical-aid',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DashboardPatientHomecareRoute =
+  DashboardPatientHomecareRouteImport.update({
+    id: '/dashboard/patient/homecare',
+    path: '/dashboard/patient/homecare',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DashboardPatientFindRoute = DashboardPatientFindRouteImport.update({
   id: '/dashboard/patient/find',
   path: '/dashboard/patient/find',
@@ -504,6 +517,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
+  '/dashboard/homecare_staff': typeof DashboardHomecare_staffRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRouteWithChildren
   '/doctors/$id': typeof DoctorsIdRoute
@@ -523,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
   '/dashboard/patient/find': typeof DashboardPatientFindRoute
+  '/dashboard/patient/homecare': typeof DashboardPatientHomecareRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
@@ -579,6 +594,7 @@ export interface FileRoutesByTo {
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
+  '/dashboard/homecare_staff': typeof DashboardHomecare_staffRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/doctors/$id': typeof DoctorsIdRoute
   '/driver/onboarding': typeof DriverOnboardingRoute
@@ -597,6 +613,7 @@ export interface FileRoutesByTo {
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
   '/dashboard/patient/find': typeof DashboardPatientFindRoute
+  '/dashboard/patient/homecare': typeof DashboardPatientHomecareRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
@@ -654,6 +671,7 @@ export interface FileRoutesById {
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
+  '/dashboard/homecare_staff': typeof DashboardHomecare_staffRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRouteWithChildren
   '/doctors/$id': typeof DoctorsIdRoute
@@ -673,6 +691,7 @@ export interface FileRoutesById {
   '/dashboard/patient/consultations': typeof DashboardPatientConsultationsRoute
   '/dashboard/patient/family': typeof DashboardPatientFamilyRoute
   '/dashboard/patient/find': typeof DashboardPatientFindRoute
+  '/dashboard/patient/homecare': typeof DashboardPatientHomecareRoute
   '/dashboard/patient/medical-aid': typeof DashboardPatientMedicalAidRoute
   '/dashboard/patient/orders': typeof DashboardPatientOrdersRoute
   '/dashboard/patient/payment-methods': typeof DashboardPatientPaymentMethodsRoute
@@ -731,6 +750,7 @@ export interface FileRouteTypes {
     | '/dashboard/doctor'
     | '/dashboard/driver'
     | '/dashboard/homecare_company'
+    | '/dashboard/homecare_staff'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
     | '/doctors/$id'
@@ -750,6 +770,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/consultations'
     | '/dashboard/patient/family'
     | '/dashboard/patient/find'
+    | '/dashboard/patient/homecare'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
@@ -806,6 +827,7 @@ export interface FileRouteTypes {
     | '/dashboard/doctor'
     | '/dashboard/driver'
     | '/dashboard/homecare_company'
+    | '/dashboard/homecare_staff'
     | '/dashboard/hospital'
     | '/doctors/$id'
     | '/driver/onboarding'
@@ -824,6 +846,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/consultations'
     | '/dashboard/patient/family'
     | '/dashboard/patient/find'
+    | '/dashboard/patient/homecare'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
@@ -880,6 +903,7 @@ export interface FileRouteTypes {
     | '/dashboard/doctor'
     | '/dashboard/driver'
     | '/dashboard/homecare_company'
+    | '/dashboard/homecare_staff'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
     | '/doctors/$id'
@@ -899,6 +923,7 @@ export interface FileRouteTypes {
     | '/dashboard/patient/consultations'
     | '/dashboard/patient/family'
     | '/dashboard/patient/find'
+    | '/dashboard/patient/homecare'
     | '/dashboard/patient/medical-aid'
     | '/dashboard/patient/orders'
     | '/dashboard/patient/payment-methods'
@@ -956,6 +981,7 @@ export interface RootRouteChildren {
   DashboardDoctorRoute: typeof DashboardDoctorRoute
   DashboardDriverRoute: typeof DashboardDriverRoute
   DashboardHomecare_companyRoute: typeof DashboardHomecare_companyRoute
+  DashboardHomecare_staffRoute: typeof DashboardHomecare_staffRoute
   DashboardHospitalRoute: typeof DashboardHospitalRoute
   DashboardPharmacyRoute: typeof DashboardPharmacyRouteWithChildren
   DoctorsIdRoute: typeof DoctorsIdRoute
@@ -972,6 +998,7 @@ export interface RootRouteChildren {
   DashboardPatientConsultationsRoute: typeof DashboardPatientConsultationsRoute
   DashboardPatientFamilyRoute: typeof DashboardPatientFamilyRoute
   DashboardPatientFindRoute: typeof DashboardPatientFindRoute
+  DashboardPatientHomecareRoute: typeof DashboardPatientHomecareRoute
   DashboardPatientMedicalAidRoute: typeof DashboardPatientMedicalAidRoute
   DashboardPatientOrdersRoute: typeof DashboardPatientOrdersRoute
   DashboardPatientPaymentMethodsRoute: typeof DashboardPatientPaymentMethodsRoute
@@ -1233,6 +1260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardHospitalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/homecare_staff': {
+      id: '/dashboard/homecare_staff'
+      path: '/dashboard/homecare_staff'
+      fullPath: '/dashboard/homecare_staff'
+      preLoaderRoute: typeof DashboardHomecare_staffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/homecare_company': {
       id: '/dashboard/homecare_company'
       path: '/dashboard/homecare_company'
@@ -1422,6 +1456,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientMedicalAidRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/patient/homecare': {
+      id: '/dashboard/patient/homecare'
+      path: '/dashboard/patient/homecare'
+      fullPath: '/dashboard/patient/homecare'
+      preLoaderRoute: typeof DashboardPatientHomecareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/patient/find': {
       id: '/dashboard/patient/find'
       path: '/dashboard/patient/find'
@@ -1588,6 +1629,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardDoctorRoute: DashboardDoctorRoute,
   DashboardDriverRoute: DashboardDriverRoute,
   DashboardHomecare_companyRoute: DashboardHomecare_companyRoute,
+  DashboardHomecare_staffRoute: DashboardHomecare_staffRoute,
   DashboardHospitalRoute: DashboardHospitalRoute,
   DashboardPharmacyRoute: DashboardPharmacyRouteWithChildren,
   DoctorsIdRoute: DoctorsIdRoute,
@@ -1604,6 +1646,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardPatientConsultationsRoute: DashboardPatientConsultationsRoute,
   DashboardPatientFamilyRoute: DashboardPatientFamilyRoute,
   DashboardPatientFindRoute: DashboardPatientFindRoute,
+  DashboardPatientHomecareRoute: DashboardPatientHomecareRoute,
   DashboardPatientMedicalAidRoute: DashboardPatientMedicalAidRoute,
   DashboardPatientOrdersRoute: DashboardPatientOrdersRoute,
   DashboardPatientPaymentMethodsRoute: DashboardPatientPaymentMethodsRoute,
