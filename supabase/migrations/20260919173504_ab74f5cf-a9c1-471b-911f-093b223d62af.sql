@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.find_homecare_near(double precision, double precision, integer) FROM anon;
