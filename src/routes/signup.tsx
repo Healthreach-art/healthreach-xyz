@@ -9,13 +9,15 @@ import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
 
 
-type SignupSearch = { role?: "patient" | "pharmacy" | "driver" | "doctor" | "hospital" };
+type SignupRole = "patient" | "pharmacy" | "driver" | "doctor" | "hospital" | "homecare_company" | "homecare_individual";
+type SignupSearch = { role?: SignupRole };
 
+const SIGNUP_ROLES: SignupRole[] = ["patient", "pharmacy", "driver", "doctor", "hospital", "homecare_company", "homecare_individual"];
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>): SignupSearch => {
     const r = search.role;
-    return { role: r === "pharmacy" || r === "driver" || r === "doctor" || r === "hospital" ? r : "patient" };
+    return { role: SIGNUP_ROLES.includes(r as SignupRole) ? (r as SignupRole) : "patient" };
   },
   head: () => ({
     meta: [
