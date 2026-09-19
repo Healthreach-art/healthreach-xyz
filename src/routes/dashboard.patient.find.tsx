@@ -124,6 +124,14 @@ function FindCarePage() {
 
   const filteredDoctors = useMemo(() => filterList(false), [doctors, q, specialty, userLoc]);
   const filteredHomecare = useMemo(() => filterList(true), [doctors, q, specialty, userLoc]);
+  const filteredProviders = useMemo(() => {
+    const needle = q.toLowerCase();
+    return homecare.filter((p) => {
+      if (!needle) return true;
+      const hay = [p.display_name, p.address, p.city, ...(p.services ?? []), ...(p.service_areas ?? [])].join(" ").toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [homecare, q]);
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
