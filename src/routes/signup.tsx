@@ -75,7 +75,8 @@ function SignupPage() {
       options: {
         data: {
           full_name: fullName,
-          role,
+          role: isHomecare ? "homecare_company" : role,
+          homecare_type: role === "homecare_individual" ? "individual" : role === "homecare_company" ? "company" : undefined,
           address: address.address,
           lat: address.lat,
           lng: address.lng,
