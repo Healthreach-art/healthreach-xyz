@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { toast } from "sonner";
-import { HomeIcon, Loader2 } from "lucide-react";
+import { ArrowLeft,  HomeIcon, Loader2 } from "lucide-react";
 import { HOMECARE_SERVICES, REQUEST_LABEL, ASSIGNMENT_LABEL } from "@/lib/homecare";
 
 export const Route = createFileRoute("/dashboard/patient/homecare")({
@@ -91,6 +91,9 @@ function PatientHomecarePage() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><HomeIcon className="h-6 w-6 text-primary" /> Home care</h1>
         <p className="text-sm text-muted-foreground">Request a carer or nurse to visit at home. Every request is reviewed before a provider is assigned.</p>

@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, Phone, MapPin, MessageCircle } from "lucide-react";
-import { useState, type FormEvent } from "react";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -25,18 +24,12 @@ const PHONE_DISPLAY = "+27 79 728 5078";
 
 const contactInfo = [
   { icon: Phone, label: "Phone", value: PHONE_DISPLAY, href: "tel:+27797285078" },
+  { icon: Mail, label: "Email", value: "support@healthreachcare.co.za", href: "mailto:support@healthreachcare.co.za" },
   { icon: MessageCircle, label: "WhatsApp", value: `Chat on WhatsApp (${PHONE_DISPLAY})`, href: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi HealthReachCare, I'd like to ask a quick question.")}` },
   { icon: MapPin, label: "Address", value: "Cape Town, South Africa" },
 ];
 
 function ContactPage() {
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
-  };
-
   return (
     <div>
       <section className="section-padding healthcare-gradient">
@@ -52,21 +45,7 @@ function ContactPage() {
         <div className="container-narrow">
           <div className="grid gap-12 lg:grid-cols-5">
             <div className="lg:col-span-3">
-              {submitted ? (
-                <div className="healthcare-card p-8 text-center">
-                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-healthcare-green/20">
-                    <Mail className="h-6 w-6 text-healthcare-green" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground">Message Sent!</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Thank you for reaching out. We'll get back to you within 24 hours.
-                  </p>
-                  <Button variant="outline" className="mt-6" onClick={() => setSubmitted(false)}>
-                    Send Another Message
-                  </Button>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="healthcare-card p-8 space-y-5">
+                <form action="mailto:support@healthreachcare.co.za" method="post" encType="text/plain" className="healthcare-card p-8 space-y-5">
                   <h2 className="text-2xl font-bold text-foreground mb-2">Send us a message</h2>
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
@@ -87,10 +66,10 @@ function ContactPage() {
                     <Textarea id="message" placeholder="Tell us more..." rows={5} required maxLength={1000} />
                   </div>
                   <Button type="submit" size="lg" className="w-full sm:w-auto">
-                    Send Message
+                    Open Email App
                   </Button>
+                  <p className="text-sm text-muted-foreground">Your email app will open with this message. It is only sent after you confirm there.</p>
                 </form>
-              )}
             </div>
 
             <div className="lg:col-span-2 space-y-6">

@@ -10,7 +10,7 @@ import {
   Heart,
   Clock,
   Users,
-  Activity,
+  HousePlus,
   Stethoscope,
   CalendarCheck as CalendarCheckIcon,
 } from "lucide-react";
@@ -20,7 +20,7 @@ import rolePharmacy from "@/assets/role-pharmacy.jpg";
 import roleHospital from "@/assets/role-hospital.jpg";
 import roleDriver from "@/assets/role-driver.jpg";
 import roleDoctor from "@/assets/role-doctor.jpg";
-import roleAdmin from "@/assets/role-admin.jpg";
+import roleHomecare from "@/assets/role-homecare.jpg";
 import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
 import tileTrack from "@/assets/tile-track-delivery.png";
@@ -140,11 +140,11 @@ const roles = [
     to: "/for-drivers",
   },
   {
-    icon: Activity,
-    img: roleAdmin,
-    title: "Administrators",
-    description: "Oversee the entire platform with analytics, user management, and reports.",
-    to: "/login",
+    icon: HousePlus,
+    img: roleHomecare,
+    title: "Home Care Providers",
+    description: "Provide trusted care at home, manage your profile and documents, receive assignments, schedule visits, and keep customers updated throughout the care journey.",
+    to: "/signup?role=homecare_company",
   },
 ];
 
@@ -181,10 +181,10 @@ function HomePage() {
               Healthcare, simplified
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-primary-foreground leading-[1.1]">
-              Your Central Hub for Integrated Healthcare
+              HealthReachCare
             </h1>
             <p className="mt-6 text-lg text-primary-foreground/80 leading-relaxed max-w-xl">
-              Connecting patients, pharmacies, hospitals, and delivery services in one seamless platform. Order medication, coordinate care, and track everything in real-time.
+              Your central hub for integrated healthcare. Connect with doctors, pharmacies, home care providers, hospitals, and delivery services in one seamless platform.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link to="/login">

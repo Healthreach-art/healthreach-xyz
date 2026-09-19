@@ -208,12 +208,12 @@ function Onboarding() {
       <div className="healthcare-card p-5 mb-6">
         <h2 className="font-semibold mb-3 flex items-center gap-2"><Building2 className="h-4 w-4" /> Pharmacy details</h2>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Pharmacy / trading name" value={fields.organization_name ?? ""} onChange={(v) => setField("organization_name", v)} />
-          <Field label="Contact phone" value={fields.phone ?? ""} onChange={(v) => setField("phone", v)} />
+          <Field label="Pharmacy / trading name" value={fields.organization_name ?? ""} onChange={(v) => setField("organization_name", v)} onBlur={() => user && void supabase.from("profiles").update({ organization_name: fields.organization_name }).eq("user_id", user.id)} />
+          <Field label="Contact phone" value={fields.phone ?? ""} onChange={(v) => setField("phone", v)} onBlur={() => user && void supabase.from("profiles").update({ phone: fields.phone }).eq("user_id", user.id)} />
           <div className="sm:col-span-2">
-            <Field label="Physical address" value={fields.address ?? ""} onChange={(v) => setField("address", v)} />
+            <Field label="Physical address" value={fields.address ?? ""} onChange={(v) => setField("address", v)} onBlur={() => user && void supabase.from("profiles").update({ address: fields.address }).eq("user_id", user.id)} />
           </div>
-          <Field label="Business registration number (CIPC)" value={fields.business_reg_number ?? ""} onChange={(v) => setField("business_reg_number", v)} />
+          <Field label="Business registration number (CIPC)" value={fields.business_reg_number ?? ""} onChange={(v) => setField("business_reg_number", v)} onBlur={() => user && void supabase.from("profiles").update({ business_reg_number: fields.business_reg_number }).eq("user_id", user.id)} />
           <Field label="Tax / VAT number (optional)" value={fields.tax_number ?? ""} onChange={(v) => setField("tax_number", v)} />
         </div>
       </div>
@@ -222,7 +222,7 @@ function Onboarding() {
       <div className="healthcare-card p-5 mb-6">
         <h2 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Licence</h2>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Pharmacy licence number (SAPC)" value={fields.license_number ?? ""} onChange={(v) => setField("license_number", v)} />
+          <Field label="Pharmacy licence number (SAPC)" value={fields.license_number ?? ""} onChange={(v) => setField("license_number", v)} onBlur={() => user && void supabase.from("profiles").update({ license_number: fields.license_number }).eq("user_id", user.id)} />
           <div>
             <Label className="text-xs">Licence expires</Label>
             <Input type="date" value={fields.license_expires_at ?? ""} onChange={(e) => setField("license_expires_at", e.target.value)} className="mt-1" />
@@ -234,8 +234,8 @@ function Onboarding() {
       <div className="healthcare-card p-5 mb-6">
         <h2 className="font-semibold mb-3 flex items-center gap-2"><UserCheck className="h-4 w-4" /> Responsible pharmacist</h2>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Full name" value={fields.pharmacist_name ?? ""} onChange={(v) => setField("pharmacist_name", v)} />
-          <Field label="SAPC council number" value={fields.pharmacist_council_number ?? ""} onChange={(v) => setField("pharmacist_council_number", v)} />
+          <Field label="Full name" value={fields.pharmacist_name ?? ""} onChange={(v) => setField("pharmacist_name", v)} onBlur={() => user && void supabase.from("profiles").update({ pharmacist_name: fields.pharmacist_name }).eq("user_id", user.id)} />
+          <Field label="SAPC council number" value={fields.pharmacist_council_number ?? ""} onChange={(v) => setField("pharmacist_council_number", v)} onBlur={() => user && void supabase.from("profiles").update({ pharmacist_council_number: fields.pharmacist_council_number }).eq("user_id", user.id)} />
           <Field label="Pharmacist phone (optional)" value={fields.responsible_pharmacist_phone ?? ""} onChange={(v) => setField("responsible_pharmacist_phone", v)} />
         </div>
       </div>
@@ -285,11 +285,11 @@ function Onboarding() {
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Field({ label, value, onChange, onBlur }: { label: string; value: string; onChange: (v: string) => void; onBlur?: () => void }) {
   return (
     <div>
       <Label className="text-xs">{label}</Label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} className="mt-1" />
+      <Input value={value} onChange={(e) => onChange(e.target.value)} onBlur={onBlur} className="mt-1" />
     </div>
   );
 }

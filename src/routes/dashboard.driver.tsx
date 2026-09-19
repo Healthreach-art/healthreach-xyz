@@ -595,7 +595,7 @@ function DriverDashboard() {
           <Coffee className="h-4 w-4" /> Break mode — you stay logged in but won't receive new requests.
         </div>
       )}
-      {(docsComplete === false || approvalStatus !== "approved") && (
+      {(docsComplete === false || approvalStatus !== "approved" || !docsComplete) && (
         <div className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 flex items-start gap-3">
           <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 text-sm">

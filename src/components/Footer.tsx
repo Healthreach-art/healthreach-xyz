@@ -14,7 +14,7 @@ export function Footer() {
             <Link to="/" className="flex items-center gap-2 mb-4">
               <img src={logo} alt="HealthReachCare" className="h-9 w-auto" />
               <span className="text-lg font-bold tracking-tight text-foreground">
-                HEALTH<span className="text-primary">REACH</span>
+                HealthReach<span className="text-primary">Care</span>
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -29,6 +29,7 @@ export function Footer() {
               <li><Link to="/for-doctors" className="hover:text-foreground transition-colors">For Doctors</Link></li>
               <li><Link to="/for-pharmacies" className="hover:text-foreground transition-colors">For Pharmacies</Link></li>
               <li><Link to="/for-drivers" className="hover:text-foreground transition-colors">For Drivers</Link></li>
+              <li><Link to="/signup" search={{ role: "homecare_company" }} className="hover:text-foreground transition-colors">For Home Care Providers</Link></li>
             </ul>
           </div>
 
@@ -46,6 +47,7 @@ export function Footer() {
             <h3 className="mb-3 text-sm font-semibold text-foreground">Contact</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="tel:+27797285078" className="inline-flex items-center gap-2 hover:text-foreground"><Phone className="h-3.5 w-3.5" /> +27 79 728 5078</a></li>
+              <li><a href="mailto:support@healthreachcare.co.za" className="hover:text-foreground">support@healthreachcare.co.za</a></li>
               <li><a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp us</a></li>
               <li>Cape Town, South Africa</li>
             </ul>

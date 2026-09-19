@@ -3,6 +3,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft } from "lucide-react";
 import { Search, Loader2, Plus, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -81,6 +82,10 @@ function SearchPage() {
   };
 
   return (
+    <>
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Search Medicines</h1>
@@ -161,5 +166,6 @@ function SearchPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }

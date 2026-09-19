@@ -4,7 +4,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Wallet as WalletIcon, ArrowDown, ArrowUp, Plus, Lock, CreditCard, Loader2 } from "lucide-react";
+import { ArrowLeft,  Wallet as WalletIcon, ArrowDown, ArrowUp, Plus, Lock, CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { getWalletSummary, topUpWithSavedCard, confirmWalletTopUp } from "@/lib/wallet.functions";
@@ -134,6 +134,9 @@ function WalletPage() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <WalletIcon className="h-6 w-6 text-primary" /> Wallet

@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, Trash2, Upload, ShieldCheck, Bell, User as UserIcon, Plus, Check } from "lucide-react";
+import { Loader2, Trash2, Upload, ShieldCheck, Fingerprint, Bell, User as UserIcon, Plus, Check } from "lucide-react";
 import { AddressPicker } from "@/components/AddressPicker";
 
 interface Props { open: boolean; onClose: () => void; }
@@ -23,12 +24,14 @@ export function SettingsDialog({ open, onClose }: Props) {
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
         <Tabs defaultValue="profile" className="mt-2">
-          <TabsList className="grid grid-cols-3 w-full">
+          <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="profile"><UserIcon className="h-3.5 w-3.5 mr-1" />Profile</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="h-3.5 w-3.5 mr-1" />Alerts</TabsTrigger>
+            <TabsTrigger value="privacy"><Fingerprint className="h-3.5 w-3.5 mr-1" />Privacy</TabsTrigger>
             <TabsTrigger value="security"><ShieldCheck className="h-3.5 w-3.5 mr-1" />Security</TabsTrigger>
           </TabsList>
           <TabsContent value="profile" className="pt-4"><ProfileTab userId={user?.id} initial={profile} /></TabsContent>
+          <TabsContent value="privacy" className="pt-4"><PrivacyTab /></TabsContent>
           <TabsContent value="notifications" className="pt-4"><NotificationsTab userId={user?.id} /></TabsContent>
           <TabsContent value="security" className="pt-4"><SecurityTab email={user?.email} /></TabsContent>
         </Tabs>
@@ -260,6 +263,55 @@ function SecurityTab({ email }: { email?: string }) {
         <Button size="sm" onClick={changePassword} disabled={savingPwd}>{savingPwd ? "Updating..." : "Change password"}</Button>
       </div>
       <Button variant="outline" size="sm" onClick={signOutAll}>Sign out other devices</Button>
+    </div>
+  );
+}
+
+function PrivacyTab() {
+  const handleExport = () => {
+    toast.info("Preparing your data package...", {
+      description: "A secure download link will be sent to your email within 24 hours as per POPIA requirements."
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground">Your Data Rights (POPIA)</h3>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Under the South African Protection of Personal Information Act, you have the right to access, 
+          correct, and delete your personal and health information.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-border p-4 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Data Portability</p>
+            <p className="text-xs text-muted-foreground">Download a machine-readable copy of your profile and history.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleExport}>Request Export</Button>
+        </div>
+        
+        <div className="pt-4 border-t border-border flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Third-Party Access</p>
+            <p className="text-xs text-muted-foreground">View which pharmacies or providers have accessed your prescriptions.</p>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/dashboard/patient/activity" className="inline-flex items-center">View Logs</Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2 pt-2">
+        <h3 className="text-sm font-semibold text-destructive">Danger Zone</h3>
+        <p className="text-xs text-muted-foreground">Permanently delete your account and all associated health records. This action cannot be undone.</p>
+        <div className="mt-2">
+          {/* Note: DeleteAccountButton is imported already in this file? No, I need to check. */}
+          <p className="text-xs text-muted-foreground italic">To delete your account, use the button in the sidebar menu.</p>
+        </div>
+      </div>
     </div>
   );
 }

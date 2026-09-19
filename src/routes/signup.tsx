@@ -11,6 +11,7 @@ import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
 
 type SignupRole = "patient" | "pharmacy" | "driver" | "doctor" | "hospital" | "homecare_company" | "homecare_individual";
 type SignupSearch = { role?: SignupRole };
+import { Checkbox } from "@/components/ui/checkbox";
 
 const SIGNUP_ROLES: SignupRole[] = ["patient", "pharmacy", "driver", "doctor", "hospital", "homecare_company", "homecare_individual"];
 
@@ -53,9 +54,14 @@ function SignupPage() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState<PickedAddress | null>(null);
   const [error, setError] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+    if (!agreed) {
+      setError("You must agree to the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
@@ -64,6 +70,15 @@ function SignupPage() {
       return;
     }
     setLoading(true);
+    // Duplicate phone check
+    if (phone) {
+      const { data: existingPhone } = await supabase.from("profiles").select("user_id").eq("phone", phone).maybeSingle();
+      if (existingPhone) {
+        setError("This phone number is already registered to another account.");
+        setLoading(false);
+        return;
+      }
+    }
 
     // Clear any lingering session from a previous account so the new
     // signup doesn't get redirected into someone else's dashboard.
@@ -200,6 +215,12 @@ function SignupPage() {
               </div>
             )}
 
+            <div className="flex items-start space-x-2 py-2">
+              <Checkbox id="terms" checked={agreed} onCheckedChange={(v) => setAgreed(!!v)} required />
+              <Label htmlFor="terms" className="text-xs leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-muted-foreground">
+                I agree to the <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link> and <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
+              </Label>
+            </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating account..." : `Create ${meta.label} Account`}
             </Button>

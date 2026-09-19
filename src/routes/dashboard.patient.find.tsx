@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Loader2, Stethoscope, Star, MapPin, Navigation, Home as HomeIcon, CheckCircle2 } from "lucide-react";
+import { Search, Loader2, Stethoscope, Star, MapPin, Navigation, Home as HomeIcon, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -139,6 +139,9 @@ function FindCarePage() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Stethoscope className="h-6 w-6 text-primary" /> Book Appointment</h1>

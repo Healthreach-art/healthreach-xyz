@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { verifyPrescription } from "@/utils/ai.functions";
-import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw, Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles, Download, Share2, Link as LinkIcon, Package } from "lucide-react";
+import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw, Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles, Download, Share2, Link as LinkIcon, Package, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrescriptionStatusBadge, PrescriptionUploader, getPrescriptionFileUrl, FraudPanel, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { PatientVerificationCard } from "@/components/PatientVerificationCard";
@@ -140,6 +140,10 @@ function Page() {
   }
 
   return (
+    <>
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">My Prescription Library</h1>
@@ -330,5 +334,6 @@ function Page() {
         <DrugInteractionPanel medications={prescriptions.filter(p => p.is_active !== false).map(p => p.medication_name)} />
       )}
     </div>
+    </>
   );
 }

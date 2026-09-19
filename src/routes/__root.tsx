@@ -7,6 +7,7 @@ import { FloatingCart } from "@/components/FloatingCart";
 import { Toaster } from "@/components/ui/sonner";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ServiceRatingPrompt } from "@/components/ServiceRatingPrompt";
+import { CookieConsent } from "@/components/CookieConsent";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -57,8 +58,6 @@ export const Route = createRootRoute({
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "HealthReachCare" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:image", content: "https://healthreachcare.co.za/og-image.png" },
-      { name: "twitter:image", content: "https://healthreachcare.co.za/og-image.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -101,6 +100,7 @@ function RootComponent() {
         <FloatingCart />
         <Toaster />
         <NotificationCenter />
+        <CookieConsent />
         <ServiceRatingPrompt />
         
       </CartProvider>

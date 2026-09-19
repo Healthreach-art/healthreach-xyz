@@ -104,7 +104,7 @@ function Page() {
       if (!window.PaystackPop) throw new Error("Paystack failed to load");
       const handler = window.PaystackPop.setup({
         key: PAYSTACK_PUBLIC_KEY,
-        email: user.email || "patient@healthreach.app",
+        email: user.email || "support@healthreachcare.co.za",
         amount: platformFeeCents,
         currency: "ZAR",
         callback: (resp) => {

@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star, MessageCircle } from "lucide-react";
+import { ArrowLeft,  Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
@@ -101,6 +101,9 @@ function Page() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Stethoscope className="h-6 w-6 text-primary" /> My Consultations

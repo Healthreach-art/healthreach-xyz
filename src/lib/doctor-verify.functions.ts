@@ -35,6 +35,7 @@ export const submitDoctorDocuments = createServerFn({ method: "POST" })
       submitted_at: new Date().toISOString(),
       verified_at: null,
       rejection_reason: null,
+      requested_documents: [],
     };
     const { error } = await supabaseAdmin
       .from("doctor_documents")
@@ -49,8 +50,9 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z.object({
       doctorUserId: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
-      decision: z.enum(["approve", "reject"]),
+      decision: z.enum(["approve", "reject", "request_documents"]),
       reason: z.string().max(500).optional(),
+      requestedDocuments: z.array(z.string().min(1).max(120)).max(20).optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -61,6 +63,7 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
     if (!roleRow) throw new Error("Admin only");
 
     const approve = data.decision === "approve";
+    const requestDocuments = data.decision === "request_documents";
     const ts = new Date().toISOString();
 
     // Check publish-readiness (matches DB trigger guard_doctor_publish_ready).
@@ -95,15 +98,15 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
 
     // Update profile approval status
     await supabaseAdmin.from("profiles")
-      .update({ approval_status: approve ? "approved" : "rejected", updated_at: ts })
+      .update({ approval_status: approve ? "approved" : requestDocuments ? "under_review" : "rejected", updated_at: ts })
       .eq("user_id", data.doctorUserId);
 
     await supabaseAdmin.from("admin_audit_log").insert({
       admin_id: context.userId,
-      action: approve ? "doctor.approve" : "doctor.reject",
+      action: approve ? "doctor.approve" : requestDocuments ? "doctor.request_documents" : "doctor.reject",
       target_type: "doctor",
       target_id: data.doctorUserId,
-      payload: { reason: data.reason ?? null },
+      payload: { reason: data.reason ?? null, requested_documents: data.requestedDocuments ?? [] },
     });
 
 
@@ -112,7 +115,8 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
       .update({
         verified_at: approve ? ts : null,
         verified_by: approve ? context.userId : null,
-        rejection_reason: approve ? null : (data.reason ?? "Documents rejected"),
+        rejection_reason: approve || requestDocuments ? null : (data.reason ?? "Documents rejected"),
+        requested_documents: requestDocuments ? (data.requestedDocuments ?? []) : [],
       })
       .eq("doctor_user_id", data.doctorUserId);
 
@@ -126,7 +130,7 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
           is_verified: goLive,
           verified_at: goLive ? ts : null,
           verified_by: goLive ? context.userId : null,
-          rejection_reason: approve ? null : (data.reason ?? "Documents rejected"),
+          rejection_reason: approve || requestDocuments ? null : (data.reason ?? "Documents rejected"),
           is_active: goLive,
         })
         .eq("id", existingDoc.id);
@@ -137,12 +141,14 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
     await supabaseAdmin.from("notifications").insert({
       user_id: data.doctorUserId,
       category: "system",
-      title: approve ? (publishReady ? "You're verified" : "Documents approved") : "Verification rejected",
+      title: approve ? (publishReady ? "You're verified" : "Documents approved") : requestDocuments ? "More documents needed" : "Verification rejected",
       body: approve
         ? (publishReady
             ? "Your HealthReachCare doctor account is approved. Patients can now book you."
             : `Your documents are approved. Complete your public profile to go live: ${readinessNote.replace(/^Approved\. Doctor still needs to complete: /, "").replace(/ before going live\.$/, "")}.`)
-        : `Your verification was rejected. ${data.reason ?? "Please review the requested documents and resubmit."}`,
+        : requestDocuments
+          ? `Please update and resubmit: ${(data.requestedDocuments ?? []).join(", ") || data.reason || "the requested documents"}.`
+          : `Your verification was rejected. ${data.reason ?? "Please review the requested documents and resubmit."}`,
       link: "/dashboard/doctor",
     });
 

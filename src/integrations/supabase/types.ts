@@ -463,6 +463,7 @@ export type Database = {
           practice_letter_path: string | null
           qualification_paths: string[]
           rejection_reason: string | null
+          requested_documents: string[]
           submitted_at: string | null
           updated_at: string
           verified_at: string | null
@@ -482,6 +483,7 @@ export type Database = {
           practice_letter_path?: string | null
           qualification_paths?: string[]
           rejection_reason?: string | null
+          requested_documents?: string[]
           submitted_at?: string | null
           updated_at?: string
           verified_at?: string | null
@@ -501,6 +503,7 @@ export type Database = {
           practice_letter_path?: string | null
           qualification_paths?: string[]
           rejection_reason?: string | null
+          requested_documents?: string[]
           submitted_at?: string | null
           updated_at?: string
           verified_at?: string | null

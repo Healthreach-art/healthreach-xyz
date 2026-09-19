@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ClipboardList, Pill, FileText, Activity, Heart, Calendar, ShoppingBag } from "lucide-react";
+import { ArrowLeft,  ClipboardList, Pill, FileText, Activity, Heart, Calendar, ShoppingBag } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/activity")({
   head: () => ({ meta: [{ title: "Health Records — HealthReachCare" }] }),
@@ -46,6 +46,9 @@ function Page() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <ClipboardList className="h-6 w-6 text-primary" /> Health Records

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, Trash2, Cake, AlertCircle, Heart, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft,  Users, Plus, Trash2, Cake, AlertCircle, Heart, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
 import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
@@ -69,6 +69,9 @@ function Page() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">

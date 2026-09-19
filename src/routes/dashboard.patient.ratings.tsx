@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Loader2, Trash2, Pencil, Save, X } from "lucide-react";
+import { ArrowLeft,  Star, Loader2, Trash2, Pencil, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -68,6 +68,9 @@ function Page() {
 
   return (
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+      </Link>
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Star className="h-6 w-6 text-amber-500" /> My Ratings</h1>
         <p className="text-sm text-muted-foreground">One rating per completed service. You can edit or remove your past ratings here.</p>
