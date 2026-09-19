@@ -31,10 +31,10 @@ export const Route = createFileRoute("/doctors/$id")({
   },
   head: ({ params, loaderData }) => {
     const d = loaderData?.doc;
-    const title = d ? `Dr. ${d.full_name} — ${d.specialty}, ${d.city} | HealthReachCare` : "Doctor — HealthReachCare";
+    const title = d ? `Dr. ${d.full_name} — ${d.specialty}, ${d.city} | HealthReachCareCare` : "Doctor — HealthReachCareCare";
     const description = d
-      ? `Book an appointment with Dr. ${d.full_name}, ${d.specialty} in ${d.city}. Consultation from R${Number(d.consultation_fee).toFixed(0)}. Verified profile on HealthReachCare.`
-      : "Find and book trusted doctors across South Africa on HealthReachCare.";
+      ? `Book an appointment with Dr. ${d.full_name}, ${d.specialty} in ${d.city}. Consultation from R${Number(d.consultation_fee).toFixed(0)}. Verified profile on HealthReachCareCare.`
+      : "Find and book trusted doctors across South Africa on HealthReachCareCare.";
     const url = `${SITE}/doctors/${params.id}`;
     const meta: Array<Record<string, string>> = [
       { title },
@@ -269,7 +269,7 @@ function PublicDoctorPage() {
       )}
 
       <p className="text-[11px] text-muted-foreground text-center">
-        HealthReachCare is a marketplace connecting patients with independent healthcare providers. We do not provide medical services, prescriptions, or treatment.
+        HealthReachCareCare is a marketplace connecting patients with independent healthcare providers. We do not provide medical services, prescriptions, or treatment.
       </p>
     </div>
   );

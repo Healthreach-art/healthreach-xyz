@@ -65,7 +65,7 @@ export function DeleteAccountButton({ variant = "sidebar", collapsed = false }: 
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete your HealthReachCare account?</AlertDialogTitle>
+          <AlertDialogTitle>Delete your HealthReachCareCare account?</AlertDialogTitle>
           <AlertDialogDescription>
             This permanently removes your profile, orders, prescriptions, documents,
             wallet, ratings and every other record tied to this account. The same

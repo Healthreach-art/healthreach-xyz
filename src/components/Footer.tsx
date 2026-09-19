@@ -3,7 +3,7 @@ import { MessageCircle, Phone } from "lucide-react";
 import logo from "@/assets/healthreach-logo.png";
 
 const WA_NUMBER = "27797285078";
-const WA_LINK = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi HealthReachCare, I'd like to ask a quick question.")}`;
+const WA_LINK = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi HealthReachCareCare, I'd like to ask a quick question.")}`;
 
 export function Footer() {
   return (
@@ -12,7 +12,7 @@ export function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <img src={logo} alt="HealthReachCare" className="h-9 w-auto" />
+              <img src={logo} alt="HealthReachCareCare" className="h-9 w-auto" />
               <span className="text-lg font-bold tracking-tight text-foreground">
                 HEALTH<span className="text-primary">REACH</span>
               </span>
@@ -53,7 +53,7 @@ export function Footer() {
         </div>
 
         <div className="mt-10 border-t border-border pt-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} HealthReachCare. All rights reserved.
+          © {new Date().getFullYear()} HealthReachCareCare. All rights reserved.
         </div>
       </div>
 

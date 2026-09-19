@@ -8,7 +8,7 @@ import { Lock, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
-    meta: [{ title: "Reset Password — HealthReachCare" }],
+    meta: [{ title: "Reset Password — HealthReachCareCare" }],
   }),
   component: ResetPasswordPage,
 });

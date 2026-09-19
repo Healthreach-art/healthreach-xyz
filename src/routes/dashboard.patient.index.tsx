@@ -20,7 +20,7 @@ import tileTrack from "@/assets/tile-track-delivery.png";
 
 
 export const Route = createFileRoute("/dashboard/patient/")({
-  head: () => ({ meta: [{ title: "Dashboard — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — HealthReachCareCare" }] }),
   component: () => (
     <RoleGuard allow="patient">
       <PatientDashboard />

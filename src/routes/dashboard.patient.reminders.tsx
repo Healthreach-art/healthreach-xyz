@@ -3,7 +3,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { MedicationReminders } from "@/components/MedicationReminders";
 
 export const Route = createFileRoute("/dashboard/patient/reminders")({
-  head: () => ({ meta: [{ title: "Reminders & Refills — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Reminders & Refills — HealthReachCareCare" }] }),
   component: () => (
     <RoleGuard allow="patient">
       <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">

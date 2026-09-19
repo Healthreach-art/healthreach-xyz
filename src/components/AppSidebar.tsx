@@ -123,11 +123,11 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader>
-        <Link to={user ? dashboardPath : "/"} className="flex items-center px-2 py-2" aria-label="HealthReachCare home">
+        <Link to={user ? dashboardPath : "/"} className="flex items-center px-2 py-2" aria-label="HealthReachCareCare home">
           {collapsed ? (
-            <img src={logoImg} alt="HealthReachCare" width={36} height={36} className="h-9 w-9 rounded-xl object-contain" />
+            <img src={logoImg} alt="HealthReachCareCare" width={36} height={36} className="h-9 w-9 rounded-xl object-contain" />
           ) : (
-            <img src={logoImg} alt="HealthReachCare" width={160} height={44} className="h-8 w-auto" />
+            <img src={logoImg} alt="HealthReachCareCare" width={160} height={44} className="h-8 w-auto" />
           )}
         </Link>
       </SidebarHeader>

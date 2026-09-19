@@ -10,8 +10,8 @@ import { Mail, AlertCircle, CheckCircle } from "lucide-react";
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({
     meta: [
-      { title: "Forgot Password — HealthReachCare" },
-      { name: "description", content: "Request a HealthReachCare password reset email." },
+      { title: "Forgot Password — HealthReachCareCare" },
+      { name: "description", content: "Request a HealthReachCareCare password reset email." },
     ],
   }),
   component: ForgotPasswordPage,

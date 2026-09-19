@@ -20,8 +20,8 @@ export const Route = createFileRoute("/login")({
   }),
   head: () => ({
     meta: [
-      { title: "Log In — HealthReachCare" },
-      { name: "description", content: "Log in to your HealthReachCare account." },
+      { title: "Log In — HealthReachCareCare" },
+      { name: "description", content: "Log in to your HealthReachCareCare account." },
     ],
   }),
   component: LoginPage,
@@ -110,7 +110,7 @@ function LoginPage() {
             Your health,<br/>delivered with care.
           </h2>
           <p className="text-primary-foreground/85">
-            Order medication, book doctors, and track deliveries — all in one HealthReachCare account.
+            Order medication, book doctors, and track deliveries — all in one HealthReachCareCare account.
           </p>
           <ul className="space-y-2 text-sm text-primary-foreground/90">
             <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/70" /> SAPC-verified pharmacies and HPCSA doctors</li>
@@ -139,7 +139,7 @@ function LoginPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {isAdminMode
                 ? "Restricted area — admin accounts only"
-                : "Sign in to your HealthReachCare account"}
+                : "Sign in to your HealthReachCareCare account"}
             </p>
           </div>
 

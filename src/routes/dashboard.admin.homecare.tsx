@@ -20,9 +20,9 @@ import { APPROVAL_LABEL, ASSIGNMENT_LABEL, REQUEST_LABEL, docsFor } from "@/lib/
 export const Route = createFileRoute("/dashboard/admin/homecare")({
   head: () => ({
     meta: [
-      { title: "Home Care Control — HealthReachCare Admin" },
-      { name: "description", content: "Review, approve and assign HealthReachCare home care companies and individual providers." },
-      { property: "og:title", content: "Home Care Control — HealthReachCare Admin" },
+      { title: "Home Care Control — HealthReachCareCare Admin" },
+      { name: "description", content: "Review, approve and assign HealthReachCareCare home care companies and individual providers." },
+      { property: "og:title", content: "Home Care Control — HealthReachCareCare Admin" },
       { property: "og:description", content: "Review, approve and assign home care providers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

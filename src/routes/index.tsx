@@ -30,9 +30,9 @@ import tileAppt from "@/assets/tile-book-appointment.png";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HealthReachCare — Order Medication & Manage Care in South Africa" },
-      { name: "description", content: "Order medication from verified South African pharmacies, upload prescriptions, track deliveries live, and coordinate care — all in one HealthReachCare account." },
-      { property: "og:title", content: "HealthReachCare — Order Medication & Manage Care in South Africa" },
+      { title: "HealthReachCareCare — Order Medication & Manage Care in South Africa" },
+      { name: "description", content: "Order medication from verified South African pharmacies, upload prescriptions, track deliveries live, and coordinate care — all in one HealthReachCareCare account." },
+      { property: "og:title", content: "HealthReachCareCare — Order Medication & Manage Care in South Africa" },
       { property: "og:description", content: "Order medication, upload prescriptions, track deliveries live, and coordinate care across pharmacies, hospitals and drivers." },
       { property: "og:url", content: "https://healthreachcare.co.za/" },
     ],
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "HealthReachCare",
+          name: "HealthReachCareCare",
           url: "https://healthreachcare.co.za/",
           email: "support@healthreachcare.co.za",
           telephone: "+27-79-728-5078",
@@ -61,7 +61,7 @@ export const Route = createFileRoute("/")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
-          name: "HealthReachCare",
+          name: "HealthReachCareCare",
           url: "https://healthreachcare.co.za/",
         }),
       },
@@ -311,7 +311,7 @@ function HomePage() {
           <div className="text-center mb-10">
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground">Become a Partner</h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Grow your pharmacy or earn on the road — join the HealthReachCare network.
+              Grow your pharmacy or earn on the road — join the HealthReachCareCare network.
             </p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
@@ -362,7 +362,7 @@ function HomePage() {
             Ready to Transform Healthcare?
           </h2>
           <p className="mt-4 text-lg text-primary-foreground/80 max-w-xl mx-auto">
-            Join thousands of healthcare professionals and patients already using HealthReachCare.
+            Join thousands of healthcare professionals and patients already using HealthReachCareCare.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link to="/signup">

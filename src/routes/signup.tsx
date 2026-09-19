@@ -21,15 +21,15 @@ export const Route = createFileRoute("/signup")({
   },
   head: () => ({
     meta: [
-      { title: "Sign Up — HealthReachCare" },
-      { name: "description", content: "Create your HealthReachCare account." },
+      { title: "Sign Up — HealthReachCareCare" },
+      { name: "description", content: "Create your HealthReachCareCare account." },
     ],
   }),
   component: SignupPage,
 });
 
 const ROLE_META = {
-  patient: { label: "Patient", title: "Create Patient Account", desc: "Join HealthReachCare today" },
+  patient: { label: "Patient", title: "Create Patient Account", desc: "Join HealthReachCareCare today" },
   pharmacy: { label: "Pharmacy", title: "Become a Pharmacy Partner", desc: "Manage inventory and fulfill orders" },
   driver: { label: "Driver", title: "Become a Driver", desc: "Deliver medications to patients" },
   doctor: { label: "Doctor", title: "Register as a Doctor", desc: "Self-register, upload HPCSA + legal docs, get approved" },

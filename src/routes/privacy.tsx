@@ -5,9 +5,9 @@ import { Footer } from "@/components/Footer";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy Policy — HealthReachCare" },
-      { name: "description", content: "How HealthReachCare collects, uses, and protects your personal and health information under POPIA." },
-      { property: "og:title", content: "Privacy Policy — HealthReachCare" },
+      { title: "Privacy Policy — HealthReachCareCare" },
+      { name: "description", content: "How HealthReachCareCare collects, uses, and protects your personal and health information under POPIA." },
+      { property: "og:title", content: "Privacy Policy — HealthReachCareCare" },
       { property: "og:description", content: "Our commitment to protecting patient health data under South African POPIA law." },
     ],
   }),
@@ -25,7 +25,7 @@ function PrivacyPage() {
           <p className="text-sm text-muted-foreground mb-8">Last updated: {updated}</p>
 
           <Section title="1. Who we are">
-            HealthReachCare ("we", "us") operates the healthreachcare.co.za platform connecting patients, pharmacies, and drivers across South Africa. We comply with the Protection of Personal Information Act (POPIA, Act 4 of 2013).
+            HealthReachCareCare ("we", "us") operates the healthreachcare.co.za platform connecting patients, pharmacies, and drivers across South Africa. We comply with the Protection of Personal Information Act (POPIA, Act 4 of 2013).
           </Section>
 
           <Section title="2. Information we collect">

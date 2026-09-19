@@ -11,7 +11,7 @@ import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient/consultations")({
-  head: () => ({ meta: [{ title: "My Consultations — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "My Consultations — HealthReachCareCare" }] }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 

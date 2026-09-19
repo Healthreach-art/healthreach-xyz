@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/patient/ratings")({
-  head: () => ({ meta: [{ title: "My Ratings — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "My Ratings — HealthReachCareCare" }] }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 

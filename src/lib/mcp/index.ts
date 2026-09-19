@@ -9,10 +9,10 @@ const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unse
 
 export default defineMcp({
   name: "healthreach-mcp",
-  title: "HealthReachCare",
+  title: "HealthReachCareCare",
   version: "0.1.0",
   instructions:
-    "Tools to read the signed-in HealthReachCare user's data: profile, orders, prescriptions, and the pharmacy medication catalog. All data is scoped to the authenticated user via Supabase RLS.",
+    "Tools to read the signed-in HealthReachCareCare user's data: profile, orders, prescriptions, and the pharmacy medication catalog. All data is scoped to the authenticated user via Supabase RLS.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

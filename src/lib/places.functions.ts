@@ -47,7 +47,7 @@ export const autocompleteAddress = createServerFn({ method: "POST" })
       url.searchParams.set("addressdetails", "1");
       url.searchParams.set("limit", "6");
       url.searchParams.set("countrycodes", "za");
-      const res = await fetch(url.toString(), { headers: { "User-Agent": "HealthReachCare/1.0" } });
+      const res = await fetch(url.toString(), { headers: { "User-Agent": "HealthReachCareCare/1.0" } });
       if (!res.ok) return { suggestions: [] };
       const arr = (await res.json()) as Array<{ place_id: number; display_name: string; lat: string; lon: string }>;
       return {
@@ -81,7 +81,7 @@ export const resolvePlace = createServerFn({ method: "POST" })
         url.searchParams.set("lat", lat);
         url.searchParams.set("lon", lon);
         url.searchParams.set("format", "json");
-        const res = await fetch(url.toString(), { headers: { "User-Agent": "HealthReachCare/1.0" } });
+        const res = await fetch(url.toString(), { headers: { "User-Agent": "HealthReachCareCare/1.0" } });
         const j = res.ok ? ((await res.json()) as { display_name?: string }) : null;
         return { address: j?.display_name ?? `${latN}, ${lngN}`, lat: latN, lng: lngN };
       } catch {
@@ -124,7 +124,7 @@ export const reverseGeocodeOne = createServerFn({ method: "POST" })
       url.searchParams.set("lat", String(data.lat));
       url.searchParams.set("lon", String(data.lng));
       url.searchParams.set("format", "json");
-      const res = await fetch(url.toString(), { headers: { "User-Agent": "HealthReachCare/1.0" } });
+      const res = await fetch(url.toString(), { headers: { "User-Agent": "HealthReachCareCare/1.0" } });
       const j = res.ok ? ((await res.json()) as { display_name?: string }) : null;
       return { address: j?.display_name ?? `${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}` };
     } catch {

@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/pharmacy/documents")({
-  head: () => ({ meta: [{ title: "My Documents — HealthReachCare Pharmacy" }] }),
+  head: () => ({ meta: [{ title: "My Documents — HealthReachCareCare Pharmacy" }] }),
   component: () => <RoleGuard allow="pharmacy"><DocumentsProfile /></RoleGuard>,
 });
 

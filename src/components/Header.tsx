@@ -20,11 +20,11 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container-narrow flex h-20 items-center justify-between px-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-3" aria-label="HealthReachCare home">
-          <img src={logo} alt="HealthReachCare" width={220} height={64} className="h-14 w-auto sm:h-16" />
+        <Link to="/" className="flex items-center gap-3" aria-label="HealthReachCareCare home">
+          <img src={logo} alt="HealthReachCareCare" width={220} height={64} className="h-14 w-auto sm:h-16" />
           {user ? (
             <span className="font-heading text-xl font-bold tracking-tight text-foreground">
-              HealthReachCare
+              HealthReachCareCare
             </span>
           ) : null}
         </Link>

@@ -21,9 +21,9 @@ import { PLATFORM_RULES } from "@/lib/platform-rules";
 export const Route = createFileRoute("/dashboard/homecare_company")({
   head: () => ({
     meta: [
-      { title: "Home Care Dashboard — HealthReachCare" },
-      { name: "description", content: "Manage your HealthReachCare home care profile, documents, staff and visit assignments." },
-      { property: "og:title", content: "Home Care Dashboard — HealthReachCare" },
+      { title: "Home Care Dashboard — HealthReachCareCare" },
+      { name: "description", content: "Manage your HealthReachCareCare home care profile, documents, staff and visit assignments." },
+      { property: "og:title", content: "Home Care Dashboard — HealthReachCareCare" },
       { property: "og:description", content: "Manage your home care profile, documents, staff and assignments." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

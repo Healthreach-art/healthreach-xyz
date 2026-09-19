@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 
 export const Route = createFileRoute("/dashboard/patient/prescriptions")({
-  head: () => ({ meta: [{ title: "Prescriptions — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Prescriptions — HealthReachCareCare" }] }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 
@@ -103,7 +103,7 @@ function Page() {
   async function sharePrescription(u: PrescriptionUpload) {
     try {
       const url = await getPrescriptionFileUrl(u.file_path);
-      const shareData = { title: "HealthReachCare prescription", text: "Secure prescription link", url };
+      const shareData = { title: "HealthReachCareCare prescription", text: "Secure prescription link", url };
       if (typeof navigator !== "undefined" && (navigator as any).share) {
         try { await (navigator as any).share(shareData); return; }
         catch { /* user cancelled — fall through to copy */ }
