@@ -34,14 +34,17 @@ const ROLE_META = {
   driver: { label: "Driver", title: "Become a Driver", desc: "Deliver medications to patients" },
   doctor: { label: "Doctor", title: "Register as a Doctor", desc: "Self-register, upload HPCSA + legal docs, get approved" },
   hospital: { label: "Hospital", title: "Register your Hospital", desc: "Issue digital prescriptions and manage your doctors" },
+  homecare_company: { label: "Home Care Company", title: "Register your Home Care Company", desc: "Register your business, add your staff and get approved" },
+  homecare_individual: { label: "Home Care Provider", title: "Register as a Home Care Provider", desc: "Offer home visits as an individual carer or nurse" },
 } as const;
 
 function SignupPage() {
   const navigate = useNavigate();
   const { role = "patient" } = useSearch({ from: "/signup" }) as SignupSearch;
   const meta = ROLE_META[role];
-  const needsOrg = role === "pharmacy" || role === "hospital";
-  const needsApproval = role === "pharmacy" || role === "driver" || role === "doctor" || role === "hospital";
+  const isHomecare = role === "homecare_company" || role === "homecare_individual";
+  const needsOrg = role === "pharmacy" || role === "hospital" || role === "homecare_company";
+  const needsApproval = role !== "patient";
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
