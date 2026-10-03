@@ -2,7 +2,7 @@ import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { firestoreClient } from "@/lib/firestore-client";
 import { Link } from "@tanstack/react-router";
 import { LogIn, AlertCircle, ShieldCheck, Eye, EyeOff } from "lucide-react";
@@ -37,6 +37,14 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const isSubmitting = useRef(false);
+  const navigationStarted = useRef(false);
+
+  const navigateOnce = async (to: string) => {
+    if (navigationStarted.current) return;
+    navigationStarted.current = true;
+    await navigate({ to: to as never, replace: true });
+  };
 
   useEffect(() => {
     if (denied === "admin") {
@@ -48,101 +56,108 @@ function LoginPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
     setError("");
     setLoading(true);
 
-    // 1) Firebase first. Admins recognised in Firestore go straight to the
-    //    Firebase admin dashboard.
-    const cleanEmail = email.trim();
-    const cleanPassword = password.trim();
-    let firebaseUid: string | null = null;
-    let firebaseAdmin = false;
     try {
-      const { ensureFirebaseSession } = await import("@/lib/firestore-sync");
-      const { getUserRoles } = await import("@/lib/firestore");
-      firebaseUid = await ensureFirebaseSession(cleanEmail, cleanPassword);
-      if (firebaseUid) {
-        const roles: string[] = await getUserRoles(firebaseUid).catch((): string[] => []);
-        firebaseAdmin =
-          roles.includes("admin") || cleanEmail.toLowerCase() === "admin@healthreachcare.co.za";
-      }
-    } catch { /* fall back to the existing system */ }
+      // 1) Firebase first. Admins recognised in Firestore go straight to the
+      //    Firebase admin dashboard.
+      const cleanEmail = email.trim();
+      const cleanPassword = password.trim();
+      let firebaseUid: string | null = null;
+      let firebaseAdmin = false;
+      try {
+        const { ensureFirebaseSession } = await import("@/lib/firestore-sync");
+        const { getUserRoles } = await import("@/lib/firestore");
+        firebaseUid = await ensureFirebaseSession(cleanEmail, cleanPassword);
+        if (firebaseUid) {
+          const roles: string[] = await getUserRoles(firebaseUid).catch((): string[] => []);
+          firebaseAdmin =
+            roles.includes("admin") || cleanEmail.toLowerCase() === "admin@healthreachcare.co.za";
+        }
+      } catch { /* fall back to the existing system */ }
 
-    if (firebaseAdmin) {
-      navigate({ to: "/firebase-admin", replace: true });
-      return;
-    }
-
-    // Firebase-only sign-in for every role.
-    if (firebaseUid) {
-      const { getUserRoles } = await import("@/lib/firestore");
-      const roles: string[] = await getUserRoles(firebaseUid).catch((): string[] => []);
-      const r = (roles[0] ?? "patient") as Parameters<typeof dashboardPathForRole>[0];
-      if (isAdminMode) {
-        setError("This account is not an admin account.");
-        setLoading(false);
+      if (firebaseAdmin) {
+        await navigateOnce("/firebase-admin");
         return;
       }
-      if (safeRedirect) { window.location.assign(safeRedirect); return; }
-      navigate({ to: dashboardPathForRole(r) as never, replace: true });
-      return;
-    }
 
-    // 2) Existing system (fallback).
-    let signInData: Awaited<ReturnType<typeof firestoreClient.auth.signInWithPassword>>["data"] | null = null;
-    let authError: { message: string } | null = null;
-    try {
-      const existing = await firestoreClient.auth.getSession();
-      if (existing.data.session?.user.email?.toLowerCase() !== cleanEmail.toLowerCase()) {
-        await firestoreClient.auth.signOut({ scope: "local" });
+      // Firebase-only sign-in for every role.
+      if (firebaseUid) {
+        const { getUserRoles } = await import("@/lib/firestore");
+        const roles: string[] = await getUserRoles(firebaseUid).catch((): string[] => []);
+        const r = (roles[0] ?? "patient") as Parameters<typeof dashboardPathForRole>[0];
+        if (isAdminMode) {
+          setError("This account is not an admin account.");
+          return;
+        }
+        if (safeRedirect) { window.location.assign(safeRedirect); return; }
+        await navigateOnce(dashboardPathForRole(r));
+        return;
       }
-      const res = await firestoreClient.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
-      signInData = res.data;
-      authError = res.error;
+
+      // 2) Existing system (fallback).
+      let signInData: Awaited<ReturnType<typeof firestoreClient.auth.signInWithPassword>>["data"] | null = null;
+      let authError: { message: string } | null = null;
+      try {
+        const existing = await firestoreClient.auth.getSession();
+        if (existing.data.session?.user.email?.toLowerCase() !== cleanEmail.toLowerCase()) {
+          await firestoreClient.auth.signOut({ scope: "local" });
+        }
+        const res = await firestoreClient.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
+        signInData = res.data;
+        authError = res.error;
+      } catch (err) {
+        authError = { message: err instanceof Error ? err.message : "Sign-in service unavailable." };
+      }
+
+      if (authError || !signInData || !signInData.user) {
+        const msg = /email.*not.*confirm/i.test(authError?.message ?? "")
+          ? "Please confirm your email first — check your inbox for the verification link."
+          : firebaseUid
+            ? "Your account was found, but your dashboard is temporarily unavailable. Please try again in a minute."
+            : authError?.message ?? "Sign-in failed.";
+        setError(msg);
+        return;
+      }
+
+      const userId = signInData.user?.id;
+      if (!userId) {
+        setError("Sign in succeeded but no user was returned. Please try again.");
+        return;
+      }
+
+      const role = await resolveUserRole(signInData.user, { repairMissing: true });
+
+      // Mirror the account into Firebase (Firestore profiles + roles) in the
+      // background. Never blocks or fails the sign-in.
+      void syncAfterAuth(email.trim(), password.trim(), {
+        email: email.trim(),
+        fullName: (signInData.user.user_metadata?.full_name as string | undefined) ?? undefined,
+        role,
+      }).catch(() => {});
+
+      if (isAdminMode && role !== "admin") {
+        await firestoreClient.auth.signOut();
+        setError("This account is not an admin account. Please use an admin login or switch to the standard login.");
+        return;
+      }
+
+      if (safeRedirect) {
+        window.location.assign(safeRedirect);
+        return;
+      }
+      await navigateOnce(dashboardPathForRole(role));
     } catch (err) {
-      authError = { message: err instanceof Error ? err.message : "Sign-in service unavailable." };
-    }
-
-    if (authError || !signInData || !signInData.user) {
-      const msg = /email.*not.*confirm/i.test(authError?.message ?? "")
-        ? "Please confirm your email first — check your inbox for the verification link."
-        : firebaseUid
-          ? "Your account was found, but your dashboard is temporarily unavailable. Please try again in a minute."
-          : authError?.message ?? "Sign-in failed.";
-      setError(msg);
+      console.error("[auth] Login could not be completed.", err);
+      navigationStarted.current = false;
+      setError("Sign-in could not be completed. Please try again.");
+    } finally {
+      isSubmitting.current = false;
       setLoading(false);
-      return;
     }
-
-    const userId = signInData.user?.id;
-    if (!userId) {
-      setError("Sign in succeeded but no user was returned. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    const role = await resolveUserRole(signInData.user, { repairMissing: true });
-
-    // Mirror the account into Firebase (Firestore profiles + roles) in the
-    // background. Never blocks or fails the sign-in.
-    void syncAfterAuth(email.trim(), password.trim(), {
-      email: email.trim(),
-      fullName: (signInData.user.user_metadata?.full_name as string | undefined) ?? undefined,
-      role,
-    }).catch(() => {});
-
-    if (isAdminMode && role !== "admin") {
-      await firestoreClient.auth.signOut();
-      setError("This account is not an admin account. Please use an admin login or switch to the standard login.");
-      setLoading(false);
-      return;
-    }
-
-    if (safeRedirect) {
-      window.location.assign(safeRedirect);
-      return;
-    }
-    navigate({ to: dashboardPathForRole(role) as never, replace: true });
   };
 
 
@@ -316,4 +331,3 @@ function LoginPage() {
     </div>
   );
 }
-

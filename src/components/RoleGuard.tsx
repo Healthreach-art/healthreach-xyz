@@ -1,4 +1,5 @@
-import { Navigate } from "@tanstack/react-router";
+import { Navigate, useRouterState } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import type { ReactNode } from "react";
@@ -16,17 +17,26 @@ interface Props {
  */
 export function RoleGuard({ allow, children }: Props) {
   const { user, role, loading } = useAuth();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
-  // While auth is loading, or the user is signed in but role hasn't been
-  // fetched yet (fetchUserData runs async after onAuthStateChange), show a
-  // spinner instead of bouncing to /login.
+  // Don't redirect until Firebase has resolved the session and its Firestore role.
   if (loading || (user && !role)) {
-    return null;
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center" role="status" aria-label="Checking your account">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
-
-  if (!user || !role) return <Navigate to="/login" />;
-  if (role !== allow) return <Navigate to={dashboardPathForRole(role) as never} />;
+  if (!user || !role) {
+    if (pathname === "/login") return null;
+    return <Navigate to="/login" replace />;
+  }
+  if (role !== allow) {
+    const destination = dashboardPathForRole(role);
+    if (pathname === destination || pathname.startsWith(`${destination}/`)) return null;
+    return <Navigate to={destination as never} replace />;
+  }
 
   return <>{children}</>;
 }

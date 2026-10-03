@@ -64,6 +64,17 @@ function createAppUser(firebaseUser: FirebaseAuthUser, role: AppRole): AuthUser 
   };
 }
 
+function profilesMatch(a: ResolvedProfile | null, b: ResolvedProfile): boolean {
+  return !!a &&
+    a.full_name === b.full_name &&
+    a.email === b.email &&
+    a.organization_name === b.organization_name &&
+    a.phone === b.phone &&
+    a.address === b.address &&
+    a.is_demo === b.is_demo &&
+    a.avatar_url === b.avatar_url;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -166,12 +177,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const firebaseUser = firebaseUserRef.current;
       if (!firebaseUser) return;
       try {
-        const account = await resolveUserAccount(firebaseUser, role);
+        const account = await resolveUserAccount(firebaseUser);
         if (cancelled) return;
-        setRole(account.role);
-        setApprovalStatus(account.approvalStatus);
-        setProfile(account.profile);
-        setUser(createAppUser(firebaseUser, account.role));
+        setRole((current) => current === account.role ? current : account.role);
+        setApprovalStatus((current) => current === account.approvalStatus ? current : account.approvalStatus);
+        setProfile((current) => profilesMatch(current, account.profile) ? current : account.profile);
+        setUser((current) => (
+          current?.id === firebaseUser.uid &&
+          current.user_metadata.role === account.role &&
+          current.user_metadata.full_name === (firebaseUser.displayName ?? "")
+            ? current
+            : createAppUser(firebaseUser, account.role)
+        ));
       } catch (error) {
         console.error("[auth] Could not refresh the signed-in user's Firestore account.", error);
       }
@@ -197,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       stopProfiles?.();
       stopRoles?.();
     };
-  }, [user?.id, role]);
+  }, [user?.id]);
 
   const signOut = async () => {
     hydrateId.current += 1;
