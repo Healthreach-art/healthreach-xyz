@@ -1,0 +1,19 @@
+rules_version = '2';
+// HealthReachCare Cloud Storage rules (paste in Firebase Console → Storage → Rules).
+// Private documents: owner uploads/reads own folder; admins read all. Nothing public.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null && (request.auth.token.email == 'admin@healthreachcare.co.za'
+        || firestore.exists(/databases/(default)/documents/user_roles/$(request.auth.uid + '_admin')));
+    }
+    match /documents/{uid}/{allPaths=**} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
+      allow delete: if isAdmin();
+    }
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}
