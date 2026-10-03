@@ -80,6 +80,14 @@ function LoginPage() {
 
     const role = await resolveUserRole(signInData.user, { repairMissing: true });
 
+    // Mirror the account into Firebase (Firestore profiles + roles) in the
+    // background. Never blocks or fails the sign-in.
+    void syncAfterAuth(email.trim(), password.trim(), {
+      email: email.trim(),
+      fullName: (signInData.user.user_metadata?.full_name as string | undefined) ?? undefined,
+      role,
+    }).catch(() => {});
+
     if (isAdminMode && role !== "admin") {
       await supabase.auth.signOut();
       setError("This account is not an admin account. Please use an admin login or switch to the standard login.");
