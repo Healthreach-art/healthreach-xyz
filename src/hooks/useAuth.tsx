@@ -1,11 +1,32 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import {
+  getFirebaseIdToken,
+  onFirebaseAuthChange,
+  type FirebaseAuthUser,
+} from "@/lib/firebase-auth";
 import { resolveUserAccount, type AppRole, type ResolvedProfile } from "@/lib/auth-session";
+import { fsSubscribe, where } from "@/lib/firestore";
+
+type AuthUser = {
+  id: string;
+  email: string | null;
+  user_metadata: { full_name: string; role: AppRole };
+  app_metadata: Record<string, never>;
+  created_at: string;
+  aud: "authenticated";
+};
+
+type AuthSession = {
+  user: AuthUser;
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: "bearer";
+};
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
+  session: AuthSession | null;
   role: AppRole | null;
   approvalStatus: string | null;
   profile: ResolvedProfile | null;
@@ -29,146 +50,165 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+function createAppUser(firebaseUser: FirebaseAuthUser, role: AppRole): AuthUser {
+  return {
+    id: firebaseUser.uid,
+    email: firebaseUser.email,
+    user_metadata: {
+      full_name: firebaseUser.displayName ?? "",
+      role,
+    },
+    app_metadata: {},
+    created_at: "",
+    aud: "authenticated",
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
-  const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
+  const [profile, setProfile] = useState<ResolvedProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const hydrateId = useRef(0);
-
-  async function hydrateSession(nextSession: Session | null) {
-    const currentHydrate = ++hydrateId.current;
-    setLoading(true);
-    setSession(nextSession);
-    setUser(nextSession?.user ?? null);
-    setRole(null);
-    setApprovalStatus(null);
-    setProfile(null);
-
-    if (!nextSession?.user) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const account = await resolveUserAccount(nextSession.user);
-      if (currentHydrate !== hydrateId.current) return;
-      setRole(account.role);
-      setApprovalStatus(account.approvalStatus);
-      setProfile(account.profile);
-    } catch {
-      if (currentHydrate !== hydrateId.current) return;
-      setRole("patient");
-      setApprovalStatus(null);
-      setProfile({
-        full_name: nextSession.user.user_metadata?.full_name ?? "",
-        email: nextSession.user.email ?? "",
-        organization_name: "",
-        phone: "",
-        address: "",
-        is_demo: false,
-        avatar_url: "",
-      });
-    } finally {
-      if (currentHydrate === hydrateId.current) setLoading(false);
-    }
-  }
+  const firebaseUserRef = useRef<FirebaseAuthUser | null>(null);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "TOKEN_REFRESHED") {
-          setSession(session);
-          setUser(session?.user ?? null);
-          return;
-        }
-
-        if (event === "INITIAL_SESSION") return;
-
-        window.setTimeout(() => void hydrateSession(session), 0);
-      }
-    );
-
-    // Firebase is the primary sign-in. If a Firebase user exists, build the
-    // session from Firestore; otherwise fall back to the old system.
-    let fbUnsub: (() => void) | null = null;
     let cancelled = false;
-    (async () => {
-      try {
-        const { onFirebaseAuthChange } = await import("@/lib/firebase-auth");
-        fbUnsub = await onFirebaseAuthChange(async (fb) => {
-          if (cancelled) return;
-          if (!fb) {
-            const { data } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
-            void hydrateSession(data.session);
-            return;
-          }
-          const currentHydrate = ++hydrateId.current;
-          const { getProfile, getUserRoles } = await import("@/lib/firestore");
-          const [p, roles] = await Promise.all([
-            getProfile(fb.uid).catch(() => null) as Promise<Record<string, unknown> | null>,
-            getUserRoles(fb.uid).catch(() => [] as string[]),
-          ]);
-          if (currentHydrate !== hydrateId.current) return;
-          const email = fb.email ?? "";
-          const isBootstrap = email.toLowerCase() === "admin@healthreachcare.co.za";
-          const r = (isBootstrap || roles.includes("admin") ? "admin" : (roles[0] ?? (p?.role as string) ?? "patient")) as AppRole;
-          const fakeUser = {
-            id: fb.uid, email, aud: "authenticated", app_metadata: {}, created_at: "",
-            user_metadata: { full_name: (p?.fullName as string) ?? fb.displayName ?? "", role: r },
-          } as unknown as User;
-          setUser(fakeUser);
-          setSession({ user: fakeUser, access_token: "", refresh_token: "", expires_in: 3600, token_type: "bearer" } as unknown as Session);
-          setRole(r);
-          setApprovalStatus((p?.status as string) ?? (r === "patient" || r === "admin" ? "approved" : "pending_review"));
-          setProfile({
-            full_name: (p?.fullName as string) ?? fb.displayName ?? "",
-            email,
-            organization_name: (p?.organizationName as string) ?? "",
-            phone: (p?.phone as string) ?? "",
-            address: (p?.address as string) ?? "",
-            is_demo: false,
-            avatar_url: fb.photoURL ?? "",
-          });
-          setLoading(false);
-        });
-      } catch {
-        supabase.auth.getSession().then(({ data: { session } }) => void hydrateSession(session)).catch(() => setLoading(false));
-      }
-    })();
+    let unsubscribe: (() => void) | undefined;
 
-    return () => { cancelled = true; subscription.unsubscribe(); fbUnsub?.(); };
+    const hydrate = async (firebaseUser: FirebaseAuthUser | null) => {
+      const currentHydrate = ++hydrateId.current;
+      firebaseUserRef.current = firebaseUser;
+      setLoading(true);
+
+      if (!firebaseUser) {
+        setUser(null);
+        setSession(null);
+        setRole(null);
+        setApprovalStatus(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const account = await resolveUserAccount(firebaseUser);
+        const appUser = createAppUser(firebaseUser, account.role);
+        const token = await getFirebaseIdToken();
+        if (cancelled || currentHydrate !== hydrateId.current) return;
+
+        setUser(appUser);
+        setSession({
+          user: appUser,
+          access_token: token ?? "",
+          refresh_token: "",
+          expires_in: 3600,
+          token_type: "bearer",
+        });
+        setRole(account.role);
+        setApprovalStatus(account.approvalStatus);
+        setProfile(account.profile);
+      } catch (error) {
+        console.error("[auth] Could not load the signed-in user's Firestore account.", error);
+        if (cancelled || currentHydrate !== hydrateId.current) return;
+
+        const appUser = createAppUser(firebaseUser, "patient");
+        setUser(appUser);
+        setSession({
+          user: appUser,
+          access_token: "",
+          refresh_token: "",
+          expires_in: 3600,
+          token_type: "bearer",
+        });
+        setRole("patient");
+        setApprovalStatus(null);
+        setProfile({
+          full_name: firebaseUser.displayName ?? "",
+          email: firebaseUser.email ?? "",
+          organization_name: "",
+          phone: "",
+          address: "",
+          is_demo: false,
+          avatar_url: firebaseUser.photoURL ?? "",
+        });
+      } finally {
+        if (!cancelled && currentHydrate === hydrateId.current) setLoading(false);
+      }
+    };
+
+    void onFirebaseAuthChange((firebaseUser) => {
+      if (!cancelled) void hydrate(firebaseUser);
+    }).then((stop) => {
+      if (cancelled) stop();
+      else unsubscribe = stop;
+    }).catch((error: unknown) => {
+      console.error("[auth] Could not subscribe to Firebase Authentication.", error);
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+      hydrateId.current += 1;
+    };
   }, []);
 
-  // Live-sync approval/role when admin updates the current user.
   useEffect(() => {
     if (!user?.id) return;
-    const channel = supabase
-      .channel(`auth-profile-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` }, () => {
-        if (session) void hydrateSession(session);
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` }, () => {
-        if (session) void hydrateSession(session);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user?.id, session]);
+    let cancelled = false;
+    let stopProfiles: (() => void) | undefined;
+    let stopRoles: (() => void) | undefined;
 
+    const refreshAccount = async () => {
+      const firebaseUser = firebaseUserRef.current;
+      if (!firebaseUser) return;
+      try {
+        const account = await resolveUserAccount(firebaseUser, role);
+        if (cancelled) return;
+        setRole(account.role);
+        setApprovalStatus(account.approvalStatus);
+        setProfile(account.profile);
+        setUser(createAppUser(firebaseUser, account.role));
+      } catch (error) {
+        console.error("[auth] Could not refresh the signed-in user's Firestore account.", error);
+      }
+    };
+
+    void Promise.all([
+      fsSubscribe("profiles", [where("user_id", "==", user.id)], () => void refreshAccount()),
+      fsSubscribe("user_roles", [where("user_id", "==", user.id)], () => void refreshAccount()),
+    ]).then(([profilesStop, rolesStop]) => {
+      if (cancelled) {
+        profilesStop();
+        rolesStop();
+      } else {
+        stopProfiles = profilesStop;
+        stopRoles = rolesStop;
+      }
+    }).catch((error: unknown) => {
+      console.error("[auth] Could not subscribe to Firestore account changes.", error);
+    });
+
+    return () => {
+      cancelled = true;
+      stopProfiles?.();
+      stopRoles?.();
+    };
+  }, [user?.id, role]);
 
   const signOut = async () => {
     hydrateId.current += 1;
-    try { const { firebaseSignOut } = await import("@/lib/firebase-auth"); await firebaseSignOut(); } catch { /* ignore */ }
-    await supabase.auth.signOut().catch(() => {});
+    const { firebaseSignOut } = await import("@/lib/firebase-auth");
+    await firebaseSignOut();
     setUser(null);
     setSession(null);
     setRole(null);
     setApprovalStatus(null);
     setProfile(null);
     if (typeof document !== "undefined") {
-      // Reset persisted sidebar state so the next login starts fresh.
       document.cookie = "sidebar_state=; path=/; max-age=0";
     }
     if (typeof window !== "undefined") {

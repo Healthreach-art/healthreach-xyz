@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useServerFn } from "@tanstack/react-start";
 import { aiParseMedications } from "@/lib/medication-import.functions";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Sparkles, Loader2, Check, X, Pencil } from "lucide-react";
@@ -74,7 +74,7 @@ export function BulkMedicineImportDialog({ onImported }: { onImported: () => voi
       requires_prescription: r.requires_prescription,
       description: r.description ?? "",
     }));
-    const { error } = await supabase.from("medications").insert(payload);
+    const { error } = await firestoreClient.from("medications").insert(payload);
     setSaving(false);
     if (error) {
       toast.error(error.message);

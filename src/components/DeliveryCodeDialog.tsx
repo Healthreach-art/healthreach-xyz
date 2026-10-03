@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, KeyRound } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 
 interface Props {
@@ -21,7 +21,7 @@ export function DeliveryCodeDialog({ deliveryId, patientName, onClose, onVerifie
   useEffect(() => {
     if (!deliveryId) { setCode(""); setExpectedCode(null); return; }
     (async () => {
-      const { data } = await supabase.from("deliveries").select("delivery_code").eq("id", deliveryId).maybeSingle();
+      const { data } = await firestoreClient.from("deliveries").select("delivery_code").eq("id", deliveryId).maybeSingle();
       setExpectedCode((data as { delivery_code?: string } | null)?.delivery_code ?? null);
     })();
   }, [deliveryId]);
@@ -35,7 +35,7 @@ export function DeliveryCodeDialog({ deliveryId, patientName, onClose, onVerifie
       toast.error("Incorrect code. Please ask the patient.");
       return;
     }
-    const { error } = await supabase
+    const { error } = await firestoreClient
       .from("deliveries")
       .update({ status: "delivered", delivery_verified_at: new Date().toISOString() } as never)
       .eq("id", deliveryId);

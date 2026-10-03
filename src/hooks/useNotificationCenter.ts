@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 
 interface Prefs {
@@ -57,7 +57,7 @@ export function useNotificationCenter(userId: string | null | undefined) {
     let cancelled = false;
 
     async function loadPrefs() {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("notification_preferences")
         .select("email_orders, email_promotions, sms_orders, push_orders")
         .eq("user_id", userId!)
@@ -70,13 +70,13 @@ export function useNotificationCenter(userId: string | null | undefined) {
       Notification.requestPermission().catch(() => {});
     }
 
-    const prefsChannel = supabase
+    const prefsChannel = firestoreClient
       .channel(`prefs-${userId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "notification_preferences", filter: `user_id=eq.${userId}` },
         (payload) => { prefsRef.current = { ...prefsRef.current, ...(payload.new as any) }; })
       .subscribe();
 
-    const notifChannel = supabase
+    const notifChannel = firestoreClient
       .channel(`notif-${userId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload) => {
@@ -93,7 +93,7 @@ export function useNotificationCenter(userId: string | null | undefined) {
       .subscribe();
 
     // --- Chat messages: appointment_messages ---
-    const apptMsgChannel = supabase
+    const apptMsgChannel = firestoreClient
       .channel(`appt-msg-${userId}`)
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "appointment_messages" },
@@ -114,7 +114,7 @@ export function useNotificationCenter(userId: string | null | undefined) {
       .subscribe();
 
     // --- Chat messages: order_messages ---
-    const orderMsgChannel = supabase
+    const orderMsgChannel = firestoreClient
       .channel(`order-msg-${userId}`)
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "order_messages" },
@@ -136,10 +136,10 @@ export function useNotificationCenter(userId: string | null | undefined) {
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(prefsChannel);
-      supabase.removeChannel(notifChannel);
-      supabase.removeChannel(apptMsgChannel);
-      supabase.removeChannel(orderMsgChannel);
+      firestoreClient.removeChannel(prefsChannel);
+      firestoreClient.removeChannel(notifChannel);
+      firestoreClient.removeChannel(apptMsgChannel);
+      firestoreClient.removeChannel(orderMsgChannel);
     };
   }, [userId]);
 }

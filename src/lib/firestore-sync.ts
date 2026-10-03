@@ -1,10 +1,4 @@
-/**
- * Dual-write sync: mirrors the current backend's profiles and roles into
- * Firestore so the Firebase data layer fills up while the existing system
- * stays the source of truth. Every function here is fire-and-forget safe —
- * sync failures are logged, never thrown, so they can never block sign-up,
- * sign-in, or any existing screen.
- */
+/** Persist Firebase account profiles and roles in Firestore. */
 import { firebaseSignIn, firebaseSignUp } from "./firebase-auth";
 import { fsSet, fsGet } from "./firestore";
 
@@ -62,19 +56,21 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
   try {
     const existing = await fsGet("profiles", input.uid);
     await fsSet("profiles", input.uid, {
+      id: input.uid,
+      user_id: input.uid,
       email: input.email,
-      fullName: input.fullName ?? null,
+      full_name: input.fullName ?? null,
       phone: input.phone ?? null,
       address: input.address ?? null,
-      lat: input.lat ?? null,
-      lng: input.lng ?? null,
-      organizationName: input.organizationName ?? null,
-      homecareType: input.homecareType ?? null,
-      migratedFrom: "supabase",
-      ...(existing ? {} : { createdAt: new Date().toISOString() }),
+      latitude: input.lat ?? null,
+      longitude: input.lng ?? null,
+      organization_name: input.organizationName ?? null,
+      homecare_type: input.homecareType ?? null,
+      ...(existing ? {} : { created_at: new Date().toISOString() }),
     });
     await fsSet("user_roles", `${input.uid}_${input.role}`, {
-      userId: input.uid,
+      id: `${input.uid}_${input.role}`,
+      user_id: input.uid,
       role: input.role,
     });
     // Mirror provider records (status starts pending; admin approves).
@@ -89,17 +85,17 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
     if (col) {
       const existingProvider = await fsGet(col, input.uid);
       await fsSet(col, input.uid, {
-        userId: input.uid,
+        id: input.uid,
+        user_id: input.uid,
         email: input.email,
-        name: input.organizationName || input.fullName || input.email,
-        fullName: input.fullName ?? null,
+        organization_name: input.organizationName || null,
+        full_name: input.fullName ?? null,
         phone: input.phone ?? null,
         address: input.address ?? null,
-        lat: input.lat ?? null,
-        lng: input.lng ?? null,
-        homecareType: input.homecareType ?? null,
-        migratedFrom: "supabase",
-        ...(existingProvider ? {} : { status: "pending_review", createdAt: new Date().toISOString() }),
+        latitude: input.lat ?? null,
+        longitude: input.lng ?? null,
+        homecare_type: input.homecareType ?? null,
+        ...(existingProvider ? {} : { status: "pending_review", created_at: new Date().toISOString() }),
       });
     }
   } catch (err) {
@@ -135,14 +131,13 @@ export async function mirrorRecord(
     const { getFirebaseCurrentUser } = await import("./firebase-auth");
     const fbUser = await getFirebaseCurrentUser();
     if (!fbUser) return;
-    const ownerField = col === "homecare_requests" || col === "orders" ? "customerId" : "patientId";
+    const ownerField = "patient_id";
     const existing = await fsGet(col, id);
     await fsSet(col, id, {
       ...data,
       [ownerField]: fbUser.uid,
-      patientEmail: fbUser.email,
-      migratedFrom: "supabase",
-      ...(existing ? {} : { createdAt: new Date().toISOString() }),
+      patient_email: fbUser.email,
+      ...(existing ? {} : { created_at: new Date().toISOString() }),
     });
   } catch (err) {
     console.warn(`[firestore-sync] ${col} mirror failed:`, err);

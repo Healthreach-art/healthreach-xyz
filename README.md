@@ -82,6 +82,52 @@ Role-Specific Dashboards
 
     - View transaction history and generate reports.
 
+## Firebase privileged operations
+
+Wallet and driver-dispatch mutations run in the `privilegedFirestoreAction`
+Firebase Cloud Function so its Admin SDK can apply Firestore transactions
+without granting direct client write access to wallet balances or delivery
+assignments. Configure the `PAYSTACK_SECRET_KEY` Firebase Functions secret
+before deploying:
+
+```sh
+firebase functions:secrets:set PAYSTACK_SECRET_KEY --project healthreachcare-prod
+firebase functions:secrets:set PAYMENT_WEBHOOK_SECRET --project healthreachcare-prod
+npm run functions:build
+firebase deploy --only functions,firestore:rules,firestore:indexes --project healthreachcare-prod
+```
+
+The app calls the function in `us-central1` by default. Set
+`FIREBASE_PRIVILEGED_ACTION_URL` on the app server only when deploying the
+function to a different endpoint. Set `FIREBASE_PAYMENT_WEBHOOK_URL` only if
+the public webhook function is deployed at a different endpoint.
+
+## MCP OAuth server
+
+The MCP server uses a dedicated Firebase Functions OAuth authorization server.
+It supports dynamic client registration, authorization-code flow with PKCE
+S256, Firebase-authenticated consent, signed access tokens, and read-only
+HealthReachCare MCP tools. The app origin in `MCP_OAUTH_ISSUER` must match the
+issuer configured in the MCP server and Cloud Function; the default is
+`https://healthreachcare.co.za`. Set `MCP_OAUTH_FUNCTION_URL` on the app server
+only if the `mcpOAuth` function uses a different URL.
+Set `MCP_OAUTH_DATA_URL` on the app server only if `mcpData` uses a different
+URL.
+
+Create a dedicated RSA private signing key outside the repository and store it
+as a Firebase Functions secret. Never commit or expose the key:
+
+```sh
+firebase functions:secrets:set MCP_OAUTH_SIGNING_KEY --project healthreachcare-prod
+npm run functions:build
+firebase deploy --only functions,firestore:indexes --project healthreachcare-prod
+```
+
+The OAuth authorization-server metadata is served at
+`/.well-known/oauth-authorization-server`, and the MCP protected-resource
+metadata is served at `/.well-known/oauth-protected-resource`. Deploy the app
+and Functions together so both metadata endpoints and OAuth callbacks are
+available.
 
 
 Payment Page

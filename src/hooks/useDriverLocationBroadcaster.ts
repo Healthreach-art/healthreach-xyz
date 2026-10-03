@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 
 /**
  * Periodically pushes the driver's geolocation to driver_locations.
@@ -26,7 +26,7 @@ export function useDriverLocationBroadcaster(opts: {
       const now = Date.now();
       if (now - lastSent < intervalMs) return;
       lastSent = now;
-      await supabase.from("driver_locations").upsert({
+      await firestoreClient.from("driver_locations").upsert({
         driver_id: driverId!,
         order_id: activeOrderId ?? null,
         lat: coords.latitude,

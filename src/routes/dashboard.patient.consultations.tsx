@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft,  Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,32 +40,32 @@ function Page() {
 
   async function load() {
     if (!user) return;
-    const { data } = await supabase.from("doctor_appointments").select("*").eq("patient_id", user.id).order("scheduled_at", { ascending: false });
+    const { data } = await firestoreClient.from("doctor_appointments").select("*").eq("patient_id", user.id).order("scheduled_at", { ascending: false });
     const list = (data ?? []) as Appt[];
     setAppts(list);
     const docIds = Array.from(new Set(list.map((a) => a.doctor_id)));
     if (docIds.length) {
-      const { data: ds } = await supabase.from("doctors").select("id, user_id, full_name, specialty, photo_url").in("id", docIds);
+      const { data: ds } = await firestoreClient.from("doctors").select("id, user_id, full_name, specialty, photo_url").in("id", docIds);
       const m: Record<string, DocRow> = {};
       (ds ?? []).forEach((d: any) => { m[d.id] = d; });
       setDocs(m);
     }
     const apptIds = list.map((a) => a.id);
     if (apptIds.length) {
-      const { data: rxs } = await supabase.from("e_prescriptions").select("*").in("appointment_id", apptIds);
+      const { data: rxs } = await firestoreClient.from("e_prescriptions").select("*").in("appointment_id", apptIds);
       const m: Record<string, Rx[]> = {};
       (rxs ?? []).forEach((r: any) => { (m[r.appointment_id] ||= []).push(r); });
       setRxByAppt(m);
     }
     // Pharmacy appointments
-    const { data: pa } = await supabase
+    const { data: pa } = await firestoreClient
       .from("pharmacy_appointments").select("id, pharmacy_id, reason, preferred_at, status, mode, pharmacist_notes")
       .eq("patient_id", user.id).order("preferred_at", { ascending: false });
     const pl = (pa ?? []) as typeof pharmAppts;
     setPharmAppts(pl);
     const pIds = Array.from(new Set(pl.map((p) => p.pharmacy_id)));
     if (pIds.length) {
-      const { data: profs } = await supabase
+      const { data: profs } = await firestoreClient
         .from("pharmacy_directory" as never).select("user_id, full_name, organization_name").in("user_id", pIds);
       const m: Record<string, { name: string }> = {};
       (profs ?? []).forEach((p: any) => { m[p.user_id] = { name: p.organization_name || p.full_name || "Pharmacy" }; });
@@ -75,23 +75,23 @@ function Page() {
   useEffect(() => {
     load();
     if (!user) return;
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`patient-consult-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `patient_id=eq.${user.id}` }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "pharmacy_appointments", filter: `patient_id=eq.${user.id}` }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "e_prescriptions", filter: `patient_id=eq.${user.id}` }, load)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firestoreClient.removeChannel(ch); };
   }, [user]);
 
   async function cancel(id: string) {
-    await supabase.from("doctor_appointments").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", id);
+    await firestoreClient.from("doctor_appointments").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", id);
     toast.success("Appointment cancelled"); load();
   }
 
   async function submitReview() {
     if (!reviewFor || !user) return;
-    const { error } = await supabase.from("doctor_reviews").insert({
+    const { error } = await firestoreClient.from("doctor_reviews").insert({
       doctor_id: reviewFor.doctorId, patient_id: user.id,
       appointment_id: reviewFor.appointmentId, stars, comment: comment.trim(),
     });

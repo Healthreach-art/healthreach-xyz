@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,7 +40,7 @@ function Page() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
+      const { data } = await firestoreClient.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
       if (data) {
         setFullName(data.full_name || ""); setPhone(data.phone || "");
         setDob(data.date_of_birth || ""); setIdNumber(data.id_number || "");
@@ -58,7 +58,7 @@ function Page() {
     if (!user) return;
     setBusy(true);
     const newStatus = provider && memberNo ? (status === "verified" ? "verified" : "pending") : "none";
-    const { error } = await supabase.from("profiles").update({
+    const { error } = await firestoreClient.from("profiles").update({
       full_name: fullName.trim(),
       phone: phone.trim() || null,
       date_of_birth: dob || null,

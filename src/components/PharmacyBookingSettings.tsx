@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -27,7 +27,7 @@ export function PharmacyBookingSettings() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("profiles")
         .select("appointments_enabled, walkins_enabled, services, opening_hours, services_description, services_tags")
         .eq("user_id", user.id)
@@ -71,7 +71,7 @@ export function PharmacyBookingSettings() {
   const save = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase
+    const { error } = await firestoreClient
       .from("profiles")
       .update({
         appointments_enabled: apptsOn,

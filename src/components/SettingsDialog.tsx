@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, Trash2, Upload, ShieldCheck, Fingerprint, Bell, User as UserIcon, Plus, Check } from "lucide-react";
@@ -33,7 +33,7 @@ export function SettingsDialog({ open, onClose }: Props) {
           <TabsContent value="profile" className="pt-4"><ProfileTab userId={user?.id} initial={profile} /></TabsContent>
           <TabsContent value="privacy" className="pt-4"><PrivacyTab /></TabsContent>
           <TabsContent value="notifications" className="pt-4"><NotificationsTab userId={user?.id} /></TabsContent>
-          <TabsContent value="security" className="pt-4"><SecurityTab email={user?.email} /></TabsContent>
+          <TabsContent value="security" className="pt-4"><SecurityTab email={user?.email ?? undefined} /></TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
@@ -57,7 +57,7 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
 
   useEffect(() => {
     if (!userId) return;
-    supabase.from("profiles").select("full_name, phone, address, avatar_url").eq("user_id", userId).maybeSingle()
+    firestoreClient.from("profiles").select("full_name, phone, address, avatar_url").eq("user_id", userId).maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setFullName(data.full_name ?? "");
@@ -70,12 +70,12 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
 
   async function loadAddresses() {
     if (!userId) return;
-    const { data } = await supabase.from("user_addresses").select("*").eq("user_id", userId).order("is_default", { ascending: false }).order("created_at", { ascending: true });
+    const { data } = await firestoreClient.from("user_addresses").select("*").eq("user_id", userId).order("is_default", { ascending: false }).order("created_at", { ascending: true });
     const list = data ?? [];
     setAddresses(list);
     // Migrate legacy single address: if profile.address exists but no rows, seed one.
     if (list.length === 0 && legacyAddress?.trim()) {
-      const { data: ins } = await supabase.from("user_addresses").insert({ user_id: userId, label: "Home", street: legacyAddress, is_default: true }).select().single();
+      const { data: ins } = await firestoreClient.from("user_addresses").insert({ user_id: userId, label: "Home", street: legacyAddress, is_default: true }).select().single();
       if (ins) setAddresses([ins]);
     }
   }
@@ -87,28 +87,29 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
     }
     setAdding(true);
     const isFirst = addresses.length === 0;
-    const { data, error } = await supabase.from("user_addresses").insert({
+    const { data, error } = await firestoreClient.from("user_addresses").insert({
       user_id: userId, label: newLabel || "Other", street: newStreet.trim(),
       lat: newCoords.lat, lng: newCoords.lng, is_default: isFirst,
     }).select().single();
     setAdding(false);
     if (error) { toast.error(error.message); return; }
+    if (!data) { toast.error("Address could not be saved."); return; }
     setNewStreet(""); setNewLabel("Home"); setNewCoords(null);
-    if (isFirst) await supabase.from("profiles").update({ address: data.street, latitude: newCoords.lat, longitude: newCoords.lng }).eq("user_id", userId);
+    if (isFirst) await firestoreClient.from("profiles").update({ address: data.street, latitude: newCoords.lat, longitude: newCoords.lng }).eq("user_id", userId);
     await loadAddresses();
     toast.success("Address added");
   }
 
   async function setDefault(id: string, street: string) {
     if (!userId) return;
-    await supabase.from("user_addresses").update({ is_default: true }).eq("id", id);
-    await supabase.from("profiles").update({ address: street }).eq("user_id", userId);
+    await firestoreClient.from("user_addresses").update({ is_default: true }).eq("id", id);
+    await firestoreClient.from("profiles").update({ address: street }).eq("user_id", userId);
     await loadAddresses();
     toast.success("Default address updated");
   }
 
   async function removeAddress(id: string) {
-    await supabase.from("user_addresses").delete().eq("id", id);
+    await firestoreClient.from("user_addresses").delete().eq("id", id);
     await loadAddresses();
   }
 
@@ -117,10 +118,10 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
     if (!file || !userId) return;
     setUploading(true);
     const path = `${userId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
-    const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    const { error: upErr } = await firestoreClient.storage.from("avatars").upload(path, file, { upsert: true });
     if (upErr) { setUploading(false); toast.error(upErr.message); return; }
-    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-    await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("user_id", userId);
+    const { data: pub } = firestoreClient.storage.from("avatars").getPublicUrl(path);
+    await firestoreClient.from("profiles").update({ avatar_url: pub.publicUrl }).eq("user_id", userId);
     setAvatarUrl(pub.publicUrl);
     setUploading(false);
     toast.success("Profile picture updated");
@@ -129,7 +130,7 @@ function ProfileTab({ userId, initial }: { userId?: string; initial: any }) {
   async function save() {
     if (!userId) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({ full_name: fullName, phone }).eq("user_id", userId);
+    const { error } = await firestoreClient.from("profiles").update({ full_name: fullName, phone }).eq("user_id", userId);
     setSaving(false);
     if (error) toast.error(error.message); else toast.success("Profile saved");
   }
@@ -195,7 +196,7 @@ function NotificationsTab({ userId }: { userId?: string }) {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!userId) return;
-    supabase.from("notification_preferences").select("*").eq("user_id", userId).maybeSingle()
+    firestoreClient.from("notification_preferences").select("*").eq("user_id", userId).maybeSingle()
       .then(({ data }) => { if (data) setPrefs({ email_orders: data.email_orders, email_promotions: data.email_promotions, sms_orders: data.sms_orders, push_orders: data.push_orders }); setLoading(false); });
   }, [userId]);
 
@@ -203,7 +204,7 @@ function NotificationsTab({ userId }: { userId?: string }) {
     if (!userId) return;
     const next = { ...prefs, [key]: value };
     setPrefs(next);
-    await supabase.from("notification_preferences").upsert({ user_id: userId, ...next });
+    await firestoreClient.from("notification_preferences").upsert({ user_id: userId, ...next });
   }
 
   if (loading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
@@ -234,19 +235,19 @@ function SecurityTab({ email }: { email?: string }) {
   async function changePassword() {
     if (pwd.length < 8) { toast.error("Min 8 characters"); return; }
     setSavingPwd(true);
-    const { error } = await supabase.auth.updateUser({ password: pwd });
+    const { error } = await firestoreClient.auth.updateUser({ password: pwd });
     setSavingPwd(false);
     if (error) toast.error(error.message); else { toast.success("Password updated"); setPwd(""); }
   }
   async function changeEmail() {
     if (!newEmail || newEmail === email) { toast.error("Enter a new email"); return; }
     setSavingEmail(true);
-    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    const { error } = await firestoreClient.auth.updateUser({ email: newEmail });
     setSavingEmail(false);
     if (error) toast.error(error.message); else toast.success("Confirmation sent to new email");
   }
   async function signOutAll() {
-    const { error } = await supabase.auth.signOut({ scope: "others" });
+    const { error } = await firestoreClient.auth.signOut({ scope: "others" });
     if (error) toast.error(error.message); else toast.success("Other sessions signed out");
   }
   return (

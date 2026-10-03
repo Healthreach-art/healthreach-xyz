@@ -1,5 +1,5 @@
-import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import type { FirebaseAuthUser } from "@/lib/firebase-auth";
+import { fsGet, fsList, fsSet, where } from "@/lib/firestore";
 
 export type AppRole =
   | "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor"
@@ -39,77 +39,81 @@ export function dashboardPathForRole(role: AppRole) {
   return `/dashboard/${role}` as const;
 }
 
-export function metadataRole(user: User): AppRole | null {
-  const role = user.user_metadata?.role;
-  return isAppRole(role) ? role : null;
-}
-
 async function readPersistedRole(userId: string): Promise<AppRole | null> {
-  const { data: roleRow } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  return isAppRole(roleRow?.role) ? roleRow.role : null;
+  const roleRows = await fsList<{ role: unknown }>(
+    "user_roles",
+    where("user_id", "==", userId),
+  );
+  const role = roleRows[0]?.role;
+  return isAppRole(role) ? role : null;
 }
 
 async function repairMissingRole(userId: string, role: AppRole) {
   if (!SELF_SERVICE_ROLES.includes(role)) return;
-  await supabase.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
+  await fsSet("user_roles", `${userId}_${role}`, { user_id: userId, role });
 }
 
 export async function resolveUserRole(
-  user: User,
+  user: FirebaseAuthUser,
   options: { attempts?: number; fallbackRole?: AppRole | null; repairMissing?: boolean } = {},
 ): Promise<AppRole> {
   const attempts = options.attempts ?? RETRY_DELAYS_MS.length;
-  const preferredFallback = options.fallbackRole ?? metadataRole(user);
+  const preferredFallback = options.fallbackRole ?? null;
   const safeFallback = preferredFallback && preferredFallback !== "admin" ? preferredFallback : "patient";
 
   for (let index = 0; index < attempts; index += 1) {
     const delay = RETRY_DELAYS_MS[index] ?? RETRY_DELAYS_MS.at(-1) ?? 0;
     if (delay > 0) await sleep(delay);
 
-    const persistedRole = await readPersistedRole(user.id);
+    const persistedRole = await readPersistedRole(user.uid);
     if (persistedRole) return persistedRole;
 
     if (index === 2 && options.repairMissing !== false) {
-      await repairMissingRole(user.id, safeFallback);
+      await repairMissingRole(user.uid, safeFallback);
     }
   }
 
   if (options.repairMissing !== false) {
-    await repairMissingRole(user.id, safeFallback);
-    const repairedRole = await readPersistedRole(user.id);
+    await repairMissingRole(user.uid, safeFallback);
+    const repairedRole = await readPersistedRole(user.uid);
     if (repairedRole) return repairedRole;
   }
 
   return safeFallback;
 }
 
-async function resolveProfile(user: User): Promise<{ profile: ResolvedProfile; approvalStatus: string | null }> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("full_name, email, organization_name, phone, address, approval_status, is_demo, avatar_url")
-    .eq("user_id", user.id)
-    .maybeSingle();
+async function resolveProfile(
+  user: FirebaseAuthUser,
+): Promise<{ profile: ResolvedProfile; approvalStatus: string | null }> {
+  const data = await fsGet<{
+    full_name?: string | null;
+    email?: string | null;
+    organization_name?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    approval_status?: string | null;
+    is_demo?: boolean | null;
+    avatar_url?: string | null;
+  }>("profiles", user.uid);
 
   return {
     approvalStatus: data?.approval_status ?? null,
     profile: {
-      full_name: data?.full_name || user.user_metadata?.full_name || "",
+      full_name: data?.full_name || user.displayName || "",
       email: data?.email || user.email || "",
       organization_name: data?.organization_name ?? "",
       phone: data?.phone ?? "",
       address: data?.address ?? "",
       is_demo: !!data?.is_demo,
-      avatar_url: (data as any)?.avatar_url ?? "",
+      avatar_url: data?.avatar_url ?? "",
     },
   };
 }
 
-export async function resolveUserAccount(user: User, fallbackRole?: AppRole | null): Promise<ResolvedAccount> {
+export async function resolveUserAccount(
+  user: FirebaseAuthUser,
+  fallbackRole?: AppRole | null,
+): Promise<ResolvedAccount> {
   const [role, profileResult] = await Promise.all([
     resolveUserRole(user, { fallbackRole }),
     resolveProfile(user),

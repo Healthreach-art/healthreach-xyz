@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 
 export const cancelOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) =>
     z.object({
       orderId: z.string().uuid(),
@@ -14,7 +14,7 @@ export const cancelOrder = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     // Load order, ensure ownership
-    const { data: order, error: oerr } = await supabaseAdmin
+    const { data: order, error: oerr } = await firestoreAdmin
       .from("orders")
       .select("id, patient_id, status")
       .eq("id", data.orderId)
@@ -25,14 +25,14 @@ export const cancelOrder = createServerFn({ method: "POST" })
       return { ok: false, reason: "stage" as const };
     }
     // Check delivery assigned
-    const { data: del } = await supabaseAdmin
+    const { data: del } = await firestoreAdmin
       .from("deliveries")
       .select("id, driver_id")
       .eq("order_id", data.orderId)
       .maybeSingle();
     if (del?.driver_id) return { ok: false, reason: "driver_assigned" as const };
 
-    await supabaseAdmin
+    await firestoreAdmin
       .from("orders")
       .update({
         status: "cancelled",
@@ -44,15 +44,15 @@ export const cancelOrder = createServerFn({ method: "POST" })
       .eq("id", data.orderId);
 
     // Close pending offers
-    await supabaseAdmin.from("pharmacy_offers")
+    await firestoreAdmin.from("pharmacy_offers")
       .update({ status: "cancelled", responded_at: new Date().toISOString() })
       .eq("order_id", data.orderId).eq("status", "open");
-    await supabaseAdmin.from("delivery_offers")
+    await firestoreAdmin.from("delivery_offers")
       .update({ status: "cancelled" })
       .eq("order_id", data.orderId).eq("status", "open");
 
     // Refund any completed payment (mock)
-    await supabaseAdmin.from("payments")
+    await firestoreAdmin.from("payments")
       .update({ refund_status: "refunded" } as never)
       .eq("order_id", data.orderId).eq("status", "completed");
 
@@ -60,16 +60,16 @@ export const cancelOrder = createServerFn({ method: "POST" })
   });
 
 export const canCancelOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => z.object({ orderId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { data: order } = await supabaseAdmin
+    const { data: order } = await firestoreAdmin
       .from("orders").select("patient_id, status").eq("id", data.orderId).maybeSingle();
     if (!order || order.patient_id !== context.userId) return { allowed: false };
     if (["delivered", "cancelled", "out_for_delivery"].includes(order.status as string)) {
       return { allowed: false };
     }
-    const { data: del } = await supabaseAdmin
+    const { data: del } = await firestoreAdmin
       .from("deliveries").select("driver_id").eq("order_id", data.orderId).maybeSingle();
     return { allowed: !del?.driver_id };
   });

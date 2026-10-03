@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Loader2, Download, Receipt as ReceiptIcon } from "lucide-react";
 import { downloadReceiptPdf } from "@/lib/receipt";
@@ -26,7 +26,7 @@ export function TransactionHistory({ role }: Props) {
     if (!user) return;
     (async () => {
       // RLS scopes results: patient sees own, pharmacy sees orders for them
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("payments")
         .select("id, invoice_number, amount, status, payment_method, transaction_ref, created_at, subtotal, delivery_fee, total_paid, pharmacy_amount, refund_status, order_id, orders(medication_name, quantity, patient_id, pharmacy_id)")
         .order("created_at", { ascending: false })

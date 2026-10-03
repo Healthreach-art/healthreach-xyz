@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,7 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   async function loadInventory() {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("medications")
       .select("*")
       .eq("pharmacy_id", user.id)
@@ -105,9 +105,9 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage.from("medication-images").upload(path, file, { contentType: file.type, upsert: false });
+      const { error } = await firestoreClient.storage.from("medication-images").upload(path, file, { contentType: file.type, upsert: false });
       if (error) throw error;
-      const { data } = supabase.storage.from("medication-images").getPublicUrl(path);
+      const { data } = firestoreClient.storage.from("medication-images").getPublicUrl(path);
       setForm((f) => ({ ...f, image_url: data.publicUrl }));
       toast.success("Image uploaded");
     } catch (e: unknown) {
@@ -139,8 +139,8 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
       description: desc,
     };
     const { error } = editingMed
-      ? await supabase.from("medications").update(payload).eq("id", editingMed.id)
-      : await supabase.from("medications").insert(payload);
+      ? await firestoreClient.from("medications").update(payload).eq("id", editingMed.id)
+      : await firestoreClient.from("medications").insert(payload);
     setSavingMed(false);
     if (error) { toast.error(error.message); return; }
     toast.success(editingMed ? "Medication updated" : "Medication added");
@@ -151,7 +151,7 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
 
   async function adjustStock(med: Medication, delta: number) {
     const next = Math.max(0, med.stock_quantity + delta);
-    const { error } = await supabase.from("medications").update({ stock_quantity: next }).eq("id", med.id);
+    const { error } = await firestoreClient.from("medications").update({ stock_quantity: next }).eq("id", med.id);
     if (error) { toast.error(error.message); return; }
     setInventory((prev) => prev.map((m) => (m.id === med.id ? { ...m, stock_quantity: next } : m)));
   }
@@ -159,7 +159,7 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   async function confirmDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    const { error } = await supabase.from("medications").delete().eq("id", deleteTarget.id);
+    const { error } = await firestoreClient.from("medications").delete().eq("id", deleteTarget.id);
     setDeleting(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Medication deleted");

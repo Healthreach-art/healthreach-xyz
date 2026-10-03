@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { getDirections } from "@/lib/directions.functions";
 
 type Coords = [number, number];
@@ -50,13 +50,13 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
     if (!orderId && !driverId) return;
     let active = true;
     async function fetchLatest() {
-      let q = supabase.from("driver_locations").select("lat, lng, updated_at").limit(1);
+      let q = firestoreClient.from("driver_locations").select("lat, lng, updated_at").limit(1);
       q = orderId ? q.eq("order_id", orderId) : q.eq("driver_id", driverId!);
       const { data } = await q.maybeSingle();
       if (active && data) setLiveCoords([Number(data.lat), Number(data.lng)]);
     }
     fetchLatest();
-    const channel = supabase
+    const channel = firestoreClient
       .channel(`driver-loc-${orderId || driverId}`)
       .on("postgres_changes", {
         event: "*",
@@ -68,7 +68,7 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
         if (row?.lat != null && row?.lng != null) setLiveCoords([Number(row.lat), Number(row.lng)]);
       })
       .subscribe();
-    return () => { active = false; supabase.removeChannel(channel); };
+    return () => { active = false; firestoreClient.removeChannel(channel); };
   }, [orderId, driverId]);
 
   // Render real driving route + endpoint pins on pickup/dropoff change

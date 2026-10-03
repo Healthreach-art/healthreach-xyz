@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { ArrowLeft,  Star, Loader2, Trash2, Pencil, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -35,12 +35,12 @@ function Page() {
   async function load() {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase.from("ratings").select("*").eq("patient_id", user.id).order("created_at", { ascending: false });
+    const { data } = await firestoreClient.from("ratings").select("*").eq("patient_id", user.id).order("created_at", { ascending: false });
     const list = (data ?? []) as RatingRow[];
     setRows(list);
     const ids = Array.from(new Set(list.map((r) => r.target_id)));
     if (ids.length) {
-      const { data: profs } = await supabase.from("profiles").select("user_id, full_name, organization_name").in("user_id", ids);
+      const { data: profs } = await firestoreClient.from("profiles").select("user_id, full_name, organization_name").in("user_id", ids);
       const map: Record<string, string> = {};
       (profs ?? []).forEach((p: any) => { map[p.user_id] = p.organization_name || p.full_name || "Provider"; });
       setNames(map);
@@ -54,14 +54,14 @@ function Page() {
   }
 
   async function saveEdit(id: string) {
-    const { error } = await supabase.from("ratings").update({ stars: editStars, comment: editComment }).eq("id", id);
+    const { error } = await firestoreClient.from("ratings").update({ stars: editStars, comment: editComment }).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Rating updated"); setEditId(null); load();
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this rating? You can submit a new one later.")) return;
-    const { error } = await supabase.from("ratings").delete().eq("id", id);
+    const { error } = await firestoreClient.from("ratings").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Rating removed"); load();
   }

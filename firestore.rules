@@ -12,32 +12,55 @@ service cloud.firestore {
     function isOwner(uid) {
       return signedIn() && request.auth.uid == uid;
     }
+    function owns(field) {
+      return signedIn() && resource.data[field] == request.auth.uid;
+    }
+    function ownsNew(field) {
+      return signedIn() && request.resource.data[field] == request.auth.uid;
+    }
     function isBootstrapAdmin() {
       return signedIn() && request.auth.token.email == 'admin@healthreachcare.co.za';
     }
     function isAdmin() {
       return isBootstrapAdmin() || signedIn() && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin'));
     }
+    function hasRole(role) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_' + role))
+        && get(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_' + role)).data.role == role;
+    }
+    function canReadOrder(order) {
+      return isAdmin()
+        || signedIn() && (
+          order.patient_id == request.auth.uid
+          || order.pharmacy_id == request.auth.uid
+          || order.driver_id == request.auth.uid
+        );
+    }
     // Provider approval gate: only approved providers may operate.
     function isApproved(col, id) {
       return get(/databases/$(database)/documents/$(col)/$(id)).data.status == 'approved';
     }
 
-    // Profiles: owner read/write; admin read/write.
+    // Profiles: owner read/write; approved profiles support provider discovery.
     match /profiles/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid) || isAdmin();
+      allow read: if isOwner(uid) || owns('user_id') || isAdmin()
+        || signedIn() && resource.data.approval_status == 'approved';
+      allow create: if isOwner(uid) && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAdmin() || (isOwner(uid) || owns('user_id'))
+        && request.resource.data.user_id == resource.data.user_id
+        && request.resource.data.approval_status == resource.data.approval_status;
       allow delete: if isAdmin();
     }
 
     // Roles: readable by owner and admin; writable by admin only.
     // Users can never grant themselves roles.
     match /user_roles/{id} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin() || owns('user_id')
+        || signedIn() && resource.data.role == 'pharmacy';
       allow write: if isAdmin();
       // Users may record their own non-admin role (mirrored from sign-up).
-      allow create, update: if signedIn() && request.resource.data.userId == request.auth.uid
+      allow create, update: if signedIn() && request.resource.data.user_id == request.auth.uid
         && request.resource.data.role != 'admin'
         && id == request.auth.uid + '_' + request.resource.data.role;
     }
@@ -46,83 +69,84 @@ service cloud.firestore {
     // owner manages own record; admin reviews; approved records are
     // readable by signed-in users for the Find page.
     match /doctors/{id} {
-      allow read: if isAdmin() || isOwner(id) || (signedIn() && resource.data.status == 'approved');
-      allow create: if isOwner(id) && request.resource.data.status == 'pending_review';
-      allow update: if isAdmin() || (isOwner(id) && request.resource.data.status == resource.data.status);
+      allow read: if isAdmin() || isOwner(id) || owns('user_id') || (signedIn() && resource.data.status == 'approved');
+      allow create: if (isOwner(id) || ownsNew('user_id')) && request.resource.data.status == 'pending_review';
+      allow update: if isAdmin() || ((isOwner(id) || owns('user_id')) && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
     }
     match /pharmacies/{id} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid) || (signedIn() && resource.data.status == 'approved');
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'pending_review';
-      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid && request.resource.data.status == resource.data.status);
+      allow read: if isAdmin() || owns('user_id') || (signedIn() && resource.data.status == 'approved');
+      allow create: if ownsNew('user_id') && request.resource.data.status == 'pending_review';
+      allow update: if isAdmin() || (owns('user_id') && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
     }
     match /drivers/{id} {
-      allow read: if isAdmin() || isOwner(id) || (signedIn() && resource.data.status == 'approved');
-      allow create: if isOwner(id) && request.resource.data.status == 'pending_review';
-      allow update: if isAdmin() || (isOwner(id) && request.resource.data.status == resource.data.status);
+      allow read: if isAdmin() || isOwner(id) || owns('user_id') || (signedIn() && resource.data.status == 'approved');
+      allow create: if (isOwner(id) || ownsNew('user_id')) && request.resource.data.status == 'pending_review';
+      allow update: if isAdmin() || ((isOwner(id) || owns('user_id')) && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
     }
     match /homecare_providers/{id} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid) || (signedIn() && resource.data.status == 'approved');
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'pending_review';
-      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid && request.resource.data.status == resource.data.status);
+      allow read: if isAdmin() || owns('user_id') || (signedIn() && resource.data.status == 'approved');
+      allow create: if ownsNew('user_id') && request.resource.data.status == 'pending_review';
+      allow update: if isAdmin() || (owns('user_id') && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
     }
     match /homecare_staff/{id} {
-      allow read, write: if isAdmin() || (signedIn() && resource.data.companyId == request.auth.uid);
+      allow read, update, delete: if isAdmin() || owns('company_id');
+      allow create: if isAdmin() || ownsNew('company_id');
     }
 
     // Orders & bookings: customer owns; assigned provider reads; admin all.
     match /orders/{id} {
-      allow read: if isAdmin() || (signedIn() && (resource.data.customerId == request.auth.uid || resource.data.pharmacyId == request.auth.uid || resource.data.driverId == request.auth.uid));
-      allow create: if signedIn() && request.resource.data.customerId == request.auth.uid;
-      allow update: if isAdmin() || (signedIn() && (resource.data.customerId == request.auth.uid || resource.data.pharmacyId == request.auth.uid || resource.data.driverId == request.auth.uid));
+      allow read: if canReadOrder(resource.data);
+      allow create: if ownsNew('patient_id');
+      allow update: if canReadOrder(resource.data);
       allow delete: if isAdmin();
     }
     match /bookings/{id} {
-      allow read: if isAdmin() || (signedIn() && (resource.data.patientId == request.auth.uid || resource.data.providerId == request.auth.uid));
-      allow create: if signedIn() && request.resource.data.patientId == request.auth.uid;
-      allow update: if isAdmin() || (signedIn() && (resource.data.patientId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow read: if isAdmin() || owns('patient_id') || owns('provider_id');
+      allow create: if ownsNew('patient_id');
+      allow update: if isAdmin() || owns('patient_id') || owns('provider_id');
       allow delete: if isAdmin();
     }
 
     // Payments: payer reads own; admin manages.
     match /payments/{id} {
-      allow read: if isAdmin() || (signedIn() && (resource.data.patientId == request.auth.uid || resource.data.providerId == request.auth.uid));
-      allow create: if signedIn() && request.resource.data.patientId == request.auth.uid && request.resource.data.status == 'pending';
+      allow read: if isAdmin() || owns('patient_id') || owns('provider_id');
+      allow create: if ownsNew('patient_id') && request.resource.data.status == 'pending';
       allow update, delete: if isAdmin();
     }
 
     // Home care requests & assignments: customer owns request; admin assigns;
     // assigned provider reads/updates their assignment only.
     match /homecare_requests/{id} {
-      allow read: if isAdmin() || (signedIn() && resource.data.customerId == request.auth.uid);
-      allow create: if signedIn() && request.resource.data.customerId == request.auth.uid;
-      allow update: if isAdmin() || (signedIn() && resource.data.customerId == request.auth.uid);
+      allow read: if isAdmin() || owns('patient_id') || owns('user_id');
+      allow create: if ownsNew('patient_id') || ownsNew('user_id');
+      allow update: if isAdmin() || owns('patient_id') || owns('user_id');
       allow delete: if isAdmin();
     }
     match /homecare_assignments/{id} {
-      allow read: if isAdmin() || (signedIn() && (resource.data.customerId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow read: if isAdmin() || owns('patient_id') || owns('provider_id');
       allow create: if isAdmin();
-      allow update: if isAdmin() || (signedIn() && resource.data.providerId == request.auth.uid);
+      allow update: if isAdmin() || owns('provider_id');
       allow delete: if isAdmin();
     }
 
     // Notifications: owner reads; owner marks read; system/admin creates.
     match /notifications/{id} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isAdmin();
-      allow update: if signedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || owns('user_id');
+      allow create: if isAdmin() || ownsNew('user_id');
+      allow update: if isAdmin() || owns('user_id');
       allow delete: if isAdmin();
     }
 
     // Document metadata: owner uploads own; admin reviews. Files themselves
     // live in Cloud Storage with matching private rules.
     match /documents/{id} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin() || owns('user_id');
+      allow create: if ownsNew('user_id');
+      allow update: if isAdmin() || owns('user_id');
       allow delete: if isAdmin();
     }
 
@@ -130,6 +154,196 @@ service cloud.firestore {
     match /audit_logs/{id} {
       allow read: if isAdmin();
       allow write: if isAdmin();
+    }
+
+    match /wallets/{id} {
+      allow read: if isAdmin() || owns('user_id');
+      allow write: if false;
+    }
+    match /wallet_transactions/{id} {
+      allow read: if isAdmin() || owns('user_id');
+      allow write: if false;
+    }
+    match /delivery_offers/{id} {
+      allow read: if isAdmin() || owns('pharmacy_id')
+        || signedIn() && (
+          resource.data.target_driver_id == request.auth.uid
+          || resource.data.target_driver_id == null && hasRole('driver')
+        );
+      allow write: if false;
+    }
+    match /deliveries/{id} {
+      allow read: if isAdmin() || owns('driver_id')
+        || signedIn() && exists(/databases/$(database)/documents/orders/$(resource.data.order_id))
+        && canReadOrder(get(/databases/$(database)/documents/orders/$(resource.data.order_id)).data);
+      allow create: if false;
+      allow update: if isAdmin() || owns('driver_id');
+      allow delete: if isAdmin();
+    }
+    match /driver_status/{id} {
+      allow read: if isAdmin() || owns('driver_id');
+      allow create, update: if isAdmin() || ownsNew('driver_id');
+      allow delete: if isAdmin() || owns('driver_id');
+    }
+    match /driver_locations/{id} {
+      allow read: if isAdmin() || owns('driver_id');
+      allow create, update: if isAdmin() || ownsNew('driver_id');
+      allow delete: if isAdmin() || owns('driver_id');
+    }
+    match /medications/{id} {
+      allow read: if signedIn();
+      allow create: if isAdmin() || ownsNew('pharmacy_id');
+      allow update, delete: if isAdmin() || owns('pharmacy_id');
+    }
+    match /pharmacy_offers/{id} {
+      allow read: if isAdmin() || owns('pharmacy_id') || owns('patient_id');
+      allow create: if isAdmin() || ownsNew('patient_id');
+      allow update: if isAdmin() || owns('pharmacy_id');
+      allow delete: if isAdmin();
+    }
+    match /doctor_appointments/{id} {
+      allow read: if isAdmin() || owns('patient_id') || owns('doctor_id') || owns('hospital_id');
+      allow create: if ownsNew('patient_id');
+      allow update: if isAdmin() || owns('patient_id') || owns('doctor_id') || owns('hospital_id');
+      allow delete: if isAdmin();
+    }
+    match /order_groups/{id} {
+      allow read: if isAdmin() || owns('patient_id') || owns('pharmacy_id');
+      allow create: if ownsNew('patient_id');
+      allow update: if isAdmin() || owns('patient_id') || owns('pharmacy_id');
+      allow delete: if isAdmin();
+    }
+    match /order_group_events/{id} {
+      allow read: if isAdmin()
+        || signedIn() && exists(/databases/$(database)/documents/order_groups/$(resource.data.order_group_id))
+        && canReadOrder(get(/databases/$(database)/documents/order_groups/$(resource.data.order_group_id)).data);
+      allow create: if isAdmin()
+        || signedIn() && exists(/databases/$(database)/documents/order_groups/$(request.resource.data.order_group_id))
+        && canReadOrder(get(/databases/$(database)/documents/order_groups/$(request.resource.data.order_group_id)).data);
+      allow update, delete: if isAdmin();
+    }
+    match /appointment_messages/{id} {
+      allow read: if isAdmin() || owns('patient_id') || owns('provider_id');
+      allow create: if signedIn() && request.resource.data.sender_id == request.auth.uid
+        && (request.resource.data.patient_id == request.auth.uid || request.resource.data.provider_id == request.auth.uid);
+      allow update: if isAdmin() || owns('patient_id') || owns('provider_id');
+      allow delete: if isAdmin();
+    }
+    match /order_messages/{id} {
+      allow read: if isAdmin() || owns('sender_id') || owns('recipient_id');
+      allow create: if signedIn() && request.resource.data.sender_id == request.auth.uid;
+      allow update: if isAdmin() || owns('recipient_id');
+      allow delete: if isAdmin();
+    }
+    match /prescriptions/{id} {
+      allow read: if isAdmin() || owns('patient_id') || owns('doctor_id') || owns('pharmacy_id');
+      allow create: if isAdmin() || ownsNew('patient_id') || ownsNew('doctor_id');
+      allow update: if isAdmin() || owns('patient_id') || owns('doctor_id') || owns('pharmacy_id');
+      allow delete: if isAdmin();
+    }
+    match /e_prescriptions/{id} {
+      allow read: if isAdmin() || owns('patient_id') || owns('doctor_id') || owns('hospital_id');
+      allow create: if isAdmin() || ownsNew('doctor_id') || ownsNew('hospital_id');
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /prescription_uploads/{id} {
+      allow read: if isAdmin() || owns('patient_id');
+      allow create: if ownsNew('patient_id');
+      allow update: if isAdmin() || owns('patient_id');
+      allow delete: if isAdmin() || owns('patient_id');
+    }
+    match /driver_documents/{id} {
+      allow read: if isAdmin() || owns('driver_id');
+      allow create: if isAdmin() || ownsNew('driver_id');
+      allow update: if isAdmin() || owns('driver_id')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'id_document_path', 'license_path', 'selfie_path', 'vehicle_photo_path',
+          'vehicle_registration', 'vehicle_type', 'submitted_at', 'updated_at',
+        ]);
+      allow delete: if isAdmin();
+    }
+    match /doctor_documents/{id} {
+      allow read: if isAdmin() || owns('doctor_id');
+      allow create: if isAdmin() || ownsNew('doctor_id');
+      allow update: if isAdmin() || owns('doctor_id')
+        && request.resource.data.doctor_id == resource.data.doctor_id;
+      allow delete: if isAdmin();
+    }
+    match /homecare_documents/{id} {
+      allow read: if isAdmin() || owns('provider_id') || owns('user_id');
+      allow create: if isAdmin() || ownsNew('provider_id') || ownsNew('user_id');
+      allow update: if isAdmin()
+        || (owns('provider_id') && request.resource.data.provider_id == resource.data.provider_id)
+        || (owns('user_id') && request.resource.data.user_id == resource.data.user_id);
+      allow delete: if isAdmin();
+    }
+    match /pharmacy_documents/{id} {
+      allow read: if isAdmin() || owns('pharmacy_id');
+      allow create: if isAdmin() || ownsNew('pharmacy_id');
+      allow update: if isAdmin() || owns('pharmacy_id')
+        && request.resource.data.pharmacy_id == resource.data.pharmacy_id;
+      allow delete: if isAdmin();
+    }
+    match /pharmacy_branches/{id} {
+      allow read: if isAdmin() || owns('pharmacy_id');
+      allow create: if isAdmin() || ownsNew('pharmacy_id');
+      allow update, delete: if isAdmin() || owns('pharmacy_id');
+    }
+    match /pharmacy_appointments/{id} {
+      allow read: if isAdmin() || owns('patient_id') || owns('pharmacy_id');
+      allow create: if ownsNew('patient_id');
+      allow update: if isAdmin() || owns('patient_id') || owns('pharmacy_id');
+      allow delete: if isAdmin();
+    }
+    match /driver_bank_accounts/{id} {
+      allow read, update, delete: if isAdmin() || owns('driver_id');
+      allow create: if isAdmin() || ownsNew('driver_id');
+    }
+    match /driver_payouts/{id} {
+      allow read: if isAdmin() || owns('driver_id');
+      allow write: if isAdmin();
+    }
+    match /family_members/{id} {
+      allow read, update, delete: if isAdmin() || owns('patient_id');
+      allow create: if isAdmin() || ownsNew('patient_id');
+    }
+    match /ratings/{id} {
+      allow read: if isAdmin() || owns('patient_id') || owns('provider_id');
+      allow create: if ownsNew('patient_id');
+      allow update: if isAdmin() || owns('patient_id');
+      allow delete: if isAdmin();
+    }
+    match /medications_public/{id} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /pharmacy_directory/{id} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /admin_audit_log/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /admin_invites/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /homecare_approval_events/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /prescription_audit_log/{id} {
+      allow read: if isAdmin() || owns('patient_id') || owns('doctor_id');
+      allow write: if isAdmin();
+    }
+    match /{collection}/{id} {
+      allow read, update, delete: if collection in [
+        'user_addresses', 'notification_preferences', 'medication_reminders',
+        'card_pins', 'saved_payment_methods',
+      ] && (isAdmin() || owns('user_id'));
+      allow create: if collection in [
+        'user_addresses', 'notification_preferences', 'medication_reminders',
+        'card_pins', 'saved_payment_methods',
+      ] && (isAdmin() || ownsNew('user_id'));
     }
 
     // Default deny everything else.

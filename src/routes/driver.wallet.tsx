@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,13 +53,13 @@ function Wallet_() {
   async function load() {
     if (!user) return;
     const [{ data: dels }, { data: po }, { data: ba }] = await Promise.all([
-      supabase.from("deliveries").select("id, order_id, updated_at, status").eq("driver_id", user.id).eq("status", "delivered"),
-      supabase.from("driver_payouts").select("*").eq("driver_id", user.id).order("requested_at", { ascending: false }),
-      supabase.from("driver_bank_accounts").select("*").eq("driver_id", user.id).order("created_at", { ascending: false }),
+      firestoreClient.from("deliveries").select("id, order_id, updated_at, status").eq("driver_id", user.id).eq("status", "delivered"),
+      firestoreClient.from("driver_payouts").select("*").eq("driver_id", user.id).order("requested_at", { ascending: false }),
+      firestoreClient.from("driver_bank_accounts").select("*").eq("driver_id", user.id).order("created_at", { ascending: false }),
     ]);
     const orderIds = (dels ?? []).map((d) => d.order_id);
     const { data: orders } = orderIds.length > 0
-      ? await supabase.from("orders").select("id, delivery_fee").in("id", orderIds)
+      ? await firestoreClient.from("orders").select("id, delivery_fee").in("id", orderIds)
       : { data: [] as { id: string; delivery_fee: number }[] };
     const feeMap = new Map((orders ?? []).map((o) => [o.id, Number(o.delivery_fee || 0)]));
     setCompleted((dels ?? []).map((d) => {
@@ -74,12 +74,12 @@ function Wallet_() {
   useEffect(() => {
     if (!user) return;
     load();
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`wallet-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "driver_payouts", filter: `driver_id=eq.${user.id}` }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "driver_bank_accounts", filter: `driver_id=eq.${user.id}` }, () => load())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firestoreClient.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -108,7 +108,7 @@ function Wallet_() {
     if (!amt || amt < MIN_PAYOUT) { toast.error(`Minimum payout is R ${MIN_PAYOUT}`); return; }
     if (amt > available) { toast.error("Amount exceeds available balance"); return; }
     setRequesting(true);
-    const { error } = await supabase.from("driver_payouts").insert({
+    const { error } = await firestoreClient.from("driver_payouts").insert({
       driver_id: user.id, amount: amt, method, reference: reference.trim(), status: "pending",
     } as any);
     setRequesting(false);
@@ -124,7 +124,7 @@ function Wallet_() {
       return;
     }
     setAddingBank(true);
-    const { error } = await supabase.from("driver_bank_accounts").insert({
+    const { error } = await firestoreClient.from("driver_bank_accounts").insert({
       driver_id: user.id, ...newBank, is_default: banks.length === 0,
     } as never);
     setAddingBank(false);
@@ -134,10 +134,10 @@ function Wallet_() {
   }
 
   async function setDefaultBank(id: string) {
-    await supabase.from("driver_bank_accounts").update({ is_default: true } as never).eq("id", id);
+    await firestoreClient.from("driver_bank_accounts").update({ is_default: true } as never).eq("id", id);
   }
   async function removeBank(id: string) {
-    await supabase.from("driver_bank_accounts").delete().eq("id", id);
+    await firestoreClient.from("driver_bank_accounts").delete().eq("id", id);
   }
 
   return (

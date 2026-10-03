@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { RoleGuard } from "@/components/RoleGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ function AdminLogsPage() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await firestoreClient
       .from("admin_audit_log" as never)
       .select("*")
       .order("created_at", { ascending: false })
@@ -41,11 +41,11 @@ function AdminLogsPage() {
 
   useEffect(() => {
     void load();
-    const ch = supabase
+    const ch = firestoreClient
       .channel("admin-logs")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_audit_log" }, () => load())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firestoreClient.removeChannel(ch); };
   }, []);
 
   const actions = useMemo(() => Array.from(new Set(rows.map((r) => r.action))).sort(), [rows]);

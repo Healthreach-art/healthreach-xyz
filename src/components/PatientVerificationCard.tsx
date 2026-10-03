@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ export interface PatientVerification {
 }
 
 export async function fetchVerification(userId: string): Promise<PatientVerification | null> {
-  const { data } = await supabase
+  const { data } = await firestoreClient
     .from("patient_verifications")
     .select("*")
     .eq("user_id", userId)
@@ -93,7 +93,7 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
     try {
       const ext = file.name.split(".").pop() || "bin";
       const path = `${user.id}/verify-${kind}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
+      const { error: upErr } = await firestoreClient.storage
         .from("prescriptions")
         .upload(path, file, { contentType: file.type, upsert: true });
       if (upErr) throw upErr;
@@ -101,7 +101,7 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
       if (kind === "id") patch.id_document_path = path;
       else if (kind === "selfie") patch.selfie_path = path;
       else patch.selfie_with_id_path = path;
-      const { error } = await supabase
+      const { error } = await firestoreClient
         .from("patient_verifications")
         .upsert(patch as never, { onConflict: "user_id" });
       if (error) throw error;
@@ -126,7 +126,7 @@ export function PatientVerificationCard({ compact, onChanged }: Props) {
       return;
     }
     setBusy("save");
-    const { error } = await supabase
+    const { error } = await firestoreClient
       .from("patient_verifications")
       .upsert({ user_id: user.id, id_number: cleaned } as never, { onConflict: "user_id" });
     setBusy(null);

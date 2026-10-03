@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { deleteMyAccount } from "@/lib/account.functions";
 
 interface Props {
@@ -33,7 +33,7 @@ export function DeleteAccountButton({ variant = "sidebar", collapsed = false }: 
     try {
       await callDelete();
       // Clear local session and reload to a fresh state.
-      try { await supabase.auth.signOut(); } catch { /* ignore */ }
+      try { await firestoreClient.auth.signOut(); } catch { /* ignore */ }
       toast.success("Account deleted. You can sign up again any time.");
       window.location.href = "/";
     } catch (e: any) {

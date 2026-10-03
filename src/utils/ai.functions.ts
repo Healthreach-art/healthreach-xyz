@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -12,19 +12,27 @@ const ocrInput = z.object({
   mimeType: z.string().min(3).max(100),
 });
 
-function assertSupabaseStorageUrl(rawUrl: string) {
-  const allowedHost = (() => {
-    try { return new URL(process.env.SUPABASE_URL ?? "").hostname; } catch { return ""; }
-  })();
+function assertFirebaseStorageUrl(rawUrl: string) {
+  const allowedBucket = (
+    process.env.FIREBASE_STORAGE_BUCKET
+    ?? process.env.VITE_FIREBASE_STORAGE_BUCKET
+    ?? "healthreachcare-prod.firebasestorage.app"
+  ).trim();
   let target: URL;
   try { target = new URL(rawUrl); } catch { throw new Error("Invalid file URL"); }
   if (target.protocol !== "https:") throw new Error("Invalid file URL");
-  if (!allowedHost || target.hostname !== allowedHost) throw new Error("File URL must be a Supabase Storage URL");
-  if (!target.pathname.startsWith("/storage/")) throw new Error("File URL must be a Supabase Storage URL");
+  const match = target.pathname.match(/^\/v0\/b\/([^/]+)\/o\/.+$/);
+  if (
+    target.hostname !== "firebasestorage.googleapis.com"
+    || !match
+    || decodeURIComponent(match[1]) !== allowedBucket
+  ) {
+    throw new Error("File URL must be a Firebase Storage URL");
+  }
 }
 
 export const parsePrescription = createServerFn({ method: "POST" })
-  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => ocrInput.parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
@@ -33,7 +41,7 @@ export const parsePrescription = createServerFn({ method: "POST" })
     // Fetch the file and convert to base64 data URL (gateway accepts image_url)
     let imageDataUrl: string | null = null;
     try {
-      assertSupabaseStorageUrl(data.fileUrl);
+      assertFirebaseStorageUrl(data.fileUrl);
       const r = await fetch(data.fileUrl);
       if (!r.ok) return { error: `Could not fetch file (${r.status})`, medications: [], doctor: null, notes: null };
       const buf = new Uint8Array(await r.arrayBuffer());
@@ -131,7 +139,7 @@ const interactionsInput = z.object({
 });
 
 export const checkDrugInteractions = createServerFn({ method: "POST" })
-  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => interactionsInput.parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
@@ -268,7 +276,7 @@ const EMPTY_RESULT: Omit<VerifyResult, "error"> = {
 };
 
 export const verifyPrescription = createServerFn({ method: "POST" })
-  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => verifyInput.parse(input))
   .handler(async ({ data, context }): Promise<VerifyResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
@@ -280,7 +288,7 @@ export const verifyPrescription = createServerFn({ method: "POST" })
     // Download & base64 encode
     let imageDataUrl: string;
     try {
-      assertSupabaseStorageUrl(data.fileUrl);
+      assertFirebaseStorageUrl(data.fileUrl);
       const r = await fetch(data.fileUrl);
       if (!r.ok) return { ...EMPTY_RESULT, error: `Could not fetch file (${r.status})` };
       const buf = new Uint8Array(await r.arrayBuffer());
@@ -431,9 +439,9 @@ Score 71-100 = low risk (clearly authentic), 31-70 = medium (needs pharmacist re
 
     // Persist AI signals onto upload row (merge with heuristic score; take the higher fraud risk).
     try {
-      const { supabase, userId } = context;
+      const { userId } = context;
       const aiFraud = 100 - result.trust_score;
-      const { data: existing } = await supabase
+      const { data: existing } = await firestoreAdmin
         .from("prescription_uploads")
         .select("fraud_score, fraud_signals")
         .eq("id", data.uploadId)
@@ -442,11 +450,11 @@ Score 71-100 = low risk (clearly authentic), 31-70 = medium (needs pharmacist re
       const prevSignals = Array.isArray(existing?.fraud_signals) ? existing!.fraud_signals as any[] : [];
       const aiSignals = result.fraud_signals.map(s => ({ label: `ai_${s.label}`.toLowerCase().replace(/\s+/g, "_"), detail: s.detail }));
       const merged = [...prevSignals.filter((s: any) => !String(s.label).startsWith("ai_")), ...aiSignals];
-      await supabase
+      await firestoreAdmin
         .from("prescription_uploads")
         .update({ fraud_score: Math.max(prevScore, aiFraud), fraud_signals: merged })
         .eq("id", data.uploadId);
-      await supabase.from("prescription_audit_log").insert({
+      await firestoreAdmin.from("prescription_audit_log").insert({
         prescription_upload_id: data.uploadId,
         actor_id: userId,
         action: "ai_verification",

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Bell, Check, X, Clock, MapPin } from "lucide-react";
@@ -26,7 +26,7 @@ export function PharmacyOffersInbox() {
 
   async function load() {
     if (!user) return;
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("pharmacy_offers")
       .select("id, order_id, distance_km, tier_km, expires_at, created_at")
       .eq("pharmacy_id", user.id)
@@ -35,7 +35,7 @@ export function PharmacyOffersInbox() {
       .order("created_at", { ascending: false });
     const list = (data ?? []) as Offer[];
     if (list.length === 0) { setOffers([]); return; }
-    const { data: orders } = await supabase
+    const { data: orders } = await firestoreClient
       .from("orders")
       .select("id, medication_name, delivery_address")
       .in("id", list.map((o) => o.order_id));
@@ -58,7 +58,7 @@ export function PharmacyOffersInbox() {
     load();
     const poll = setInterval(load, 5000);
 
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`pharmacy_offers_${user.id}_${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
@@ -72,12 +72,12 @@ export function PharmacyOffersInbox() {
       clearInterval(t);
       clearInterval(poll);
       try { ch.unsubscribe(); } catch { /* noop */ }
-      supabase.removeChannel(ch);
+      firestoreClient.removeChannel(ch);
     };
   }, [user]);
 
   async function accept(id: string) {
-    const { data, error } = await supabase.rpc("accept_pharmacy_offer", { _offer_id: id });
+    const { data, error } = await firestoreClient.action("accept_pharmacy_offer", { _offer_id: id });
     if (error) { toast.error(error.message); load(); return; }
     try {
       const orderId = String(data);
@@ -90,7 +90,7 @@ export function PharmacyOffersInbox() {
     load();
   }
   async function decline(id: string) {
-    const { error } = await supabase.rpc("decline_pharmacy_offer", { _offer_id: id });
+    const { error } = await firestoreClient.action("decline_pharmacy_offer", { _offer_id: id });
     if (error) { toast.error(error.message); return; }
     toast.message("Offer declined — system will escalate");
     load();

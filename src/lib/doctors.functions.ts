@@ -1,12 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
 const PLATFORM_FEE = 15;
 
 export const bookDoctorAppointment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       doctorId: z.string().uuid(),
@@ -21,7 +21,7 @@ export const bookDoctorAppointment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const userId = context.userId;
-    const { data: doc, error: docErr } = await supabaseAdmin
+    const { data: doc, error: docErr } = await firestoreAdmin
       .from("doctors")
       .select("id, hospital_id, user_id, consultation_fee, is_active, is_verified, is_demo, full_name")
       .eq("id", data.doctorId)
@@ -36,7 +36,7 @@ export const bookDoctorAppointment = createServerFn({ method: "POST" })
     // so the existing notification trigger still has a recipient.
     const hospitalId = doc.hospital_id ?? doc.user_id ?? userId;
 
-    const { data: appt, error } = await supabaseAdmin
+    const { data: appt, error } = await firestoreAdmin
       .from("doctor_appointments")
       .insert({
         patient_id: userId,
@@ -57,11 +57,12 @@ export const bookDoctorAppointment = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
+    if (!appt) throw new Error("Appointment could not be created.");
     return { appointmentId: appt.id, platformFeeCents: PLATFORM_FEE * 100 };
   });
 
 export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       appointmentId: z.string().uuid(),
@@ -92,7 +93,7 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
     }
 
     // Ensure the appointment belongs to this user and hasn't already been paid with a different reference.
-    const { data: existing, error: lookupErr } = await supabaseAdmin
+    const { data: existing, error: lookupErr } = await firestoreAdmin
       .from("doctor_appointments")
       .select("id, patient_id, payment_status, payment_reference")
       .eq("id", data.appointmentId)
@@ -103,7 +104,7 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
       throw new Error("Appointment already paid");
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await firestoreAdmin
       .from("doctor_appointments")
       .update({
         payment_status: "paid",
@@ -118,7 +119,7 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
   });
 
 export const issueEPrescription = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       appointmentId: z.string().uuid(),
@@ -132,15 +133,16 @@ export const issueEPrescription = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { data: appt, error: aErr } = await supabaseAdmin
+    const { data: appt, error: aErr } = await firestoreAdmin
       .from("doctor_appointments")
       .select("id, patient_id, doctor_id, hospital_id")
       .eq("id", data.appointmentId)
       .maybeSingle();
-    if (aErr || !appt) throw new Error("Appointment not found");
+    if (aErr) throw new Error(aErr.message);
+    if (!appt) throw new Error("Appointment not found");
     if (appt.hospital_id !== context.userId) throw new Error("Not your appointment");
 
-    const { data: row, error } = await supabaseAdmin
+    const { data: row, error } = await firestoreAdmin
       .from("e_prescriptions")
       .insert({
         appointment_id: appt.id,
@@ -158,5 +160,6 @@ export const issueEPrescription = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
+    if (!row) throw new Error("Prescription could not be created.");
     return { id: row.id };
   });

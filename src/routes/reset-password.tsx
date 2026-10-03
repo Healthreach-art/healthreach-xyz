@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect, type FormEvent } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Lock, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
@@ -25,7 +25,7 @@ function ResetPasswordPage() {
   useEffect(() => {
     let mounted = true;
     const checkRecoverySession = async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await firestoreClient.auth.getSession();
       if (!mounted) return;
       if (!data.session) {
         setError("Open the reset link from your email first, then enter your new password here.");
@@ -34,7 +34,7 @@ function ResetPasswordPage() {
     };
     void checkRecoverySession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = firestoreClient.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setError("");
         setReady(true);
@@ -58,7 +58,7 @@ function ResetPasswordPage() {
     }
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
+    const { error: updateError } = await firestoreClient.auth.updateUser({ password });
 
     if (updateError) {
       setError(updateError.message);
@@ -66,7 +66,7 @@ function ResetPasswordPage() {
       return;
     }
 
-    await supabase.auth.signOut({ scope: "local" });
+    await firestoreClient.auth.signOut({ scope: "local" });
     setSuccess(true);
     setLoading(false);
   };

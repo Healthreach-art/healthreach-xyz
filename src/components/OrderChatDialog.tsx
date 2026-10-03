@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Send, Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -35,7 +35,7 @@ export function OrderChatDialog({ orderId, orderLabel, onClose }: OrderChatDialo
 
     async function load() {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await firestoreClient
         .from("order_messages")
         .select("*")
         .eq("order_id", orderId!)
@@ -48,7 +48,7 @@ export function OrderChatDialog({ orderId, orderLabel, onClose }: OrderChatDialo
     }
     load();
 
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`order-msgs-${orderId}`)
       .on(
         "postgres_changes",
@@ -59,7 +59,7 @@ export function OrderChatDialog({ orderId, orderLabel, onClose }: OrderChatDialo
       )
       .subscribe();
     if (typeof window !== "undefined") (window as any).__activeChatId = orderId;
-    return () => { cancelled = true; supabase.removeChannel(ch); if (typeof window !== "undefined") (window as any).__activeChatId = null; };
+    return () => { cancelled = true; firestoreClient.removeChannel(ch); if (typeof window !== "undefined") (window as any).__activeChatId = null; };
 
   }, [orderId, user]);
 
@@ -70,7 +70,7 @@ export function OrderChatDialog({ orderId, orderLabel, onClose }: OrderChatDialo
   async function send() {
     if (!body.trim() || !orderId || !user || !role) return;
     setSending(true);
-    const { error } = await supabase.from("order_messages").insert({
+    const { error } = await firestoreClient.from("order_messages").insert({
       order_id: orderId,
       sender_id: user.id,
       sender_role: role,

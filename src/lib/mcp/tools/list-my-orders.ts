@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
 
 export default defineTool({
   name: "list_my_orders",
@@ -15,17 +15,11 @@ export default defineTool({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
-      global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
+
+    const { data, error } = await firestoreAdmin.rpc("mcp_list_my_orders", {
+      limit: limit ?? 10,
+      status,
     });
-    let q = supabase
-      .from("orders")
-      .select("id, status, total_amount, created_at, pharmacy_id, delivery_address")
-      .order("created_at", { ascending: false })
-      .limit(limit ?? 10);
-    if (status) q = q.eq("status", status);
-    const { data, error } = await q;
     if (error) {
       return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
     }

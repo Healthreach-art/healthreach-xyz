@@ -1,27 +1,27 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
 const uuid = z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
 
 async function assertAdmin(userId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
+  const { firestoreAdmin } = await import("@/lib/firestore-admin");
+  const { data } = await firestoreAdmin
     .from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
   if (!data) throw new Error("Admin only");
-  return supabaseAdmin;
+  return firestoreAdmin;
 }
 
 /** Admin: full home care provider list with documents + approval history. */
 export const adminListHomecare = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const supabaseAdmin = await assertAdmin(context.userId);
+    const firestoreAdmin = await assertAdmin(context.userId);
     const [{ data: providers }, { data: docs }, { data: events }, { data: staff }] = await Promise.all([
-      supabaseAdmin.from("homecare_providers").select("*").order("created_at", { ascending: false }),
-      supabaseAdmin.from("homecare_documents").select("*").order("created_at", { ascending: false }),
-      supabaseAdmin.from("homecare_approval_events").select("*").order("created_at", { ascending: false }),
-      supabaseAdmin.from("homecare_staff").select("*").order("created_at", { ascending: false }),
+      firestoreAdmin.from("homecare_providers").select("*").order("created_at", { ascending: false }),
+      firestoreAdmin.from("homecare_documents").select("*").order("created_at", { ascending: false }),
+      firestoreAdmin.from("homecare_approval_events").select("*").order("created_at", { ascending: false }),
+      firestoreAdmin.from("homecare_staff").select("*").order("created_at", { ascending: false }),
     ]);
     return {
       providers: providers ?? [],
@@ -33,7 +33,7 @@ export const adminListHomecare = createServerFn({ method: "GET" })
 
 /** Admin: approve / reject / request documents / suspend / reactivate. */
 export const adminReviewHomecare = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       providerId: uuid,
@@ -43,10 +43,10 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const supabaseAdmin = await assertAdmin(context.userId);
+    const firestoreAdmin = await assertAdmin(context.userId);
     const ts = new Date().toISOString();
 
-    const { data: provider } = await supabaseAdmin
+    const { data: provider } = await firestoreAdmin
       .from("homecare_providers").select("*").eq("id", data.providerId).maybeSingle();
     if (!provider) throw new Error("Provider not found");
     if (provider.user_id === context.userId) throw new Error("You cannot review your own provider account");
@@ -62,7 +62,7 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
       // same rule as doctors and drivers: required documents must be reviewed and approved first
       const { docsFor } = await import("@/lib/homecare");
       const required = docsFor(provider.provider_type);
-      const { data: docRows } = await supabaseAdmin
+      const { data: docRows } = await firestoreAdmin
         .from("homecare_documents").select("doc_key, status").eq("provider_id", data.providerId);
       const missing = required.filter((r) => {
         const row = (docRows ?? []).find((d) => d.doc_key === r.key);
@@ -105,15 +105,15 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
       body = "Your account is active again and can receive assignments.";
     }
 
-    const { error } = await supabaseAdmin.from("homecare_providers").update(patch as never).eq("id", data.providerId);
+    const { error } = await firestoreAdmin.from("homecare_providers").update(patch as never).eq("id", data.providerId);
     if (error) throw new Error(error.message);
 
     // keep the shared profile approval status in step so dashboard gates agree
-    await supabaseAdmin.from("profiles")
+    await firestoreAdmin.from("profiles")
       .update({ approval_status: patch.approval_status as never, updated_at: ts })
       .eq("user_id", provider.user_id);
 
-    await supabaseAdmin.from("homecare_approval_events").insert({
+    await firestoreAdmin.from("homecare_approval_events").insert({
       provider_id: data.providerId,
       admin_id: context.userId,
       admin_email: context.claims?.email ?? null,
@@ -122,7 +122,7 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
       requested_documents: data.requestedDocuments ?? null,
     });
 
-    await supabaseAdmin.from("admin_audit_log").insert({
+    await firestoreAdmin.from("admin_audit_log").insert({
       admin_id: context.userId,
       action: `homecare.${data.action}`,
       target_type: "homecare_provider",
@@ -130,7 +130,7 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
       payload: { reason: data.reason ?? null, requested_documents: data.requestedDocuments ?? null },
     });
 
-    await supabaseAdmin.from("notifications").insert({
+    await firestoreAdmin.from("notifications").insert({
       user_id: provider.user_id,
       category: "system",
       title,
@@ -143,7 +143,7 @@ export const adminReviewHomecare = createServerFn({ method: "POST" })
 
 /** Admin: review a single uploaded home care document. */
 export const adminReviewHomecareDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       documentId: uuid,
@@ -152,15 +152,15 @@ export const adminReviewHomecareDocument = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const supabaseAdmin = await assertAdmin(context.userId);
-    const { error } = await supabaseAdmin.from("homecare_documents").update({
+    const firestoreAdmin = await assertAdmin(context.userId);
+    const { error } = await firestoreAdmin.from("homecare_documents").update({
       status: data.status,
       notes: data.notes ?? null,
       reviewed_by: context.userId,
       reviewed_at: new Date().toISOString(),
     }).eq("id", data.documentId);
     if (error) throw new Error(error.message);
-    await supabaseAdmin.from("admin_audit_log").insert({
+    await firestoreAdmin.from("admin_audit_log").insert({
       admin_id: context.userId,
       action: `homecare.document.${data.status}`,
       target_type: "homecare_document",
@@ -176,36 +176,36 @@ export const adminReviewHomecareDocument = createServerFn({ method: "POST" })
  * every open is recorded in the audit log.
  */
 export const getHomecareDocumentUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) => z.object({ documentId: uuid }).parse(d))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
 
-    const { data: doc } = await supabaseAdmin
+    const { data: doc } = await firestoreAdmin
       .from("homecare_documents").select("id, file_path, provider_id").eq("id", data.documentId).maybeSingle();
     if (!doc) throw new Error("Document not found");
 
-    const { data: adminRow } = await supabaseAdmin
+    const { data: adminRow } = await firestoreAdmin
       .from("user_roles").select("role").eq("user_id", context.userId).eq("role", "admin").maybeSingle();
 
     let allowed = !!adminRow;
     if (!allowed) {
-      const { data: prov } = await supabaseAdmin
+      const { data: prov } = await firestoreAdmin
         .from("homecare_providers").select("user_id").eq("id", doc.provider_id).maybeSingle();
       allowed = prov?.user_id === context.userId;
       if (!allowed) {
-        const { data: st } = await supabaseAdmin
+        const { data: st } = await firestoreAdmin
           .from("homecare_staff").select("id").eq("company_id", doc.provider_id).eq("user_id", context.userId).maybeSingle();
         allowed = !!st;
       }
     }
     if (!allowed) throw new Error("Not authorised to open this document");
 
-    const { data: signed, error } = await supabaseAdmin.storage
+    const { data: signed, error } = await firestoreAdmin.storage
       .from("homecare-docs").createSignedUrl(doc.file_path, 120);
     if (error || !signed) throw new Error(error?.message ?? "Could not open document");
 
-    await supabaseAdmin.from("admin_audit_log").insert({
+    await firestoreAdmin.from("admin_audit_log").insert({
       admin_id: context.userId,
       action: "homecare.document.view",
       target_type: "homecare_document",
@@ -218,7 +218,7 @@ export const getHomecareDocumentUrl = createServerFn({ method: "POST" })
 
 /** Admin: assign an approved home care provider to a customer request. */
 export const adminAssignHomecare = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       requestId: uuid,
@@ -228,9 +228,9 @@ export const adminAssignHomecare = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const supabaseAdmin = await assertAdmin(context.userId);
+    const firestoreAdmin = await assertAdmin(context.userId);
 
-    const { data: provider } = await supabaseAdmin
+    const { data: provider } = await firestoreAdmin
       .from("homecare_providers").select("id, user_id, approval_status, is_active, business_name, full_name")
       .eq("id", data.providerId).maybeSingle();
     if (!provider) throw new Error("Provider not found");
@@ -238,14 +238,14 @@ export const adminAssignHomecare = createServerFn({ method: "POST" })
       throw new Error("Only an approved, active provider can receive an assignment");
     }
 
-    const { data: request } = await supabaseAdmin
+    const { data: request } = await firestoreAdmin
       .from("homecare_requests").select("id, patient_id, service_type").eq("id", data.requestId).maybeSingle();
     if (!request) throw new Error("Request not found");
 
-    await supabaseAdmin.from("homecare_requests")
+    await firestoreAdmin.from("homecare_requests")
       .update({ provider_id: data.providerId, status: "assigned" }).eq("id", data.requestId);
 
-    const { data: assignment, error } = await supabaseAdmin.from("homecare_assignments").insert({
+    const { data: assignment, error } = await firestoreAdmin.from("homecare_assignments").insert({
       request_id: data.requestId,
       provider_id: data.providerId,
       status: "offered",
@@ -254,8 +254,9 @@ export const adminAssignHomecare = createServerFn({ method: "POST" })
       assigned_by: context.userId,
     }).select("id").single();
     if (error) throw new Error(error.message);
+    if (!assignment) throw new Error("Home care assignment could not be created.");
 
-    await supabaseAdmin.from("admin_audit_log").insert({
+    await firestoreAdmin.from("admin_audit_log").insert({
       admin_id: context.userId,
       action: "homecare.assign",
       target_type: "homecare_request",
@@ -263,7 +264,7 @@ export const adminAssignHomecare = createServerFn({ method: "POST" })
       payload: { provider_id: data.providerId, assignment_id: assignment.id },
     });
 
-    await supabaseAdmin.from("notifications").insert([
+    await firestoreAdmin.from("notifications").insert([
       {
         user_id: provider.user_id,
         category: "system",
@@ -289,10 +290,10 @@ export const adminAssignHomecare = createServerFn({ method: "POST" })
  * single authorised path and it is scoped to the signed-in owner.
  */
 export const getMyHomecareBanking = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const { data } = await firestoreAdmin
       .from("homecare_providers")
       .select("bank_name, account_holder, account_number, branch_code")
       .eq("user_id", context.userId)

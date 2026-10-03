@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
 // Doctor: submit documents for admin review
 export const submitDoctorDocuments = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       hpcsa_number: z.string().min(2).max(64),
@@ -19,7 +19,7 @@ export const submitDoctorDocuments = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
     const userId = context.userId;
     const payload = {
       doctor_user_id: userId,
@@ -37,7 +37,7 @@ export const submitDoctorDocuments = createServerFn({ method: "POST" })
       rejection_reason: null,
       requested_documents: [],
     };
-    const { error } = await supabaseAdmin
+    const { error } = await firestoreAdmin
       .from("doctor_documents")
       .upsert(payload, { onConflict: "doctor_user_id" });
     if (error) throw new Error(error.message);
@@ -46,7 +46,7 @@ export const submitDoctorDocuments = createServerFn({ method: "POST" })
 
 // Admin: verify or reject a doctor (sets doctors.is_verified + writes doctor_documents)
 export const adminReviewDoctor = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       doctorUserId: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
@@ -56,9 +56,9 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
     // Verify admin
-    const { data: roleRow } = await supabaseAdmin
+    const { data: roleRow } = await firestoreAdmin
       .from("user_roles").select("role").eq("user_id", context.userId).eq("role", "admin").maybeSingle();
     if (!roleRow) throw new Error("Admin only");
 
@@ -72,7 +72,7 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
     let publishReady = false;
     let readinessNote = "";
     if (approve) {
-      const { data: doc } = await supabaseAdmin
+      const { data: doc } = await firestoreAdmin
         .from("doctors")
         .select("id, full_name, specialty, qualifications, city, consultation_fee, photo_url")
         .eq("user_id", data.doctorUserId)
@@ -85,7 +85,7 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
         if (!doc.qualifications || doc.qualifications.trim().length < 2) missing.push("qualifications");
         if (!doc.city || doc.city.trim().length < 2) missing.push("city");
         if (!doc.consultation_fee || Number(doc.consultation_fee) <= 0) missing.push("consultation fee");
-        const { count: windows } = await supabaseAdmin
+        const { count: windows } = await firestoreAdmin
           .from("doctor_availability")
           .select("*", { count: "exact", head: true })
           .eq("doctor_id", doc.id)
@@ -97,11 +97,11 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
     }
 
     // Update profile approval status
-    await supabaseAdmin.from("profiles")
+    await firestoreAdmin.from("profiles")
       .update({ approval_status: approve ? "approved" : requestDocuments ? "under_review" : "rejected", updated_at: ts })
       .eq("user_id", data.doctorUserId);
 
-    await supabaseAdmin.from("admin_audit_log").insert({
+    await firestoreAdmin.from("admin_audit_log").insert({
       admin_id: context.userId,
       action: approve ? "doctor.approve" : requestDocuments ? "doctor.request_documents" : "doctor.reject",
       target_type: "doctor",
@@ -111,7 +111,7 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
 
 
     // Update doctor documents
-    await supabaseAdmin.from("doctor_documents")
+    await firestoreAdmin.from("doctor_documents")
       .update({
         verified_at: approve ? ts : null,
         verified_by: approve ? context.userId : null,
@@ -121,11 +121,11 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
       .eq("doctor_user_id", data.doctorUserId);
 
     // Update / create doctor profile row(s) tied to this user
-    const { data: existingDoc } = await supabaseAdmin
+    const { data: existingDoc } = await firestoreAdmin
       .from("doctors").select("id").eq("user_id", data.doctorUserId).maybeSingle();
     if (existingDoc) {
       const goLive = approve && publishReady;
-      await supabaseAdmin.from("doctors")
+      await firestoreAdmin.from("doctors")
         .update({
           is_verified: goLive,
           verified_at: goLive ? ts : null,
@@ -138,7 +138,7 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
 
 
     // Notify the doctor
-    await supabaseAdmin.from("notifications").insert({
+    await firestoreAdmin.from("notifications").insert({
       user_id: data.doctorUserId,
       category: "system",
       title: approve ? (publishReady ? "You're verified" : "Documents approved") : requestDocuments ? "More documents needed" : "Verification rejected",
@@ -158,7 +158,7 @@ export const adminReviewDoctor = createServerFn({ method: "POST" })
 
 // Admin: review pharmacy documents
 export const adminReviewPharmacyDocs = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       pharmacyUserId: z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/),
@@ -168,15 +168,15 @@ export const adminReviewPharmacyDocs = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: roleRow } = await supabaseAdmin
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const { data: roleRow } = await firestoreAdmin
       .from("user_roles").select("role").eq("user_id", context.userId).eq("role", "admin").maybeSingle();
     if (!roleRow) throw new Error("Admin only");
 
     const approve = data.decision === "approve";
     const ts = new Date().toISOString();
 
-    await supabaseAdmin.from("pharmacy_documents")
+    await firestoreAdmin.from("pharmacy_documents")
       .update({
         verified_at: approve ? ts : null,
         verified_by: approve ? context.userId : null,
@@ -187,11 +187,11 @@ export const adminReviewPharmacyDocs = createServerFn({ method: "POST" })
 
     // CRITICAL: also flip the pharmacy's profile approval_status so the
     // dashboard gate stops showing "Complete your pharmacy verification".
-    await supabaseAdmin.from("profiles")
+    await firestoreAdmin.from("profiles")
       .update({ approval_status: approve ? "approved" : "rejected", updated_at: ts })
       .eq("user_id", data.pharmacyUserId);
 
-    await supabaseAdmin.from("admin_audit_log").insert({
+    await firestoreAdmin.from("admin_audit_log").insert({
       admin_id: context.userId,
       action: approve ? "pharmacy.approve" : "pharmacy.reject",
       target_type: "pharmacy",
@@ -199,7 +199,7 @@ export const adminReviewPharmacyDocs = createServerFn({ method: "POST" })
       payload: { reason: data.reason ?? null, verified_services: data.verifiedServices ?? [] },
     });
 
-    await supabaseAdmin.from("notifications").insert({
+    await firestoreAdmin.from("notifications").insert({
       user_id: data.pharmacyUserId,
       category: "system",
       title: approve ? "Credentials verified" : "Credentials rejected",
@@ -211,4 +211,3 @@ export const adminReviewPharmacyDocs = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
-

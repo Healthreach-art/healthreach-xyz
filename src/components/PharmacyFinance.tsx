@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Wallet, Receipt, TrendingUp, FileDown } from "lucide-react";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
@@ -33,10 +33,10 @@ export function PharmacyFinance() {
     (async () => {
       setLoading(true);
       // payments belonging to this pharmacy's orders
-      const { data: ord } = await supabase.from("orders").select("id").eq("pharmacy_id", user.id);
+      const { data: ord } = await firestoreClient.from("orders").select("id").eq("pharmacy_id", user.id);
       const ids = (ord ?? []).map(o => o.id);
       if (!ids.length) { if (alive) { setRows([]); setLoading(false); } return; }
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("payments")
         .select("id, order_id, amount, status, created_at, pharmacy_amount, platform_fee, delivery_fee, total_paid, transaction_ref, invoice_number")
         .in("order_id", ids)
@@ -100,11 +100,11 @@ export function PharmacyFinance() {
               try {
                 const fromIso = new Date(from + "T00:00:00").toISOString();
                 const toIso = new Date(to + "T23:59:59").toISOString();
-                const { data: ord } = await supabase.from("orders").select("id, medication_name").eq("pharmacy_id", user.id);
+                const { data: ord } = await firestoreClient.from("orders").select("id, medication_name").eq("pharmacy_id", user.id);
                 const idMap = new Map((ord ?? []).map(o => [o.id, o.medication_name as string]));
                 const ids = Array.from(idMap.keys());
                 if (!ids.length) { toast.info("No transactions in this period."); return; }
-                const { data: pays } = await supabase
+                const { data: pays } = await firestoreClient
                   .from("payments")
                   .select("id, order_id, amount, status, created_at, pharmacy_amount, platform_fee, delivery_fee, total_paid, invoice_number")
                   .in("order_id", ids)

@@ -20,7 +20,7 @@ import {
   Pencil, Trash2, Plus, Minus, Truck, Radio, MessageCircle, Settings, Phone,
 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 import { OrderChatDialog } from "@/components/OrderChatDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
@@ -148,8 +148,8 @@ function PharmacyDashboard() {
   async function loadData() {
     if (!user) return;
     setLoading(true);
-    const medsQ = supabase.from("medications").select("*").eq("pharmacy_id", user.id);
-    const ordersQ = supabase.from("orders").select("*").eq("pharmacy_id", user.id);
+    const medsQ = firestoreClient.from("medications").select("*").eq("pharmacy_id", user.id);
+    const ordersQ = firestoreClient.from("orders").select("*").eq("pharmacy_id", user.id);
     const [medsRes, ordersRes] = await Promise.all([
       (isDemo ? medsQ : medsQ.eq("is_demo", false)).order("created_at", { ascending: false }),
       (isDemo ? ordersQ : ordersQ.eq("is_demo", false)).order("created_at", { ascending: false }),
@@ -162,7 +162,7 @@ function PharmacyDashboard() {
     // Load live deliveries (in-progress) for this pharmacy's orders
     const myOrderIds = (ordersRes.data ?? []).map((o) => o.id);
     if (myOrderIds.length > 0) {
-      const { data: dels } = await supabase
+      const { data: dels } = await firestoreClient
         .from("deliveries")
         .select("id, order_id, order_group_id, status, driver_id, delivery_address, updated_at, pickup_code")
         .in("order_id", myOrderIds)
@@ -173,7 +173,7 @@ function PharmacyDashboard() {
       const contacts = await Promise.all(
         (dels ?? []).map(async (d) => {
           if (!d.driver_id) return null;
-          const { data: c } = await supabase.rpc("get_order_driver_contact", { _order_id: d.order_id });
+          const { data: c } = await firestoreClient.action("get_order_driver_contact", { _order_id: d.order_id });
           const row = Array.isArray(c) ? c[0] : null;
           return row as { user_id: string; full_name: string; avatar_url: string; phone: string } | null;
         })
@@ -202,12 +202,12 @@ function PharmacyDashboard() {
   }
 
   async function loadDrivers() {
-    const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "driver");
+    const { data: roleRows } = await firestoreClient.from("user_roles").select("user_id").eq("role", "driver");
     const ids = (roleRows ?? []).map((r) => r.user_id);
     if (ids.length === 0) { setDrivers([]); return; }
     const [{ data: profs }, { data: activeDeliveries }] = await Promise.all([
-      supabase.from("profiles").select("user_id, full_name, approval_status").in("user_id", ids).eq("approval_status", "approved"),
-      supabase.from("deliveries").select("driver_id, status").in("driver_id", ids).in("status", ["assigned", "picked_up", "in_transit"]),
+      firestoreClient.from("profiles").select("user_id, full_name, approval_status").in("user_id", ids).eq("approval_status", "approved"),
+      firestoreClient.from("deliveries").select("driver_id, status").in("driver_id", ids).in("status", ["assigned", "picked_up", "in_transit"]),
     ]);
     const counts = new Map<string, number>();
     (activeDeliveries ?? []).forEach((d) => {
@@ -222,7 +222,7 @@ function PharmacyDashboard() {
 
   async function loadPxQueue() {
     if (!user) return;
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("prescription_uploads")
       .select("*")
       .eq("pharmacy_id", user.id)
@@ -246,7 +246,7 @@ function PharmacyDashboard() {
     loadDrivers();
     loadPxQueue();
     if (!user) return;
-    const channel = supabase
+    const channel = firestoreClient
       .channel(`pharmacy-${user.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, (payload) => {
         loadData();
@@ -263,16 +263,16 @@ function PharmacyDashboard() {
         const newRow = payload.new as { order_id?: string; status?: string };
         const oldRow = payload.old as { status?: string };
         if (newRow?.status === "delivered" && oldRow?.status !== "delivered" && newRow.order_id) {
-          const { data: ord } = await supabase.from("orders").select("pharmacy_id, medication_name").eq("id", newRow.order_id).maybeSingle();
+          const { data: ord } = await firestoreClient.from("orders").select("pharmacy_id, medication_name").eq("id", newRow.order_id).maybeSingle();
           if (ord?.pharmacy_id === user.id) {
-            const { data: pay } = await supabase.from("payments").select("invoice_number").eq("order_id", newRow.order_id).maybeSingle();
+            const { data: pay } = await firestoreClient.from("payments").select("invoice_number").eq("order_id", newRow.order_id).maybeSingle();
             toast.success("Order delivered ✅", { description: `${ord.medication_name} — Invoice ${pay?.invoice_number || "pending"}` });
           }
         }
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "prescription_uploads", filter: `pharmacy_id=eq.${user.id}` }, () => loadPxQueue())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { firestoreClient.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -310,9 +310,9 @@ function PharmacyDashboard() {
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-      const { error } = await supabase.storage.from("medication-images").upload(path, file, { contentType: file.type, upsert: false });
+      const { error } = await firestoreClient.storage.from("medication-images").upload(path, file, { contentType: file.type, upsert: false });
       if (error) throw error;
-      const { data } = supabase.storage.from("medication-images").getPublicUrl(path);
+      const { data } = firestoreClient.storage.from("medication-images").getPublicUrl(path);
       setForm((f) => ({ ...f, image_url: data.publicUrl }));
       toast.success("Image uploaded");
     } catch (e: unknown) {
@@ -344,8 +344,8 @@ function PharmacyDashboard() {
       description: desc,
     };
     const { error } = editingMed
-      ? await supabase.from("medications").update(payload).eq("id", editingMed.id)
-      : await supabase.from("medications").insert(payload);
+      ? await firestoreClient.from("medications").update(payload).eq("id", editingMed.id)
+      : await firestoreClient.from("medications").insert(payload);
     setSavingMed(false);
     if (error) { toast.error(error.message); return; }
     toast.success(editingMed ? "Medication updated" : "Medication added");
@@ -357,7 +357,7 @@ function PharmacyDashboard() {
   async function adjustStock(med: Medication, delta: number) {
 
     const next = Math.max(0, med.stock_quantity + delta);
-    const { error } = await supabase.from("medications").update({ stock_quantity: next }).eq("id", med.id);
+    const { error } = await firestoreClient.from("medications").update({ stock_quantity: next }).eq("id", med.id);
     if (error) { toast.error(error.message); return; }
     setInventory((prev) => prev.map((m) => (m.id === med.id ? { ...m, stock_quantity: next } : m)));
   }
@@ -365,7 +365,7 @@ function PharmacyDashboard() {
   async function confirmDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    const { error } = await supabase.from("medications").delete().eq("id", deleteTarget.id);
+    const { error } = await firestoreClient.from("medications").delete().eq("id", deleteTarget.id);
     setDeleting(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Medication deleted");
@@ -376,11 +376,11 @@ function PharmacyDashboard() {
   // ---- Group-aware bulk actions (apply to ALL items in the package) ----
   async function setGroupStatus(g: GroupedOrder<Order>, status: "cancelled" | "accepted" | "preparing" | "ready") {
     const ids = g.items.map((i) => i.id);
-    const { error } = await supabase.from("orders").update({ status }).in("id", ids);
+    const { error } = await firestoreClient.from("orders").update({ status }).in("id", ids);
     if (error) { toast.error(error.message); return false; }
     void import("@/lib/firestore").then(({ fsSet }) => Promise.all(ids.map((id) => fsSet("orders", id, { status })))).catch(() => {});
     if (g.group?.id) {
-      await supabase.from("order_groups" as never).update({ status } as never).eq("id", g.group.id);
+      await firestoreClient.from("order_groups" as never).update({ status } as never).eq("id", g.group.id);
     }
     return true;
   }
@@ -406,23 +406,23 @@ function PharmacyDashboard() {
 
   // Ensure a deliveries row exists for the order; returns true on success.
   async function ensureDeliveryRow(orderId: string, driverId: string | null): Promise<boolean> {
-    const { data: existing } = await supabase
+    const { data: existing } = await firestoreClient
       .from("deliveries").select("id").eq("order_id", orderId).maybeSingle();
     if (existing) {
       const update: { driver_id?: string; status: "assigned" } = { status: "assigned" };
       if (driverId) update.driver_id = driverId;
-      const { error } = await supabase.from("deliveries").update(update).eq("order_id", orderId);
+      const { error } = await firestoreClient.from("deliveries").update(update).eq("order_id", orderId);
       if (error) { toast.error(error.message); return false; }
       return true;
     }
     // Look up addresses from order + pharmacy profile
-    const { data: order } = await supabase
+    const { data: order } = await firestoreClient
       .from("orders").select("delivery_address").eq("id", orderId).maybeSingle();
     const { data: pharm } = user
-      ? await supabase.from("profiles").select("address, organization_name").eq("user_id", user.id).maybeSingle()
+      ? await firestoreClient.from("profiles").select("address, organization_name").eq("user_id", user.id).maybeSingle()
       : { data: null };
     const pickup = pharm?.address?.trim() || pharm?.organization_name || "Pharmacy pickup point";
-    const { error } = await supabase.from("deliveries").insert({
+    const { error } = await firestoreClient.from("deliveries").insert({
       order_id: orderId,
       driver_id: driverId,
       status: "assigned",
@@ -450,7 +450,7 @@ function PharmacyDashboard() {
     setAssigning(true);
     const ok = await ensureDeliveryRow(assignOrder.id, driverId);
     if (!ok) { setAssigning(false); return; }
-    const { error: orderErr } = await supabase.from("orders").update({ status: "accepted" }).eq("id", assignOrder.id);
+    const { error: orderErr } = await firestoreClient.from("orders").update({ status: "accepted" }).eq("id", assignOrder.id);
     setAssigning(false);
     if (orderErr) { toast.error(orderErr.message); return; }
     toast.success("Order accepted and driver assigned");

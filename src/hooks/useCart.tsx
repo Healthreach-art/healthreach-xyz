@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 
 export interface CartItem {
@@ -95,7 +95,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const refresh = async () => {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("medications")
         .select("id, price, stock_quantity")
         .in("id", ids);
@@ -121,7 +121,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     };
     refresh();
 
-    const channel = supabase
+    const channel = firestoreClient
       .channel(`cart-sync-${ids.join("-")}`)
       .on(
         "postgres_changes",
@@ -148,7 +148,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
-    return () => { cancelled = true; supabase.removeChannel(channel); };
+    return () => { cancelled = true; firestoreClient.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [medKey]);
 

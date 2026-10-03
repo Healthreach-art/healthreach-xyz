@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import {
   CheckCircle2, Pill, ClipboardCheck, Package, Bike, Truck, MapPin, Loader2, XCircle,
 } from "lucide-react";
@@ -65,7 +65,7 @@ export function OrderGroupTimeline({
     setLoading(true);
 
     (async () => {
-      const { data } = await supabase.rpc(
+      const { data } = await firestoreClient.action(
         "get_order_group_timeline" as never,
         { _group_id: orderGroupId } as never,
       );
@@ -74,7 +74,7 @@ export function OrderGroupTimeline({
       setLoading(false);
     })();
 
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`order-group-timeline-${orderGroupId}`)
       .on(
         "postgres_changes",
@@ -91,7 +91,7 @@ export function OrderGroupTimeline({
       )
       .subscribe();
 
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    return () => { cancelled = true; firestoreClient.removeChannel(ch); };
   }, [orderGroupId]);
 
   const cancelled = events.some((e) => e.stage === "cancelled");

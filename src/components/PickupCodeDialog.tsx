@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, KeyRound } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 
 interface Props {
@@ -21,7 +21,7 @@ export function PickupCodeDialog({ deliveryId, pharmacyName, onClose, onVerified
   useEffect(() => {
     if (!deliveryId) { setCode(""); setExpectedCode(null); return; }
     (async () => {
-      const { data } = await supabase.from("deliveries").select("pickup_code").eq("id", deliveryId).maybeSingle();
+      const { data } = await firestoreClient.from("deliveries").select("pickup_code").eq("id", deliveryId).maybeSingle();
       setExpectedCode((data as { pickup_code?: string } | null)?.pickup_code ?? null);
     })();
   }, [deliveryId]);
@@ -35,7 +35,7 @@ export function PickupCodeDialog({ deliveryId, pharmacyName, onClose, onVerified
       toast.error("Incorrect code. Please ask the pharmacy.");
       return;
     }
-    const { error } = await supabase
+    const { error } = await firestoreClient
       .from("deliveries")
       .update({ status: "picked_up", pickup_verified_at: new Date().toISOString() } as any)
       .eq("id", deliveryId);

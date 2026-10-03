@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -104,11 +104,11 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, family
         const file = item.file;
         const ext = file.name.split(".").pop() || "bin";
         const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const { error: upErr } = await supabase.storage
+        const { error: upErr } = await firestoreClient.storage
           .from("prescriptions")
           .upload(path, file, { contentType: file.type, upsert: false });
         if (upErr) throw upErr;
-        const { data, error } = await supabase
+        const { data, error } = await firestoreClient
           .from("prescription_uploads")
           .insert({
             patient_id: user.id,
@@ -228,7 +228,7 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, family
 
 /** Generate a short-lived signed URL for viewing a prescription file. */
 export async function getPrescriptionFileUrl(filePath: string) {
-  const { data, error } = await supabase.storage
+  const { data, error } = await firestoreClient.storage
     .from("prescriptions")
     .createSignedUrl(filePath, 60 * 5);
   if (error) throw error;
@@ -251,7 +251,7 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
 
   async function logAction(action: string, extra?: string) {
     if (!user) return;
-    await supabase.from("prescription_audit_log").insert({
+    await firestoreClient.from("prescription_audit_log").insert({
       prescription_upload_id: row.id,
       actor_id: user.id,
       action,
@@ -260,7 +260,7 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
   }
 
   async function loadAudit() {
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("prescription_audit_log")
       .select("*")
       .eq("prescription_upload_id", row.id)
@@ -283,7 +283,7 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
     setBusy(status);
     const patch: any = { status, pharmacist_notes: notes, reviewed_by: user?.id ?? null };
     if (status === "approved") patch.repeats_total = Math.max(1, Math.min(12, repeats || 5));
-    const { error } = await supabase.from("prescription_uploads").update(patch).eq("id", row.id);
+    const { error } = await firestoreClient.from("prescription_uploads").update(patch).eq("id", row.id);
     setBusy(null);
     if (error) { toast.error(error.message); return; }
     await logAction(status, notes);
@@ -294,7 +294,7 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
   async function toggleFlag() {
     setBusy("flag");
     const next = !row.flagged;
-    const { error } = await supabase.from("prescription_uploads").update({ flagged: next }).eq("id", row.id);
+    const { error } = await firestoreClient.from("prescription_uploads").update({ flagged: next }).eq("id", row.id);
     setBusy(null);
     if (error) { toast.error(error.message); return; }
     await logAction(next ? "flagged" : "unflagged", notes);
@@ -432,14 +432,14 @@ export function IdentityDocsPanel({ patientId, familyMemberId }: { patientId: st
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: pvRow } = await supabase
+      const { data: pvRow } = await firestoreClient
         .from("patient_verifications")
         .select("id_number, id_document_path, selfie_path, selfie_with_id_path")
         .eq("user_id", patientId)
         .maybeSingle();
       let fmRow: any = null;
       if (familyMemberId) {
-        const { data } = await supabase
+        const { data } = await firestoreClient
           .from("family_members")
           .select("full_name, id_number, id_document_path, selfie_with_id_path")
           .eq("id", familyMemberId)
@@ -459,7 +459,7 @@ export function IdentityDocsPanel({ patientId, familyMemberId }: { patientId: st
       const out: Record<string, string> = {};
       await Promise.all(paths.map(async ({ key, path }) => {
         if (!path) return;
-        const { data } = await supabase.storage.from("prescriptions").createSignedUrl(path, 60 * 10);
+        const { data } = await firestoreClient.storage.from("prescriptions").createSignedUrl(path, 60 * 10);
         if (data?.signedUrl) out[key] = data.signedUrl;
       }));
       if (!cancelled) setUrls(out);

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 
 const codeInput = z.object({ code: z.string().min(4).max(128) });
 
@@ -11,7 +11,7 @@ const codeInput = z.object({ code: z.string().min(4).max(128) });
  * role with `admin` and auto-approves the profile.
  */
 export const claimAdminWithCode = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => codeInput.parse(i))
   .handler(async ({ data, context }) => {
     const expected = process.env.ADMIN_INVITE_CODE;
@@ -21,12 +21,12 @@ export const claimAdminWithCode = createServerFn({ method: "POST" })
     }
     const userId = context.userId;
     // Remove any existing role rows for this user, then insert admin.
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
-    const { error: insertErr } = await supabaseAdmin
+    await firestoreAdmin.from("user_roles").delete().eq("user_id", userId);
+    const { error: insertErr } = await firestoreAdmin
       .from("user_roles")
       .insert({ user_id: userId, role: "admin" });
     if (insertErr) throw new Error(insertErr.message);
-    await supabaseAdmin
+    await firestoreAdmin
       .from("profiles")
       .update({ approval_status: "approved" })
       .eq("user_id", userId);
@@ -47,11 +47,11 @@ const broadcastInput = z.object({
  * caller to insert into their own user_id row otherwise.
  */
 export const broadcastNotification = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => broadcastInput.parse(i))
   .handler(async ({ data, context }) => {
     // Verify caller is admin
-    const { data: roleRow } = await supabaseAdmin
+    const { data: roleRow } = await firestoreAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId)
@@ -61,12 +61,12 @@ export const broadcastNotification = createServerFn({ method: "POST" })
 
     let userIds: string[] = [];
     if (data.audience === "all") {
-      const { data: rows } = await supabaseAdmin
+      const { data: rows } = await firestoreAdmin
         .from("user_roles")
         .select("user_id");
       userIds = (rows ?? []).map((r) => r.user_id);
     } else {
-      const { data: rows } = await supabaseAdmin
+      const { data: rows } = await firestoreAdmin
         .from("user_roles")
         .select("user_id")
         .eq("role", data.audience);
@@ -86,7 +86,7 @@ export const broadcastNotification = createServerFn({ method: "POST" })
     // Chunk inserts to stay under PostgREST payload limits.
     const CHUNK = 500;
     for (let i = 0; i < rows.length; i += CHUNK) {
-      const { error } = await supabaseAdmin
+      const { error } = await firestoreAdmin
         .from("notifications")
         .insert(rows.slice(i, i + CHUNK));
       if (error) throw new Error(error.message);
@@ -95,5 +95,4 @@ export const broadcastNotification = createServerFn({ method: "POST" })
   });
 
 // Demo seed removed — HealthReachCare now ships with no demo data.
-
 

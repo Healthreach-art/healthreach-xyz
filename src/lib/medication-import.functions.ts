@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
 
 /**
@@ -26,7 +26,7 @@ interface ParsedMed {
 }
 
 export const aiParseMedications = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => input.parse(i))
   .handler(async ({ data }): Promise<{ items: ParsedMed[]; summary: string }> => {
     const apiKey = process.env.LOVABLE_API_KEY;

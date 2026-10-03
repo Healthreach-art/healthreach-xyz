@@ -5,7 +5,7 @@ import { PharmacyAppointments } from "@/components/PharmacyAppointments";
 import { PharmacyBookingSettings } from "@/components/PharmacyBookingSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/pharmacy/appointments")({
@@ -23,7 +23,7 @@ function AppointmentsPage() {
   // 🔔 Ringtone (5s) + toast + browser notification when a new appointment arrives.
   useEffect(() => {
     if (!user) return;
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`pharmacy-appt-ring-${user.id}`)
       .on(
         "postgres_changes",
@@ -92,7 +92,7 @@ function AppointmentsPage() {
       Notification.requestPermission().catch(() => {});
     }
     return () => {
-      supabase.removeChannel(ch);
+      firestoreClient.removeChannel(ch);
     };
   }, [user]);
 

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { CreditCard, Lock, ShieldCheck } from "lucide-react";
@@ -41,7 +41,7 @@ export function AddCardDialog({ open, onClose, onAdded }: Props) {
     if (!open || !user) return;
     setPin(""); setPin2(""); setNumber(""); setName(""); setExp(""); setCvv("");
     setStage("loading");
-    supabase.from("card_pins").select("pin_hash").eq("user_id", user.id).maybeSingle()
+    firestoreClient.from("card_pins").select("pin_hash").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => {
         if (data?.pin_hash) { setHasPin(true); setStage("unlock"); }
         else { setHasPin(false); setStage("setup_pin"); }
@@ -54,7 +54,7 @@ export function AddCardDialog({ open, onClose, onAdded }: Props) {
     if (!user) return;
     setBusy(true);
     const hash = await sha256(pin + ":" + user.id);
-    const { error } = await supabase.from("card_pins").upsert({ user_id: user.id, pin_hash: hash, updated_at: new Date().toISOString() });
+    const { error } = await firestoreClient.from("card_pins").upsert({ user_id: user.id, pin_hash: hash, updated_at: new Date().toISOString() });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Card lock PIN set");
@@ -66,7 +66,7 @@ export function AddCardDialog({ open, onClose, onAdded }: Props) {
     if (!user || !pin) return;
     setBusy(true);
     const hash = await sha256(pin + ":" + user.id);
-    const { data } = await supabase.from("card_pins").select("pin_hash").eq("user_id", user.id).maybeSingle();
+    const { data } = await firestoreClient.from("card_pins").select("pin_hash").eq("user_id", user.id).maybeSingle();
     setBusy(false);
     if (data?.pin_hash !== hash) { toast.error("Wrong PIN"); return; }
     setStage("card");
@@ -80,7 +80,7 @@ export function AddCardDialog({ open, onClose, onAdded }: Props) {
     if (!/^\d{3,4}$/.test(cvv)) return toast.error("Invalid CVV");
     const [mm, yy] = exp.split("/");
     setBusy(true);
-    const { error } = await supabase.from("saved_payment_methods").insert({
+    const { error } = await firestoreClient.from("saved_payment_methods").insert({
       user_id: user.id,
       brand: detectBrand(digits),
       last4: digits.slice(-4),

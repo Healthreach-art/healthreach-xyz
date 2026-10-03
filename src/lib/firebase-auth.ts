@@ -1,11 +1,7 @@
 /**
  * Firebase Authentication helpers for HealthReachCare.
  *
- * These wrap the Firebase Auth SDK with the same shapes the app uses today,
- * so the sign-in screens can switch over with minimal changes. Nothing here
- * is wired into the live app yet — Supabase auth stays active until the data
- * layer is migrated, because every database row is protected by rules keyed
- * to the current sign-in system.
+ * These helpers centralize Firebase Authentication operations used by the app.
  */
 import {
   createUserWithEmailAndPassword,

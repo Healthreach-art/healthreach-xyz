@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 
 export interface PatientMarketplaceMedication {
   id: string;
@@ -36,7 +35,7 @@ export interface PatientMarketplaceBranch {
 }
 
 export const listPatientMarketplace = createServerFn({ method: "GET" })
-  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async () => {
     const empty = {
       meds: [] as PatientMarketplaceMedication[],
@@ -44,7 +43,7 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
       branches: [] as PatientMarketplaceBranch[],
     };
 
-    const { data: meds, error: medsError } = await supabaseAdmin
+    const { data: meds, error: medsError } = await firestoreAdmin
       .from("medications")
       .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category")
       .gt("stock_quantity", 0)
@@ -55,7 +54,7 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
     const pharmacyIds = Array.from(new Set((meds ?? []).map((m) => m.pharmacy_id)));
     if (pharmacyIds.length === 0) return empty;
 
-    const { data: roles, error: rolesError } = await supabaseAdmin
+    const { data: roles, error: rolesError } = await firestoreAdmin
       .from("user_roles")
       .select("user_id")
       .eq("role", "pharmacy")
@@ -65,7 +64,7 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
     const pharmacyRoleIds = new Set((roles ?? []).map((r) => r.user_id));
     if (pharmacyRoleIds.size === 0) return empty;
 
-    const { data: pharmacies, error: pharmaciesError } = await supabaseAdmin
+    const { data: pharmacies, error: pharmaciesError } = await firestoreAdmin
       .from("profiles")
       .select("user_id, organization_name, full_name, address, phone, latitude, longitude")
       .in("user_id", Array.from(pharmacyRoleIds))
@@ -75,7 +74,7 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
 
     const approvedIds = new Set((pharmacies ?? []).map((p) => p.user_id));
 
-    const { data: branches } = await supabaseAdmin
+    const { data: branches } = await firestoreAdmin
       .from("pharmacy_branches")
       .select("id, pharmacy_id, name, address, latitude, longitude, is_primary, is_active")
       .in("pharmacy_id", Array.from(approvedIds))

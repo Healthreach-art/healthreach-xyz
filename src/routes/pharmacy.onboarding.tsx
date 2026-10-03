@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,8 +82,8 @@ function Onboarding() {
     if (!user) return;
     (async () => {
       const [{ data: d }, { data: prof }] = await Promise.all([
-        supabase.from("pharmacy_documents" as never).select("*").eq("pharmacy_id", user.id).maybeSingle(),
-        supabase.from("profiles").select("organization_name,address,phone,license_number,pharmacist_name,pharmacist_council_number,business_reg_number,tax_number,responsible_pharmacist_phone,license_expires_at").eq("user_id", user.id).maybeSingle(),
+        firestoreClient.from("pharmacy_documents" as never).select("*").eq("pharmacy_id", user.id).maybeSingle(),
+        firestoreClient.from("profiles").select("organization_name,address,phone,license_number,pharmacist_name,pharmacist_council_number,business_reg_number,tax_number,responsible_pharmacist_phone,license_expires_at").eq("user_id", user.id).maybeSingle(),
       ]);
       if (prof) setFields(prof as PharmacyProfileFields);
       if (d) {
@@ -94,7 +94,7 @@ function Onboarding() {
         await Promise.all(keys.map(async (k) => {
           const path = (data as Record<string, string | null | undefined>)[k];
           if (path) {
-            const { data: signed } = await supabase.storage.from("pharmacy-docs").createSignedUrl(path, 3600);
+            const { data: signed } = await firestoreClient.storage.from("pharmacy-docs").createSignedUrl(path, 3600);
             if (signed?.signedUrl) urls[k] = signed.signedUrl;
           }
         }));
@@ -110,15 +110,15 @@ function Onboarding() {
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/${key}-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("pharmacy-docs").upload(path, file, { upsert: true, contentType: file.type });
+      const { error } = await firestoreClient.storage.from("pharmacy-docs").upload(path, file, { upsert: true, contentType: file.type });
       if (error) throw new Error(error.message);
 
-      const { error: dbError } = await supabase
+      const { error: dbError } = await firestoreClient
         .from("pharmacy_documents" as never)
         .upsert({ pharmacy_id: user.id, [key]: path } as never, { onConflict: "pharmacy_id" });
       if (dbError) throw new Error(dbError.message);
 
-      const { data: signed } = await supabase.storage.from("pharmacy-docs").createSignedUrl(path, 3600);
+      const { data: signed } = await firestoreClient.storage.from("pharmacy-docs").createSignedUrl(path, 3600);
       setDocs((p) => ({ ...p, [key]: path }));
       if (signed?.signedUrl) setPreviews((p) => ({ ...p, [key]: signed.signedUrl }));
       toast.success("Uploaded");
@@ -153,7 +153,7 @@ function Onboarding() {
     }
 
     setSubmitting(true);
-    const { error: profErr } = await supabase.from("profiles").update({
+    const { error: profErr } = await firestoreClient.from("profiles").update({
       organization_name: fields.organization_name,
       address: fields.address,
       phone: fields.phone,
@@ -168,7 +168,7 @@ function Onboarding() {
     } as never).eq("user_id", user.id);
     if (profErr) { setSubmitting(false); toast.error(profErr.message); return; }
 
-    const { error: docErr } = await supabase.from("pharmacy_documents" as never).upsert({
+    const { error: docErr } = await firestoreClient.from("pharmacy_documents" as never).upsert({
       pharmacy_id: user.id,
       submitted_at: new Date().toISOString(),
     } as never, { onConflict: "pharmacy_id" });
@@ -208,12 +208,12 @@ function Onboarding() {
       <div className="healthcare-card p-5 mb-6">
         <h2 className="font-semibold mb-3 flex items-center gap-2"><Building2 className="h-4 w-4" /> Pharmacy details</h2>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Pharmacy / trading name" value={fields.organization_name ?? ""} onChange={(v) => setField("organization_name", v)} onBlur={() => user && void supabase.from("profiles").update({ organization_name: fields.organization_name }).eq("user_id", user.id)} />
-          <Field label="Contact phone" value={fields.phone ?? ""} onChange={(v) => setField("phone", v)} onBlur={() => user && void supabase.from("profiles").update({ phone: fields.phone }).eq("user_id", user.id)} />
+          <Field label="Pharmacy / trading name" value={fields.organization_name ?? ""} onChange={(v) => setField("organization_name", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ organization_name: fields.organization_name }).eq("user_id", user.id)} />
+          <Field label="Contact phone" value={fields.phone ?? ""} onChange={(v) => setField("phone", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ phone: fields.phone }).eq("user_id", user.id)} />
           <div className="sm:col-span-2">
-            <Field label="Physical address" value={fields.address ?? ""} onChange={(v) => setField("address", v)} onBlur={() => user && void supabase.from("profiles").update({ address: fields.address }).eq("user_id", user.id)} />
+            <Field label="Physical address" value={fields.address ?? ""} onChange={(v) => setField("address", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ address: fields.address }).eq("user_id", user.id)} />
           </div>
-          <Field label="Business registration number (CIPC)" value={fields.business_reg_number ?? ""} onChange={(v) => setField("business_reg_number", v)} onBlur={() => user && void supabase.from("profiles").update({ business_reg_number: fields.business_reg_number }).eq("user_id", user.id)} />
+          <Field label="Business registration number (CIPC)" value={fields.business_reg_number ?? ""} onChange={(v) => setField("business_reg_number", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ business_reg_number: fields.business_reg_number }).eq("user_id", user.id)} />
           <Field label="Tax / VAT number (optional)" value={fields.tax_number ?? ""} onChange={(v) => setField("tax_number", v)} />
         </div>
       </div>
@@ -222,7 +222,7 @@ function Onboarding() {
       <div className="healthcare-card p-5 mb-6">
         <h2 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Licence</h2>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Pharmacy licence number (SAPC)" value={fields.license_number ?? ""} onChange={(v) => setField("license_number", v)} onBlur={() => user && void supabase.from("profiles").update({ license_number: fields.license_number }).eq("user_id", user.id)} />
+          <Field label="Pharmacy licence number (SAPC)" value={fields.license_number ?? ""} onChange={(v) => setField("license_number", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ license_number: fields.license_number }).eq("user_id", user.id)} />
           <div>
             <Label className="text-xs">Licence expires</Label>
             <Input type="date" value={fields.license_expires_at ?? ""} onChange={(e) => setField("license_expires_at", e.target.value)} className="mt-1" />
@@ -234,8 +234,8 @@ function Onboarding() {
       <div className="healthcare-card p-5 mb-6">
         <h2 className="font-semibold mb-3 flex items-center gap-2"><UserCheck className="h-4 w-4" /> Responsible pharmacist</h2>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Full name" value={fields.pharmacist_name ?? ""} onChange={(v) => setField("pharmacist_name", v)} onBlur={() => user && void supabase.from("profiles").update({ pharmacist_name: fields.pharmacist_name }).eq("user_id", user.id)} />
-          <Field label="SAPC council number" value={fields.pharmacist_council_number ?? ""} onChange={(v) => setField("pharmacist_council_number", v)} onBlur={() => user && void supabase.from("profiles").update({ pharmacist_council_number: fields.pharmacist_council_number }).eq("user_id", user.id)} />
+          <Field label="Full name" value={fields.pharmacist_name ?? ""} onChange={(v) => setField("pharmacist_name", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ pharmacist_name: fields.pharmacist_name }).eq("user_id", user.id)} />
+          <Field label="SAPC council number" value={fields.pharmacist_council_number ?? ""} onChange={(v) => setField("pharmacist_council_number", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ pharmacist_council_number: fields.pharmacist_council_number }).eq("user_id", user.id)} />
           <Field label="Pharmacist phone (optional)" value={fields.responsible_pharmacist_phone ?? ""} onChange={(v) => setField("responsible_pharmacist_phone", v)} />
         </div>
       </div>

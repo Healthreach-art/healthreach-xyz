@@ -1,25 +1,42 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck } from "lucide-react";
 
 type AuthDetails = {
   client?: { name?: string; client_uri?: string; redirect_uris?: string[] };
   redirect_url?: string;
-  redirect_to?: string;
   scope?: string;
   scopes?: string[];
 };
 
-type SupabaseOAuth = {
-  getAuthorizationDetails: (id: string) => Promise<{ data: AuthDetails | null; error: { message: string } | null }>;
-  approveAuthorization: (id: string) => Promise<{ data: AuthDetails | null; error: { message: string } | null }>;
-  denyAuthorization: (id: string) => Promise<{ data: AuthDetails | null; error: { message: string } | null }>;
-};
+const oauthFunctionUrl = (
+  process.env.MCP_OAUTH_FUNCTION_URL
+  ?? "https://us-central1-healthreachcare-prod.cloudfunctions.net/mcpOAuth"
+).replace(/\/+$/, "");
 
-function oauthApi(): SupabaseOAuth {
-  return (supabase.auth as unknown as { oauth: SupabaseOAuth }).oauth;
+async function oauthRequest<T>(path: string, body?: Record<string, unknown>): Promise<T> {
+  const { data, error } = await firestoreClient.auth.getSession();
+  const token = data.session?.access_token;
+  if (error || !token) throw error ?? new Error("You must be signed in to continue.");
+
+  const response = await fetch(`${oauthFunctionUrl}${path}`, {
+    method: body ? "POST" : "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const result = await response.json().catch(() => null) as
+    | (T & { error_description?: string; error?: string })
+    | null;
+  if (!response.ok) {
+    throw new Error(result?.error_description ?? result?.error ?? `OAuth request failed (${response.status}).`);
+  }
+  if (!result) throw new Error("OAuth server returned an invalid response.");
+  return result;
 }
 
 export const Route = createFileRoute("/.lovable/oauth/consent")({
@@ -31,7 +48,7 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     if (!search.authorization_id) {
       throw new Error("Missing authorization_id");
     }
-    const { data } = await supabase.auth.getSession();
+    const { data } = await firestoreClient.auth.getSession();
     if (!data.session) {
       const next = location.pathname + location.searchStr;
       throw redirect({ to: "/login", search: { redirect: next } });
@@ -40,13 +57,7 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
   loader: async ({ location }) => {
     const params = new URLSearchParams(location.search);
     const authorizationId = params.get("authorization_id")!;
-    const { data, error } = await oauthApi().getAuthorizationDetails(authorizationId);
-    if (error) throw error;
-    const immediate = data?.redirect_url ?? data?.redirect_to;
-    if (immediate && !data?.client) {
-      throw redirect({ href: immediate });
-    }
-    return data;
+    return oauthRequest<AuthDetails>(`/authorization/${encodeURIComponent(authorizationId)}`);
   },
   component: Consent,
   errorComponent: ({ error }) => (
@@ -67,28 +78,24 @@ function Consent() {
   const [email, setEmail] = useState<string>("");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    firestoreClient.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
   }, []);
 
   async function decide(approve: boolean) {
     setBusy(true);
     setError(null);
-    const api = oauthApi();
-    const { data, error } = approve
-      ? await api.approveAuthorization(authorization_id)
-      : await api.denyAuthorization(authorization_id);
-    if (error) {
+    try {
+      const data = await oauthRequest<AuthDetails>(
+        `/authorization/${encodeURIComponent(authorization_id)}/decision`,
+        { approved: approve },
+      );
+      const target = data.redirect_url;
+      if (!target) throw new Error("No redirect returned by the authorization server.");
+      window.location.href = target;
+    } catch (requestError) {
       setBusy(false);
-      setError(error.message);
-      return;
+      setError(requestError instanceof Error ? requestError.message : String(requestError));
     }
-    const target = data?.redirect_url ?? data?.redirect_to;
-    if (!target) {
-      setBusy(false);
-      setError("No redirect returned by the authorization server.");
-      return;
-    }
-    window.location.href = target;
   }
 
   const clientName = details?.client?.name ?? "an app";

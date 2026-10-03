@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Stethoscope, Plus, Clock, CheckCircle2, X, FileText, Trash2, Edit2, Star, CalendarCheck } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { issueEPrescription } from "@/lib/doctors.functions";
@@ -52,15 +52,15 @@ function HospitalDashboard() {
   async function load() {
     if (!user) return;
     const [{ data: ds }, { data: as }] = await Promise.all([
-      supabase.from("doctors").select("*").eq("hospital_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("doctor_appointments").select("*").eq("hospital_id", user.id).order("scheduled_at", { ascending: false }),
+      firestoreClient.from("doctors").select("*").eq("hospital_id", user.id).order("created_at", { ascending: false }),
+      firestoreClient.from("doctor_appointments").select("*").eq("hospital_id", user.id).order("scheduled_at", { ascending: false }),
     ]);
     setDoctors((ds ?? []) as Doctor[]);
     const list = (as ?? []) as Appt[];
     setAppts(list);
     const pids = Array.from(new Set(list.map((a) => a.patient_id)));
     if (pids.length) {
-      const { data: ps } = await supabase.from("profiles").select("user_id, full_name, phone").in("user_id", pids);
+      const { data: ps } = await firestoreClient.from("profiles").select("user_id, full_name, phone").in("user_id", pids);
       const m: Record<string, { full_name: string; phone: string }> = {};
       (ps ?? []).forEach((p: any) => { m[p.user_id] = { full_name: p.full_name || "", phone: p.phone || "" }; });
       setPatients(m);
@@ -103,9 +103,9 @@ function HospitalDashboard() {
     if (!payload.full_name) return toast.error("Doctor name is required");
     let error;
     if (docDialog.id) {
-      ({ error } = await supabase.from("doctors").update(payload).eq("id", docDialog.id));
+      ({ error } = await firestoreClient.from("doctors").update(payload).eq("id", docDialog.id));
     } else {
-      ({ error } = await supabase.from("doctors").insert(payload));
+      ({ error } = await firestoreClient.from("doctors").insert(payload));
     }
     if (error) return toast.error(error.message);
     toast.success("Saved"); setDocDialog(null); load();
@@ -113,7 +113,7 @@ function HospitalDashboard() {
 
   async function delDoctor(id: string) {
     if (!confirm("Remove this doctor?")) return;
-    await supabase.from("doctors").delete().eq("id", id);
+    await firestoreClient.from("doctors").delete().eq("id", id);
     toast.success("Removed"); load();
   }
 
@@ -121,12 +121,12 @@ function HospitalDashboard() {
     const extra: any = {};
     if (status === "completed") extra.completed_at = new Date().toISOString();
     if (status === "cancelled") extra.cancelled_at = new Date().toISOString();
-    await supabase.from("doctor_appointments").update({ status, ...extra }).eq("id", id);
+    await firestoreClient.from("doctor_appointments").update({ status, ...extra }).eq("id", id);
     toast.success(`Marked ${status}`); load();
   }
 
   async function saveNotes(id: string, doctor_notes: string) {
-    await supabase.from("doctor_appointments").update({ doctor_notes }).eq("id", id);
+    await firestoreClient.from("doctor_appointments").update({ doctor_notes }).eq("id", id);
     toast.success("Notes saved"); load();
   }
 

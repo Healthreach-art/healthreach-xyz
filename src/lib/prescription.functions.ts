@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 
 const UUID_LOOSE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const uuidLoose = z.string().regex(UUID_LOOSE, "Invalid UUID");
@@ -41,13 +41,13 @@ export interface ValidationIssue {
  * Checks approval, expiry, pharmacy match, repeats remaining, and fraud risk.
  */
 export const validateCartPrescriptions = createServerFn({ method: "POST" })
-  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => cartSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { userId } = context;
     const medIds = Array.from(new Set(data.items.map((i) => i.medId)));
 
-    const { data: meds, error: medErr } = await supabase
+    const { data: meds, error: medErr } = await firestoreAdmin
       .from("medications")
       .select("id, name, pharmacy_id, requires_prescription, stock_quantity")
       .in("id", medIds);
@@ -66,7 +66,7 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
 
       let upload: any = null;
       if (it.prescriptionUploadId) {
-        const { data: u } = await supabase
+        const { data: u } = await firestoreAdmin
           .from("prescription_uploads")
           .select("id, status, expires_at, pharmacy_id, patient_id, repeats_total, repeats_used, fraud_score")
           .eq("id", it.prescriptionUploadId)
@@ -76,7 +76,7 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
       if (!upload) {
         // Fall back to any approved prescription in the patient's library that
         // isn't already locked to a different pharmacy.
-        const { data: us } = await supabase
+        const { data: us } = await firestoreAdmin
           .from("prescription_uploads")
           .select("id, status, expires_at, pharmacy_id, patient_id, repeats_total, repeats_used, fraud_score")
           .eq("patient_id", userId)
@@ -131,15 +131,27 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
  * raises if already locked to a different pharmacy.
  */
 export const claimPrescriptionForPharmacy = createServerFn({ method: "POST" })
-  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => z.object({ uploadId: z.string().uuid(), pharmacyId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { error } = await supabase.rpc("claim_prescription_for_pharmacy", {
-      _upload_id: data.uploadId,
-      _pharmacy_id: data.pharmacyId,
-    });
-    if (error) throw new Error(error.message);
+    const { data: prescription, error: readError } = await firestoreAdmin
+      .from("prescription_uploads")
+      .select("id, patient_id, pharmacy_id")
+      .eq("id", data.uploadId)
+      .maybeSingle();
+    if (readError) throw readError;
+    if (!prescription) throw new Error("Prescription was not found.");
+    if (prescription.patient_id !== context.userId) {
+      throw new Error("Not authorized to claim this prescription.");
+    }
+    if (prescription.pharmacy_id && prescription.pharmacy_id !== data.pharmacyId) {
+      throw new Error("Prescription is already claimed by a different pharmacy.");
+    }
+    const { error } = await firestoreAdmin
+      .from("prescription_uploads")
+      .update({ pharmacy_id: data.pharmacyId })
+      .eq("id", data.uploadId);
+    if (error) throw error;
     return { ok: true };
   });
 
@@ -148,11 +160,46 @@ export const claimPrescriptionForPharmacy = createServerFn({ method: "POST" })
  * Called after a successful payment for an Rx-required item.
  */
 export const consumePrescription = createServerFn({ method: "POST" })
-  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => z.object({ uploadId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { data: token, error } = await supabase.rpc("consume_prescription_repeat", { _upload_id: data.uploadId });
-    if (error) throw new Error(error.message);
-    return { token: token as string };
+    const { data: upload, error: readError } = await firestoreAdmin
+      .from("prescription_uploads")
+      .select("id, patient_id, repeats_total, repeats_used, status, expires_at, dispensed_at")
+      .eq("id", data.uploadId)
+      .maybeSingle();
+    if (readError) throw readError;
+    if (!upload) throw new Error("Prescription was not found.");
+    if (upload.patient_id !== context.userId) {
+      throw new Error("Not authorized to consume this prescription.");
+    }
+    if (upload.status !== "approved") throw new Error("Prescription is not approved.");
+    if (upload.expires_at && new Date(upload.expires_at).getTime() < Date.now()) {
+      throw new Error("Prescription expired.");
+    }
+    const total = Number(upload.repeats_total ?? 0);
+    const used = Number(upload.repeats_used ?? 0);
+    if (total > 0 && used >= total) throw new Error("Prescription has no repeats remaining.");
+    const token = `RX-${crypto.randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`;
+    const now = new Date().toISOString();
+    const { error } = await firestoreAdmin
+      .from("prescription_uploads")
+      .update({
+        repeats_used: used + 1,
+        dispense_token: token,
+        last_dispensed_at: now,
+        dispensed_at: upload.dispensed_at ?? now,
+        dispensed_by: context.userId,
+        updated_at: now,
+      })
+      .eq("id", data.uploadId);
+    if (error) throw error;
+    const { error: auditError } = await firestoreAdmin.from("prescription_audit_log").insert({
+      prescription_upload_id: data.uploadId,
+      actor_id: context.userId,
+      action: "dispensed",
+      notes: `token=${token}`,
+    });
+    if (auditError) throw auditError;
+    return { token };
   });

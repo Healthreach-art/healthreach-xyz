@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 
 const TIERS = [10, 20, 30, 45, 60] as const;
 const MAX_RADIUS_KM = 60;
@@ -42,26 +42,89 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 }
 
 async function findNearbyPharmaciesWithMed(medName: string, lat: number, lng: number, maxKm: number, excludeIds: string[]) {
-  const { data: rows } = await supabaseAdmin.rpc("find_pharmacies_near", {
-    _lat: lat, _lng: lng, _max_km: maxKm,
-  });
-  const list = (rows ?? []) as Array<{ pharmacy_id: string; organization_name: string; distance_km: number }>;
+  const list = await findPharmaciesNear(lat, lng, maxKm);
   if (list.length === 0) return [];
   const ids = list.map((r) => r.pharmacy_id).filter((id) => !excludeIds.includes(id));
   if (ids.length === 0) return [];
-  const { data: meds } = await supabaseAdmin
-    .from("medications")
-    .select("pharmacy_id, stock_quantity")
-    .in("pharmacy_id", ids)
-    .ilike("name", medName)
-    .gt("stock_quantity", 0);
-  const haveMed = new Set((meds ?? []).map((m) => m.pharmacy_id));
+  const medicationRows = await Promise.all(
+    Array.from({ length: Math.ceil(ids.length / 30) }, (_, index) =>
+      firestoreAdmin
+        .from("medications")
+        .select("pharmacy_id, stock_quantity")
+        .in("pharmacy_id", ids.slice(index * 30, index * 30 + 30))
+        .ilike("name", medName)
+        .gt("stock_quantity", 0),
+    ),
+  );
+  const haveMed = new Set(
+    medicationRows.flatMap(({ data, error }) => {
+      if (error) throw error;
+      return (data ?? []).map((medication) => medication.pharmacy_id);
+    }),
+  );
   return list.filter((r) => haveMed.has(r.pharmacy_id));
+}
+
+async function findPharmaciesNear(lat: number, lng: number, maxKm: number) {
+  const [{ data: profiles, error: profileError }, { data: roles, error: roleError }] = await Promise.all([
+    firestoreAdmin.from("profiles")
+      .select("user_id, organization_name, full_name, latitude, longitude, approval_status")
+      .eq("approval_status", "approved"),
+    firestoreAdmin.from("user_roles").select("user_id").eq("role", "pharmacy"),
+  ]);
+  if (profileError) throw profileError;
+  if (roleError) throw roleError;
+  const pharmacyIds = new Set((roles ?? []).map((role) => role.user_id));
+  return (profiles ?? [])
+    .filter((profile) =>
+      pharmacyIds.has(profile.user_id)
+      && profile.latitude != null
+      && profile.longitude != null,
+    )
+    .map((profile) => ({
+      pharmacy_id: profile.user_id,
+      organization_name: profile.organization_name || profile.full_name || "",
+      distance_km: haversineKm(lat, lng, profile.latitude!, profile.longitude!),
+    }))
+    .filter((pharmacy) => pharmacy.distance_km <= maxKm)
+    .sort((first, second) => first.distance_km - second.distance_km);
+}
+
+async function findPharmacyWithAllMeds(medicationIds: string[], lat: number, lng: number, maxKm: number) {
+  const pharmacies = await findPharmaciesNear(lat, lng, maxKm);
+  if (!pharmacies.length) return [];
+  const pharmacyIds = new Set(pharmacies.map((pharmacy) => pharmacy.pharmacy_id));
+  const { data: medications, error } = await firestoreAdmin.from("medications")
+    .select("id, pharmacy_id, stock_quantity")
+    .in("id", medicationIds);
+  if (error) throw error;
+  const matches = new Map<string, number>();
+  for (const medication of medications ?? []) {
+    if (medication.pharmacy_id && pharmacyIds.has(medication.pharmacy_id) && medication.stock_quantity > 0) {
+      matches.set(medication.pharmacy_id, (matches.get(medication.pharmacy_id) ?? 0) + 1);
+    }
+  }
+  return pharmacies
+    .flatMap((pharmacy) => {
+      const matchCount = matches.get(pharmacy.pharmacy_id) ?? 0;
+      if (!matchCount) return [];
+      return [{
+        pharmacy_id: pharmacy.pharmacy_id,
+        distance_km: pharmacy.distance_km,
+        has_all: matchCount === medicationIds.length,
+        match_count: matchCount,
+      }];
+    })
+    .sort((first, second) =>
+      Number(second.has_all) - Number(first.has_all)
+      || second.match_count - first.match_count
+      || first.distance_km - second.distance_km,
+    );
 }
 
 async function createOfferForTier(orderId: string, patientId: string, medName: string, lat: number, lng: number, currentRadius: number) {
   // Find candidates already-tried
-  const { data: prior } = await supabaseAdmin
+  const { data: prior } = await firestoreAdmin
     .from("pharmacy_offers")
     .select("pharmacy_id")
     .eq("order_id", orderId);
@@ -73,20 +136,20 @@ async function createOfferForTier(orderId: string, patientId: string, medName: s
     const candidates = await findNearbyPharmaciesWithMed(medName, lat, lng, tier, Array.from(tried));
     const next = candidates[0];
     if (next) {
-      await supabaseAdmin.from("pharmacy_offers").insert({
+      await firestoreAdmin.from("pharmacy_offers").insert({
         order_id: orderId,
         pharmacy_id: next.pharmacy_id,
         patient_id: patientId,
         distance_km: Number(next.distance_km.toFixed(2)),
         tier_km: tier,
       });
-      await supabaseAdmin.from("orders").update({ assignment_radius_km: tier }).eq("id", orderId);
+      await firestoreAdmin.from("orders").update({ assignment_radius_km: tier }).eq("id", orderId);
       return { matched: true, pharmacyId: next.pharmacy_id, tier };
     }
   }
   // Exhausted
-  await supabaseAdmin.from("orders").update({ status: "cancelled", notes: "No pharmacies available within 60 km" }).eq("id", orderId);
-  await supabaseAdmin.from("notifications").insert({
+  await firestoreAdmin.from("orders").update({ status: "cancelled", notes: "No pharmacies available within 60 km" }).eq("id", orderId);
+  await firestoreAdmin.from("notifications").insert({
     user_id: patientId, category: "order", title: "No pharmacies available",
     body: "We couldn't find a pharmacy with stock within 60 km. Order cancelled and refunded.",
     link: "/dashboard/patient",
@@ -95,7 +158,7 @@ async function createOfferForTier(orderId: string, patientId: string, medName: s
 }
 
 export const placeOrderWithRouting = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => placeOrderSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context;
@@ -106,18 +169,12 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
     let chosenPharmacyId: string | null = null;
     let chosenKm = 5;
 
-    const { data: matchRows } = await supabaseAdmin.rpc("find_pharmacy_with_all_meds", {
-      _med_ids: medIds, _lat: data.delivery.lat, _lng: data.delivery.lng, _max_km: MAX_RADIUS_KM,
-    });
-    const matches = (matchRows ?? []) as Array<{ pharmacy_id: string; distance_km: number; has_all: boolean; match_count: number }>;
+    const matches = await findPharmacyWithAllMeds(medIds, data.delivery.lat, data.delivery.lng, MAX_RADIUS_KM);
     if (matches.length > 0) {
       chosenPharmacyId = matches[0].pharmacy_id;
       chosenKm = Number(matches[0].distance_km.toFixed(2));
     } else {
-      const { data: nearby } = await supabaseAdmin.rpc("find_pharmacies_near", {
-        _lat: data.delivery.lat, _lng: data.delivery.lng, _max_km: MAX_RADIUS_KM,
-      });
-      const list = (nearby ?? []) as Array<{ pharmacy_id: string; distance_km: number }>;
+      const list = await findPharmaciesNear(data.delivery.lat, data.delivery.lng, MAX_RADIUS_KM);
       if (list.length > 0) {
         chosenPharmacyId = list[0].pharmacy_id;
         chosenKm = Number(list[0].distance_km.toFixed(2));
@@ -128,7 +185,7 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
       return { orders: [], group: null, matched: false, reason: "no_pharmacy_in_range" };
     }
 
-    const { data: pharmacy } = await supabaseAdmin
+    const { data: pharmacy } = await firestoreAdmin
       .from("profiles")
       .select("latitude, longitude")
       .eq("user_id", chosenPharmacyId)
@@ -137,7 +194,7 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
     const isScheduled = !!data.scheduledFor;
 
     // 2. One group = one cart = one delivery code = one package
-    const { data: group, error: groupErr } = await supabaseAdmin
+    const { data: group, error: groupErr } = await firestoreAdmin
       .from("order_groups")
       .insert({
         patient_id: userId,
@@ -170,7 +227,7 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
     let deliveryFeeFirst = 0;
 
     for (const item of data.items) {
-      const { data: order, error: orderErr } = await supabaseAdmin
+      const { data: order, error: orderErr } = await firestoreAdmin
         .from("orders")
         .insert({
           patient_id: userId,
@@ -211,7 +268,7 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
 
     // 4. Roll totals onto the group (one delivery fee per package, not per item)
     const groupTotal = Math.round((subtotalSum + deliveryFeeFirst) * 100) / 100;
-    await supabaseAdmin
+    await firestoreAdmin
       .from("order_groups")
       .update({
         subtotal: Math.round(subtotalSum * 100) / 100,
@@ -222,7 +279,7 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
 
     // 5. ONE notification per package
     const itemCount = data.items.length;
-    await supabaseAdmin.from("notifications").insert({
+    await firestoreAdmin.from("notifications").insert({
       user_id: chosenPharmacyId,
       category: "order",
       title: isScheduled
@@ -242,11 +299,11 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
   });
 
 export const escalateOrderAssignment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => z.object({ orderId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context;
-    const { data: order } = await supabaseAdmin
+    const { data: order } = await firestoreAdmin
       .from("orders")
       .select("id, patient_id, pharmacy_id, medication_name, delivery_lat, delivery_lng, assignment_radius_km, status")
       .eq("id", data.orderId).maybeSingle();
@@ -257,14 +314,14 @@ export const escalateOrderAssignment = createServerFn({ method: "POST" })
     if (!order.delivery_lat || !order.delivery_lng) return { ok: false, reason: "no_coords" };
 
     // Mark expired any open offers past TTL
-    await supabaseAdmin.from("pharmacy_offers")
+    await firestoreAdmin.from("pharmacy_offers")
       .update({ status: "expired" })
       .eq("order_id", order.id)
       .eq("status", "open")
       .lt("expires_at", new Date().toISOString());
 
     // If any open offer still active, nothing to do
-    const { data: stillOpen } = await supabaseAdmin
+    const { data: stillOpen } = await firestoreAdmin
       .from("pharmacy_offers").select("id")
       .eq("order_id", order.id).eq("status", "open").limit(1);
     if (stillOpen && stillOpen.length > 0) return { ok: true, waiting: true };
@@ -282,14 +339,14 @@ export const escalateOrderAssignment = createServerFn({ method: "POST" })
   });
 
 export const setPharmacyLocation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => z.object({
     address: z.string().min(3).max(500),
     lat: z.number(), lng: z.number(),
     serviceRadiusKm: z.number().int().min(5).max(60).optional(),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    await supabaseAdmin.from("profiles").update({
+    await firestoreAdmin.from("profiles").update({
       address: data.address,
       latitude: data.lat,
       longitude: data.lng,
@@ -304,7 +361,7 @@ export const setPharmacyLocation = createServerFn({ method: "POST" })
  * live map immediately.
  */
 export const setSignupLocation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => z.object({
     address: z.string().min(3).max(500),
     lat: z.number().min(-90).max(90),
@@ -321,14 +378,14 @@ export const setSignupLocation = createServerFn({ method: "POST" })
     };
     if (data.organizationName) patch.organization_name = data.organizationName;
     if (data.phone) patch.phone = data.phone;
-    await supabaseAdmin
+    await firestoreAdmin
       .from("profiles")
       .upsert({ user_id: userId, ...patch } as never, { onConflict: "user_id" });
 
-    const { data: roleRow } = await supabaseAdmin
+    const { data: roleRow } = await firestoreAdmin
       .from("user_roles").select("role").eq("user_id", userId).maybeSingle();
     if (roleRow?.role === "driver") {
-      await supabaseAdmin.from("driver_locations").upsert({
+      await firestoreAdmin.from("driver_locations").upsert({
         driver_id: userId, lat: data.lat, lng: data.lng,
         updated_at: new Date().toISOString(),
       } as never, { onConflict: "driver_id" });

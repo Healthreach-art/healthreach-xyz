@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
 /**
  * Hard-delete the signed-in user's account and every record we own that
@@ -11,19 +11,19 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * created without ON DELETE CASCADE.
  */
 export const deleteMyAccount = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
     const uid = context.userId;
 
     // Best-effort cleanup of every table that stores user-owned rows.
     // We swallow individual table errors so one missing/renamed table
     // can't block account deletion.
-    const admin = supabaseAdmin as unknown as {
+    const admin = firestoreAdmin as unknown as {
       from: (table: string) => {
         delete: () => { eq: (col: string, val: string) => Promise<{ error: unknown }> };
       };
-      auth: typeof supabaseAdmin.auth;
+      auth: typeof firestoreAdmin.auth;
     };
 
     const wipe = async (table: string, column: string) => {

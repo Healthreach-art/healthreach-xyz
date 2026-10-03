@@ -66,15 +66,12 @@ No new AI in any of this. The whole flow works on plain database and application
 
 ## Technical details
 
-- New account roles `homecare_company` and `homecare_staff` added to the `app_role` enum; existing roles untouched.
-- New tables: `homecare_providers` (company/individual, contact, service areas, services, hours, pricing, lat/lng, approval fields), `homecare_staff`, `homecare_documents`, `homecare_requests`, `homecare_assignments`, `homecare_approval_events`. Each gets GRANTs, RLS enabled, and policies scoped by `auth.uid()` plus `has_role`; company scoping via a security-definer `is_homecare_member(company_id)` helper to avoid recursive policies.
-- Approval fields: `approval_status` (reuses the existing enum: pending, under_review, approved, rejected, suspended), `approved_by`, `approved_at`, `rejection_reason`, `requested_documents jsonb`.
-- Approvals, rejections, document requests and sensitive-file reads write to the existing `admin_audit_log` via `log_admin_action`.
-- Private bucket `homecare-docs` with owner/admin/assigned-party policies; signed URLs only, file type and size validated server-side.
-- All approval, assignment and staff-invite mutations run in `createServerFn` handlers with `requireSupabaseAuth` and a server-side role check; no service-role key reaches the browser; frontend role values are never trusted.
-- Radius filter reuses the existing `haversine_km` SQL function; new `find_homecare_near(lat, lng, radius_km)` mirrors `find_pharmacies_near`.
-- Realtime status updates reuse the existing `postgres_changes` subscription pattern.
-- No existing table, column, route or component is removed; all changes are additive and backward compatible.
+- Account roles `homecare_company` and `homecare_staff` are represented in the Firebase-backed role model.
+- Home care provider, staff, request, and assignment records are stored in Firestore collections and access is enforced by Firestore Security Rules.
+- Approval, assignment, and staff-invite mutations run through authenticated server functions with server-side role checks; privileged credentials are not sent to the browser.
+- Sensitive documents use private Firebase Storage access; access decisions follow the relevant user, admin, and assignment relationship.
+- Nearby-provider filtering uses the application's distance calculations; live updates use Firestore listeners.
+- Operational audit events are stored in the Firestore audit log.
 
 ## Smoke tests after build
 

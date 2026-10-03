@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useServerFn } from "@tanstack/react-start";
 import { claimAdminWithCode } from "@/lib/admin.functions";
 import { ShieldCheck, AlertCircle, CheckCircle } from "lucide-react";
@@ -35,7 +35,7 @@ function AdminSignupPage() {
     setLoading(true);
 
     // 1. Sign up as a normal user (the DB trigger inserts the default patient role)
-    const { error: authError } = await supabase.auth.signUp({
+    const { error: authError } = await firestoreClient.auth.signUp({
       email: email.trim(),
       password,
       options: {
@@ -51,11 +51,11 @@ function AdminSignupPage() {
 
     // 2. If auto-confirm is on, the user is already signed in — claim admin now.
     // Otherwise instruct them to sign in then revisit.
-    const { data: sessionData } = await supabase.auth.getSession();
+    const { data: sessionData } = await firestoreClient.auth.getSession();
     if (!sessionData.session) {
       // Try password sign-in (covers projects where auto-confirm is off but
       // user can still sign in immediately if they verified by email already).
-      await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      await firestoreClient.auth.signInWithPassword({ email: email.trim(), password });
     }
 
     try {

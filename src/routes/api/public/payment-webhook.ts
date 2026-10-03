@@ -1,64 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { createHmac, timingSafeEqual } from "crypto";
-import { z } from "zod";
 
-const PayloadSchema = z.object({
-  transaction_ref: z.string().min(1).max(128),
-  status: z.enum(["completed", "failed", "refunded"]),
-  failure_reason: z.string().max(500).optional(),
-  refund_amount: z.number().min(0).optional(),
-  provider: z.string().max(64).optional(),
-});
+const DEFAULT_WEBHOOK_URL =
+  "https://us-central1-healthreachcare-prod.cloudfunctions.net/paymentProviderWebhook";
 
-/**
- * Public payment provider webhook.
- * Verifies HMAC signature, then updates the matching payment row.
- * DB triggers handle order status promotion + notifications.
- */
 export const Route = createFileRoute("/api/public/payment-webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const endpoint = (process.env.FIREBASE_PAYMENT_WEBHOOK_URL ?? DEFAULT_WEBHOOK_URL).trim();
         const body = await request.text();
-        const secret = process.env.PAYMENT_WEBHOOK_SECRET;
-        if (!secret) {
-          return new Response("Webhook secret not configured", { status: 500 });
+        let response: Response;
+        try {
+          response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": request.headers.get("content-type") ?? "application/json",
+              "x-webhook-signature": request.headers.get("x-webhook-signature") ?? "",
+            },
+            body,
+          });
+        } catch (error) {
+          console.error("Could not forward payment webhook to Firebase.", error);
+          return new Response("Payment webhook could not be processed", { status: 502 });
         }
-
-        // Mandatory HMAC signature verification
-        const sig = request.headers.get("x-webhook-signature") || "";
-        const expected = createHmac("sha256", secret).update(body).digest("hex");
-        const a = Buffer.from(sig);
-        const b = Buffer.from(expected);
-        if (a.length !== b.length || !timingSafeEqual(a, b)) {
-          return new Response("Invalid signature", { status: 401 });
-        }
-
-        let parsed;
-        try { parsed = PayloadSchema.parse(JSON.parse(body)); }
-        catch { return new Response("Invalid payload", { status: 400 }); }
-
-        const { data: existing } = await supabaseAdmin
-          .from("payments").select("id, retry_count, status")
-          .eq("transaction_ref", parsed.transaction_ref).maybeSingle();
-        if (!existing) return new Response("Payment not found", { status: 404 });
-
-        const patch: Record<string, unknown> = { status: parsed.status, updated_at: new Date().toISOString() };
-        if (parsed.status === "failed") {
-          patch.failure_reason = parsed.failure_reason ?? "Provider declined";
-          patch.retry_count = (existing.retry_count ?? 0) + 1;
-        }
-        if (parsed.status === "refunded") {
-          patch.refund_status = "refunded";
-          patch.refund_amount = parsed.refund_amount ?? 0;
-        }
-        if (parsed.provider) patch.provider = parsed.provider;
-
-        const { error } = await supabaseAdmin.from("payments").update(patch as any).eq("id", existing.id);
-        if (error) return new Response(error.message, { status: 500 });
-
-        return Response.json({ ok: true });
+        return new Response(await response.text(), {
+          status: response.status,
+          headers: { "Content-Type": response.headers.get("content-type") ?? "text/plain" },
+        });
       },
     },
   },

@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
 
 export default defineTool({
   name: "search_medications",
@@ -15,17 +15,11 @@ export default defineTool({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
-      global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
+
+    const { data, error } = await firestoreAdmin.rpc("mcp_search_medications", {
+      query,
+      limit: limit ?? 15,
     });
-    const q = query.replace(/[%,]/g, " ").trim();
-    const { data, error } = await supabase
-      .from("medications")
-      .select("id, pharmacy_id, name, description, category, price, requires_prescription, stock_quantity")
-      .or(`name.ilike.%${q}%,description.ilike.%${q}%,category.ilike.%${q}%`)
-      .gt("stock_quantity", 0)
-      .limit(limit ?? 15);
     if (error) {
       return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
     }

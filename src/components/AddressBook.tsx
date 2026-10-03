@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ export function AddressBook() {
 
   async function load() {
     if (!user) return;
-    const { data } = await supabase.from("user_addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false });
+    const { data } = await firestoreClient.from("user_addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false });
     setItems((data ?? []) as Address[]);
   }
   useEffect(() => { load(); }, [user]);
@@ -40,7 +40,7 @@ export function AddressBook() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.from("user_addresses").insert({
+    const { error } = await firestoreClient.from("user_addresses").insert({
       user_id: user.id,
       label: form.label.trim() || "Home",
       street: form.street.trim(),
@@ -58,13 +58,13 @@ export function AddressBook() {
   }
 
   async function remove(id: string) {
-    await supabase.from("user_addresses").delete().eq("id", id);
+    await firestoreClient.from("user_addresses").delete().eq("id", id);
     load();
   }
 
   async function setDefault(id: string) {
     if (!user) return;
-    await supabase.from("user_addresses").update({ is_default: true }).eq("id", id).eq("user_id", user.id);
+    await firestoreClient.from("user_addresses").update({ is_default: true }).eq("id", id).eq("user_id", user.id);
     toast.success("Default delivery address updated");
     load();
   }

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState, type FormEvent } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Link } from "@tanstack/react-router";
 import { LogIn, AlertCircle, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
@@ -89,14 +89,14 @@ function LoginPage() {
     }
 
     // 2) Existing system (fallback).
-    let signInData: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["data"] | null = null;
+    let signInData: Awaited<ReturnType<typeof firestoreClient.auth.signInWithPassword>>["data"] | null = null;
     let authError: { message: string } | null = null;
     try {
-      const existing = await supabase.auth.getSession();
+      const existing = await firestoreClient.auth.getSession();
       if (existing.data.session?.user.email?.toLowerCase() !== cleanEmail.toLowerCase()) {
-        await supabase.auth.signOut({ scope: "local" });
+        await firestoreClient.auth.signOut({ scope: "local" });
       }
-      const res = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
+      const res = await firestoreClient.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
       signInData = res.data;
       authError = res.error;
     } catch (err) {
@@ -132,7 +132,7 @@ function LoginPage() {
     }).catch(() => {});
 
     if (isAdminMode && role !== "admin") {
-      await supabase.auth.signOut();
+      await firestoreClient.auth.signOut();
       setError("This account is not an admin account. Please use an admin login or switch to the standard login.");
       setLoading(false);
       return;

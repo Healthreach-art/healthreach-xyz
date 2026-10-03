@@ -1,9 +1,7 @@
 /**
  * Firestore data layer for HealthReachCare.
  *
- * Mirrors the existing database structure as Firestore collections so the
- * app can migrate module by module. Not wired into screens yet — the
- * current backend stays active until each module is switched over.
+ * Firestore data access for HealthReachCare.
  *
  * Collection layout (top-level unless noted):
  *   profiles/{uid}                  — one per user, mirrors public.profiles
@@ -70,7 +68,7 @@ export async function fsGet<T = DocumentData>(
   id: string,
 ): Promise<(T & { id: string }) | null> {
   const snap = await getDoc(doc(await db(), col, id));
-  return snap.exists() ? ({ id: snap.id, ...snap.data() } as T & { id: string }) : null;
+  return snap.exists() ? ({ ...snap.data(), id: snap.id } as T & { id: string }) : null;
 }
 
 export async function fsList<T = DocumentData>(
@@ -79,7 +77,7 @@ export async function fsList<T = DocumentData>(
 ): Promise<(T & { id: string })[]> {
   const q = query(collection(await db(), col), ...constraints);
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as T & { id: string });
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T & { id: string });
 }
 
 export async function fsSet(
@@ -88,11 +86,7 @@ export async function fsSet(
   data: Record<string, unknown>,
   merge = true,
 ): Promise<void> {
-  await setDoc(
-    doc(await db(), col, id),
-    { ...data, updatedAt: serverTimestamp() },
-    { merge },
-  );
+  await setDoc(doc(await db(), col, id), data, { merge });
 }
 
 export async function fsUpdate(
@@ -100,17 +94,14 @@ export async function fsUpdate(
   id: string,
   data: Record<string, unknown>,
 ): Promise<void> {
-  await updateDoc(doc(await db(), col, id), {
-    ...data,
-    updatedAt: serverTimestamp(),
-  });
+  await updateDoc(doc(await db(), col, id), data);
 }
 
 export async function fsDelete(col: string, id: string): Promise<void> {
   await deleteDoc(doc(await db(), col, id));
 }
 
-/** Realtime listener on a query — replaces Supabase realtime channels. */
+/** Realtime listener on a Firestore collection query. */
 export async function fsSubscribe<T = DocumentData>(
   col: string,
   constraints: QueryConstraint[],
@@ -118,7 +109,7 @@ export async function fsSubscribe<T = DocumentData>(
 ): Promise<Unsubscribe> {
   const q = query(collection(await db(), col), ...constraints);
   return onSnapshot(q, (snap) =>
-    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as T & { id: string })),
+    callback(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T & { id: string })),
   );
 }
 
@@ -134,13 +125,13 @@ export async function getProfile(uid: string) {
 
 /** Fetch all roles for a user. */
 export async function getUserRoles(uid: string): Promise<Role[]> {
-  const rows = await fsList<{ role: Role }>("user_roles", where("userId", "==", uid));
+  const rows = await fsList<{ role: Role }>("user_roles", where("user_id", "==", uid));
   return rows.map((r) => r.role);
 }
 
 /** Grant a role (admin only — enforced by security rules). */
 export async function grantRole(uid: string, role: Role) {
-  await fsSet("user_roles", `${uid}_${role}`, { userId: uid, role });
+  await fsSet("user_roles", `${uid}_${role}`, { user_id: uid, role });
 }
 
 /** List providers awaiting admin review, newest first. */

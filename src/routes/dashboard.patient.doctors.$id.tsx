@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,8 +82,8 @@ function Page() {
   useEffect(() => {
     (async () => {
       const [{ data: d }, { data: r }] = await Promise.all([
-        supabase.from("doctors").select("*").eq("id", id).maybeSingle(),
-        supabase.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
+        firestoreClient.from("doctors").select("*").eq("id", id).maybeSingle(),
+        firestoreClient.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
       ]);
       setDoc(d as Doctor); setReviews(r ?? []); setLoading(false);
     })();

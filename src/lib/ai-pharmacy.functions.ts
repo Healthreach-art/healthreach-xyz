@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 
 const input = z.object({ problem: z.string().min(3).max(2000) });
 
@@ -14,15 +15,13 @@ interface PharmacyMatch {
 }
 
 export const findPharmaciesForProblem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => input.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-
-    const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "pharmacy");
+    const { data: roles } = await firestoreAdmin.from("user_roles").select("user_id").eq("role", "pharmacy");
     const ids = (roles ?? []).map((r: any) => r.user_id);
     if (!ids.length) return { matches: [] as PharmacyMatch[], summary: "No pharmacies available yet." };
-    const { data: profs } = await supabase
+    const { data: profs } = await firestoreAdmin
       .from("profiles")
       .select("user_id, organization_name, address")
       .in("user_id", ids)
@@ -36,7 +35,7 @@ export const findPharmaciesForProblem = createServerFn({ method: "POST" })
     if (!approved.length) return { matches: [], summary: "No approved pharmacies available." };
 
     // Pull catalog with description so AI matches based on what each pharmacy actually stocks
-    const { data: meds } = await supabase
+    const { data: meds } = await firestoreAdmin
       .from("medications")
       .select("pharmacy_id, name, description, category, price, requires_prescription, stock_quantity")
       .in("pharmacy_id", approved.map((p) => p.id))

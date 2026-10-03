@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { FAILURE_REASONS, type FailureReason } from "@/lib/platform-rules";
 import { AlertTriangle, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -29,15 +29,15 @@ export function FailedDeliveryDialog({ delivery, onClose, onSubmitted }: Props) 
     try {
       let photoPath: string | null = null;
       if (photo) {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await firestoreClient.auth.getUser();
         if (user) {
           const path = `${user.id}/${delivery.id}-${Date.now()}.${photo.name.split(".").pop() || "jpg"}`;
-          const { error: upErr } = await supabase.storage.from("delivery-proofs").upload(path, photo);
+          const { error: upErr } = await firestoreClient.storage.from("delivery-proofs").upload(path, photo);
           if (upErr) throw upErr;
           photoPath = path;
         }
       }
-      const { error } = await supabase.from("deliveries").update({
+      const { error } = await firestoreClient.from("deliveries").update({
         status: "failed" as never,
         failure_reason: reason,
         failure_notes: notes.trim(),
@@ -47,12 +47,12 @@ export function FailedDeliveryDialog({ delivery, onClose, onSubmitted }: Props) 
       if (error) throw error;
 
       // Also reflect on the order so customer + admin see it
-      await supabase.from("orders").update({ status: "cancelled" as never } as never).eq("id", delivery.order_id);
+      await firestoreClient.from("orders").update({ status: "cancelled" as never } as never).eq("id", delivery.order_id);
 
       // Notify admin(s)
-      const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
+      const { data: admins } = await firestoreClient.from("user_roles").select("user_id").eq("role", "admin");
       if (admins && admins.length > 0) {
-        await supabase.from("notifications").insert(
+        await firestoreClient.from("notifications").insert(
           admins.map((a) => ({
             user_id: a.user_id,
             category: "delivery",

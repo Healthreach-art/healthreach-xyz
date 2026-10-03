@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +94,7 @@ export function MedicationReminders() {
 
   async function load() {
     if (!user) return;
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("medication_reminders")
       .select("*")
       .eq("user_id", user.id)
@@ -107,7 +107,7 @@ export function MedicationReminders() {
     if (!user) return;
     if (!form.medication_name.trim()) { toast.error("Medication name required"); return; }
     setSaving(true);
-    const { error } = await supabase.from("medication_reminders").insert({
+    const { error } = await firestoreClient.from("medication_reminders").insert({
       user_id: user.id,
       medication_name: form.medication_name.trim(),
       dosage: form.dosage.trim(),
@@ -126,13 +126,13 @@ export function MedicationReminders() {
   }
 
   async function remove(id: string) {
-    const { error } = await supabase.from("medication_reminders").delete().eq("id", id);
+    const { error } = await firestoreClient.from("medication_reminders").delete().eq("id", id);
     if (error) toast.error(error.message);
     else { toast.success("Reminder removed"); load(); }
   }
 
   async function toggle(r: Reminder) {
-    await supabase.from("medication_reminders").update({ active: !r.active }).eq("id", r.id);
+    await firestoreClient.from("medication_reminders").update({ active: !r.active }).eq("id", r.id);
     load();
   }
 

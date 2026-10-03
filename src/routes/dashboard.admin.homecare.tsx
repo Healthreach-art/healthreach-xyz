@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +43,7 @@ function AdminHomecarePage() {
     try {
       const res = await adminListHomecare();
       setProviders(res.providers); setDocuments(res.documents); setEvents(res.events); setStaff(res.staff);
-      const { data: reqs } = await supabase
+      const { data: reqs } = await firestoreClient
         .from("homecare_requests").select("*, homecare_assignments(*)").order("created_at", { ascending: false });
       setRequests(reqs ?? []);
     } catch (e: any) {
@@ -55,12 +55,12 @@ function AdminHomecarePage() {
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    const ch = supabase.channel("admin-homecare")
+    const ch = firestoreClient.channel("admin-homecare")
       .on("postgres_changes", { event: "*", schema: "public", table: "homecare_providers" }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "homecare_requests" }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "homecare_assignments" }, () => void load())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firestoreClient.removeChannel(ch); };
   }, [load]);
 
   const pending = useMemo(() => providers.filter((p) => ["pending", "under_review"].includes(p.approval_status)), [providers]);

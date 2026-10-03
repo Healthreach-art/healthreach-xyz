@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AddCardDialog } from "@/components/AddCardDialog";
@@ -31,8 +31,8 @@ function Page() {
   async function load() {
     if (!user) return;
     const [c, p] = await Promise.all([
-      supabase.from("saved_payment_methods").select("*").eq("user_id", user.id).order("is_default", { ascending: false }),
-      supabase.from("payments").select("amount, status").eq("patient_id", user.id),
+      firestoreClient.from("saved_payment_methods").select("*").eq("user_id", user.id).order("is_default", { ascending: false }),
+      firestoreClient.from("payments").select("amount, status").eq("patient_id", user.id),
     ]);
     setCards((c.data ?? []) as Card[]);
     const completed = (p.data ?? []).filter((x: any) => x.status === "completed");
@@ -50,8 +50,8 @@ function Page() {
 
   async function setDefault(id: string) {
     if (!user) return;
-    await supabase.from("saved_payment_methods").update({ is_default: false }).eq("user_id", user.id);
-    await supabase.from("saved_payment_methods").update({ is_default: true }).eq("id", id);
+    await firestoreClient.from("saved_payment_methods").update({ is_default: false }).eq("user_id", user.id);
+    await firestoreClient.from("saved_payment_methods").update({ is_default: true }).eq("id", id);
     toast.success("Default card updated");
     load();
   }

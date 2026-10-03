@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, TrendingUp, ShoppingBag, Clock, XCircle, Trophy, BarChart3 } from "lucide-react";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
@@ -23,7 +23,7 @@ export function PharmacyAnalytics() {
     let alive = true;
     (async () => {
       setLoading(true);
-      const { data: ord } = await supabase
+      const { data: ord } = await firestoreClient
         .from("orders")
         .select("id, medication_name, quantity, status, total_amount, delivery_fee, created_at, updated_at")
         .eq("pharmacy_id", user.id)
@@ -31,7 +31,7 @@ export function PharmacyAnalytics() {
         .limit(500);
       const orderIds = (ord ?? []).map(o => o.id);
       const { data: dels } = orderIds.length
-        ? await supabase.from("deliveries").select("order_id, status, created_at, updated_at").in("order_id", orderIds)
+        ? await firestoreClient.from("deliveries").select("order_id, status, created_at, updated_at").in("order_id", orderIds)
         : { data: [] as DeliveryRow[] };
       if (!alive) return;
       setOrders((ord ?? []) as OrderRow[]);

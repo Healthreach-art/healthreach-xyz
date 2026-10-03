@@ -1,3 +1,5 @@
+import { firestoreAdmin } from "./firestore-admin";
+
 const BASE_URL = "https://healthreachcare.co.za";
 
 export interface SitemapEntry {
@@ -7,12 +9,12 @@ export interface SitemapEntry {
 }
 
 export function buildSitemapResponse(entries: SitemapEntry[]): Response {
-  const urls = entries.map((e) =>
+  const urls = entries.map((entry) =>
     [
       `  <url>`,
-      `    <loc>${BASE_URL}${e.path}</loc>`,
-      e.changefreq ? `    <changefreq>${e.changefreq}</changefreq>` : null,
-      e.priority ? `    <priority>${e.priority}</priority>` : null,
+      `    <loc>${BASE_URL}${entry.path}</loc>`,
+      entry.changefreq ? `    <changefreq>${entry.changefreq}</changefreq>` : null,
+      entry.priority ? `    <priority>${entry.priority}</priority>` : null,
       `  </url>`,
     ].filter(Boolean).join("\n"),
   );
@@ -35,16 +37,15 @@ export async function fetchPublishedRows(
   select: string,
   filter = "",
 ): Promise<Record<string, string>[]> {
-  try {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) return [];
-    const r = await fetch(`${url}/rest/v1/${table}?select=${select}${filter ? `&${filter}` : ""}`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
-    });
-    if (!r.ok) return [];
-    return (await r.json()) as Record<string, string>[];
-  } catch {
-    return [];
+  let query = firestoreAdmin.from(table).select(select);
+  if (filter) {
+    const [field, operator, value] = filter.split("=");
+    if (operator !== "eq" || !field || value === undefined) {
+      throw new Error(`Unsupported sitemap filter: ${filter}`);
+    }
+    query = query.eq(field, value === "true" ? true : value === "false" ? false : value);
   }
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as Record<string, string>[];
 }

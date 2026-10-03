@@ -1,19 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
 export const saveDriverProfilePhoto = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((input) => z.object({
     avatarUrl: z.string().url().max(1000),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: userResult, error: userError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const { data: userResult, error: userError } = await firestoreAdmin.auth.admin.getUserById(context.userId);
     if (userError) throw new Error(userError.message);
+    if (!userResult) throw new Error("Could not load the signed-in Firebase user.");
 
     const user = userResult.user;
-    const { error } = await supabaseAdmin
+    const { error } = await firestoreAdmin
       .from("profiles")
       .upsert({
         user_id: context.userId,

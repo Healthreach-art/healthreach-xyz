@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,7 +41,7 @@ function PatientHomecarePage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("homecare_requests")
       .select("*, homecare_assignments(*, homecare_staff(full_name, job_title)), homecare_providers(business_name, full_name, phone, provider_type, approval_status)")
       .eq("patient_id", user.id).order("created_at", { ascending: false });
@@ -53,18 +53,18 @@ function PatientHomecarePage() {
 
   useEffect(() => {
     if (!user?.id) return;
-    const ch = supabase.channel(`hc-patient-${user.id}`)
+    const ch = firestoreClient.channel(`hc-patient-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "homecare_requests", filter: `patient_id=eq.${user.id}` }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "homecare_assignments" }, () => void load())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firestoreClient.removeChannel(ch); };
   }, [user?.id, load]);
 
   const submit = async () => {
     const addr = address ?? (profile?.address ? { address: profile.address } as PickedAddress : null);
     if (!addr?.address) { toast.error("Please give the address for the visit"); return; }
     setSaving(true);
-    const { data: created, error } = await supabase.from("homecare_requests").insert({
+    const { data: created, error } = await firestoreClient.from("homecare_requests").insert({
       patient_id: user!.id,
       service_type: serviceType,
       description,
@@ -92,7 +92,7 @@ function PatientHomecarePage() {
   };
 
   const confirmVisit = async (assignmentId: string) => {
-    const { error } = await supabase.from("homecare_assignments")
+    const { error } = await firestoreClient.from("homecare_assignments")
       .update({ status: "confirmed", patient_confirmed_at: new Date().toISOString() }).eq("id", assignmentId);
     if (error) { toast.error(error.message); return; }
     toast.success("Thank you — visit confirmed");

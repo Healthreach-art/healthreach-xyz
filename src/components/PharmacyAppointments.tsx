@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,7 +33,7 @@ export function PharmacyAppointments() {
   async function load() {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("pharmacy_appointments")
       .select("*")
       .eq("pharmacy_id", user.id)
@@ -42,7 +42,7 @@ export function PharmacyAppointments() {
     setAppts(rows);
     const pids = Array.from(new Set(rows.map((a) => a.patient_id)));
     if (pids.length) {
-      const { data: profs } = await supabase
+      const { data: profs } = await firestoreClient
         .from("profiles")
         .select("user_id, full_name, phone")
         .in("user_id", pids);
@@ -56,19 +56,19 @@ export function PharmacyAppointments() {
   useEffect(() => {
     load();
     if (!user) return;
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`pharmacy-appts-${user.id}`)
       .on("postgres_changes",
         { event: "*", schema: "public", table: "pharmacy_appointments", filter: `pharmacy_id=eq.${user.id}` },
         () => { load(); })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firestoreClient.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   async function setStatus(a: Appt, status: "confirmed" | "cancelled" | "completed") {
     setSavingId(a.id);
-    const { error } = await supabase
+    const { error } = await firestoreClient
       .from("pharmacy_appointments")
       .update({
         status,

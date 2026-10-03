@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,7 @@ export function RecipientDocumentsBlock({ familyMemberId, onComplete }: Props) {
 
   async function reload() {
     if (!familyMemberId) return;
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("family_members")
       .select("id, full_name, relationship, id_number, id_document_path, selfie_with_id_path")
       .eq("id", familyMemberId)
@@ -70,14 +70,14 @@ export function RecipientDocumentsBlock({ familyMemberId, onComplete }: Props) {
     try {
       const ext = file.name.split(".").pop() || "bin";
       const path = `${user.id}/family-${m.id}-${kind}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
+      const { error: upErr } = await firestoreClient.storage
         .from("prescriptions")
         .upload(path, file, { contentType: file.type, upsert: true });
       if (upErr) throw upErr;
       const patch = kind === "id"
         ? { id_document_path: path }
         : { selfie_with_id_path: path };
-      const { error } = await supabase.from("family_members").update(patch as never).eq("id", m.id);
+      const { error } = await firestoreClient.from("family_members").update(patch as never).eq("id", m.id);
       if (error) throw error;
       toast.success(kind === "id" ? "Recipient ID uploaded" : "Selfie with ID uploaded");
       await reload();
@@ -96,7 +96,7 @@ export function RecipientDocumentsBlock({ familyMemberId, onComplete }: Props) {
       return;
     }
     setBusy("save");
-    const { error } = await supabase.from("family_members").update({ id_number: cleaned }).eq("id", m.id);
+    const { error } = await firestoreClient.from("family_members").update({ id_number: cleaned }).eq("id", m.id);
     setBusy(null);
     if (error) { toast.error(error.message); return; }
     toast.success("ID number saved");

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
@@ -19,7 +19,7 @@ export function PharmacyLocationCard() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("address, latitude, longitude").eq("user_id", user.id).maybeSingle()
+    firestoreClient.from("profiles").select("address, latitude, longitude").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => {
         if (data?.latitude && data?.longitude && data?.address) {
           const s = { address: data.address, lat: data.latitude, lng: data.longitude };

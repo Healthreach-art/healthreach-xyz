@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Search, Star, Clock, MapPin, Stethoscope, Loader2, ArrowLeft, Plus,
@@ -55,7 +55,7 @@ interface Med { id: string; pharmacy_id: string; name: string; price: number; st
 
 export const Route = createFileRoute("/pharmacy/$id")({
   loader: async ({ params }) => {
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("pharmacy_directory")
       .select("organization_name, full_name, address")
       .eq("user_id", params.id)
@@ -123,8 +123,8 @@ function Storefront() {
   useEffect(() => {
     (async () => {
       const [{ data: prof }, { data: medsData }] = await Promise.all([
-        supabase.from("pharmacy_directory").select("user_id, organization_name, full_name, address, appointments_enabled, walkins_enabled, opening_hours, services, phone").eq("user_id", id).maybeSingle(),
-        supabase.from("medications").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, description").eq("pharmacy_id", id).gt("stock_quantity", 0).order("name"),
+        firestoreClient.from("pharmacy_directory").select("user_id, organization_name, full_name, address, appointments_enabled, walkins_enabled, opening_hours, services, phone").eq("user_id", id).maybeSingle(),
+        firestoreClient.from("medications").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, description").eq("pharmacy_id", id).gt("stock_quantity", 0).order("name"),
       ]);
       setPharmacy(prof as Pharmacy | null);
       setMeds((medsData ?? []) as Med[]);
@@ -371,7 +371,7 @@ function Storefront() {
                 if (!user) { navigate({ to: "/login" }); return; }
                 if (!apptWhen) { toast.error("Pick a date & time"); return; }
                 setApptBusy(true);
-                const { error } = await supabase.from("pharmacy_appointments").insert({
+                const { error } = await firestoreClient.from("pharmacy_appointments").insert({
                   patient_id: user.id,
                   pharmacy_id: id,
                   reason: apptReason.trim().slice(0, 1000),

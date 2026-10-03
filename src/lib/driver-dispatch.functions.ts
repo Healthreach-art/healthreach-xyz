@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 
 export const DRIVER_OFFER_RADIUS_KM = 20;
 const DRIVER_OFFER_BATCH = 30;
@@ -21,7 +21,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
  * is within `maxKm` of the driver's last known live location.
  */
 export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) =>
     z.object({ maxKm: z.number().min(1).max(60).default(DRIVER_OFFER_RADIUS_KM) }).parse(i ?? {}),
   )
@@ -29,12 +29,12 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
     const userId = context.userId;
 
     const [{ data: loc }, { data: profile }] = await Promise.all([
-      supabaseAdmin
+      firestoreAdmin
         .from("driver_locations")
         .select("lat, lng")
         .eq("driver_id", userId)
         .maybeSingle(),
-      supabaseAdmin
+      firestoreAdmin
         .from("profiles")
         .select("latitude, longitude")
         .eq("user_id", userId)
@@ -45,15 +45,15 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
     const driverLng = loc?.lng ?? profile?.longitude ?? 18.4200;
 
     await Promise.all([
-      supabaseAdmin
+      firestoreAdmin
         .from("driver_status")
         .upsert({ driver_id: userId, status: "online", last_ping_at: new Date().toISOString() }, { onConflict: "driver_id" }),
-      supabaseAdmin
+      firestoreAdmin
         .from("driver_locations")
         .upsert({ driver_id: userId, lat: driverLat, lng: driverLng, updated_at: new Date().toISOString() } as never, { onConflict: "driver_id" }),
     ]);
 
-    const { data: openOffers } = await supabaseAdmin
+    const { data: openOffers } = await firestoreAdmin
       .from("delivery_offers")
       .select("id, order_id, pharmacy_id, message, created_at, declined_by, expires_at, status, target_driver_id, distance_km, offer_round")
       .eq("status", "open")
@@ -70,15 +70,15 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
     const orderIds = visible.map((o) => o.order_id);
 
     const [{ data: profs }, { data: dels }, { data: ords }] = await Promise.all([
-      supabaseAdmin
+      firestoreAdmin
         .from("profiles")
         .select("user_id, latitude, longitude, organization_name, full_name, address")
         .in("user_id", pharmacyIds),
-      supabaseAdmin
+      firestoreAdmin
         .from("deliveries")
         .select("order_id, pickup_address, delivery_address")
         .in("order_id", orderIds),
-      supabaseAdmin
+      firestoreAdmin
         .from("orders")
         .select("id, delivery_address, pickup_lat, pickup_lng, delivery_lat, delivery_lng, delivery_fee")
         .in("id", orderIds),
@@ -132,7 +132,7 @@ export type NearbyOffer = {
 };
 
 async function assertPharmacyOrAdmin(userId: string, orderId?: string) {
-  const { data: roles } = await supabaseAdmin
+  const { data: roles } = await firestoreAdmin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId);
@@ -140,7 +140,7 @@ async function assertPharmacyOrAdmin(userId: string, orderId?: string) {
   if (roleSet.has("admin")) return;
   if (!roleSet.has("pharmacy")) throw new Error("Pharmacy or admin role required");
   if (orderId) {
-    const { data: ord } = await supabaseAdmin
+    const { data: ord } = await firestoreAdmin
       .from("orders")
       .select("pharmacy_id")
       .eq("id", orderId)
@@ -150,11 +150,11 @@ async function assertPharmacyOrAdmin(userId: string, orderId?: string) {
 }
 
 export const dispatchOrderToNearbyDrivers = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => z.object({ orderId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     await assertPharmacyOrAdmin(context.userId, data.orderId);
-    const { data: result, error } = await (supabaseAdmin as any).rpc("dispatch_ready_order_to_drivers", {
+    const { data: result, error } = await firestoreAdmin.rpc("dispatch_ready_order_to_drivers", {
       _order_id: data.orderId,
       _max_drivers: DRIVER_OFFER_BATCH,
       _radius_km: DRIVER_OFFER_RADIUS_KM,
@@ -164,11 +164,11 @@ export const dispatchOrderToNearbyDrivers = createServerFn({ method: "POST" })
   });
 
 export const rebroadcastUnacceptedDriverOrders = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => z.object({ maxOrders: z.number().int().min(1).max(50).default(25) }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
     await assertPharmacyOrAdmin(context.userId);
-    const { data: result, error } = await (supabaseAdmin as any).rpc("rebroadcast_unaccepted_delivery_orders", {
+    const { data: result, error } = await firestoreAdmin.rpc("rebroadcast_unaccepted_delivery_orders", {
       _max_orders: data.maxOrders,
       _max_drivers: DRIVER_OFFER_BATCH,
       _radius_km: DRIVER_OFFER_RADIUS_KM,
@@ -178,10 +178,10 @@ export const rebroadcastUnacceptedDriverOrders = createServerFn({ method: "POST"
   });
 
 export const acceptDeliveryOffer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => z.object({ offerId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { data: result, error } = await (supabaseAdmin as any).rpc("accept_delivery_offer_for_driver", {
+    const { data: result, error } = await firestoreAdmin.rpc("accept_delivery_offer_for_driver", {
       _offer_id: data.offerId,
       _driver_id: context.userId,
     });
@@ -190,10 +190,10 @@ export const acceptDeliveryOffer = createServerFn({ method: "POST" })
   });
 
 export const declineDeliveryOffer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => z.object({ offerId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { data: result, error } = await (supabaseAdmin as any).rpc("decline_delivery_offer_for_driver", {
+    const { data: result, error } = await firestoreAdmin.rpc("decline_delivery_offer_for_driver", {
       _offer_id: data.offerId,
       _driver_id: context.userId,
     });

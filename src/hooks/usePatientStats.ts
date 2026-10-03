@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 
 export interface PatientStats {
@@ -19,7 +19,7 @@ export function usePatientStats() {
     if (!user || role !== "patient") return;
     let cancelled = false;
     async function load() {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("orders")
         .select("status,total_amount")
         .eq("patient_id", user!.id);
@@ -33,11 +33,11 @@ export function usePatientStats() {
       setStats({ totalOrders, activeOrders, pendingDelivery, totalSpent });
     }
     load();
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`patient-stats-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` }, load)
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    return () => { cancelled = true; firestoreClient.removeChannel(ch); };
   }, [user, role]);
 
   return stats;

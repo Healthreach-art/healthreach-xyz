@@ -8,7 +8,7 @@ type FirebaseServices = { app: FirebaseApp; auth: Auth; db: Firestore; storage: 
 
 let servicesPromise: Promise<FirebaseServices> | null = null;
 
-/** Lazily initialise Firebase in the browser. Not yet used by the app — Supabase stays active. */
+/** Lazily initialise Firebase services in the browser. */
 export function getFirebase(): Promise<FirebaseServices> {
   if (typeof window === "undefined") {
     return Promise.reject(new Error("Firebase client is browser-only"));

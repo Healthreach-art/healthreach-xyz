@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 
 /**
  * On patient login, ask once for geolocation permission, then upsert a "Current
@@ -23,7 +23,7 @@ export function usePatientLocationBroadcaster(opts: {
       if (now - lastSent < 55_000) return;
       lastSent = now;
       // Find existing "Current location" row for this user
-      const { data: existing } = await supabase
+      const { data: existing } = await firestoreClient
         .from("user_addresses")
         .select("id")
         .eq("user_id", userId!)
@@ -31,11 +31,11 @@ export function usePatientLocationBroadcaster(opts: {
         .maybeSingle();
       const street = `Live location · ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`;
       if (existing?.id) {
-        await supabase.from("user_addresses").update({
+        await firestoreClient.from("user_addresses").update({
           street, lat: coords.latitude, lng: coords.longitude, is_default: true,
         }).eq("id", existing.id);
       } else {
-        await supabase.from("user_addresses").insert({
+        await firestoreClient.from("user_addresses").insert({
           user_id: userId!, label: "Current location", street,
           lat: coords.latitude, lng: coords.longitude, is_default: true,
         });

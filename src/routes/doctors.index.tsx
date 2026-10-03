@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Star, MapPin, User as UserIcon, Search } from "lucide-react";
 
 const SITE = "https://healthreachcare.co.za";
@@ -12,7 +12,7 @@ interface Doc {
 
 export const Route = createFileRoute("/doctors/")({
   loader: async () => {
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("doctors")
       .select("id, full_name, specialty, city, photo_url, consultation_fee, rating_avg, rating_count")
       .or("and(is_active.eq.true,is_verified.eq.true),is_demo.eq.true")

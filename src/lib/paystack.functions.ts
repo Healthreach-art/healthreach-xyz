@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 
@@ -30,7 +30,7 @@ interface PaystackAuth {
  * checkout next time — card details never touch our database.
  */
 export const verifyPaystackTransaction = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) => z.object({ reference: z.string().min(4).max(128) }).parse(d))
   .handler(async ({ data, context }) => {
     const res = await fetch(
@@ -59,12 +59,12 @@ export const verifyPaystackTransaction = createServerFn({ method: "POST" })
 
     // Save reusable authorization for next-time one-tap pay.
     if (verified && auth?.authorization_code && auth?.signature && auth?.reusable !== false) {
-      const existingCount = await supabaseAdmin
+      const existingCount = await firestoreAdmin
         .from("saved_payment_methods")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
 
-      await supabaseAdmin.from("saved_payment_methods").upsert(
+      await firestoreAdmin.from("saved_payment_methods").upsert(
         {
           user_id: userId,
           authorization_code: auth.authorization_code,
@@ -98,7 +98,7 @@ export const verifyPaystackTransaction = createServerFn({ method: "POST" })
  * Returns the reference; caller should pass it to verifyPaystackTransaction.
  */
 export const chargeSavedCard = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       cardId: z.string().uuid(),
@@ -109,7 +109,7 @@ export const chargeSavedCard = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const userId = context.userId;
-    const { data: card, error } = await supabaseAdmin
+    const { data: card, error } = await firestoreAdmin
       .from("saved_payment_methods")
       .select("authorization_code, email, user_id")
       .eq("id", data.cardId)
@@ -152,11 +152,11 @@ export const chargeSavedCard = createServerFn({ method: "POST" })
  * Remove a saved card — deactivates the Paystack authorization, then deletes the row.
  */
 export const deleteSavedCard = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) => z.object({ cardId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const userId = context.userId;
-    const { data: card } = await supabaseAdmin
+    const { data: card } = await firestoreAdmin
       .from("saved_payment_methods")
       .select("authorization_code")
       .eq("id", data.cardId)
@@ -177,6 +177,6 @@ export const deleteSavedCard = createServerFn({ method: "POST" })
       } catch { /* ignore */ }
     }
 
-    await supabaseAdmin.from("saved_payment_methods").delete().eq("id", data.cardId).eq("user_id", userId);
+    await firestoreAdmin.from("saved_payment_methods").delete().eq("id", data.cardId).eq("user_id", userId);
     return { ok: true };
   });

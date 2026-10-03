@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ function Page() {
 
   async function load() {
     if (!user) return;
-    const { data } = await supabase.from("family_members").select("*").eq("user_id", user.id).order("created_at");
+    const { data } = await firestoreClient.from("family_members").select("*").eq("user_id", user.id).order("created_at");
     setItems((data ?? []) as Member[]);
   }
   useEffect(() => { load(); }, [user]);
@@ -44,7 +44,7 @@ function Page() {
     if (!user) return;
     if (!form.full_name.trim()) return toast.error("Name is required");
     setBusy(true);
-    const { error } = await supabase.from("family_members").insert({
+    const { error } = await firestoreClient.from("family_members").insert({
       user_id: user.id,
       full_name: form.full_name.trim(),
       relationship: form.relationship,
@@ -62,7 +62,7 @@ function Page() {
   }
 
   async function remove(id: string) {
-    await supabase.from("family_members").delete().eq("id", id);
+    await firestoreClient.from("family_members").delete().eq("id", id);
     toast.success("Removed");
     load();
   }
@@ -149,7 +149,7 @@ function FamilyMemberCard({ member, onRemove }: { member: Member; onRemove: () =
   async function loadUploads() {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("prescription_uploads")
       .select("*")
       .eq("patient_id", user.id)

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Search, Loader2, Stethoscope, Star, MapPin, Navigation, Home as HomeIcon, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +52,7 @@ function FindCarePage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("doctors")
+      const { data } = await firestoreClient.from("doctors")
         .select("id, full_name, specialty, city, photo_url, consultation_fee, rating_avg, rating_count, latitude, longitude, subspecialties, services_tags, in_person_available")
         .or("and(is_active.eq.true,is_verified.eq.true),is_demo.eq.true")
         .not("user_id", "is", null)
@@ -67,13 +67,13 @@ function FindCarePage() {
   useEffect(() => {
     (async () => {
       if (userLoc) {
-        const { data } = await supabase.rpc("find_homecare_near", {
+        const { data } = await firestoreClient.action("find_homecare_near", {
           _lat: userLoc.lat, _lng: userLoc.lng, _max_km: homecareRadius,
         });
         setHomecare((data ?? []) as unknown as HomecareProvider[]);
         return;
       }
-      const { data } = await supabase.from("homecare_providers")
+      const { data } = await firestoreClient.from("homecare_providers")
         .select("id, provider_type, business_name, full_name, address, services, service_areas, operating_hours, hourly_rate, service_radius_km")
         .eq("approval_status", "approved").eq("is_active", true).limit(60);
       setHomecare((data ?? []).map((r: any) => ({

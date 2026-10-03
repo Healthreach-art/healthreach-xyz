@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { ArrowLeft } from "lucide-react";
 import { Search, Loader2, Plus, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,11 +51,11 @@ function SearchPage() {
     refresh();
 
     // Realtime: refresh whenever any pharmacy updates stock/price.
-    const channel = supabase
+    const channel = firestoreClient
       .channel("search-meds-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "medications" }, () => { refresh(); })
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(channel); };
+    return () => { cancelled = true; firestoreClient.removeChannel(channel); };
   }, [loadMarketplace]);
 
 

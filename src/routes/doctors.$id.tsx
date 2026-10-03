@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Stethoscope } from "lucide-react";
@@ -16,7 +16,7 @@ interface Doctor {
 }
 
 async function fetchDoctor(id: string) {
-  const { data } = await supabase
+  const { data } = await firestoreClient
     .from("doctors")
     .select("id, full_name, specialty, qualifications, practice_number, bio, photo_url, consultation_fee, accepted_medical_aids, languages, online_available, in_person_available, phone_available, city, address, rating_avg, rating_count, is_active, is_verified")
     .eq("id", id)
@@ -82,7 +82,7 @@ function PublicDoctorPage() {
     async function refreshSlots() {
       const since = new Date(); since.setHours(0, 0, 0, 0);
       const until = new Date(since); until.setDate(until.getDate() + 14);
-      const { data: appts } = await supabase
+      const { data: appts } = await firestoreClient
         .from("doctor_appointments")
         .select("scheduled_at")
         .eq("doctor_id", id)
@@ -97,8 +97,8 @@ function PublicDoctorPage() {
         if (d && !cancelled) setDoc(d);
       }
       const [{ data: r }, { data: av }] = await Promise.all([
-        supabase.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
-        supabase.from("doctor_availability").select("day_of_week, start_hour, end_hour, slot_minutes, is_active").eq("doctor_id", id).eq("is_active", true),
+        firestoreClient.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
+        firestoreClient.from("doctor_availability").select("day_of_week, start_hour, end_hour, slot_minutes, is_active").eq("doctor_id", id).eq("is_active", true),
       ]);
       if (cancelled) return;
       setReviews(r ?? []);
@@ -106,15 +106,15 @@ function PublicDoctorPage() {
       await refreshSlots();
     })();
     // Realtime: when bookings change for this doctor, refresh busy slots within seconds.
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`doctor-pub-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `doctor_id=eq.${id}` }, refreshSlots)
       .on("postgres_changes", { event: "*", schema: "public", table: "doctor_availability", filter: `doctor_id=eq.${id}` }, async () => {
-        const { data: av } = await supabase.from("doctor_availability").select("day_of_week, start_hour, end_hour, slot_minutes, is_active").eq("doctor_id", id).eq("is_active", true);
+        const { data: av } = await firestoreClient.from("doctor_availability").select("day_of_week, start_hour, end_hour, slot_minutes, is_active").eq("doctor_id", id).eq("is_active", true);
         if (!cancelled) setAvailability(av ?? []);
       })
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    return () => { cancelled = true; firestoreClient.removeChannel(ch); };
   }, [id, doc]);
 
   // Build next-14-day slot grid from doctor's availability (fallback Mon–Fri 09–16 if none set).

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
 
 const reviewSchema = z.object({
   orderId: z.string().uuid(),
@@ -12,18 +12,18 @@ const reviewSchema = z.object({
 });
 
 export const submitReview = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => reviewSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { userId } = context;
-    const { data: order } = await supabaseAdmin
+    const { data: order } = await firestoreAdmin
       .from("orders")
       .select("id, patient_id, pharmacy_id, status")
       .eq("id", data.orderId)
       .maybeSingle();
     if (!order || order.patient_id !== userId) return { ok: false, reason: "forbidden" as const };
     if (order.status !== "delivered") return { ok: false, reason: "not_delivered" as const };
-    const { data: del } = await supabaseAdmin
+    const { data: del } = await firestoreAdmin
       .from("deliveries").select("driver_id").eq("order_id", data.orderId).maybeSingle();
 
     const rows: Array<Record<string, unknown>> = [];
@@ -42,7 +42,7 @@ export const submitReview = createServerFn({ method: "POST" })
       });
     }
     if (rows.length === 0) return { ok: false, reason: "nothing_to_rate" as const };
-    const { error } = await supabaseAdmin.from("ratings").upsert(rows as never, {
+    const { error } = await firestoreAdmin.from("ratings").upsert(rows as never, {
       onConflict: "order_id,target_type,patient_id",
     });
     if (error) return { ok: false, reason: error.message };
@@ -50,10 +50,10 @@ export const submitReview = createServerFn({ method: "POST" })
   });
 
 export const hasReviewed = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((i) => z.object({ orderId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { data: rows } = await supabaseAdmin
+    const { data: rows } = await firestoreAdmin
       .from("ratings")
       .select("id")
       .eq("order_id", data.orderId)

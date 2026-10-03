@@ -16,7 +16,7 @@ import {
   PackageX, Stethoscope, ShoppingCart, CreditCard, Megaphone, Eye, Send, ArrowDownToLine,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { broadcastNotification } from "@/lib/admin.functions";
@@ -205,16 +205,16 @@ function AdminDashboard() {
       { data: dels }, { data: comps }, { data: rates }, { data: pres },
       { data: pos }, { data: bas },
     ] = await Promise.all([
-      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("payments").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("deliveries").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("complaints").select("*").order("created_at", { ascending: false }),
-      supabase.from("ratings").select("*").order("created_at", { ascending: false }),
-      supabase.from("prescriptions").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("driver_payouts").select("*").order("requested_at", { ascending: false }).limit(500),
-      supabase.from("driver_bank_accounts").select("*"),
+      firestoreClient.from("profiles").select("*").order("created_at", { ascending: false }),
+      firestoreClient.from("user_roles").select("user_id, role"),
+      firestoreClient.from("orders").select("*").order("created_at", { ascending: false }).limit(500),
+      firestoreClient.from("payments").select("*").order("created_at", { ascending: false }).limit(500),
+      firestoreClient.from("deliveries").select("*").order("created_at", { ascending: false }).limit(500),
+      firestoreClient.from("complaints").select("*").order("created_at", { ascending: false }),
+      firestoreClient.from("ratings").select("*").order("created_at", { ascending: false }),
+      firestoreClient.from("prescriptions").select("*").order("created_at", { ascending: false }).limit(500),
+      firestoreClient.from("driver_payouts").select("*").order("requested_at", { ascending: false }).limit(500),
+      firestoreClient.from("driver_bank_accounts").select("*"),
     ]);
     const roleMap = new Map((roleRows ?? []).map((r) => [r.user_id, r.role as AppRole]));
     setUsers((profs ?? []).map((p: any) => ({
@@ -236,11 +236,11 @@ function AdminDashboard() {
   useEffect(() => {
     setLoading(true);
     loadAll().finally(() => setLoading(false));
-    const channel = supabase
+    const channel = firestoreClient
       .channel("admin-realtime")
       .on("postgres_changes", { event: "*", schema: "public" }, () => loadAll())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { firestoreClient.removeChannel(channel); };
   }, []);
 
   const userMap = useMemo(() => new Map(users.map((u) => [u.user_id, u])), [users]);
@@ -248,7 +248,7 @@ function AdminDashboard() {
 
   async function logAction(action: string, target_type: string | null, target_id: string | null, payload: Record<string, unknown> = {}) {
     try {
-      await supabase.rpc("log_admin_action" as never, {
+      await firestoreClient.action("log_admin_action" as never, {
         _action: action, _target_type: target_type, _target_id: target_id, _payload: payload,
       } as never);
     } catch { /* non-fatal */ }
@@ -256,9 +256,9 @@ function AdminDashboard() {
 
   async function updateApproval(userId: string, status: ApprovalStatus, notes?: string) {
     setUpdatingId(userId);
-    const { error } = await supabase.from("profiles").update({ approval_status: status }).eq("user_id", userId);
+    const { error } = await firestoreClient.from("profiles").update({ approval_status: status }).eq("user_id", userId);
     if (!error && notes !== undefined) {
-      await supabase.from("pharmacy_documents" as never)
+      await firestoreClient.from("pharmacy_documents" as never)
         .update({ review_notes: notes, reviewed_at: new Date().toISOString() } as never)
         .eq("pharmacy_id", userId);
     }
@@ -270,7 +270,7 @@ function AdminDashboard() {
 
   async function promoteToAdmin(userId: string) {
     setUpdatingId(userId);
-    const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "admin" });
+    const { error } = await firestoreClient.from("user_roles").insert({ user_id: userId, role: "admin" });
     setUpdatingId(null);
     if (error) return toast.error(error.message);
     await logAction("role.promote_admin", "user", userId);
@@ -279,7 +279,7 @@ function AdminDashboard() {
 
   async function demoteFromAdmin(userId: string) {
     setUpdatingId(userId);
-    const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+    const { error } = await firestoreClient.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
     setUpdatingId(null);
     if (error) return toast.error(error.message);
     await logAction("role.demote_admin", "user", userId);
@@ -287,11 +287,11 @@ function AdminDashboard() {
   }
 
   async function processRefund(p: PaymentRow) {
-    const { error } = await supabase.from("payments")
+    const { error } = await firestoreClient.from("payments")
       .update({ refund_status: "refunded", refund_amount: p.total_paid ?? p.amount, status: "refunded" } as any)
       .eq("id", p.id);
     if (error) return toast.error(error.message);
-    await supabase.from("orders").update({ status: "cancelled" } as any).eq("id", p.order_id);
+    await firestoreClient.from("orders").update({ status: "cancelled" } as any).eq("id", p.order_id);
     toast.success("Refund processed");
     setRefundConfirm(null);
   }
@@ -299,7 +299,7 @@ function AdminDashboard() {
   async function updatePayoutStatus(p: PayoutRow, status: "processing" | "paid" | "failed") {
     const patch: any = { status };
     if (status === "paid") patch.paid_at = new Date().toISOString();
-    const { error } = await supabase.from("driver_payouts").update(patch).eq("id", p.id);
+    const { error } = await firestoreClient.from("driver_payouts").update(patch).eq("id", p.id);
     if (error) return toast.error(error.message);
     toast.success(`Payout marked ${status}`);
   }
@@ -309,7 +309,7 @@ function AdminDashboard() {
   async function updateComplaintStatus(id: string, status: string, response?: string) {
     const patch: any = { status };
     if (response !== undefined) patch.admin_response = response;
-    const { error } = await supabase.from("complaints").update(patch).eq("id", id);
+    const { error } = await firestoreClient.from("complaints").update(patch).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success(`Complaint ${status}`);
     setComplaintReply(null);
@@ -409,7 +409,7 @@ function AdminDashboard() {
               const email = window.prompt("Invite a new admin by email:");
               if (!email) return;
               const note = window.prompt("Optional note (e.g. team, role):") || null;
-              const { data, error } = await supabase.rpc("invite_admin" as never, { _email: email, _note: note } as never);
+              const { data, error } = await firestoreClient.action("invite_admin" as never, { _email: email, _note: note } as never);
               if (error) {
                 toast.error("Invite failed", { description: error.message });
                 return;
@@ -1070,9 +1070,9 @@ function VerificationsPanel() {
 
   async function load() {
     const [{ data: dd }, { data: pd }, { data: drv }] = await Promise.all([
-      supabase.from("doctor_documents").select("*").order("updated_at", { ascending: false }),
-      supabase.from("pharmacy_documents").select("*").order("updated_at", { ascending: false }),
-      supabase.from("driver_documents").select("*").order("updated_at", { ascending: false }),
+      firestoreClient.from("doctor_documents").select("*").order("updated_at", { ascending: false }),
+      firestoreClient.from("pharmacy_documents").select("*").order("updated_at", { ascending: false }),
+      firestoreClient.from("driver_documents").select("*").order("updated_at", { ascending: false }),
     ]);
     setDoctorDocs(dd ?? []);
     setPharmDocs(pd ?? []);
@@ -1083,7 +1083,7 @@ function VerificationsPanel() {
       ...(drv ?? []).map((x: any) => x.driver_id),
     ]));
     if (ids.length) {
-      const { data: ps } = await supabase.from("profiles")
+      const { data: ps } = await firestoreClient.from("profiles")
         .select("user_id, full_name, email, organization_name, approval_status").in("user_id", ids);
       const m: Record<string, any> = {};
       (ps ?? []).forEach((p: any) => { m[p.user_id] = p; });
@@ -1097,9 +1097,9 @@ function VerificationsPanel() {
     try {
       const reason = status === "rejected" ? (window.prompt("Rejection reason?") ?? "") : "";
       const patch = { approval_status: status as ApprovalStatus, updated_at: new Date().toISOString() };
-      const { error } = await supabase.from("profiles").update(patch).eq("user_id", driverId);
+      const { error } = await firestoreClient.from("profiles").update(patch).eq("user_id", driverId);
       if (error) throw error;
-      await supabase.from("driver_documents")
+      await firestoreClient.from("driver_documents")
         .update({ reviewed_at: new Date().toISOString(), review_notes: reason || null } as never)
         .eq("driver_id", driverId);
       toast.success(status === "approved" ? "Driver approved" : "Driver rejected");
@@ -1111,7 +1111,7 @@ function VerificationsPanel() {
 
   async function signedUrl(bucket: string, path: string | null) {
     if (!path) return null;
-    const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 600);
+    const { data } = await firestoreClient.storage.from(bucket).createSignedUrl(path, 600);
     return data?.signedUrl ?? null;
   }
 

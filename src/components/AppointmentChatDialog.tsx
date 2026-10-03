@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Send, Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ export function AppointmentChatDialog({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await firestoreClient
         .from("appointment_messages")
         .select("*")
         .eq("appointment_id", appointmentId)
@@ -55,14 +55,14 @@ export function AppointmentChatDialog({
         setLoading(false);
       }
     })();
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`appt-msgs-${appointmentId}`)
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "appointment_messages", filter: `appointment_id=eq.${appointmentId}` },
         (payload) => setMessages((prev) => [...prev, payload.new as Message]))
       .subscribe();
     if (typeof window !== "undefined") (window as any).__activeChatId = appointmentId;
-    return () => { cancelled = true; supabase.removeChannel(ch); if (typeof window !== "undefined") (window as any).__activeChatId = null; };
+    return () => { cancelled = true; firestoreClient.removeChannel(ch); if (typeof window !== "undefined") (window as any).__activeChatId = null; };
 
   }, [open, appointmentId, appointmentType, user]);
 
@@ -73,7 +73,7 @@ export function AppointmentChatDialog({
   async function send() {
     if (!body.trim() || !appointmentId || !user) return;
     setSending(true);
-    const { error } = await supabase.from("appointment_messages").insert({
+    const { error } = await firestoreClient.from("appointment_messages").insert({
       appointment_id: appointmentId,
       appointment_type: appointmentType,
       patient_id: patientId,

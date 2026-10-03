@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useServerFn } from "@tanstack/react-start";
 import { verifyPrescription } from "@/utils/ai.functions";
 import { Stethoscope, FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw, Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles, Download, Share2, Link as LinkIcon, Package, ArrowLeft } from "lucide-react";
@@ -45,13 +45,13 @@ function Page() {
 
   const reloadUploads = async () => {
     if (!user) return;
-    const { data } = await supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false });
+    const { data } = await firestoreClient.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false });
     setPxUploads((data ?? []) as PrescriptionUpload[]);
   };
 
   async function loadLinkedOrders(uploadIds: string[]) {
     if (!uploadIds.length) { setLinkedOrders({}); return; }
-    const { data: ords } = await supabase
+    const { data: ords } = await firestoreClient
       .from("orders")
       .select("id, medication_name, status, created_at, pharmacy_id, prescription_upload_id")
       .in("prescription_upload_id", uploadIds)
@@ -60,7 +60,7 @@ function Page() {
     const pharmIds = Array.from(new Set(list.map((o) => o.pharmacy_id).filter(Boolean)));
     const names: Record<string, string> = {};
     if (pharmIds.length) {
-      const { data: profs } = await supabase.from("profiles").select("user_id, full_name, organization_name").in("user_id", pharmIds);
+      const { data: profs } = await firestoreClient.from("profiles").select("user_id, full_name, organization_name").in("user_id", pharmIds);
       (profs ?? []).forEach((p: any) => { names[p.user_id] = p.organization_name || p.full_name || "Pharmacy"; });
     }
     const grouped: Record<string, any[]> = {};
@@ -74,8 +74,8 @@ function Page() {
     if (!user) return;
     (async () => {
       const [{ data: rx }, { data: ups }] = await Promise.all([
-        supabase.from("prescriptions").select("id, medication_name, dosage, doctor_name, is_active, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }),
+        firestoreClient.from("prescriptions").select("id, medication_name, dosage, doctor_name, is_active, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }),
+        firestoreClient.from("prescription_uploads").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }),
       ]);
       setPrescriptions((rx ?? []) as Prescription[]);
       const upsList = (ups ?? []) as PrescriptionUpload[];

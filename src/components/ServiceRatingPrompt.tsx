@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Star, Loader2 } from "lucide-react";
@@ -50,7 +50,7 @@ export function ServiceRatingPrompt() {
         ids.push({ id: p.pharmacyId, key: "pharmacy" });
       }
       if (ids.length) {
-        const { data } = await supabase.from("profiles").select("user_id, full_name")
+        const { data } = await firestoreClient.from("profiles").select("user_id, full_name")
           .in("user_id", ids.map((i) => i.id));
         for (const { id, key } of ids) {
           const row = (data ?? []).find((d: any) => d.user_id === id);
@@ -66,7 +66,7 @@ export function ServiceRatingPrompt() {
       // Check if a rating already exists for any of the target types tied to this source.
       const orderId = p.source === "order" ? p.orderId : null;
       const appointmentId = p.source !== "order" ? (p as any).appointmentId : null;
-      const q = supabase.from("ratings").select("target_type").eq("patient_id", user!.id);
+      const q = firestoreClient.from("ratings").select("target_type").eq("patient_id", user!.id);
       const { data: existing } = orderId
         ? await q.eq("order_id", orderId)
         : await q.eq("appointment_id", appointmentId);
@@ -84,7 +84,7 @@ export function ServiceRatingPrompt() {
       await loadTargets(p);
     }
 
-    const channel = supabase
+    const channel = firestoreClient
       .channel(`rating-prompt-${user.id}`)
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` },
@@ -94,7 +94,7 @@ export function ServiceRatingPrompt() {
           if (n.status === o.status) return;
           if (!COMPLETED_ORDER.has(n.status)) return;
           // pull driver from deliveries
-          supabase.from("deliveries").select("driver_id").eq("order_id", n.id).maybeSingle()
+          firestoreClient.from("deliveries").select("driver_id").eq("order_id", n.id).maybeSingle()
             .then(({ data }) => {
               maybePrompt({
                 source: "order",
@@ -138,7 +138,7 @@ export function ServiceRatingPrompt() {
     // Mount-time scan: catch deliveries/completions that happened while the
     // patient was offline so the prompt still appears next time they open the app.
     (async () => {
-      const { data: orders } = await supabase
+      const { data: orders } = await firestoreClient
         .from("orders")
         .select("id, pharmacy_id, status, medication_name, updated_at")
         .eq("patient_id", user.id)
@@ -146,7 +146,7 @@ export function ServiceRatingPrompt() {
         .order("updated_at", { ascending: false })
         .limit(5);
       for (const o of orders ?? []) {
-        const { data: del } = await supabase
+        const { data: del } = await firestoreClient
           .from("deliveries").select("driver_id").eq("order_id", (o as any).id).maybeSingle();
         await maybePrompt({
           source: "order",
@@ -160,7 +160,7 @@ export function ServiceRatingPrompt() {
       }
     })();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { firestoreClient.removeChannel(channel); };
   }, [user, role]);
 
 
@@ -186,7 +186,7 @@ export function ServiceRatingPrompt() {
     }
     if (rows.length === 0) { setPrompt(null); return; }
     setSubmitting(true);
-    const { error } = await supabase.from("ratings").insert(rows);
+    const { error } = await firestoreClient.from("ratings").insert(rows);
     setSubmitting(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Thanks for rating — your feedback was sent.");

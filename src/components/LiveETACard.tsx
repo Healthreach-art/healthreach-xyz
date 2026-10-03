@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { MapPin, Clock, Navigation, Loader2 } from "lucide-react";
 
 interface Props {
@@ -37,7 +37,7 @@ export function LiveETACard({ orderId, deliveryStatus, className = "" }: Props) 
     if (!orderId) return;
     let cancelled = false;
     (async () => {
-      const { data: o } = await supabase
+      const { data: o } = await firestoreClient
         .from("orders")
         .select("delivery_lat, delivery_lng, pickup_lat, pickup_lng, delivery_address")
         .eq("id", orderId)
@@ -60,7 +60,7 @@ export function LiveETACard({ orderId, deliveryStatus, className = "" }: Props) 
     let active = true;
 
     (async () => {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("driver_locations")
         .select("lat, lng, updated_at")
         .eq("order_id", orderId)
@@ -71,7 +71,7 @@ export function LiveETACard({ orderId, deliveryStatus, className = "" }: Props) 
       }
     })();
 
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`eta-${orderId}`)
       .on("postgres_changes",
         { event: "*", schema: "public", table: "driver_locations", filter: `order_id=eq.${orderId}` },
@@ -84,7 +84,7 @@ export function LiveETACard({ orderId, deliveryStatus, className = "" }: Props) 
         })
       .subscribe();
 
-    return () => { active = false; supabase.removeChannel(ch); };
+    return () => { active = false; firestoreClient.removeChannel(ch); };
   }, [orderId]);
 
   if (loading) {

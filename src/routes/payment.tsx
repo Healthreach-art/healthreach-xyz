@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { useEffect, useState, type FormEvent } from "react";
 import { CreditCard, Lock, CheckCircle2, Smartphone, Building2, Wallet, MapPin } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
@@ -69,7 +69,7 @@ function PaymentPage() {
   // Load saved payment methods
   useEffect(() => {
     if (!user) return;
-    supabase
+    firestoreClient
       .from("saved_payment_methods")
       .select("id, brand, last4, exp_month, exp_year, is_default")
       .eq("user_id", user.id)
@@ -86,7 +86,7 @@ function PaymentPage() {
   // Pre-fill delivery address from patient profile
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("address").eq("user_id", user.id).maybeSingle()
+    firestoreClient.from("profiles").select("address").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => { if (data?.address) setDeliveryAddress(data.address); });
   }, [user]);
 
@@ -95,13 +95,13 @@ function PaymentPage() {
     if (!user || !medId) return;
     let cancel = false;
     (async () => {
-      const { data: med } = await supabase
+      const { data: med } = await firestoreClient
         .from("medications").select("requires_prescription, pharmacy_id").eq("id", medId).maybeSingle();
       if (cancel || !med) return;
       const required = !!med.requires_prescription;
       setRxRequired(required);
       if (!required) { setRxApproved(true); return; }
-      const { data: ups } = await supabase
+      const { data: ups } = await firestoreClient
         .from("prescription_uploads")
         .select("id, expires_at")
         .eq("patient_id", user.id)
@@ -141,26 +141,15 @@ function PaymentPage() {
       // Resolve pharmacy: param → first pharmacy user → self (demo fallback)
       let resolvedPharmacy = pharmacyId;
       if (!resolvedPharmacy) {
-        const { data: pharmacyRole } = await supabase
+        const { data: pharmacyRole } = await firestoreClient
           .from("user_roles").select("user_id").eq("role", "pharmacy").limit(1).maybeSingle();
         resolvedPharmacy = pharmacyRole?.user_id ?? user.id;
       }
 
-      // Pull pharmacy address for pickup point
-      const { data: pharmacyProfile } = await supabase
-        .from("profiles")
-        .select("address, organization_name")
-        .eq("user_id", resolvedPharmacy)
-        .maybeSingle();
-      const pickupAddress =
-        pharmacyProfile?.address?.trim() ||
-        pharmacyProfile?.organization_name ||
-        "Pharmacy pickup point";
-
       const breakdown = paymentBreakdown(price, qty, BASE_DELIVERY);
 
-      // Order is created in 'pending' — pharmacy preparation only starts after payment completes (DB trigger flips to 'preparing').
-      const { data: order, error: orderErr } = await supabase
+      // Order remains pending until the verified payment action promotes it.
+      const { data: order, error: orderErr } = await firestoreClient
         .from("orders")
         .insert({
           patient_id: user.id,
@@ -183,14 +172,14 @@ function PaymentPage() {
       }));
 
       // Duplicate-payment guard: if a completed payment already exists for this order, bail.
-      const { data: existing } = await supabase
+      const { data: existing } = await firestoreClient
         .from("payments").select("id").eq("order_id", order.id).eq("status", "completed").maybeSingle();
       if (existing) { throw new Error("This order has already been paid."); }
 
       // Create a pending payment row — RLS forbids client-side 'completed' inserts.
       const reference = `TXN-${Date.now().toString().slice(-8)}`;
 
-      const { data: payment, error: payErr } = await supabase.from("payments").insert({
+      const { data: payment, error: payErr } = await firestoreClient.from("payments").insert({
         order_id: order.id,
         patient_id: user.id,
         pharmacy_id: resolvedPharmacy,
@@ -207,6 +196,7 @@ function PaymentPage() {
         transaction_ref: reference,
       }).select().single();
       if (payErr) throw payErr;
+      if (!payment) throw new Error("Payment could not be created.");
 
       // Stripe-style test card outcomes (only for new cards entered manually).
       // 4242 4242 4242 4242 → success, 4000 0000 0000 0002 → declined, anything else → random.
@@ -218,7 +208,7 @@ function PaymentPage() {
       }
 
       // Process via server endpoint (mock gateway). Server flips status using service role.
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await firestoreClient.auth.getSession();
       const payRes = await fetch("/api/mock-pay", {
         method: "POST",
         headers: {
@@ -236,27 +226,6 @@ function PaymentPage() {
         return;
       }
 
-      const { error: delErr } = await supabase.from("deliveries").insert({
-        order_id: order.id,
-        status: "assigned",
-        pickup_address: pickupAddress,
-        delivery_address: deliveryAddress,
-        estimated_time: "30-45 minutes",
-      });
-      if (delErr) throw delErr;
-
-      // Decrement stock if a real medication was ordered
-      if (medId) {
-        const { data: med } = await supabase
-          .from("medications").select("stock_quantity").eq("id", medId).maybeSingle();
-        if (med && typeof med.stock_quantity === "number") {
-          await supabase
-            .from("medications")
-            .update({ stock_quantity: Math.max(0, med.stock_quantity - qty) })
-            .eq("id", medId);
-        }
-      }
-
       setCreatedOrderId(order.id);
       setTxnRef(payment?.invoice_number || reference);
       setSuccess(true);
@@ -268,7 +237,7 @@ function PaymentPage() {
         const brand = digits.startsWith("4") ? "Visa" : digits.startsWith("5") ? "Mastercard" : digits.startsWith("3") ? "Amex" : "Card";
         const [mm, yy] = expiry.split("/").map((s) => parseInt(s.trim(), 10));
         if (last4 && mm && yy) {
-          await supabase.from("saved_payment_methods").insert({
+          await firestoreClient.from("saved_payment_methods").insert({
             user_id: user.id,
             brand, last4, exp_month: mm, exp_year: 2000 + yy,
             is_default: savedCards.length === 0,

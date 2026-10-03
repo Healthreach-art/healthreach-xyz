@@ -15,7 +15,7 @@ import { useDriverPresence } from "@/hooks/useDriverPresence";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
 import { Switch } from "@/components/ui/switch";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 
 import { OrderChatDialog } from "@/components/OrderChatDialog";
@@ -176,7 +176,7 @@ function DriverDashboard() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("driver_documents")
         .select("id_document_path, license_path, selfie_path, submitted_at")
         .eq("driver_id", user.id)
@@ -249,7 +249,7 @@ function DriverDashboard() {
     if (!user) return;
 
     async function loadDeliveries() {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("deliveries")
         .select("id, order_id, order_group_id, status, pickup_address, delivery_address, estimated_time, created_at, updated_at")
         .eq("driver_id", user!.id)
@@ -262,14 +262,14 @@ function DriverDashboard() {
       if (active.length > 0) {
         const orderIds = active.map((d) => d.order_id);
         const groupIds = Array.from(new Set(active.map((d) => d.order_group_id).filter((v): v is string => !!v)));
-        const { data: orders } = await supabase
+        const { data: orders } = await firestoreClient
           .from("orders")
           .select("id, order_group_id, patient_id, pharmacy_id, delivery_fee, medication_name, quantity")
           .in("id", orderIds);
         // Sibling rows in the same group (the rest of the package contents)
         let siblings: Array<{ id: string; order_group_id: string | null; medication_name: string; quantity: number }> = [];
         if (groupIds.length > 0) {
-          const { data: sibs } = await supabase
+          const { data: sibs } = await firestoreClient
             .from("orders")
             .select("id, order_group_id, medication_name, quantity")
             .in("order_group_id", groupIds);
@@ -278,7 +278,7 @@ function DriverDashboard() {
         // Group delivery codes
         let codeByGroup = new Map<string, string>();
         if (groupIds.length > 0) {
-          const { data: grs } = await supabase
+          const { data: grs } = await firestoreClient
             .from("order_groups" as never)
             .select("id, delivery_code")
             .in("id", groupIds);
@@ -287,7 +287,7 @@ function DriverDashboard() {
         const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
         const userIds = Array.from(new Set((orders ?? []).flatMap((o) => [o.patient_id, o.pharmacy_id].filter((v): v is string => !!v))));
         const { data: profs } = userIds.length > 0
-          ? await supabase.from("pharmacy_directory" as never).select("user_id, full_name, phone, organization_name").in("user_id", userIds) as { data: { user_id: string; full_name: string; phone: string; organization_name: string }[] | null }
+          ? await firestoreClient.from("pharmacy_directory" as never).select("user_id, full_name, phone, organization_name").in("user_id", userIds) as { data: { user_id: string; full_name: string; phone: string; organization_name: string }[] | null }
           : { data: [] as { user_id: string; full_name: string; phone: string; organization_name: string }[] };
         const profMap = new Map((profs ?? []).map((p) => [p.user_id, p]));
         setLiveDeliveries(active.map((d) => {
@@ -318,14 +318,14 @@ function DriverDashboard() {
       // Hydrate patient names and earnings from orders
       if (done.length > 0) {
         const orderIds = done.map((d) => d.order_id);
-        const { data: orders } = await supabase
+        const { data: orders } = await firestoreClient
           .from("orders")
           .select("id, patient_id, delivery_fee")
           .in("id", orderIds);
         const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
         const patientIds = Array.from(new Set((orders ?? []).map((o) => o.patient_id)));
         const { data: profiles } = patientIds.length > 0
-          ? await supabase.from("profiles").select("user_id, full_name").in("user_id", patientIds)
+          ? await firestoreClient.from("profiles").select("user_id, full_name").in("user_id", patientIds)
           : { data: [] as { user_id: string; full_name: string }[] };
         const nameMap = new Map((profiles ?? []).map((p) => [p.user_id, p.full_name]));
         setCompleted(done.map((d) => {
@@ -383,8 +383,8 @@ function DriverDashboard() {
     async function loadStats() {
       const since = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
       const [{ data: offersAll }, { data: dels }] = await Promise.all([
-        supabase.from("delivery_offers").select("id, accepted_by, declined_by, status").gte("created_at", since),
-        supabase.from("deliveries").select("status, created_at, updated_at").eq("driver_id", user!.id).gte("created_at", since),
+        firestoreClient.from("delivery_offers").select("id, accepted_by, declined_by, status").gte("created_at", since),
+        firestoreClient.from("deliveries").select("status, created_at, updated_at").eq("driver_id", user!.id).gte("created_at", since),
       ]);
       const offered = (offersAll ?? []).filter((o) => o.accepted_by === user!.id || (o.declined_by ?? []).includes(user!.id)).length;
       const accepted = (offersAll ?? []).filter((o) => o.accepted_by === user!.id).length;
@@ -399,7 +399,7 @@ function DriverDashboard() {
     }
 
     async function loadRatings() {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("ratings")
         .select("stars, comment, created_at")
         .eq("target_type", "driver")
@@ -410,7 +410,7 @@ function DriverDashboard() {
       setRatings({ avg, count: rows.length, recent: rows.slice(0, 3) });
     }
 
-    const channel = supabase
+    const channel = firestoreClient
       .channel(`driver-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries", filter: `driver_id=eq.${user.id}` }, (payload) => {
         if (payload.eventType === "INSERT") {
@@ -424,7 +424,7 @@ function DriverDashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "delivery_offers" }, () => loadOffers())
       .on("postgres_changes", { event: "*", schema: "public", table: "ratings", filter: `target_id=eq.${user.id}` }, () => loadRatings())
       .subscribe();
-    return () => { clearInterval(poll); supabase.removeChannel(channel); };
+    return () => { clearInterval(poll); firestoreClient.removeChannel(channel); };
   }, [user, loadNearbyOffers, available]);
 
   async function acceptOffer(offer: Offer) {
@@ -458,7 +458,7 @@ function DriverDashboard() {
 
   async function setDeliveryStatus(d: LiveDelivery, target: DStatus) {
     setUpdating(d.id);
-    const { error } = await supabase.from("deliveries").update({ status: target }).eq("id", d.id);
+    const { error } = await firestoreClient.from("deliveries").update({ status: target }).eq("id", d.id);
     const orderStatusMap: Record<DStatus, "ready" | "out_for_delivery" | "delivered" | "cancelled" | null> = {
       assigned: "ready", picked_up: "out_for_delivery", in_transit: "out_for_delivery", delivered: "delivered", failed: "cancelled",
     };
@@ -466,10 +466,10 @@ function DriverDashboard() {
     if (orderStatus) {
       // Update ALL order rows in the package, not just the one the delivery row points at
       if (d.order_group_id) {
-        await supabase.from("orders").update({ status: orderStatus }).eq("order_group_id", d.order_group_id);
-        await supabase.from("order_groups" as never).update({ status: orderStatus } as never).eq("id", d.order_group_id);
+        await firestoreClient.from("orders").update({ status: orderStatus }).eq("order_group_id", d.order_group_id);
+        await firestoreClient.from("order_groups" as never).update({ status: orderStatus } as never).eq("id", d.order_group_id);
       } else {
-        await supabase.from("orders").update({ status: orderStatus }).eq("id", d.order_id);
+        await firestoreClient.from("orders").update({ status: orderStatus }).eq("id", d.order_id);
       }
     }
     setUpdating(null);

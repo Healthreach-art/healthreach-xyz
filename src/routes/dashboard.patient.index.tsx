@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { usePatientLocationBroadcaster } from "@/hooks/usePatientLocationBroadcaster";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { MedicationReminderWidget } from "@/components/MedicationReminderWidget";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
@@ -66,7 +66,7 @@ function PatientDashboard() {
     if (!user?.id) return;
     let cancelled = false;
     async function load() {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("orders")
         .select("id, order_group_id, status, total_amount, created_at, pharmacy_id")
         .eq("patient_id", user!.id)
@@ -82,7 +82,7 @@ function PatientDashboard() {
 
       const ids = Array.from(new Set(list.map((o) => o.pharmacy_id))).filter(Boolean);
       if (ids.length) {
-        const { data: profs } = await supabase
+        const { data: profs } = await firestoreClient
           .from("profiles")
           .select("user_id, organization_name, full_name")
           .in("user_id", ids);
@@ -97,19 +97,19 @@ function PatientDashboard() {
       // Driver name + map endpoints for active order
       if (active?.id) {
         const [{ data: del }, { data: ordRow }] = await Promise.all([
-          supabase.from("deliveries").select("driver_id, delivery_address, pickup_code, delivery_code").eq("order_id", active.id).maybeSingle(),
-          supabase.from("orders").select("delivery_address, pharmacy_id").eq("id", active.id).maybeSingle(),
+          firestoreClient.from("deliveries").select("driver_id, delivery_address, pickup_code, delivery_code").eq("order_id", active.id).maybeSingle(),
+          firestoreClient.from("orders").select("delivery_address, pharmacy_id").eq("id", active.id).maybeSingle(),
         ]);
         if (cancelled) return;
         setMapDropoff((ordRow?.delivery_address as string) || (del?.delivery_address as string) || null);
         setPickupCode((del as { pickup_code?: string | null } | null)?.pickup_code ?? null);
         setDeliveryCode((del as { delivery_code?: string | null } | null)?.delivery_code ?? null);
         if (ordRow?.pharmacy_id) {
-          const { data: pharm } = await supabase.from("pharmacy_directory" as never).select("address").eq("user_id", ordRow.pharmacy_id).maybeSingle() as { data: { address: string | null } | null };
+          const { data: pharm } = await firestoreClient.from("pharmacy_directory" as never).select("address").eq("user_id", ordRow.pharmacy_id).maybeSingle() as { data: { address: string | null } | null };
           if (!cancelled) setMapPickup((pharm?.address as string) || null);
         }
         if (del?.driver_id) {
-          const { data: dp } = await supabase.from("profiles").select("full_name").eq("user_id", del.driver_id).maybeSingle();
+          const { data: dp } = await firestoreClient.from("profiles").select("full_name").eq("user_id", del.driver_id).maybeSingle();
           if (!cancelled) setDriverName(dp?.full_name ?? "");
         } else if (!cancelled) {
           setDriverName("");
@@ -121,7 +121,7 @@ function PatientDashboard() {
     load();
 
     // Realtime — orders + deliveries
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`patient-dash-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, load)
@@ -130,9 +130,9 @@ function PatientDashboard() {
     // Side stats
     (async () => {
       const [{ count: rxCount }, { count: apptCount }] = await Promise.all([
-        supabase.from("prescription_uploads").select("id", { count: "exact", head: true })
+        firestoreClient.from("prescription_uploads").select("id", { count: "exact", head: true })
           .eq("patient_id", user.id).eq("status", "approved"),
-        supabase.from("pharmacy_appointments").select("id", { count: "exact", head: true })
+        firestoreClient.from("pharmacy_appointments").select("id", { count: "exact", head: true })
           .eq("patient_id", user.id).gte("preferred_at", new Date().toISOString()),
       ]).catch(() => [{ count: 0 } as any, { count: 0 } as any]);
       if (cancelled) return;
@@ -140,7 +140,7 @@ function PatientDashboard() {
       setUpcomingAppointmentsCount(apptCount ?? 0);
     })();
 
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    return () => { cancelled = true; firestoreClient.removeChannel(ch); };
   }, [user?.id]);
 
   const driverInitial = (driverName || "?").charAt(0).toUpperCase();

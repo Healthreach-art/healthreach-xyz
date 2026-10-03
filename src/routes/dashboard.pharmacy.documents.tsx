@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -101,7 +101,7 @@ function DocumentsProfile() {
   async function load() {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("pharmacy_documents" as never)
       .select("*")
       .eq("pharmacy_id", user.id)
@@ -112,7 +112,7 @@ function DocumentsProfile() {
     await Promise.all(DOCS.map(async (s) => {
       const path = (r as Record<string, string | null | undefined>)[s.key];
       if (path) {
-        const { data: signed } = await supabase.storage.from("pharmacy-docs").createSignedUrl(path, 3600);
+        const { data: signed } = await firestoreClient.storage.from("pharmacy-docs").createSignedUrl(path, 3600);
         if (signed?.signedUrl) urls[s.key] = signed.signedUrl;
       }
     }));
@@ -128,16 +128,16 @@ function DocumentsProfile() {
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/${key}-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("pharmacy-docs").upload(path, file, { upsert: true, contentType: file.type });
+      const { error } = await firestoreClient.storage.from("pharmacy-docs").upload(path, file, { upsert: true, contentType: file.type });
       if (error) throw new Error(error.message);
 
-      const { error: dbError } = await supabase
+      const { error: dbError } = await firestoreClient
         .from("pharmacy_documents" as never)
         .upsert({ pharmacy_id: user.id, [key]: path } as never, { onConflict: "pharmacy_id" });
       if (dbError) throw new Error(dbError.message);
 
       // Clear this document's prior review and bump submitted_at via RPC
-      const { error: rpcErr } = await supabase.rpc("pharmacy_resubmit_document" as never, { _doc_key: key } as never);
+      const { error: rpcErr } = await firestoreClient.action("pharmacy_resubmit_document" as never, { _doc_key: key } as never);
       if (rpcErr) throw new Error(rpcErr.message);
 
       toast.success("Re-uploaded — sent for review");

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Lock, CheckCircle2, ShoppingCart, Loader2, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 import { customerPrice, deliveryFeeForKm, etaMinutesForKm } from "@/lib/pricing";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -103,9 +103,9 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("family_members").select("id, full_name, relationship").eq("user_id", user.id)
+    firestoreClient.from("family_members").select("id, full_name, relationship").eq("user_id", user.id)
       .then(({ data }) => setFamilyMembers((data ?? []) as never));
-    supabase.from("profiles").select("full_name, phone, email").eq("user_id", user.id).maybeSingle()
+    firestoreClient.from("profiles").select("full_name, phone, email").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => {
         setContactName(data?.full_name || "");
         setContactPhone(data?.phone || "");
@@ -116,7 +116,7 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("user_addresses").select("street, lat, lng, is_default").eq("user_id", user.id).order("is_default", { ascending: false }).limit(1)
+    firestoreClient.from("user_addresses").select("street, lat, lng, is_default").eq("user_id", user.id).order("is_default", { ascending: false }).limit(1)
       .then(({ data }) => {
         const a = data?.[0];
         if (a?.lat && a?.lng) setDelivery({ address: a.street, lat: a.lat, lng: a.lng });
@@ -127,7 +127,7 @@ function CheckoutPage() {
   useEffect(() => {
     const pid = items[0]?.pharmacyId;
     if (!pid) { setPharmacyCoords(null); return; }
-    supabase.from("profiles").select("latitude, longitude").eq("user_id", pid).maybeSingle()
+    firestoreClient.from("profiles").select("latitude, longitude").eq("user_id", pid).maybeSingle()
       .then(({ data }) => {
         if (data?.latitude && data?.longitude) setPharmacyCoords({ lat: data.latitude, lng: data.longitude });
         else setPharmacyCoords(null);
@@ -210,7 +210,7 @@ function CheckoutPage() {
     }
 
     // Persist contact details for next time (best-effort)
-    supabase.from("profiles").update({
+    firestoreClient.from("profiles").update({
       full_name: contactName.trim(),
       phone: contactPhone.trim(),
       email: contactEmail.trim() || user.email,

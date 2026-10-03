@@ -1,21 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { firestoreAdmin } from "@/lib/firestore-admin";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { chargeSavedCard } from "./paystack.functions";
 
 /** Get the user's wallet balance + recent transactions. */
 export const getWalletSummary = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     const userId = context.userId;
 
-    // Ensure a wallet row exists (idempotent).
-    await supabaseAdmin.from("wallets").upsert({ user_id: userId }, { onConflict: "user_id" });
-
     const [{ data: wallet }, { data: txns }] = await Promise.all([
-      supabaseAdmin.from("wallets").select("balance_cents, currency, updated_at").eq("user_id", userId).maybeSingle(),
-      supabaseAdmin.from("wallet_transactions").select("id, direction, amount_cents, reason, order_id, paystack_reference, balance_after_cents, note, created_at")
+      firestoreAdmin.from("wallets").select("balance_cents, currency, updated_at").eq("user_id", userId).maybeSingle(),
+      firestoreAdmin.from("wallet_transactions").select("id, direction, amount_cents, reason, order_id, paystack_reference, balance_after_cents, note, created_at")
         .eq("user_id", userId).order("created_at", { ascending: false }).limit(30),
     ]);
 
@@ -37,7 +34,7 @@ export const getWalletSummary = createServerFn({ method: "GET" })
  * atomically (deduped by paystack reference).
  */
 export const topUpWithSavedCard = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) => z.object({
     cardId: z.string().uuid(),
     amountCents: z.number().int().min(2000).max(2_000_000), // R20 – R20,000
@@ -48,7 +45,7 @@ export const topUpWithSavedCard = createServerFn({ method: "POST" })
       data: { cardId: data.cardId, amountCents: data.amountCents, purpose: "wallet_topup" },
     });
 
-    const { data: credit, error } = await supabaseAdmin.rpc("wallet_credit", {
+    const { data: credit, error } = await firestoreAdmin.rpc("wallet_credit", {
       _user_id: userId,
       _amount_cents: data.amountCents,
       _reason: "topup",
@@ -64,7 +61,7 @@ export const topUpWithSavedCard = createServerFn({ method: "POST" })
  * Calls Paystack verify, then credits the wallet — deduped by reference.
  */
 export const confirmWalletTopUp = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) => z.object({ reference: z.string().min(4).max(128) }).parse(d))
   .handler(async ({ data, context }) => {
     const userId = context.userId;
@@ -89,11 +86,11 @@ export const confirmWalletTopUp = createServerFn({ method: "POST" })
     // Also persist the authorization for future one-tap top-ups & checkouts.
     const auth = json.data.authorization;
     if (auth?.authorization_code && auth?.signature && auth?.reusable !== false) {
-      const existingCount = await supabaseAdmin
+      const existingCount = await firestoreAdmin
         .from("saved_payment_methods")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
-      await supabaseAdmin.from("saved_payment_methods").upsert(
+      await firestoreAdmin.from("saved_payment_methods").upsert(
         {
           user_id: userId,
           authorization_code: auth.authorization_code,
@@ -113,7 +110,7 @@ export const confirmWalletTopUp = createServerFn({ method: "POST" })
       );
     }
 
-    const { data: credit, error } = await supabaseAdmin.rpc("wallet_credit", {
+    const { data: credit, error } = await firestoreAdmin.rpc("wallet_credit", {
       _user_id: userId,
       _amount_cents: cents,
       _reason: "topup",
@@ -126,14 +123,14 @@ export const confirmWalletTopUp = createServerFn({ method: "POST" })
 
 /** Pay for an order from the wallet — atomic; refuses overdraft. */
 export const payOrderFromWallet = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((d) => z.object({
     amountCents: z.number().int().min(100),
     orderId: z.string().uuid().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const userId = context.userId;
-    const { data: result, error } = await supabaseAdmin.rpc("wallet_debit", {
+    const { data: result, error } = await firestoreAdmin.rpc("wallet_debit", {
       _user_id: userId,
       _amount_cents: data.amountCents,
       _reason: "order_payment",

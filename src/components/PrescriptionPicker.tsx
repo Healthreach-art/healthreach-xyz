@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
@@ -46,7 +46,7 @@ export function PrescriptionPicker({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      let q = supabase.from("prescription_uploads").select("*").eq("patient_id", user.id);
+      let q = firestoreClient.from("prescription_uploads").select("*").eq("patient_id", user.id);
       // Scope library by recipient: when ordering for a family member, only show their
       // prescriptions; when ordering for self, exclude family-member-tagged ones.
       if (familyMemberId) q = q.eq("family_member_id" as never, familyMemberId);

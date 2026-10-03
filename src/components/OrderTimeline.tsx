@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { CheckCircle2, Pill, Package, Bike, Truck, MapPin, ClipboardCheck, Loader2 } from "lucide-react";
 
 /**
@@ -69,8 +69,8 @@ export function OrderTimeline({
 
     (async () => {
       const [{ data: o }, { data: d }] = await Promise.all([
-        supabase.from("orders").select("status, updated_at").eq("id", orderId).maybeSingle(),
-        supabase.from("deliveries").select("status, updated_at").eq("order_id", orderId).maybeSingle(),
+        firestoreClient.from("orders").select("status, updated_at").eq("id", orderId).maybeSingle(),
+        firestoreClient.from("deliveries").select("status, updated_at").eq("order_id", orderId).maybeSingle(),
       ]);
       if (cancelled) return;
       setOrderStatus((o?.status as string) ?? null);
@@ -79,7 +79,7 @@ export function OrderTimeline({
       setLoading(false);
     })();
 
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`order-timeline-${orderId}`)
       .on("postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
@@ -102,7 +102,7 @@ export function OrderTimeline({
     return () => {
       cancelled = true;
       if (pulseTimer.current) window.clearTimeout(pulseTimer.current);
-      supabase.removeChannel(ch);
+      firestoreClient.removeChannel(ch);
     };
   }, [orderId]);
 

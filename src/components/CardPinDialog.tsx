@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Lock, ShieldCheck } from "lucide-react";
@@ -33,7 +33,7 @@ export function CardPinDialog({ open, title, description, onClose, onUnlocked }:
   useEffect(() => {
     if (!open || !user) return;
     setPin(""); setPin2(""); setStage("loading");
-    supabase.from("card_pins").select("pin_hash").eq("user_id", user.id).maybeSingle()
+    firestoreClient.from("card_pins").select("pin_hash").eq("user_id", user.id).maybeSingle()
       .then(({ data }) => setStage(data?.pin_hash ? "unlock" : "setup"));
   }, [open, user]);
 
@@ -43,7 +43,7 @@ export function CardPinDialog({ open, title, description, onClose, onUnlocked }:
     if (!user) return;
     setBusy(true);
     const hash = await sha256(pin + ":" + user.id);
-    const { error } = await supabase.from("card_pins").upsert({ user_id: user.id, pin_hash: hash, updated_at: new Date().toISOString() });
+    const { error } = await firestoreClient.from("card_pins").upsert({ user_id: user.id, pin_hash: hash, updated_at: new Date().toISOString() });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Card lock PIN set");
@@ -55,7 +55,7 @@ export function CardPinDialog({ open, title, description, onClose, onUnlocked }:
     if (!user || !pin) return;
     setBusy(true);
     const hash = await sha256(pin + ":" + user.id);
-    const { data } = await supabase.from("card_pins").select("pin_hash").eq("user_id", user.id).maybeSingle();
+    const { data } = await firestoreClient.from("card_pins").select("pin_hash").eq("user_id", user.id).maybeSingle();
     setBusy(false);
     if (data?.pin_hash !== hash) return toast.error("Wrong PIN");
     onUnlocked();

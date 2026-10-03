@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
 import { syncAfterAuth } from "@/lib/firestore-sync";
@@ -95,8 +95,8 @@ function SignupPage() {
     // 2) Existing system in parallel — failures (e.g. "Failed to fetch") never block.
     let legacyOk = false;
     try {
-      try { await supabase.auth.signOut({ scope: "local" }); } catch {}
-      const { error: authError } = await supabase.auth.signUp({
+      try { await firestoreClient.auth.signOut({ scope: "local" }); } catch {}
+      const { error: authError } = await firestoreClient.auth.signUp({
         email: cleanEmail,
         password,
         options: {

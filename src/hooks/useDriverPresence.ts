@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 
 type Status = "online" | "offline" | "break";
 
@@ -11,7 +11,7 @@ export function useDriverPresence(driverId: string | null, status: Status) {
     let cancelled = false;
     async function ping(s: Status) {
       if (cancelled) return;
-      await supabase
+      await firestoreClient
         .from("driver_status")
         .upsert({ driver_id: driverId, status: s, last_ping_at: new Date().toISOString() } as never, { onConflict: "driver_id" });
     }

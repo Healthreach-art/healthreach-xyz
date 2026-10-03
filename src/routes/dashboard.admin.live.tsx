@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useServerFn } from "@tanstack/react-start";
 import { reverseGeocodeBatch } from "@/lib/geocode.functions";
 import { ArrowLeft, Activity, Truck, Pill, Package } from "lucide-react";
@@ -33,13 +33,13 @@ function LiveMapPage() {
 
   async function loadStatic() {
     const [{ data: ph }, { data: ors }] = await Promise.all([
-      supabase
+      firestoreClient
         .from("profiles")
         .select("user_id, organization_name, full_name, latitude, longitude, address, approval_status")
         .eq("approval_status", "approved")
         .not("latitude", "is", null)
         .not("longitude", "is", null),
-      supabase
+      firestoreClient
         .from("orders")
         .select("id, medication_name, delivery_lat, delivery_lng, delivery_address, status, patient_id, pharmacy_id")
         .not("delivery_lat", "is", null)
@@ -48,7 +48,7 @@ function LiveMapPage() {
     ]);
     const userIds = (ph ?? []).map((p) => p.user_id);
     const { data: roles } = userIds.length
-      ? await supabase.from("user_roles").select("user_id, role").in("user_id", userIds)
+      ? await firestoreClient.from("user_roles").select("user_id, role").in("user_id", userIds)
       : { data: [] as { user_id: string; role: string }[] };
     const phRoles = new Set((roles ?? []).filter((r) => r.role === "pharmacy").map((r) => r.user_id));
     setPharmacies(
@@ -75,15 +75,15 @@ function LiveMapPage() {
   }
 
   async function loadDrivers() {
-    const { data: locs } = await supabase.from("driver_locations").select("driver_id, lat, lng");
+    const { data: locs } = await firestoreClient.from("driver_locations").select("driver_id, lat, lng");
     if (!locs?.length) {
       setDrivers([]);
       return;
     }
     const ids = locs.map((l) => l.driver_id);
     const [{ data: profs }, { data: stats }] = await Promise.all([
-      supabase.from("profiles").select("user_id, full_name").in("user_id", ids),
-      supabase.from("driver_status").select("driver_id, status").in("driver_id", ids),
+      firestoreClient.from("profiles").select("user_id, full_name").in("user_id", ids),
+      firestoreClient.from("driver_status").select("driver_id, status").in("driver_id", ids),
     ]);
     const nameMap = new Map((profs ?? []).map((p) => [p.user_id, p.full_name]));
     const statusMap = new Map((stats ?? []).map((s) => [s.driver_id, s.status]));
@@ -120,7 +120,7 @@ function LiveMapPage() {
   useEffect(() => {
     loadStatic();
     loadDrivers();
-    const ch = supabase
+    const ch = firestoreClient
       .channel("admin-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "driver_locations" }, () => loadDrivers())
       .on("postgres_changes", { event: "*", schema: "public", table: "driver_status" }, () => loadDrivers())
@@ -131,7 +131,7 @@ function LiveMapPage() {
       loadDrivers();
     }, 10000);
     return () => {
-      supabase.removeChannel(ch);
+      firestoreClient.removeChannel(ch);
       clearInterval(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

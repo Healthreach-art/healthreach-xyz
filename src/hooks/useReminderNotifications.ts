@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ReminderRow {
@@ -40,7 +40,7 @@ export function useReminderNotifications() {
     let cancelled = false;
     async function refresh() {
       if (!user) return;
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("medication_reminders")
         .select("id, medication_name, dosage, frequency, time_of_day, active")
         .eq("user_id", user.id)
@@ -48,7 +48,7 @@ export function useReminderNotifications() {
       if (!cancelled) remindersRef.current = (data ?? []) as ReminderRow[];
     }
     refresh();
-    const channel = supabase
+    const channel = firestoreClient
       .channel(`reminders-${user.id}`)
       .on(
         "postgres_changes",
@@ -58,7 +58,7 @@ export function useReminderNotifications() {
       .subscribe();
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      firestoreClient.removeChannel(channel);
     };
   }, [user]);
 

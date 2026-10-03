@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { BellRing, Pill, Clock, Check, ArrowRight, Volume2, VolumeX } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -139,7 +139,7 @@ export function MedicationReminderWidget() {
     if (!user?.id) return;
     let mounted = true;
     (async () => {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("medication_reminders")
         .select("id, medication_name, dosage, time_of_day, frequency, active")
         .eq("user_id", user.id).eq("active", true)

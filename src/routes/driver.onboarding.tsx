@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,8 +68,8 @@ function Onboarding() {
     if (!user) return;
     (async () => {
       const [{ data }, { data: prof }] = await Promise.all([
-        supabase.from("driver_documents").select("*").eq("driver_id", user.id).maybeSingle(),
-        supabase.from("profiles").select("avatar_url").eq("user_id", user.id).maybeSingle(),
+        firestoreClient.from("driver_documents").select("*").eq("driver_id", user.id).maybeSingle(),
+        firestoreClient.from("profiles").select("avatar_url").eq("user_id", user.id).maybeSingle(),
       ]);
       if (prof?.avatar_url) setAvatarUrl(prof.avatar_url);
       if (data) {
@@ -81,7 +81,7 @@ function Onboarding() {
         await Promise.all(keys.map(async (k) => {
           const path = (data as any)[k];
           if (path) {
-            const { data: signed } = await supabase.storage.from("driver-docs").createSignedUrl(path, 3600);
+            const { data: signed } = await firestoreClient.storage.from("driver-docs").createSignedUrl(path, 3600);
             if (signed?.signedUrl) urls[k] = signed.signedUrl;
           }
         }));
@@ -97,16 +97,16 @@ function Onboarding() {
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/${key}-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("driver-docs").upload(path, file, { upsert: true, contentType: file.type });
+      const { error } = await firestoreClient.storage.from("driver-docs").upload(path, file, { upsert: true, contentType: file.type });
       if (error) throw new Error(error.message);
 
       const update: Partial<DriverDocs> = { [key]: path };
-      const { error: dbError } = await supabase
+      const { error: dbError } = await firestoreClient
         .from("driver_documents")
         .upsert({ driver_id: user.id, ...update } as any, { onConflict: "driver_id" });
       if (dbError) throw new Error(dbError.message);
 
-      const { data: signed } = await supabase.storage.from("driver-docs").createSignedUrl(path, 3600);
+      const { data: signed } = await firestoreClient.storage.from("driver-docs").createSignedUrl(path, 3600);
       setDocs((p) => ({ ...p, [key]: path }));
       if (signed?.signedUrl) setPreviews((p) => ({ ...p, [key]: signed.signedUrl }));
       toast.success("Uploaded");
@@ -124,9 +124,9 @@ function Onboarding() {
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/avatar-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+      const { error } = await firestoreClient.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
       if (error) throw new Error(error.message);
-      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      const { data: pub } = firestoreClient.storage.from("avatars").getPublicUrl(path);
       const url = pub.publicUrl;
       await saveProfilePhoto({ data: { avatarUrl: url } });
       setAvatarUrl(url);
@@ -145,8 +145,8 @@ function Onboarding() {
 
     // Re-fetch from DB so the button cannot be bypassed by stale state.
     const [{ data: fresh }, { data: prof }] = await Promise.all([
-      supabase.from("driver_documents").select("*").eq("driver_id", user.id).maybeSingle(),
-      supabase.from("profiles").select("avatar_url").eq("user_id", user.id).maybeSingle(),
+      firestoreClient.from("driver_documents").select("*").eq("driver_id", user.id).maybeSingle(),
+      firestoreClient.from("profiles").select("avatar_url").eq("user_id", user.id).maybeSingle(),
     ]);
     const missing: string[] = [];
     if (!prof?.avatar_url) missing.push("Profile photo");
@@ -157,7 +157,7 @@ function Onboarding() {
       return;
     }
 
-    const { error } = await supabase.from("driver_documents").upsert({
+    const { error } = await firestoreClient.from("driver_documents").upsert({
       driver_id: user.id,
       vehicle_type: vehicleType,
       vehicle_registration: vehicleReg.trim(),

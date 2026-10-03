@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft,  ClipboardList, Pill, FileText, Activity, Heart, Calendar, ShoppingBag } from "lucide-react";
 
@@ -24,9 +24,9 @@ function Page() {
     if (!user) return;
     (async () => {
       const [r1, r2, r3] = await Promise.all([
-        supabase.from("prescriptions").select("id, medication_name, doctor_name, dosage, created_at, is_active").eq("patient_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("orders").select("id, medication_name, quantity, status, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(20),
-        supabase.from("medication_reminders").select("id, medication_name, dosage, frequency, is_chronic").eq("user_id", user.id).eq("active", true),
+        firestoreClient.from("prescriptions").select("id, medication_name, doctor_name, dosage, created_at, is_active").eq("patient_id", user.id).order("created_at", { ascending: false }),
+        firestoreClient.from("orders").select("id, medication_name, quantity, status, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(20),
+        firestoreClient.from("medication_reminders").select("id, medication_name, dosage, frequency, is_chronic").eq("user_id", user.id).eq("active", true),
       ]);
       setRx((r1.data ?? []) as Rx[]);
       setOrders((r2.data ?? []) as Order[]);

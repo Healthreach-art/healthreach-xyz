@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,15 +93,15 @@ function DoctorDashboard() {
     if (!user) return;
     setLoading(true);
     const [{ data: d }, { data: doc }] = await Promise.all([
-      supabase.from("doctor_documents").select("*").eq("doctor_user_id", user.id).maybeSingle(),
-      supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle(),
+      firestoreClient.from("doctor_documents").select("*").eq("doctor_user_id", user.id).maybeSingle(),
+      firestoreClient.from("doctors").select("*").eq("user_id", user.id).maybeSingle(),
     ]);
     setDocs((d as DocRow) ?? null);
     setDoctorRow(doc);
     if (doc?.id) {
       const [{ data: a }, { data: av }] = await Promise.all([
-        supabase.from("doctor_appointments").select("*").eq("doctor_id", doc.id).order("scheduled_at", { ascending: false }).limit(50),
-        supabase.from("doctor_availability").select("*").eq("doctor_id", doc.id).order("day_of_week").order("start_hour"),
+        firestoreClient.from("doctor_appointments").select("*").eq("doctor_id", doc.id).order("scheduled_at", { ascending: false }).limit(50),
+        firestoreClient.from("doctor_availability").select("*").eq("doctor_id", doc.id).order("day_of_week").order("start_hour"),
       ]);
       setAppts(a ?? []);
       setAvail((av ?? []) as AvailRow[]);
@@ -144,41 +144,41 @@ function DoctorDashboard() {
   // Realtime — incoming appointments + availability changes flow in within seconds
   useEffect(() => {
     if (!doctorRow?.id) return;
-    const ch = supabase
+    const ch = firestoreClient
       .channel(`doctor-dash-${doctorRow.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `doctor_id=eq.${doctorRow.id}` }, async (payload) => {
         if (payload.eventType === "INSERT") toast.success("New appointment request");
-        const { data: a } = await supabase.from("doctor_appointments").select("*").eq("doctor_id", doctorRow.id).order("scheduled_at", { ascending: false }).limit(50);
+        const { data: a } = await firestoreClient.from("doctor_appointments").select("*").eq("doctor_id", doctorRow.id).order("scheduled_at", { ascending: false }).limit(50);
         setAppts(a ?? []);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "doctor_availability", filter: `doctor_id=eq.${doctorRow.id}` }, async () => {
-        const { data: av } = await supabase.from("doctor_availability").select("*").eq("doctor_id", doctorRow.id).order("day_of_week").order("start_hour");
+        const { data: av } = await firestoreClient.from("doctor_availability").select("*").eq("doctor_id", doctorRow.id).order("day_of_week").order("start_hour");
         setAvail((av ?? []) as AvailRow[]);
       })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firestoreClient.removeChannel(ch); };
   }, [doctorRow?.id]);
 
   async function addAvail(dow: number) {
     if (!doctorRow?.id) return toast.error("Save your profile first");
-    const { error } = await supabase.from("doctor_availability").insert({
+    const { error } = await firestoreClient.from("doctor_availability").insert({
       doctor_id: doctorRow.id, day_of_week: dow, start_hour: 9, end_hour: 17, slot_minutes: 30, is_active: true,
     });
     if (error) toast.error(error.message);
   }
   async function updateAvail(id: string, patch: Partial<AvailRow>) {
-    const { error } = await supabase.from("doctor_availability").update(patch).eq("id", id);
+    const { error } = await firestoreClient.from("doctor_availability").update(patch).eq("id", id);
     if (error) toast.error(error.message);
   }
   async function removeAvail(id: string) {
-    const { error } = await supabase.from("doctor_availability").delete().eq("id", id);
+    const { error } = await firestoreClient.from("doctor_availability").delete().eq("id", id);
     if (error) toast.error(error.message);
   }
   async function updateApptStatus(id: string, status: string) {
     const patch: any = { status };
     if (status === "completed") patch.completed_at = new Date().toISOString();
     if (status === "cancelled") patch.cancelled_at = new Date().toISOString();
-    const { error } = await supabase.from("doctor_appointments").update(patch).eq("id", id);
+    const { error } = await firestoreClient.from("doctor_appointments").update(patch).eq("id", id);
     if (error) toast.error(error.message);
     else toast.success(`Appointment ${status}`);
   }
@@ -188,7 +188,7 @@ function DoctorDashboard() {
     try {
       const ext = (file.name.split(".").pop() || "bin").toLowerCase();
       const path = `${user.id}/${slot}-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("doctor-docs").upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" });
+      const { error } = await firestoreClient.storage.from("doctor-docs").upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" });
       if (error) throw error;
 
       // Persist draft immediately so files survive refresh and admins can see progress
@@ -208,7 +208,7 @@ function DoctorDashboard() {
         draft.qualification_paths = next;
       }
       if (Object.keys(draft).length > 1) {
-        const { error: dbErr } = await supabase
+        const { error: dbErr } = await firestoreClient
           .from("doctor_documents")
           .upsert(draft as never, { onConflict: "doctor_user_id" });
         if (dbErr) throw dbErr;
@@ -223,7 +223,7 @@ function DoctorDashboard() {
 
   async function saveDocDraft(patch: Partial<DocRow>) {
     if (!user) return;
-    const { error } = await supabase
+    const { error } = await firestoreClient
       .from("doctor_documents")
       .upsert({ doctor_user_id: user.id, ...patch } as never, { onConflict: "doctor_user_id" });
     if (error) toast.error(`Draft save failed: ${error.message}`);
@@ -236,15 +236,15 @@ function DoctorDashboard() {
       if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
       const path = `${user.id}/doctor-profile-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+      const { error } = await firestoreClient.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
       if (error) throw error;
-      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      const { data: pub } = firestoreClient.storage.from("avatars").getPublicUrl(path);
       setPhotoUrl(pub.publicUrl);
       // Persist on profiles.avatar_url so the photo survives refresh even before
       // the doctor row exists. Once the doctor row exists, mirror it there too.
-      await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("user_id", user.id);
+      await firestoreClient.from("profiles").update({ avatar_url: pub.publicUrl }).eq("user_id", user.id);
       if (doctorRow) {
-        const { error: upErr } = await supabase.from("doctors").update({ photo_url: pub.publicUrl }).eq("id", doctorRow.id);
+        const { error: upErr } = await firestoreClient.from("doctors").update({ photo_url: pub.publicUrl }).eq("id", doctorRow.id);
         if (upErr) throw upErr;
       }
       toast.success("Profile photo updated");
@@ -277,9 +277,9 @@ function DoctorDashboard() {
     };
     let error: any;
     if (doctorRow) {
-      ({ error } = await supabase.from("doctors").update(payload).eq("id", doctorRow.id));
+      ({ error } = await firestoreClient.from("doctors").update(payload).eq("id", doctorRow.id));
     } else {
-      ({ error } = await supabase.from("doctors").insert({
+      ({ error } = await firestoreClient.from("doctors").insert({
         ...payload,
         is_active: false,
         is_demo: false,
@@ -314,7 +314,7 @@ function DoctorDashboard() {
   async function submitDocs() {
     if (!user) return;
     // Also update profile status to under_review so the dashboard gate reflects it.
-    await supabase.from("profiles").update({ approval_status: "under_review" }).eq("user_id", user.id);
+    await firestoreClient.from("profiles").update({ approval_status: "under_review" }).eq("user_id", user.id);
     if (!hpcsaNumber || !hpcsaPath || !idPath || qualPaths.length === 0 || !malpracticePath) {
       toast.error("All required documents must be uploaded first");
       return;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -77,8 +77,8 @@ export function PharmacyReviewDialog({
   async function load() {
     setLoading(true);
     const [{ data: d }, { data: p }] = await Promise.all([
-      supabase.from("pharmacy_documents" as never).select("*").eq("pharmacy_id", pharmacyId).maybeSingle(),
-      supabase.from("profiles").select("organization_name,license_number,license_expires_at,pharmacist_name,pharmacist_council_number,business_reg_number,tax_number,address,phone").eq("user_id", pharmacyId).maybeSingle(),
+      firestoreClient.from("pharmacy_documents" as never).select("*").eq("pharmacy_id", pharmacyId).maybeSingle(),
+      firestoreClient.from("profiles").select("organization_name,license_number,license_expires_at,pharmacist_name,pharmacist_council_number,business_reg_number,tax_number,address,phone").eq("user_id", pharmacyId).maybeSingle(),
     ]);
     const row = (d as unknown as DocsRow | null) ?? null;
     setDocs(row);
@@ -92,7 +92,7 @@ export function PharmacyReviewDialog({
       await Promise.all(Object.keys(DOC_LABELS).map(async (k) => {
         const path = (row as Record<string, string | null | undefined>)[k];
         if (path) {
-          const { data: signed } = await supabase.storage.from("pharmacy-docs").createSignedUrl(path, 3600);
+          const { data: signed } = await firestoreClient.storage.from("pharmacy-docs").createSignedUrl(path, 3600);
           if (signed?.signedUrl) urls[k] = signed.signedUrl;
         }
       }));
@@ -109,7 +109,7 @@ export function PharmacyReviewDialog({
 
   async function setDocStatus(key: string, status: "approved" | "rejected" | "under_review") {
     setSavingDoc(key);
-    const { error } = await supabase.rpc("admin_set_pharmacy_document_review" as never, {
+    const { error } = await firestoreClient.action("admin_set_pharmacy_document_review" as never, {
       _pharmacy_id: pharmacyId,
       _doc_key: key,
       _status: status,

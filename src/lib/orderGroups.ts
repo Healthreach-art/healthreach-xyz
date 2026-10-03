@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 
 /**
  * Shared helpers for the "one cart = one order = one package = one code" view model.
@@ -66,7 +66,7 @@ export async function groupAndHydrate<O extends OrderRowLike>(rows: O[]): Promis
   const groupIds = Array.from(new Set(rows.map((r) => r.order_group_id).filter((v): v is string => !!v)));
   let groupsById = new Map<string, OrderGroupRow>();
   if (groupIds.length > 0) {
-    const { data } = await supabase
+    const { data } = await firestoreClient
       .from("order_groups" as never)
       .select("id, delivery_code, pickup_code, status, total_amount, delivery_fee, subtotal, delivery_address, created_at, scheduled_for, priority")
       .in("id", groupIds);

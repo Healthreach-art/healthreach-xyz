@@ -8,7 +8,7 @@ import { ArrowLeft,  Wallet as WalletIcon, ArrowDown, ArrowUp, Plus, Lock, Credi
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { getWalletSummary, topUpWithSavedCard, confirmWalletTopUp } from "@/lib/wallet.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
 
@@ -67,7 +67,7 @@ function WalletPage() {
     } catch (e) { toast.error((e as Error).message); }
 
     if (user) {
-      const { data } = await supabase.from("saved_payment_methods")
+      const { data } = await firestoreClient.from("saved_payment_methods")
         .select("id, brand, last4, is_default, authorization_code")
         .eq("user_id", user.id)
         .order("is_default", { ascending: false });

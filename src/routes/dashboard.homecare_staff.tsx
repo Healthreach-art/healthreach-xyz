@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, HomeIcon } from "lucide-react";
 import { ASSIGNMENT_LABEL } from "@/lib/homecare";
@@ -29,10 +29,10 @@ function StaffPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data: s } = await supabase.from("homecare_staff").select("*").eq("user_id", user.id).maybeSingle();
+    const { data: s } = await firestoreClient.from("homecare_staff").select("*").eq("user_id", user.id).maybeSingle();
     setStaffRow(s);
     if (s) {
-      const { data } = await supabase
+      const { data } = await firestoreClient
         .from("homecare_assignments").select("*, homecare_requests(service_type, description, address, preferred_at)")
         .eq("staff_id", s.id).order("created_at", { ascending: false });
       setAssignments(data ?? []);

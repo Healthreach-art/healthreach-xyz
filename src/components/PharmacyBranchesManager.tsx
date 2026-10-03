@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ export function PharmacyBranchesManager() {
   async function load() {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await firestoreClient
       .from("pharmacy_branches")
       .select("*")
       .eq("pharmacy_id", user.id)
@@ -84,8 +84,8 @@ export function PharmacyBranchesManager() {
       is_active: true,
     };
     const { error } = editingId
-      ? await supabase.from("pharmacy_branches").update(payload).eq("id", editingId)
-      : await supabase.from("pharmacy_branches").insert(payload);
+      ? await firestoreClient.from("pharmacy_branches").update(payload).eq("id", editingId)
+      : await firestoreClient.from("pharmacy_branches").insert(payload);
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(editingId ? "Branch updated" : "Branch added");
@@ -95,20 +95,20 @@ export function PharmacyBranchesManager() {
 
   async function remove(id: string) {
     if (!confirm("Delete this branch?")) return;
-    const { error } = await supabase.from("pharmacy_branches").delete().eq("id", id);
+    const { error } = await firestoreClient.from("pharmacy_branches").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("Branch removed");
     load();
   }
 
   async function makePrimary(id: string) {
-    const { error } = await supabase.from("pharmacy_branches").update({ is_primary: true }).eq("id", id);
+    const { error } = await firestoreClient.from("pharmacy_branches").update({ is_primary: true }).eq("id", id);
     if (error) { toast.error(error.message); return; }
     load();
   }
 
   async function toggleActive(b: Branch) {
-    const { error } = await supabase.from("pharmacy_branches").update({ is_active: !b.is_active }).eq("id", b.id);
+    const { error } = await firestoreClient.from("pharmacy_branches").update({ is_active: !b.is_active }).eq("id", b.id);
     if (error) { toast.error(error.message); return; }
     load();
   }

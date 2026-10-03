@@ -51,7 +51,7 @@ function PrivacyPage() {
           </Section>
 
           <Section title="5. Data security">
-            All data is encrypted in transit (TLS) and at rest. Access is restricted by Row Level Security and role-based controls. Prescription files are stored in private buckets accessible only to you and your chosen pharmacy.
+            All data is encrypted in transit (TLS) and at rest. Access is restricted by Firebase Security Rules and role-based controls. Prescription files are stored in private Firebase Storage and accessible only to authorized users.
           </Section>
 
           <Section title="6. Your rights under POPIA">
@@ -63,7 +63,7 @@ function PrivacyPage() {
           </Section>
 
           <Section title="8. Contact">
-            Information Officer — <a className="text-primary" href="mailto:support@healthreachcare.co.za">support@healthreachcare.co.za</a> · Cape Town, South Africa. Data may be stored on international cloud servers (e.g. Supabase, Cloudflare) for operational security and performance, ensuring equal protection under POPIA.
+            Information Officer — <a className="text-primary" href="mailto:support@healthreachcare.co.za">support@healthreachcare.co.za</a> · Cape Town, South Africa. Data may be stored on international cloud servers (including Firebase and Cloudflare) for operational security and performance, with appropriate safeguards under POPIA.
           </Section>
         </article>
       </main>

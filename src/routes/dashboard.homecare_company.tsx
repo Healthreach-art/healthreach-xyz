@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,15 +44,15 @@ function HomecareProviderPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data: p } = await supabase.from("homecare_providers")
+    const { data: p } = await firestoreClient.from("homecare_providers")
       .select("id, user_id, provider_type, business_name, registration_number, contact_person, full_name, email, phone, address, latitude, longitude, service_areas, services, operating_hours, availability, pricing_notes, hourly_rate, qualifications, certifications, approval_status, approved_by, approved_at, rejection_reason, requested_documents, is_active, service_radius_km, created_at, updated_at")
       .eq("user_id", user.id).maybeSingle();
     setProvider(p);
     if (p) {
       const [{ data: d }, { data: s }, { data: a }] = await Promise.all([
-        supabase.from("homecare_documents").select("*").eq("provider_id", p.id).order("created_at", { ascending: false }),
-        supabase.from("homecare_staff").select("*").eq("company_id", p.id).order("created_at", { ascending: false }),
-        supabase.from("homecare_assignments").select("*, homecare_requests(*)").eq("provider_id", p.id).order("created_at", { ascending: false }),
+        firestoreClient.from("homecare_documents").select("*").eq("provider_id", p.id).order("created_at", { ascending: false }),
+        firestoreClient.from("homecare_staff").select("*").eq("company_id", p.id).order("created_at", { ascending: false }),
+        firestoreClient.from("homecare_assignments").select("*, homecare_requests(*)").eq("provider_id", p.id).order("created_at", { ascending: false }),
       ]);
       setDocs(d ?? []); setStaff(s ?? []); setAssignments(a ?? []);
     }
@@ -63,11 +63,11 @@ function HomecareProviderPage() {
 
   useEffect(() => {
     if (!provider?.id) return;
-    const ch = supabase.channel(`hc-provider-${provider.id}`)
+    const ch = firestoreClient.channel(`hc-provider-${provider.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "homecare_assignments", filter: `provider_id=eq.${provider.id}` }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "homecare_providers", filter: `id=eq.${provider.id}` }, () => void load())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { firestoreClient.removeChannel(ch); };
   }, [provider?.id, load]);
 
   if (loading) {
@@ -188,7 +188,7 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
 
   // save on blur so nothing is lost on refresh
   const saveField = async (patch: Record<string, unknown>) => {
-    const { error } = await supabase.from("homecare_providers").update(patch as never).eq("id", provider.id);
+    const { error } = await firestoreClient.from("homecare_providers").update(patch as never).eq("id", provider.id);
     if (error) toast.error(error.message);
   };
 
@@ -204,7 +204,7 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
   };
 
   const saveAll = async () => {
-    const { error } = await supabase.from("homecare_providers").update({
+    const { error } = await firestoreClient.from("homecare_providers").update({
       business_name: form.business_name,
       full_name: form.full_name,
       registration_number: form.registration_number || null,
@@ -340,12 +340,12 @@ function DocumentsPanel({ provider, docs, onChanged, requested }:
     setBusy(docKey);
     const ext = file.name.split(".").pop() ?? "bin";
     const path = `${provider.user_id}/${docKey}-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("homecare-docs").upload(path, file, { upsert: false });
+    const { error: upErr } = await firestoreClient.storage.from("homecare-docs").upload(path, file, { upsert: false });
     if (upErr) { setBusy(null); toast.error(upErr.message); return; }
     const existing = docs.find((d) => d.doc_key === docKey);
     const { error } = existing
-      ? await supabase.from("homecare_documents").update({ file_path: path, mime_type: file.type, status: "pending", notes: null }).eq("id", existing.id)
-      : await supabase.from("homecare_documents").insert({ provider_id: provider.id, doc_key: docKey, file_path: path, mime_type: file.type });
+      ? await firestoreClient.from("homecare_documents").update({ file_path: path, mime_type: file.type, status: "pending", notes: null }).eq("id", existing.id)
+      : await firestoreClient.from("homecare_documents").insert({ provider_id: provider.id, doc_key: docKey, file_path: path, mime_type: file.type });
     setBusy(null);
     if (error) { toast.error(error.message); return; }
     toast.success("Uploaded");
@@ -360,8 +360,8 @@ function DocumentsPanel({ provider, docs, onChanged, requested }:
   };
 
   const remove = async (doc: any) => {
-    await supabase.storage.from("homecare-docs").remove([doc.file_path]);
-    const { error } = await supabase.from("homecare_documents").delete().eq("id", doc.id);
+    await firestoreClient.storage.from("homecare-docs").remove([doc.file_path]);
+    const { error } = await firestoreClient.from("homecare_documents").delete().eq("id", doc.id);
     if (error) { toast.error(error.message); return; }
     onChanged();
   };
@@ -420,7 +420,7 @@ function StaffPanel({ provider, staff, onChanged }: { provider: any; staff: any[
   const add = async () => {
     if (!full_name.trim() || !email.trim()) { toast.error("Name and email are required"); return; }
     setSaving(true);
-    const { error } = await supabase.from("homecare_staff").insert({
+    const { error } = await firestoreClient.from("homecare_staff").insert({
       company_id: provider.id, full_name: full_name.trim(), email: email.trim().toLowerCase(),
       phone: phone || null, job_title: job_title || null,
     });
@@ -432,13 +432,13 @@ function StaffPanel({ provider, staff, onChanged }: { provider: any; staff: any[
   };
 
   const toggle = async (row: any) => {
-    const { error } = await supabase.from("homecare_staff").update({ is_active: !row.is_active }).eq("id", row.id);
+    const { error } = await firestoreClient.from("homecare_staff").update({ is_active: !row.is_active }).eq("id", row.id);
     if (error) { toast.error(error.message); return; }
     onChanged();
   };
 
   const remove = async (row: any) => {
-    const { error } = await supabase.from("homecare_staff").delete().eq("id", row.id);
+    const { error } = await firestoreClient.from("homecare_staff").delete().eq("id", row.id);
     if (error) { toast.error(error.message); return; }
     onChanged();
   };
@@ -500,7 +500,7 @@ function suburbOf(address?: string | null) {
 
 function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: any[]; provider: any; onChanged: () => void }) {
   const update = async (row: any, patch: Record<string, unknown>) => {
-    const { error } = await supabase.from("homecare_assignments").update(patch as never).eq("id", row.id);
+    const { error } = await firestoreClient.from("homecare_assignments").update(patch as never).eq("id", row.id);
     if (error) { toast.error(error.message); return; }
     onChanged();
   };

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Loader2 } from "lucide-react";
 import { dashboardPathForRole, isAppRole, resolveUserRole } from "@/lib/auth-session";
 
@@ -17,11 +17,11 @@ function AuthCallback() {
     let cancelled = false;
     const run = async () => {
       for (let i = 0; i < 20; i++) {
-        const { data } = await supabase.auth.getUser();
+        const { data } = await firestoreClient.auth.getUser();
         if (data.user) break;
         await new Promise((r) => setTimeout(r, 150));
       }
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await firestoreClient.auth.getUser();
       if (cancelled) return;
       if (!user) {
         navigate({ to: "/login" });

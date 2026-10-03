@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
@@ -67,7 +67,7 @@ export function OrderHistory() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const { data: ords } = await supabase
+      const { data: ords } = await firestoreClient
         .from("orders")
         .select("id, order_group_id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at, prescription_upload_id")
         .eq("patient_id", user.id)
@@ -95,8 +95,8 @@ export function OrderHistory() {
       const ids = rows.map((o) => o.id);
       if (ids.length === 0) return;
       const [{ data: dels }, { data: revs }] = await Promise.all([
-        supabase.from("deliveries").select("order_id, driver_id").in("order_id", ids),
-        supabase.from("ratings").select("order_id").eq("patient_id", user.id).in("order_id", ids),
+        firestoreClient.from("deliveries").select("order_id, driver_id").in("order_id", ids),
+        firestoreClient.from("ratings").select("order_id").eq("patient_id", user.id).in("order_id", ids),
       ]);
       const dmap: Record<string, string | null> = {};
       for (const d of (dels ?? [])) dmap[d.order_id] = (d as { driver_id: string | null }).driver_id;
@@ -105,7 +105,7 @@ export function OrderHistory() {
     };
     load();
 
-    const channel = supabase
+    const channel = firestoreClient
       .channel(`orders-live-${user.id}`)
       .on(
         "postgres_changes",
@@ -136,7 +136,7 @@ export function OrderHistory() {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { firestoreClient.removeChannel(channel); };
   }, [user]);
 
   async function handleCancel(orderId: string) {
@@ -155,12 +155,12 @@ export function OrderHistory() {
   }
 
   async function downloadInvoice(o: OrderRow) {
-    const { data: payment } = await supabase
+    const { data: payment } = await firestoreClient
       .from("payments")
       .select("invoice_number, subtotal, delivery_fee, total_paid, payment_method, transaction_ref, created_at")
       .eq("order_id", o.id).maybeSingle();
     if (!payment?.invoice_number) { toast.error("No invoice yet for this order"); return; }
-    const { data: ph } = await supabase.from("pharmacy_directory" as never).select("organization_name, full_name").eq("user_id", o.pharmacy_id).maybeSingle() as { data: { organization_name: string | null; full_name: string | null } | null };
+    const { data: ph } = await firestoreClient.from("pharmacy_directory" as never).select("organization_name, full_name").eq("user_id", o.pharmacy_id).maybeSingle() as { data: { organization_name: string | null; full_name: string | null } | null };
     downloadReceiptPdf({
       invoice_number: payment.invoice_number,
       created_at: payment.created_at,
@@ -183,7 +183,7 @@ export function OrderHistory() {
     }
     if (!confirm("Remove this order from your history? It will only be hidden from your view.")) return;
     const targetId = g.group?.id || g.primaryOrderId;
-    const { error } = await supabase.rpc("hide_order_group_for_patient" as never, { _group_id: targetId } as never);
+    const { error } = await firestoreClient.action("hide_order_group_for_patient" as never, { _group_id: targetId } as never);
     if (error) { toast.error(error.message); return; }
     setGroups((prev) => prev.filter((x) => x.key !== g.key));
     toast.success("Removed from history");
@@ -191,7 +191,7 @@ export function OrderHistory() {
 
   async function clearHistory() {
     if (!confirm("Clear all delivered and cancelled orders from your history? Active orders are kept.")) return;
-    const { error } = await supabase.rpc("clear_patient_order_history" as never);
+    const { error } = await firestoreClient.action("clear_patient_order_history" as never);
     if (error) { toast.error(error.message); return; }
     setGroups((prev) => prev.filter((g) => !["delivered", "cancelled", "rejected"].includes(g.status)));
     toast.success("History cleared");

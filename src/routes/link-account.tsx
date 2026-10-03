@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Link2, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 
@@ -20,7 +20,7 @@ function LinkAccount() {
   const [busy, setBusy] = useState(false);
 
   const refresh = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await firestoreClient.auth.getUser();
     if (!user) {
       navigate({ to: "/login", search: { redirect: "/link-account" } as any });
       return;
@@ -38,7 +38,7 @@ function LinkAccount() {
   const linkGoogle = async () => {
     setError("");
     setBusy(true);
-    const { error } = await supabase.auth.linkIdentity({
+    const { error } = await firestoreClient.auth.linkIdentity({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/link-account` },
     } as any);
@@ -53,7 +53,7 @@ function LinkAccount() {
     const google = identities.find((i) => i.provider === "google");
     if (!google) return;
     setBusy(true);
-    const { error } = await supabase.auth.unlinkIdentity(google as any);
+    const { error } = await firestoreClient.auth.unlinkIdentity(google as any);
     setBusy(false);
     if (error) setError(error.message);
     else refresh();
