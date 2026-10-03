@@ -3,8 +3,7 @@ import { z } from "zod";
 
 const GATEWAY_URL = "https://maps.googleapis.com";
 
-// Portable: uses your own Google key (GOOGLE_MAPS_DIRECT_KEY) if set,
-// otherwise free OpenStreetMap. No Lovable dependency.
+// Portable: free OpenStreetMap only.
 function authHeaders(): Record<string, string> | null {
   return null;
 }
