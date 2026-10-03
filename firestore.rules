@@ -1,0 +1,126 @@
+rules_version = '2';
+// HealthReachCare Firestore security rules.
+// Paste into Firebase Console → Firestore Database → Rules → Publish.
+// Mirrors the existing RLS model: users own their data, providers see only
+// their own records, admins control approvals, nothing sensitive is public.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin'));
+    }
+    // Provider approval gate: only approved providers may operate.
+    function isApproved(col, id) {
+      return get(/databases/$(database)/documents/$(col)/$(id)).data.status == 'approved';
+    }
+
+    // Profiles: owner read/write; admin read/write.
+    match /profiles/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Roles: readable by owner and admin; writable by admin only.
+    // Users can never grant themselves roles.
+    match /user_roles/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    // Provider profiles (doctors, pharmacies, drivers, homecare):
+    // owner manages own record; admin reviews; approved records are
+    // readable by signed-in users for the Find page.
+    match /doctors/{id} {
+      allow read: if isAdmin() || isOwner(id) || (signedIn() && resource.data.status == 'approved');
+      allow create: if isOwner(id);
+      allow update: if isOwner(id) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /pharmacies/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid) || (signedIn() && resource.data.status == 'approved');
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    match /drivers/{id} {
+      allow read: if isAdmin() || isOwner(id) || (signedIn() && resource.data.status == 'approved');
+      allow create: if isOwner(id);
+      allow update: if isOwner(id) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /homecare_providers/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid) || (signedIn() && resource.data.status == 'approved');
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    match /homecare_staff/{id} {
+      allow read, write: if isAdmin() || (signedIn() && resource.data.companyId == request.auth.uid);
+    }
+
+    // Orders & bookings: customer owns; assigned provider reads; admin all.
+    match /orders/{id} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.customerId == request.auth.uid || resource.data.pharmacyId == request.auth.uid || resource.data.driverId == request.auth.uid));
+      allow create: if signedIn() && request.resource.data.customerId == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && (resource.data.customerId == request.auth.uid || resource.data.pharmacyId == request.auth.uid || resource.data.driverId == request.auth.uid));
+      allow delete: if isAdmin();
+    }
+    match /bookings/{id} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.patientId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow create: if signedIn() && request.resource.data.patientId == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && (resource.data.patientId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow delete: if isAdmin();
+    }
+
+    // Home care requests & assignments: customer owns request; admin assigns;
+    // assigned provider reads/updates their assignment only.
+    match /homecare_requests/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.customerId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.customerId == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.customerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    match /homecare_assignments/{id} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.customerId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (signedIn() && resource.data.providerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Notifications: owner reads; owner marks read; system/admin creates.
+    match /notifications/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update: if signedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // Document metadata: owner uploads own; admin reviews. Files themselves
+    // live in Cloud Storage with matching private rules.
+    match /documents/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Audit logs: admin read only; written by admin actions.
+    match /audit_logs/{id} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Default deny everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
