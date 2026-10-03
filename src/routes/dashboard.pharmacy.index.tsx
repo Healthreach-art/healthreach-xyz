@@ -378,6 +378,7 @@ function PharmacyDashboard() {
     const ids = g.items.map((i) => i.id);
     const { error } = await supabase.from("orders").update({ status }).in("id", ids);
     if (error) { toast.error(error.message); return false; }
+    void import("@/lib/firestore").then(({ fsSet }) => Promise.all(ids.map((id) => fsSet("orders", id, { status })))).catch(() => {});
     if (g.group?.id) {
       await supabase.from("order_groups" as never).update({ status } as never).eq("id", g.group.id);
     }
