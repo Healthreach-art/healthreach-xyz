@@ -3,10 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
-import { firestoreClient } from "@/lib/firestore-client";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
-import { syncAfterAuth } from "@/lib/firestore-sync";
 
 
 type SignupRole = "patient" | "pharmacy" | "driver" | "doctor" | "hospital" | "homecare_company" | "homecare_individual";
@@ -70,9 +68,6 @@ function SignupPage() {
     const signupRole = isHomecare ? "homecare_company" : role;
     const homecareType = role === "homecare_individual" ? "individual" : role === "homecare_company" ? "company" : undefined;
 
-    // 1) Firebase first — the primary sign-up path now.
-    let firebaseOk = false;
-    let firebaseErr = "";
     try {
       const { firebaseSignUp } = await import("@/lib/firebase-auth");
       const { syncProfileToFirestore } = await import("@/lib/firestore-sync");
@@ -82,43 +77,18 @@ function SignupPage() {
         phone: phone || undefined, address: address?.address, lat: address?.lat, lng: address?.lng,
         organizationName: needsOrg ? orgName : undefined, homecareType,
       });
-      firebaseOk = true;
+      setSuccess(true);
     } catch (err) {
       const code = (err as { code?: string })?.code ?? "";
-      firebaseErr =
+      setError(
         code === "auth/email-already-in-use" ? "This email is already registered. Please sign in instead."
         : code === "auth/weak-password" ? "Password must be at least 6 characters."
         : code === "auth/invalid-email" ? "Please enter a valid email address."
-        : err instanceof Error ? err.message : "Sign-up failed.";
-    }
-
-    // 2) Existing system in parallel — failures (e.g. "Failed to fetch") never block.
-    let legacyOk = false;
-    try {
-      try { await firestoreClient.auth.signOut({ scope: "local" }); } catch {}
-      const { error: authError } = await firestoreClient.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: {
-          data: {
-            full_name: fullName, role: signupRole, homecare_type: homecareType,
-            address: address?.address, lat: address?.lat, lng: address?.lng,
-            phone: phone || undefined, organization_name: needsOrg ? orgName : undefined,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      legacyOk = !authError;
-    } catch { /* old system unreachable */ }
-
-    if (!firebaseOk && !legacyOk) {
-      setError(firebaseErr || "Could not create your account. Please check your connection and try again.");
+        : err instanceof Error ? err.message : "Sign-up failed.",
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setSuccess(true);
-    setLoading(false);
   };
 
 
@@ -233,7 +203,11 @@ function SignupPage() {
             className="w-full"
             onClick={async () => {
               setError("");
-              try { localStorage.setItem("hr_oauth_role", role); } catch {}
+              try {
+                localStorage.setItem("hr_oauth_role", role);
+              } catch {
+                // OAuth still works when browser storage is unavailable.
+              }
               try {
                 const { firebaseGoogleSignIn } = await import("@/lib/firestore-sync");
                 const dest = await firebaseGoogleSignIn(isHomecare ? "homecare_company" : role);
