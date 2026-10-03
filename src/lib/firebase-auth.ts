@@ -43,7 +43,7 @@ function toAuthUser(user: FirebaseUser): FirebaseAuthUser {
 export function onFirebaseAuthChange(
   callback: (user: FirebaseAuthUser | null) => void,
 ): Unsubscribe {
-  const { auth } = getFirebase();
+  const { auth } = await getFirebase();
   return onAuthStateChanged(auth, (user) =>
     callback(user ? toAuthUser(user) : null),
   );
@@ -51,7 +51,7 @@ export function onFirebaseAuthChange(
 
 /** Get the currently signed-in user (null when signed out). */
 export async function getFirebaseCurrentUser(): Promise<FirebaseAuthUser | null> {
-  const { auth } = getFirebase();
+  const { auth } = await getFirebase();
   await auth.authStateReady();
   return auth.currentUser ? toAuthUser(auth.currentUser) : null;
 }
@@ -62,7 +62,7 @@ export async function firebaseSignUp(
   password: string,
   displayName?: string,
 ): Promise<FirebaseAuthUser> {
-  const { auth } = getFirebase();
+  const { auth } = await getFirebase();
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   if (displayName) {
     await updateProfile(cred.user, { displayName });
@@ -75,14 +75,14 @@ export async function firebaseSignIn(
   email: string,
   password: string,
 ): Promise<FirebaseAuthUser> {
-  const { auth } = getFirebase();
+  const { auth } = await getFirebase();
   const cred = await signInWithEmailAndPassword(auth, email, password);
   return toAuthUser(cred.user);
 }
 
 /** Sign in with Google via popup. */
 export async function firebaseSignInWithGoogle(): Promise<FirebaseAuthUser> {
-  const { auth } = getFirebase();
+  const { auth } = await getFirebase();
   const provider = new GoogleAuthProvider();
   const cred = await signInWithPopup(auth, provider);
   return toAuthUser(cred.user);
@@ -90,19 +90,19 @@ export async function firebaseSignInWithGoogle(): Promise<FirebaseAuthUser> {
 
 /** Send a password-reset email. */
 export async function firebaseSendPasswordReset(email: string): Promise<void> {
-  const { auth } = getFirebase();
+  const { auth } = await getFirebase();
   await sendPasswordResetEmail(auth, email);
 }
 
 /** Sign out. */
 export async function firebaseSignOut(): Promise<void> {
-  const { auth } = getFirebase();
+  const { auth } = await getFirebase();
   await firebaseSignOut(auth);
 }
 
 /** Get the current user's ID token for authenticated server calls. */
 export async function getFirebaseIdToken(): Promise<string | null> {
-  const { auth } = getFirebase();
+  const { auth } = await getFirebase();
   await auth.authStateReady();
   return auth.currentUser ? auth.currentUser.getIdToken() : null;
 }
