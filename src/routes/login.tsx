@@ -9,6 +9,7 @@ import { Link } from "@tanstack/react-router";
 import { LogIn, AlertCircle, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { dashboardPathForRole, resolveUserRole } from "@/lib/auth-session";
+import { syncAfterAuth } from "@/lib/firestore-sync";
 
 type LoginSearch = { mode?: "admin"; denied?: "admin"; redirect?: string };
 

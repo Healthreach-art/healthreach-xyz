@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
+import { syncAfterAuth } from "@/lib/firestore-sync";
 
 
 type SignupRole = "patient" | "pharmacy" | "driver" | "doctor" | "hospital" | "homecare_company" | "homecare_individual";
