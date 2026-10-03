@@ -1,16 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
+const GATEWAY_URL = "https://maps.googleapis.com";
 
-function authHeaders() {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  const connKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey || !connKey) return null;
-  return {
-    Authorization: `Bearer ${apiKey}`,
-    "X-Connection-Api-Key": connKey,
-  } as Record<string, string>;
+// Portable: free OpenStreetMap only.
+function authHeaders(): Record<string, string> | null {
+  return null;
 }
 
 export const autocompleteAddress = createServerFn({ method: "POST" })

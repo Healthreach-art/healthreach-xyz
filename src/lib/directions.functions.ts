@@ -54,6 +54,23 @@ export const getDirections = createServerFn({ method: "POST" })
     }
 
     if (!token) {
+      // Free OSRM road routing — no keys, works anywhere.
+      try {
+        const r = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${pickup[1]},${pickup[0]};${dropoff[1]},${dropoff[0]}?overview=full&geometries=geojson`,
+        );
+        const j = r.ok ? ((await r.json()) as { routes?: Array<{ distance: number; duration: number; geometry: { coordinates: [number, number][] } }> }) : null;
+        const rt = j?.routes?.[0];
+        if (rt) {
+          return {
+            pickup, dropoff,
+            route: rt.geometry.coordinates.map(([lng, lat]) => [lat, lng] as Coord),
+            distance_km: Math.round((rt.distance / 1000) * 10) / 10,
+            duration_min: Math.round(rt.duration / 60),
+            error: null,
+          };
+        }
+      } catch { /* straight line fallback */ }
       return { pickup, dropoff, route: [pickup, dropoff] as Coord[], distance_km: null, duration_min: null, error: null };
     }
 
