@@ -74,6 +74,21 @@ function LoginPage() {
       return;
     }
 
+    // Firebase-only sign-in for every role.
+    if (firebaseUid) {
+      const { getUserRoles } = await import("@/lib/firestore");
+      const roles: string[] = await getUserRoles(firebaseUid).catch((): string[] => []);
+      const r = (roles[0] ?? "patient") as Parameters<typeof dashboardPathForRole>[0];
+      if (isAdminMode) {
+        setError("This account is not an admin account.");
+        setLoading(false);
+        return;
+      }
+      if (safeRedirect) { window.location.assign(safeRedirect); return; }
+      navigate({ to: dashboardPathForRole(r) as never, replace: true });
+      return;
+    }
+
     // 2) Existing system (fallback).
     let signInData: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["data"] | null = null;
     let authError: { message: string } | null = null;

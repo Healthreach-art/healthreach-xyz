@@ -28,9 +28,13 @@ function ForgotPasswordPage() {
     setError("");
     setLoading(true);
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    let resetError: { message: string } | null = null;
+    try {
+      const { firebaseSendPasswordReset } = await import("@/lib/firebase-auth");
+      await firebaseSendPasswordReset(email.trim());
+    } catch (err) {
+      resetError = { message: err instanceof Error ? err.message : "Could not send reset email." };
+    }
 
     if (resetError) {
       setError(resetError.message);
