@@ -1,10 +1,22 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { getFirebaseIdToken } from "./firebase-auth";
+import { getFirebaseIfReady } from "./firebase";
 
+// Only attach a token when Firebase is already running. Starting Firebase
+// here would call the config server function, which runs this middleware
+// again — an endless loop.
 export const attachFirebaseAuth = createMiddleware({ type: "function" }).client(
   async ({ next }) => {
-    const token = await getFirebaseIdToken();
+    let token: string | null = null;
+    const services = getFirebaseIfReady();
+    if (services) {
+      try {
+        await services.auth.authStateReady();
+        token = services.auth.currentUser ? await services.auth.currentUser.getIdToken() : null;
+      } catch {
+        token = null;
+      }
+    }
     return next({
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
