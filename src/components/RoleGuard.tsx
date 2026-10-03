@@ -31,7 +31,5 @@ export function RoleGuard({ allow, children }: Props) {
   }
 
   return <>{children}</>;
-}git add .
-git commit -m "Update from Codespaces"
-git push origin main
+}
 
