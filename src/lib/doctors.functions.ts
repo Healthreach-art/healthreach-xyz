@@ -69,7 +69,7 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
+    const paystackSecret = (process.env.PAYSTACK_SECRET_KEY || process.env.STRIPE_TEST_API_KEY);
     if (!paystackSecret) throw new Error("Payment provider not configured");
 
     // Verify the reference against Paystack before marking the appointment paid.
