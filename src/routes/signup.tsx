@@ -66,10 +66,6 @@ function SignupPage() {
       setError("You must agree to the Terms of Service and Privacy Policy to continue.");
       return;
     }
-    if (!address || !address.lat || !address.lng) {
-      setError("Please pick your address from the suggestions or use 'current location' so it's verified on the map.");
-      return;
-    }
     setLoading(true);
     const cleanEmail = email.trim();
     const signupRole = isHomecare ? "homecare_company" : role;
@@ -84,7 +80,7 @@ function SignupPage() {
       const user = await firebaseSignUp(cleanEmail, password, fullName);
       await syncProfileToFirestore({
         uid: user.uid, email: cleanEmail, fullName, role: signupRole,
-        phone: phone || undefined, address: address.address, lat: address.lat, lng: address.lng,
+        phone: phone || undefined, address: address?.address, lat: address?.lat, lng: address?.lng,
         organizationName: needsOrg ? orgName : undefined, homecareType,
       });
       firebaseOk = true;
@@ -107,7 +103,7 @@ function SignupPage() {
         options: {
           data: {
             full_name: fullName, role: signupRole, homecare_type: homecareType,
-            address: address.address, lat: address.lat, lng: address.lng,
+            address: address?.address, lat: address?.lat, lng: address?.lng,
             phone: phone || undefined, organization_name: needsOrg ? orgName : undefined,
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -218,7 +214,7 @@ function SignupPage() {
                 placeholder="Start typing your real street address…"
               />
               <p className="text-[11px] text-muted-foreground">
-                Pick from the suggestions or tap the location icon — we verify it on Google Maps so deliveries land at a real place.
+                Optional — you can add or update your address later.
               </p>
             </div>
 
