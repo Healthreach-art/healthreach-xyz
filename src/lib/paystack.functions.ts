@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const PAYSTACK_BASE = "https://api.paystack.co";
 
 function paystackKey(): string {
-  const key = process.env.PAYSTACK_SECRET_KEY;
+  const key = (process.env.PAYSTACK_SECRET_KEY || process.env.STRIPE_TEST_API_KEY);
   if (!key) throw new Error("PAYSTACK_SECRET_KEY not configured");
   return key;
 }

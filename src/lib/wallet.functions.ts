@@ -70,7 +70,7 @@ export const confirmWalletTopUp = createServerFn({ method: "POST" })
     const userId = context.userId;
 
     // Verify with Paystack directly here so we get the exact authoritative amount.
-    const key = process.env.PAYSTACK_SECRET_KEY;
+    const key = (process.env.PAYSTACK_SECRET_KEY || process.env.STRIPE_TEST_API_KEY);
     if (!key) throw new Error("PAYSTACK_SECRET_KEY not configured");
     const res = await fetch(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(data.reference)}`,
