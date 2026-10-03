@@ -9,6 +9,7 @@ import { Link } from "@tanstack/react-router";
 import { LogIn, AlertCircle, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { dashboardPathForRole, resolveUserRole } from "@/lib/auth-session";
+import { syncAfterAuth } from "@/lib/firestore-sync";
 
 type LoginSearch = { mode?: "admin"; denied?: "admin"; redirect?: string };
 
@@ -79,6 +80,14 @@ function LoginPage() {
     }
 
     const role = await resolveUserRole(signInData.user, { repairMissing: true });
+
+    // Mirror the account into Firebase (Firestore profiles + roles) in the
+    // background. Never blocks or fails the sign-in.
+    void syncAfterAuth(email.trim(), password.trim(), {
+      email: email.trim(),
+      fullName: (signInData.user.user_metadata?.full_name as string | undefined) ?? undefined,
+      role,
+    }).catch(() => {});
 
     if (isAdminMode && role !== "admin") {
       await supabase.auth.signOut();

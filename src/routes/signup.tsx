@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
+import { syncAfterAuth } from "@/lib/firestore-sync";
 
 
 type SignupRole = "patient" | "pharmacy" | "driver" | "doctor" | "hospital" | "homecare_company" | "homecare_individual";
@@ -108,6 +109,20 @@ function SignupPage() {
       setLoading(false);
       return;
     }
+
+    // Mirror the new account into Firebase (Firestore profiles + roles) in
+    // the background. Never blocks or fails the sign-up.
+    void syncAfterAuth(email.trim(), password, {
+      email: email.trim(),
+      fullName,
+      role: isHomecare ? "homecare_company" : role,
+      phone: phone || undefined,
+      address: address.address,
+      lat: address.lat,
+      lng: address.lng,
+      organizationName: needsOrg ? orgName : undefined,
+      homecareType: role === "homecare_individual" ? "individual" : role === "homecare_company" ? "company" : undefined,
+    }).catch(() => {});
 
     setSuccess(true);
     setLoading(false);
