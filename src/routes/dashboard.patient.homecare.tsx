@@ -64,7 +64,7 @@ function PatientHomecarePage() {
     const addr = address ?? (profile?.address ? { address: profile.address } as PickedAddress : null);
     if (!addr?.address) { toast.error("Please give the address for the visit"); return; }
     setSaving(true);
-    const { error } = await supabase.from("homecare_requests").insert({
+    const { data: created, error } = await supabase.from("homecare_requests").insert({
       patient_id: user!.id,
       service_type: serviceType,
       description,
@@ -73,9 +73,19 @@ function PatientHomecarePage() {
       longitude: addr.lng ?? null,
       preferred_at: preferredAt ? new Date(preferredAt).toISOString() : null,
       duration_hours: hours ? Number(hours) : null,
-    });
+    }).select("id").single();
     setSaving(false);
     if (error) { toast.error(error.message); return; }
+    if (created?.id) {
+      void import("@/lib/firestore-sync").then(({ mirrorRecord }) =>
+        mirrorRecord("homecare_requests", created.id, {
+          service: serviceType, description, address: addr.address,
+          lat: addr.lat ?? null, lng: addr.lng ?? null,
+          scheduledAt: preferredAt ? new Date(preferredAt).toISOString() : null,
+          durationHours: hours ? Number(hours) : null, status: "requested",
+        }),
+      );
+    }
     setDescription(""); setPreferredAt("");
     toast.success("Request sent. An administrator will review it and assign a provider.");
     load();

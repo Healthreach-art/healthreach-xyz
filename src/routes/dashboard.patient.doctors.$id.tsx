@@ -100,6 +100,16 @@ function Page() {
           doctorId: doc.id, scheduledAt: when, mode, reason: reason.trim(),
         },
       });
+      void import("@/lib/firestore-sync").then(({ mirrorRecord }) => {
+        void mirrorRecord("bookings", appointmentId, {
+          type: "doctor", service: `Doctor: ${doc.full_name ?? "appointment"}`, name: user.email,
+          doctorRecordId: doc.id, scheduledAt: new Date(when).toISOString(), mode, reason: reason.trim(),
+          status: "pending", paymentStatus: "pending",
+        });
+        void mirrorRecord("payments", appointmentId, {
+          type: "appointment_platform_fee", amount: platformFeeCents / 100, status: "pending",
+        });
+      });
       await loadPaystack();
       if (!window.PaystackPop) throw new Error("Paystack failed to load");
       const handler = window.PaystackPop.setup({
@@ -113,6 +123,9 @@ function Page() {
               const v = await verify({ data: { reference: resp.reference } });
               if (!v.verified) throw new Error("Payment not verified");
               await markPaid({ data: { appointmentId, reference: resp.reference } });
+              void import("@/lib/firestore-sync").then(({ mirrorRecord }) => {
+                void mirrorRecord("bookings", appointmentId, { status: "confirmed", paymentStatus: "paid" });
+              });
               toast.success("Appointment confirmed!");
               navigate({ to: "/dashboard/patient/consultations" });
             } catch (e: any) { toast.error(e?.message || "Could not confirm payment"); }

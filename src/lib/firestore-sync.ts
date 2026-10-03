@@ -120,3 +120,31 @@ export async function syncAfterAuth(
   if (!uid) return;
   await syncProfileToFirestore({ ...profile, uid });
 }
+
+/**
+ * Mirror a booking / request / payment into Firestore so the admin centre
+ * sees it live. Uses the same id as the existing record (no duplicates).
+ * Fire-and-forget: never blocks the existing flow.
+ */
+export async function mirrorRecord(
+  col: "bookings" | "homecare_requests" | "payments" | "orders",
+  id: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const { getFirebaseCurrentUser } = await import("./firebase-auth");
+    const fbUser = await getFirebaseCurrentUser();
+    if (!fbUser) return;
+    const ownerField = col === "homecare_requests" || col === "orders" ? "customerId" : "patientId";
+    const existing = await fsGet(col, id);
+    await fsSet(col, id, {
+      ...data,
+      [ownerField]: fbUser.uid,
+      patientEmail: fbUser.email,
+      migratedFrom: "supabase",
+      ...(existing ? {} : { createdAt: new Date().toISOString() }),
+    });
+  } catch (err) {
+    console.warn(`[firestore-sync] ${col} mirror failed:`, err);
+  }
+}
