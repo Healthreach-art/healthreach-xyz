@@ -24,38 +24,20 @@ const inputSchema = z.object({
 export const reverseGeocodeBatch = createServerFn({ method: "POST" })
   .inputValidator((input) => inputSchema.parse(input))
   .handler(async ({ data }) => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    const connKey = process.env.GOOGLE_MAPS_API_KEY;
     const result: Record<string, string> = {};
-    await Promise.all(
-      data.points.map(async (p) => {
-        const fallback = `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
-        if (!apiKey || !connKey) {
-          result[p.id] = fallback;
-          return;
-        }
-        try {
-          const res = await fetch(
-            `${GATEWAY_URL}/maps/api/geocode/json?latlng=${p.lat},${p.lng}&result_type=street_address|route|premise|neighborhood`,
-            {
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "X-Connection-Api-Key": connKey,
-              },
-            },
-          );
-          if (!res.ok) {
-            result[p.id] = fallback;
-            return;
-          }
-          const json = (await res.json()) as {
-            results?: Array<{ formatted_address?: string }>;
-          };
-          result[p.id] = json.results?.[0]?.formatted_address ?? fallback;
-        } catch {
-          result[p.id] = fallback;
-        }
-      }),
-    );
+    // Free OpenStreetMap reverse geocoding — works anywhere, no keys.
+    for (const p of data.points) {
+      const fallback = `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${p.lat}&lon=${p.lng}`,
+          { headers: { "User-Agent": "HealthReachCare/1.0" } },
+        );
+        const j = res.ok ? ((await res.json()) as { display_name?: string }) : null;
+        result[p.id] = j?.display_name ?? fallback;
+      } catch {
+        result[p.id] = fallback;
+      }
+    }
     return { addresses: result };
   });
