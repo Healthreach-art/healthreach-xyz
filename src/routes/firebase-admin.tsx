@@ -66,7 +66,7 @@ function FirebaseAdminPage() {
       const { getUserRoles } = await import("@/lib/firestore");
       unsub = await onFirebaseAuthChange(async (u) => {
         if (!u) { setState("denied"); return; }
-        const roles = await getUserRoles(u.uid).catch(() => []);
+        const roles: string[] = await getUserRoles(u.uid).catch((): string[] => []);
         const isAdmin = roles.includes("admin") || u.email?.toLowerCase() === BOOTSTRAP_ADMIN;
         if (!isAdmin) { setState("denied"); return; }
         // Make sure the bootstrap admin has a role record.

@@ -63,7 +63,7 @@ function LoginPage() {
       const { getUserRoles } = await import("@/lib/firestore");
       firebaseUid = await ensureFirebaseSession(cleanEmail, cleanPassword);
       if (firebaseUid) {
-        const roles = await getUserRoles(firebaseUid).catch(() => []);
+        const roles: string[] = await getUserRoles(firebaseUid).catch((): string[] => []);
         firebaseAdmin =
           roles.includes("admin") || cleanEmail.toLowerCase() === "admin@healthreachcare.co.za";
       }
@@ -89,7 +89,7 @@ function LoginPage() {
       authError = { message: err instanceof Error ? err.message : "Sign-in service unavailable." };
     }
 
-    if (authError || !signInData) {
+    if (authError || !signInData || !signInData.user) {
       const msg = /email.*not.*confirm/i.test(authError?.message ?? "")
         ? "Please confirm your email first — check your inbox for the verification link."
         : firebaseUid
