@@ -87,6 +87,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Payments: payer reads own; admin manages.
+    match /payments/{id} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.patientId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow create: if signedIn() && request.resource.data.patientId == request.auth.uid && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
     // Home care requests & assignments: customer owns request; admin assigns;
     // assigned provider reads/updates their assignment only.
     match /homecare_requests/{id} {

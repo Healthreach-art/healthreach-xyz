@@ -19,7 +19,7 @@ export const Route = createFileRoute("/firebase-admin")({
 });
 
 type Row = Record<string, unknown> & { id: string };
-type TabId = "profiles" | "user_roles" | "doctors" | "pharmacies" | "homecare_providers";
+type TabId = "profiles" | "user_roles" | "doctors" | "pharmacies" | "homecare_providers" | "bookings" | "homecare_requests" | "orders" | "payments";
 
 const TABS: { id: TabId; label: string; provider: boolean }[] = [
   { id: "profiles", label: "Profiles", provider: false },
@@ -27,6 +27,10 @@ const TABS: { id: TabId; label: string; provider: boolean }[] = [
   { id: "doctors", label: "Doctors", provider: true },
   { id: "pharmacies", label: "Pharmacies", provider: true },
   { id: "homecare_providers", label: "Home care", provider: true },
+  { id: "bookings", label: "Appointments", provider: false },
+  { id: "homecare_requests", label: "Patient requests", provider: false },
+  { id: "orders", label: "Orders", provider: false },
+  { id: "payments", label: "Payments", provider: false },
 ];
 
 const BOOTSTRAP_ADMIN = "admin@healthreachcare.co.za";
@@ -53,6 +57,7 @@ function FirebaseAdminPage() {
   const [tab, setTab] = useState<TabId>("doctors");
   const [data, setData] = useState<Record<TabId, Row[]>>({
     profiles: [], user_roles: [], doctors: [], pharmacies: [], homecare_providers: [],
+    bookings: [], homecare_requests: [], orders: [], payments: [],
   });
   const [errors, setErrors] = useState<Partial<Record<TabId, string>>>({});
   const [search, setSearch] = useState("");
@@ -73,6 +78,11 @@ function FirebaseAdminPage() {
         if (!roles.includes("admin")) {
           const { grantRole } = await import("@/lib/firestore");
           await grantRole(u.uid, "admin").catch(() => {});
+        }
+        // Make sure the admin has a profile record.
+        const { fsGet, fsSet } = await import("@/lib/firestore");
+        if (!(await fsGet("profiles", u.uid).catch(() => null))) {
+          await fsSet("profiles", u.uid, { email: u.email, fullName: u.displayName ?? "Administrator", createdAt: new Date().toISOString() }).catch(() => {});
         }
         setAdminUid(u.uid);
         setAdminEmail(u.email ?? "");
@@ -161,7 +171,7 @@ function FirebaseAdminPage() {
         <Button variant="outline" size="sm" onClick={signOut} className="gap-1"><LogOut className="h-4 w-4" /> Sign out</Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {TABS.map((t) => {
           const pending = t.provider ? data[t.id].filter((r) => r.status === "pending_review").length : 0;
           return (
@@ -189,12 +199,14 @@ function FirebaseAdminPage() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="font-medium truncate">
-                  {str(r.name ?? r.fullName ?? r.email ?? r.role ?? r.id)}
+                  {str(r.name ?? r.fullName ?? r.email ?? r.service ?? r.medicationName ?? r.role ?? r.id)}
                 </div>
                 <div className="text-sm text-muted-foreground break-all">
                   {tab === "user_roles" ? `User ${str(r.userId)}` : str(r.email)}
                   {r.phone ? ` · ${str(r.phone)}` : ""}
                 </div>
+                {r.scheduledAt || r.date ? <div className="text-sm text-muted-foreground">When: {str(r.scheduledAt ?? r.date)}</div> : null}
+                {r.amount != null ? <div className="text-sm text-muted-foreground">Amount: R{str(r.amount)}</div> : null}
                 {r.address ? <div className="text-sm text-muted-foreground">{str(r.address)}</div> : null}
                 {r.reviewNote ? <div className="text-xs text-muted-foreground mt-1">Note: {str(r.reviewNote)}</div> : null}
               </div>
