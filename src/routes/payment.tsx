@@ -177,6 +177,10 @@ function PaymentPage() {
         .select()
         .single();
       if (orderErr || !order) throw orderErr ?? new Error("Failed to create order");
+      void import("@/lib/firestore-sync").then(({ mirrorRecord }) => mirrorRecord("orders", order.id, {
+        pharmacyId: resolvedPharmacy, medicationId: medId ?? null, medicationName, quantity: qty,
+        deliveryFee: BASE_DELIVERY, totalAmount: breakdown.total_paid, status: "pending", deliveryAddress,
+      }));
 
       // Duplicate-payment guard: if a completed payment already exists for this order, bail.
       const { data: existing } = await supabase

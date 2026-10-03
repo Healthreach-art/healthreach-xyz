@@ -73,7 +73,23 @@ export function OrderHistory() {
         .eq("patient_id", user.id)
         .is("hidden_for_patient_at", null)
         .order("created_at", { ascending: false });
-      const rows = (ords ?? []) as OrderRow[];
+      let rows = (ords ?? []) as OrderRow[];
+      if (!ords) {
+        // Old system unreachable — fall back to orders saved in Firebase.
+        try {
+          const { fsList, where } = await import("@/lib/firestore");
+          const fs = await fsList<Record<string, any>>("orders", where("customerId", "==", user.id));
+          rows = fs.map((o) => ({
+            id: o.id, order_group_id: null, medication_name: o.medicationName ?? "Order",
+            status: o.status ?? "pending", total_amount: Number(o.totalAmount ?? 0), quantity: Number(o.quantity ?? 1),
+            pharmacy_id: o.pharmacyId ?? "", medication_id: o.medicationId ?? null,
+            created_at: o.createdAt ?? new Date().toISOString(), prescription_upload_id: null,
+          })).sort((a, b) => b.created_at.localeCompare(a.created_at));
+          setOrders(rows);
+          setGroups(rows.map((r) => ({ key: r.id, primaryOrderId: r.id, items: [r], status: r.status, total: r.total_amount, created_at: r.created_at, group: null, delivery_code: null })) as unknown as GroupedOrder<OrderRow>[]);
+          return;
+        } catch { /* ignore */ }
+      }
       setOrders(rows);
       setGroups(await groupAndHydrate<OrderRow>(rows));
       const ids = rows.map((o) => o.id);
