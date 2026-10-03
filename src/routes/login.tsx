@@ -261,13 +261,13 @@ function LoginPage() {
                     if (safeRedirect) localStorage.setItem("hr_post_login_redirect", safeRedirect);
                     else localStorage.removeItem("hr_post_login_redirect");
                   } catch { /* ignore */ }
-                  const result = await lovable.auth.signInWithOAuth("google", {
-                    redirect_uri: `${window.location.origin}/auth/callback`,
-                  });
-                  if (result.error) {
-                    setError(
-                      "Google sign-in couldn't complete. Please allow pop-ups and try again, or sign in with your email and password below."
-                    );
+                  try {
+                    const { firebaseGoogleSignIn } = await import("@/lib/firestore-sync");
+                    const dest = await firebaseGoogleSignIn("patient");
+                    window.location.assign(safeRedirect ?? dest);
+                  } catch (err) {
+                    const code = (err as { code?: string })?.code ?? "";
+                    setError(code === "auth/popup-closed-by-user" ? "Google sign-in was cancelled." : code === "auth/unauthorized-domain" ? "This website address isn't allowed for Google sign-in yet. Add it in Firebase → Authentication → Settings → Authorized domains." : "Google sign-in couldn't complete. Please allow pop-ups and try again.");
                   }
                 }}
               >
