@@ -12,8 +12,11 @@ service cloud.firestore {
     function isOwner(uid) {
       return signedIn() && request.auth.uid == uid;
     }
+    function isBootstrapAdmin() {
+      return signedIn() && request.auth.token.email == 'admin@healthreachcare.co.za';
+    }
     function isAdmin() {
-      return signedIn() && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin'));
+      return isBootstrapAdmin() || signedIn() && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin'));
     }
     // Provider approval gate: only approved providers may operate.
     function isApproved(col, id) {
@@ -33,6 +36,10 @@ service cloud.firestore {
     match /user_roles/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow write: if isAdmin();
+      // Users may record their own non-admin role (mirrored from sign-up).
+      allow create, update: if signedIn() && request.resource.data.userId == request.auth.uid
+        && request.resource.data.role != 'admin'
+        && id == request.auth.uid + '_' + request.resource.data.role;
     }
 
     // Provider profiles (doctors, pharmacies, drivers, homecare):
@@ -40,26 +47,26 @@ service cloud.firestore {
     // readable by signed-in users for the Find page.
     match /doctors/{id} {
       allow read: if isAdmin() || isOwner(id) || (signedIn() && resource.data.status == 'approved');
-      allow create: if isOwner(id);
-      allow update: if isOwner(id) || isAdmin();
+      allow create: if isOwner(id) && request.resource.data.status == 'pending_review';
+      allow update: if isAdmin() || (isOwner(id) && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
     }
     match /pharmacies/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid) || (signedIn() && resource.data.status == 'approved');
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'pending_review';
+      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
     }
     match /drivers/{id} {
       allow read: if isAdmin() || isOwner(id) || (signedIn() && resource.data.status == 'approved');
-      allow create: if isOwner(id);
-      allow update: if isOwner(id) || isAdmin();
+      allow create: if isOwner(id) && request.resource.data.status == 'pending_review';
+      allow update: if isAdmin() || (isOwner(id) && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
     }
     match /homecare_providers/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid) || (signedIn() && resource.data.status == 'approved');
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'pending_review';
+      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
     }
     match /homecare_staff/{id} {

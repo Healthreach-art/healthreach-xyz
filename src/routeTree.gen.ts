@@ -30,6 +30,7 @@ import { Route as ForPharmaciesRouteImport } from './routes/for-pharmacies'
 import { Route as ForPatientsRouteImport } from './routes/for-patients'
 import { Route as ForDriversRouteImport } from './routes/for-drivers'
 import { Route as ForDoctorsRouteImport } from './routes/for-doctors'
+import { Route as FirebaseAdminRouteImport } from './routes/firebase-admin'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -189,6 +190,11 @@ const ForDriversRoute = ForDriversRouteImport.update({
 const ForDoctorsRoute = ForDoctorsRouteImport.update({
   id: '/for-doctors',
   path: '/for-doctors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FirebaseAdminRoute = FirebaseAdminRouteImport.update({
+  id: '/firebase-admin',
+  path: '/firebase-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -494,6 +500,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/firebase-admin': typeof FirebaseAdminRoute
   '/for-doctors': typeof ForDoctorsRoute
   '/for-drivers': typeof ForDriversRoute
   '/for-patients': typeof ForPatientsRoute
@@ -572,6 +579,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/firebase-admin': typeof FirebaseAdminRoute
   '/for-doctors': typeof ForDoctorsRoute
   '/for-drivers': typeof ForDriversRoute
   '/for-patients': typeof ForPatientsRoute
@@ -650,6 +658,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/firebase-admin': typeof FirebaseAdminRoute
   '/for-doctors': typeof ForDoctorsRoute
   '/for-drivers': typeof ForDriversRoute
   '/for-patients': typeof ForPatientsRoute
@@ -730,6 +739,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/firebase-admin'
     | '/for-doctors'
     | '/for-drivers'
     | '/for-patients'
@@ -808,6 +818,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/firebase-admin'
     | '/for-doctors'
     | '/for-drivers'
     | '/for-patients'
@@ -885,6 +896,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkout'
     | '/contact'
+    | '/firebase-admin'
     | '/for-doctors'
     | '/for-drivers'
     | '/for-patients'
@@ -964,6 +976,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   CheckoutRoute: typeof CheckoutRoute
   ContactRoute: typeof ContactRoute
+  FirebaseAdminRoute: typeof FirebaseAdminRoute
   ForDoctorsRoute: typeof ForDoctorsRoute
   ForDriversRoute: typeof ForDriversRoute
   ForPatientsRoute: typeof ForPatientsRoute
@@ -1172,6 +1185,13 @@ declare module '@tanstack/react-router' {
       path: '/for-doctors'
       fullPath: '/for-doctors'
       preLoaderRoute: typeof ForDoctorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/firebase-admin': {
+      id: '/firebase-admin'
+      path: '/firebase-admin'
+      fullPath: '/firebase-admin'
+      preLoaderRoute: typeof FirebaseAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -1620,6 +1640,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   CheckoutRoute: CheckoutRoute,
   ContactRoute: ContactRoute,
+  FirebaseAdminRoute: FirebaseAdminRoute,
   ForDoctorsRoute: ForDoctorsRoute,
   ForDriversRoute: ForDriversRoute,
   ForPatientsRoute: ForPatientsRoute,

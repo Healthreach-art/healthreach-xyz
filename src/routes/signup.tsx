@@ -59,13 +59,13 @@ function SignupPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
     if (!agreed) {
       setError("You must agree to the Terms of Service and Privacy Policy to continue.");
       return;
     }
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError("");
     if (!address || !address.lat || !address.lng) {
       setError("Please pick your address from the suggestions or use 'current location' so it's verified on the map.");
       return;
