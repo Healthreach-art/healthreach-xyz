@@ -71,58 +71,56 @@ function SignupPage() {
       return;
     }
     setLoading(true);
-    // Duplicate phone check
-    if (phone) {
-      const { data: existingPhone } = await supabase.from("profiles").select("user_id").eq("phone", phone).maybeSingle();
-      if (existingPhone) {
-        setError("This phone number is already registered to another account.");
-        setLoading(false);
-        return;
-      }
+    const cleanEmail = email.trim();
+    const signupRole = isHomecare ? "homecare_company" : role;
+    const homecareType = role === "homecare_individual" ? "individual" : role === "homecare_company" ? "company" : undefined;
+
+    // 1) Firebase first — the primary sign-up path now.
+    let firebaseOk = false;
+    let firebaseErr = "";
+    try {
+      const { firebaseSignUp } = await import("@/lib/firebase-auth");
+      const { syncProfileToFirestore } = await import("@/lib/firestore-sync");
+      const user = await firebaseSignUp(cleanEmail, password, fullName);
+      await syncProfileToFirestore({
+        uid: user.uid, email: cleanEmail, fullName, role: signupRole,
+        phone: phone || undefined, address: address.address, lat: address.lat, lng: address.lng,
+        organizationName: needsOrg ? orgName : undefined, homecareType,
+      });
+      firebaseOk = true;
+    } catch (err) {
+      const code = (err as { code?: string })?.code ?? "";
+      firebaseErr =
+        code === "auth/email-already-in-use" ? "This email is already registered. Please sign in instead."
+        : code === "auth/weak-password" ? "Password must be at least 6 characters."
+        : code === "auth/invalid-email" ? "Please enter a valid email address."
+        : err instanceof Error ? err.message : "Sign-up failed.";
     }
 
-    // Clear any lingering session from a previous account so the new
-    // signup doesn't get redirected into someone else's dashboard.
-    try { await supabase.auth.signOut(); } catch {}
-
-    const { error: authError } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: isHomecare ? "homecare_company" : role,
-          homecare_type: role === "homecare_individual" ? "individual" : role === "homecare_company" ? "company" : undefined,
-          address: address.address,
-          lat: address.lat,
-          lng: address.lng,
-          phone: phone || undefined,
-          organization_name: needsOrg ? orgName : undefined,
+    // 2) Existing system in parallel — failures (e.g. "Failed to fetch") never block.
+    let legacyOk = false;
+    try {
+      try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+      const { error: authError } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: {
+            full_name: fullName, role: signupRole, homecare_type: homecareType,
+            address: address.address, lat: address.lat, lng: address.lng,
+            phone: phone || undefined, organization_name: needsOrg ? orgName : undefined,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+      });
+      legacyOk = !authError;
+    } catch { /* old system unreachable */ }
 
-
-    if (authError) {
-      setError(authError.message);
+    if (!firebaseOk && !legacyOk) {
+      setError(firebaseErr || "Could not create your account. Please check your connection and try again.");
       setLoading(false);
       return;
     }
-
-    // Mirror the new account into Firebase (Firestore profiles + roles) in
-    // the background. Never blocks or fails the sign-up.
-    void syncAfterAuth(email.trim(), password, {
-      email: email.trim(),
-      fullName,
-      role: isHomecare ? "homecare_company" : role,
-      phone: phone || undefined,
-      address: address.address,
-      lat: address.lat,
-      lng: address.lng,
-      organizationName: needsOrg ? orgName : undefined,
-      homecareType: role === "homecare_individual" ? "individual" : role === "homecare_company" ? "company" : undefined,
-    }).catch(() => {});
 
     setSuccess(true);
     setLoading(false);
@@ -136,14 +134,14 @@ function SignupPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <MailCheck className="h-7 w-7 text-primary" />
           </div>
-          <h2 className="text-xl font-bold text-foreground">Check your email</h2>
+          <h2 className="text-xl font-bold text-foreground">Account created</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            We sent a confirmation link to <span className="font-medium text-foreground">{email}</span>.
-            Click it to verify your account and finish signing in.
+            Your account <span className="font-medium text-foreground">{email}</span> is ready.
+            You can now sign in with your email and password.
           </p>
           {needsApproval && (
             <p className="mt-3 text-xs text-muted-foreground">
-              After verifying your email, your {meta.label.toLowerCase()} account will be reviewed by an admin before going live.
+              Your {meta.label.toLowerCase()} account will be reviewed by an admin before going live.
             </p>
           )}
           <Button className="mt-6 w-full" onClick={() => navigate({ to: "/login" })}>
