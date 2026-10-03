@@ -14,7 +14,8 @@ import {
   Stethoscope,
   CalendarCheck as CalendarCheckIcon,
 } from "lucide-react";
-import heroBg from "@/assets/hero-bg.jpg";
+import heroAsset from "@/assets/hero-delivery.png.asset.json";
+const heroBg = heroAsset.url;
 import rolePatient from "@/assets/role-patient.jpg";
 import rolePharmacy from "@/assets/role-pharmacy.jpg";
 import roleHospital from "@/assets/role-hospital.jpg";
