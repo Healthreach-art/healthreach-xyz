@@ -12,7 +12,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
-  signOut as firebaseSignOut,
+  signOut as sdkSignOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
   updateProfile,
@@ -40,9 +40,9 @@ function toAuthUser(user: FirebaseUser): FirebaseAuthUser {
 }
 
 /** Listen to sign-in state. Returns an unsubscribe function. */
-export function onFirebaseAuthChange(
+export async function onFirebaseAuthChange(
   callback: (user: FirebaseAuthUser | null) => void,
-): Unsubscribe {
+): Promise<Unsubscribe> {
   const { auth } = await getFirebase();
   return onAuthStateChanged(auth, (user) =>
     callback(user ? toAuthUser(user) : null),
@@ -97,7 +97,7 @@ export async function firebaseSendPasswordReset(email: string): Promise<void> {
 /** Sign out. */
 export async function firebaseSignOut(): Promise<void> {
   const { auth } = await getFirebase();
-  await firebaseSignOut(auth);
+  await sdkSignOut(auth);
 }
 
 /** Get the current user's ID token for authenticated server calls. */
