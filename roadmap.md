@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Stabilize shared layouts for small phones and wide screens without redesigning workflows.
+
 - [ ] Finish HealthReachCare brand/domain/support-email updates and landing role card.
 - [ ] Complete Home Care scheduled transition, realtime status flow, and real-data verification.
 - [ ] Align doctor admin review with request-documents flow.
