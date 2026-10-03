@@ -5,9 +5,14 @@
   "auth": {
     "type": "oauth",
     "issuer": "https://healthreachcare.co.za",
+    "resource": "https://healthreachcare.co.za/mcp",
     "accepted_audiences": [
-      "authenticated"
-    ]
+      "healthreachcare-prod"
+    ],
+    "required_scopes": [
+      "mcp:tools"
+    ],
+    "jwks_uri": "https://us-central1-healthreachcare-prod.cloudfunctions.net/mcpOAuth/jwks"
   },
   "mcp": {
     "server": {
