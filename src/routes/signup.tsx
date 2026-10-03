@@ -134,14 +134,14 @@ function SignupPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <MailCheck className="h-7 w-7 text-primary" />
           </div>
-          <h2 className="text-xl font-bold text-foreground">Check your email</h2>
+          <h2 className="text-xl font-bold text-foreground">Account created</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            We sent a confirmation link to <span className="font-medium text-foreground">{email}</span>.
-            Click it to verify your account and finish signing in.
+            Your account <span className="font-medium text-foreground">{email}</span> is ready.
+            You can now sign in with your email and password.
           </p>
           {needsApproval && (
             <p className="mt-3 text-xs text-muted-foreground">
-              After verifying your email, your {meta.label.toLowerCase()} account will be reviewed by an admin before going live.
+              Your {meta.label.toLowerCase()} account will be reviewed by an admin before going live.
             </p>
           )}
           <Button className="mt-6 w-full" onClick={() => navigate({ to: "/login" })}>
