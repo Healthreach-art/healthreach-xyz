@@ -148,3 +148,24 @@ export async function mirrorRecord(
     console.warn(`[firestore-sync] ${col} mirror failed:`, err);
   }
 }
+
+/**
+ * Google sign-in through Firebase. Creates the Firestore profile + role on
+ * first use and returns where the user should be sent.
+ */
+export async function firebaseGoogleSignIn(defaultRole: string): Promise<string> {
+  const { firebaseSignInWithGoogle } = await import("./firebase-auth");
+  const { getUserRoles } = await import("./firestore");
+  const user = await firebaseSignInWithGoogle();
+  const email = (user.email ?? "").toLowerCase();
+  let roles: string[] = await getUserRoles(user.uid).then((r) => (r as unknown as string[]) ?? []).catch((): string[] => []);
+  if (!Array.isArray(roles)) roles = [];
+  if (roles.length === 0) {
+    const role = email === "admin@healthreachcare.co.za" ? "admin" : defaultRole;
+    await syncProfileToFirestore({ uid: user.uid, email, fullName: user.displayName ?? undefined, role }).catch(() => {});
+    roles = [role];
+  }
+  if (roles.includes("admin") || email === "admin@healthreachcare.co.za") return "/firebase-admin";
+  const { dashboardPathForRole } = await import("./auth-session");
+  return dashboardPathForRole(roles[0] as Parameters<typeof dashboardPathForRole>[0]);
+}

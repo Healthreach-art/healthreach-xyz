@@ -206,18 +206,6 @@ function SignupPage() {
               <Input id="phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+27 71 123 4567" maxLength={40} />
             </div>
 
-            <div className="space-y-1">
-              <Label>{role === "pharmacy" ? "Pharmacy address" : role === "driver" ? "Starting / home base" : role === "doctor" ? "Practice address" : isHomecare ? "Base address" : "Delivery address"}</Label>
-              <AddressPicker
-                value={address}
-                onChange={setAddress}
-                placeholder="Start typing your real street address…"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Optional — you can add or update your address later.
-              </p>
-            </div>
-
             {needsApproval && (
               <div className="rounded-lg bg-accent p-3 text-xs text-muted-foreground">
                 ⚠️ This role requires admin approval before you can access the platform.
@@ -247,12 +235,13 @@ function SignupPage() {
             onClick={async () => {
               setError("");
               try { localStorage.setItem("hr_oauth_role", role); } catch {}
-              try { await supabase.auth.signOut(); } catch {}
-              const result = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: `${window.location.origin}/auth/callback`,
-              });
-              if (result.error) {
-                setError(result.error.message ?? "Google sign-up failed");
+              try {
+                const { firebaseGoogleSignIn } = await import("@/lib/firestore-sync");
+                const dest = await firebaseGoogleSignIn(isHomecare ? "homecare_company" : role);
+                window.location.assign(dest);
+              } catch (err) {
+                const code = (err as { code?: string })?.code ?? "";
+                setError(code === "auth/popup-closed-by-user" ? "Google sign-up was cancelled." : code === "auth/unauthorized-domain" ? "This website address isn't allowed for Google sign-in yet. Add it in Firebase → Authentication → Settings → Authorized domains." : "Google sign-up couldn't complete. Please allow pop-ups and try again.");
               }
             }}
 
