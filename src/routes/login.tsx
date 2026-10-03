@@ -52,21 +52,49 @@ function LoginPage() {
     setError("");
     setLoading(true);
 
-    const existing = await supabase.auth.getSession();
-    if (existing.data.session?.user.email?.toLowerCase() !== email.trim().toLowerCase()) {
-      await supabase.auth.signOut({ scope: "local" });
+    // 1) Firebase first. Admins recognised in Firestore go straight to the
+    //    Firebase admin dashboard.
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+    let firebaseUid: string | null = null;
+    let firebaseAdmin = false;
+    try {
+      const { ensureFirebaseSession } = await import("@/lib/firestore-sync");
+      const { getUserRoles } = await import("@/lib/firestore");
+      firebaseUid = await ensureFirebaseSession(cleanEmail, cleanPassword);
+      if (firebaseUid) {
+        const roles = await getUserRoles(firebaseUid).catch(() => []);
+        firebaseAdmin =
+          roles.includes("admin") || cleanEmail.toLowerCase() === "admin@healthreachcare.co.za";
+      }
+    } catch { /* fall back to the existing system */ }
+
+    if (firebaseAdmin) {
+      navigate({ to: "/firebase-admin", replace: true });
+      return;
     }
 
-    const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password: password.trim(),
-    });
+    // 2) Existing system (fallback).
+    let signInData: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["data"] | null = null;
+    let authError: { message: string } | null = null;
+    try {
+      const existing = await supabase.auth.getSession();
+      if (existing.data.session?.user.email?.toLowerCase() !== cleanEmail.toLowerCase()) {
+        await supabase.auth.signOut({ scope: "local" });
+      }
+      const res = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
+      signInData = res.data;
+      authError = res.error;
+    } catch (err) {
+      authError = { message: err instanceof Error ? err.message : "Sign-in service unavailable." };
+    }
 
-    if (authError) {
-      // Friendlier message for the common "needs email confirm" case.
-      const msg = /email.*not.*confirm/i.test(authError.message)
+    if (authError || !signInData) {
+      const msg = /email.*not.*confirm/i.test(authError?.message ?? "")
         ? "Please confirm your email first — check your inbox for the verification link."
-        : authError.message;
+        : firebaseUid
+          ? "Your account was found, but your dashboard is temporarily unavailable. Please try again in a minute."
+          : authError?.message ?? "Sign-in failed.";
       setError(msg);
       setLoading(false);
       return;
