@@ -77,6 +77,31 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
       userId: input.uid,
       role: input.role,
     });
+    // Mirror provider records (status starts pending; admin approves).
+    const providerCol: Record<string, string> = {
+      doctor: "doctors",
+      pharmacy: "pharmacies",
+      driver: "drivers",
+      homecare_company: "homecare_providers",
+      homecare_individual: "homecare_providers",
+    };
+    const col = providerCol[input.role];
+    if (col) {
+      const existingProvider = await fsGet(col, input.uid);
+      await fsSet(col, input.uid, {
+        userId: input.uid,
+        email: input.email,
+        name: input.organizationName || input.fullName || input.email,
+        fullName: input.fullName ?? null,
+        phone: input.phone ?? null,
+        address: input.address ?? null,
+        lat: input.lat ?? null,
+        lng: input.lng ?? null,
+        homecareType: input.homecareType ?? null,
+        migratedFrom: "supabase",
+        ...(existingProvider ? {} : { status: "pending_review", createdAt: new Date().toISOString() }),
+      });
+    }
   } catch (err) {
     console.warn("[firestore-sync] profile sync failed:", err);
   }
