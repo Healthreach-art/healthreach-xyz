@@ -3,7 +3,13 @@ import { createServerFn } from "@tanstack/react-start";
 // Firebase web config is public by design; the API key is kept as a project
 // secret and handed to the browser on demand so it never lives in the repo.
 export const getFirebaseConfig = createServerFn({ method: "GET" }).handler(async () => {
-  const apiKey = (process.env["GOOGLE_API_KEY"] ?? "").trim();
+  const isPlaceholder = (v: string) => !v || v.includes("your-") || !v.startsWith("AIza");
+  const candidates = [process.env["GOOGLE_API_KEY"], process.env["VITE_FIREBASE_API_KEY"], process.env["FIREBASE_API_KEY"]]
+    .map((v) => (v ?? "").trim());
+  const apiKey = candidates.find((v) => !isPlaceholder(v)) ?? "";
+  if (!apiKey) {
+    console.error("[firebase] No valid Firebase Web API key found. Set GOOGLE_API_KEY in your .env (starts with AIza).");
+  }
   return {
     apiKey,
     authDomain: "healthreachcare-prod.firebaseapp.com",
