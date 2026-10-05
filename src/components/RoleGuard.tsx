@@ -24,6 +24,7 @@ export function RoleGuard({ allow, children }: Props) {
     if (pathname === "/login") return null;
     return <Navigate to="/login" replace />;
   }
+
   if (role !== allow) {
     const target = dashboardPathForRole(role);
     if (pathname === target || pathname.startsWith(`${target}/`)) return null;
@@ -32,4 +33,3 @@ export function RoleGuard({ allow, children }: Props) {
 
   return <>{children}</>;
 }
-
