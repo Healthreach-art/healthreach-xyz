@@ -444,12 +444,31 @@ export const firestoreClient = {
     },
     onAuthStateChange: (callback: (event: string, session: Awaited<ReturnType<typeof sessionFor>>) => void) => {
       let unsubscribe: (() => void) | undefined;
+      let cancelled = false;
       void getFirebase().then(({ auth }) => {
+        if (cancelled) return;
         unsubscribe = onAuthStateChanged(auth, (user) => {
-          void sessionFor(user).then((session) => callback(user ? "SIGNED_IN" : "SIGNED_OUT", session));
+          void sessionFor(user)
+            .then((session) => {
+              if (!cancelled) callback(user ? "SIGNED_IN" : "SIGNED_OUT", session);
+            })
+            .catch((error: unknown) => {
+              console.error("[auth] Could not load the compatibility auth session.", error);
+            });
         });
+      }).catch((error: unknown) => {
+        console.error("[auth] Could not register the compatibility auth listener.", error);
       });
-      return { data: { subscription: { unsubscribe: () => unsubscribe?.() } } };
+      return {
+        data: {
+          subscription: {
+            unsubscribe: () => {
+              cancelled = true;
+              unsubscribe?.();
+            },
+          },
+        },
+      };
     },
     signInWithPassword: async ({ email, password }: { email: string; password: string }) => {
       try {

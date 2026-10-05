@@ -1,23 +1,5 @@
 /**
  * Firestore data layer for HealthReachCare.
- *
- * Firestore data access for HealthReachCare.
- *
- * Collection layout (top-level unless noted):
- *   profiles/{uid}                  — one per user, mirrors public.profiles
- *   user_roles/{uid_role}           — role rows, mirrors public.user_roles
- *   doctors/{uid}                   — doctor professional profiles
- *   pharmacies/{id}                 — pharmacy profiles
- *   drivers/{uid}                   — driver profiles
- *   homecare_providers/{id}         — home care companies & individuals
- *   homecare_staff/{id}             — company staff members
- *   orders/{id}                     — medicine orders (deliveries merged in)
- *   bookings/{id}                   — doctor & homecare appointments
- *   homecare_requests/{id}          — customer home care requests
- *   homecare_assignments/{id}       — admin assignments to providers
- *   notifications/{id}              — in-app notifications
- *   audit_logs/{id}                 — admin action audit trail
- *   documents/{id}                  — document metadata (files live in Storage)
  */
 import {
   collection,
@@ -61,8 +43,6 @@ async function db() {
   return db;
 }
 
-// ---------- Generic helpers ----------
-
 export async function fsGet<T = DocumentData>(
   col: string,
   id: string,
@@ -101,45 +81,44 @@ export async function fsDelete(col: string, id: string): Promise<void> {
   await deleteDoc(doc(await db(), col, id));
 }
 
-/** Realtime listener on a Firestore collection query. */
 export async function fsSubscribe<T = DocumentData>(
   col: string,
   constraints: QueryConstraint[],
   callback: (rows: (T & { id: string })[]) => void,
+  onError?: (err: Error) => void,
 ): Promise<Unsubscribe> {
   const q = query(collection(await db(), col), ...constraints);
-  return onSnapshot(q, (snap) =>
-    callback(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T & { id: string })),
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T & { id: string }));
+    },
+    (error) => {
+      console.warn(`[firestore] snapshot error on ${col}:`, error.message);
+      if (onError) onError(error);
+    },
   );
 }
 
-// ---------- Query constraint re-exports (so screens import from one place) ----------
 export { where, orderBy, fsLimit as limit };
 
-// ---------- Domain helpers ----------
-
-/** Fetch a user's profile. */
 export async function getProfile(uid: string) {
   return fsGet("profiles", uid);
 }
 
-/** Fetch all roles for a user. */
 export async function getUserRoles(uid: string): Promise<Role[]> {
   const rows = await fsList<{ role: Role }>("user_roles", where("user_id", "==", uid));
   return rows.map((r) => r.role);
 }
 
-/** Grant a role (admin only — enforced by security rules). */
 export async function grantRole(uid: string, role: Role) {
   await fsSet("user_roles", `${uid}_${role}`, { user_id: uid, role });
 }
 
-/** List providers awaiting admin review, newest first. */
 export async function getPendingProviders(col: string) {
   return fsList(col, where("status", "==", "pending_review"), orderBy("createdAt", "desc"));
 }
 
-/** Approve / reject / request documents / suspend — writes audit trail. */
 export async function setProviderStatus(
   col: string,
   id: string,
@@ -158,7 +137,6 @@ export async function setProviderStatus(
   });
 }
 
-/** Create an in-app notification for a user. */
 export async function notify(
   userId: string,
   title: string,

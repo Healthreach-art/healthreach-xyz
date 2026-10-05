@@ -32,6 +32,7 @@ interface AuthContextType {
   profile: ResolvedProfile | null;
   isDemo: boolean;
   loading: boolean;
+  authError: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -43,6 +44,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   isDemo: false,
   loading: true,
+  authError: null,
   signOut: async () => {},
 });
 
@@ -82,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
   const [profile, setProfile] = useState<ResolvedProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const hydrateId = useRef(0);
   const firebaseUserRef = useRef<FirebaseAuthUser | null>(null);
 
@@ -91,8 +94,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const hydrate = async (firebaseUser: FirebaseAuthUser | null) => {
       const currentHydrate = ++hydrateId.current;
+      const previousUid = firebaseUserRef.current?.uid;
       firebaseUserRef.current = firebaseUser;
       setLoading(true);
+      setAuthError(null);
+
+      if (firebaseUser && previousUid && previousUid !== firebaseUser.uid) {
+        setUser(null);
+        setSession(null);
+        setRole(null);
+        setApprovalStatus(null);
+        setProfile(null);
+      }
 
       if (!firebaseUser) {
         setUser(null);
@@ -105,15 +118,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const account = await resolveUserAccount(firebaseUser);
+        const account = await resolveUserAccount(firebaseUser, null, { repairMissing: false });
         const appUser = createAppUser(firebaseUser, account.role);
         const token = await getFirebaseIdToken();
+        if (!token) throw new Error("Firebase did not provide an ID token for the signed-in user.");
         if (cancelled || currentHydrate !== hydrateId.current) return;
 
         setUser(appUser);
         setSession({
           user: appUser,
-          access_token: token ?? "",
+          access_token: token,
           refresh_token: "",
           expires_in: 3600,
           token_type: "bearer",
@@ -124,27 +138,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("[auth] Could not load the signed-in user's Firestore account.", error);
         if (cancelled || currentHydrate !== hydrateId.current) return;
-
-        const appUser = createAppUser(firebaseUser, "patient");
-        setUser(appUser);
-        setSession({
-          user: appUser,
-          access_token: "",
-          refresh_token: "",
-          expires_in: 3600,
-          token_type: "bearer",
-        });
-        setRole("patient");
+        setUser(null);
+        setSession(null);
+        setRole(null);
         setApprovalStatus(null);
-        setProfile({
-          full_name: firebaseUser.displayName ?? "",
-          email: firebaseUser.email ?? "",
-          organization_name: "",
-          phone: "",
-          address: "",
-          is_demo: false,
-          avatar_url: firebaseUser.photoURL ?? "",
-        });
+        setProfile(null);
+        setAuthError("We could not verify your account. Please sign in again.");
       } finally {
         if (!cancelled && currentHydrate === hydrateId.current) setLoading(false);
       }
@@ -157,7 +156,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       else unsubscribe = stop;
     }).catch((error: unknown) => {
       console.error("[auth] Could not subscribe to Firebase Authentication.", error);
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        setUser(null);
+        setSession(null);
+        setRole(null);
+        setApprovalStatus(null);
+        setProfile(null);
+        setAuthError("Authentication could not be initialized. Please refresh and try again.");
+        setLoading(false);
+      }
     });
 
     return () => {
@@ -175,9 +182,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refreshAccount = async () => {
       const firebaseUser = firebaseUserRef.current;
-      if (!firebaseUser) return;
+      if (!firebaseUser || firebaseUser.uid !== user.id) return;
       try {
-        const account = await resolveUserAccount(firebaseUser);
+        const account = await resolveUserAccount(firebaseUser, null, { repairMissing: false });
         if (cancelled) return;
         setRole((current) => current === account.role ? current : account.role);
         setApprovalStatus((current) => current === account.approvalStatus ? current : account.approvalStatus);
@@ -194,20 +201,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    void Promise.all([
-      fsSubscribe("profiles", [where("user_id", "==", user.id)], () => void refreshAccount()),
-      fsSubscribe("user_roles", [where("user_id", "==", user.id)], () => void refreshAccount()),
-    ]).then(([profilesStop, rolesStop]) => {
-      if (cancelled) {
-        profilesStop();
-        rolesStop();
-      } else {
-        stopProfiles = profilesStop;
-        stopRoles = rolesStop;
-      }
-    }).catch((error: unknown) => {
-      console.error("[auth] Could not subscribe to Firestore account changes.", error);
-    });
+    void fsSubscribe("profiles", [where("user_id", "==", user.id)], () => void refreshAccount())
+      .then((stop) => {
+        if (cancelled) stop();
+        else stopProfiles = stop;
+      })
+      .catch((error: unknown) => {
+        console.error("[auth] Could not subscribe to Firestore profile changes.", error);
+      });
+    void fsSubscribe("user_roles", [where("user_id", "==", user.id)], () => void refreshAccount())
+      .then((stop) => {
+        if (cancelled) stop();
+        else stopRoles = stop;
+      })
+      .catch((error: unknown) => {
+        console.error("[auth] Could not subscribe to Firestore role changes.", error);
+      });
 
     return () => {
       cancelled = true;
@@ -225,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
     setApprovalStatus(null);
     setProfile(null);
+    setAuthError(null);
     if (typeof document !== "undefined") {
       document.cookie = "sidebar_state=; path=/; max-age=0";
     }
@@ -234,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext value={{ user, session, role, approvalStatus, profile, isDemo: !!profile?.is_demo, loading, signOut }}>
+    <AuthContext value={{ user, session, role, approvalStatus, profile, isDemo: !!profile?.is_demo, loading, authError, signOut }}>
       {children}
     </AuthContext>
   );

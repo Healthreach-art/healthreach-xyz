@@ -53,53 +53,49 @@ export type SyncProfileInput = {
  * `${uid}_${role}` so re-syncs overwrite instead of duplicating.
  */
 export async function syncProfileToFirestore(input: SyncProfileInput): Promise<void> {
-  try {
-    const existing = await fsGet("profiles", input.uid);
-    await fsSet("profiles", input.uid, {
+  const existing = await fsGet("profiles", input.uid);
+  await fsSet("profiles", input.uid, {
+    id: input.uid,
+    user_id: input.uid,
+    email: input.email,
+    full_name: input.fullName ?? null,
+    phone: input.phone ?? null,
+    address: input.address ?? null,
+    latitude: input.lat ?? null,
+    longitude: input.lng ?? null,
+    organization_name: input.organizationName ?? null,
+    homecare_type: input.homecareType ?? null,
+    ...(existing ? {} : { created_at: new Date().toISOString() }),
+  });
+  await fsSet("user_roles", `${input.uid}_${input.role}`, {
+    id: `${input.uid}_${input.role}`,
+    user_id: input.uid,
+    role: input.role,
+  });
+  // Mirror provider records (status starts pending; admin approves).
+  const providerCol: Record<string, string> = {
+    doctor: "doctors",
+    pharmacy: "pharmacies",
+    driver: "drivers",
+    homecare_company: "homecare_providers",
+    homecare_individual: "homecare_providers",
+  };
+  const col = providerCol[input.role];
+  if (col) {
+    const existingProvider = await fsGet(col, input.uid);
+    await fsSet(col, input.uid, {
       id: input.uid,
       user_id: input.uid,
       email: input.email,
+      organization_name: input.organizationName || null,
       full_name: input.fullName ?? null,
       phone: input.phone ?? null,
       address: input.address ?? null,
       latitude: input.lat ?? null,
       longitude: input.lng ?? null,
-      organization_name: input.organizationName ?? null,
       homecare_type: input.homecareType ?? null,
-      ...(existing ? {} : { created_at: new Date().toISOString() }),
+      ...(existingProvider ? {} : { status: "pending_review", created_at: new Date().toISOString() }),
     });
-    await fsSet("user_roles", `${input.uid}_${input.role}`, {
-      id: `${input.uid}_${input.role}`,
-      user_id: input.uid,
-      role: input.role,
-    });
-    // Mirror provider records (status starts pending; admin approves).
-    const providerCol: Record<string, string> = {
-      doctor: "doctors",
-      pharmacy: "pharmacies",
-      driver: "drivers",
-      homecare_company: "homecare_providers",
-      homecare_individual: "homecare_providers",
-    };
-    const col = providerCol[input.role];
-    if (col) {
-      const existingProvider = await fsGet(col, input.uid);
-      await fsSet(col, input.uid, {
-        id: input.uid,
-        user_id: input.uid,
-        email: input.email,
-        organization_name: input.organizationName || null,
-        full_name: input.fullName ?? null,
-        phone: input.phone ?? null,
-        address: input.address ?? null,
-        latitude: input.lat ?? null,
-        longitude: input.lng ?? null,
-        homecare_type: input.homecareType ?? null,
-        ...(existingProvider ? {} : { status: "pending_review", created_at: new Date().toISOString() }),
-      });
-    }
-  } catch (err) {
-    console.warn("[firestore-sync] profile sync failed:", err);
   }
 }
 

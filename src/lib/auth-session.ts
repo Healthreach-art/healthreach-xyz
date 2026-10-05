@@ -27,10 +27,6 @@ const APP_ROLES: AppRole[] = [
 const SELF_SERVICE_ROLES: AppRole[] = [
   "patient", "pharmacy", "hospital", "driver", "doctor", "homecare_company", "homecare_staff",
 ];
-const RETRY_DELAYS_MS = [0, 150, 350, 700, 1100, 1600];
-
-const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
-
 export function isAppRole(value: unknown): value is AppRole {
   return typeof value === "string" && APP_ROLES.includes(value as AppRole);
 }
@@ -55,28 +51,16 @@ async function repairMissingRole(userId: string, role: AppRole) {
 
 export async function resolveUserRole(
   user: FirebaseAuthUser,
-  options: { attempts?: number; fallbackRole?: AppRole | null; repairMissing?: boolean } = {},
+  options: { fallbackRole?: AppRole | null; repairMissing?: boolean } = {},
 ): Promise<AppRole> {
-  const attempts = options.attempts ?? RETRY_DELAYS_MS.length;
   const preferredFallback = options.fallbackRole ?? null;
   const safeFallback = preferredFallback && preferredFallback !== "admin" ? preferredFallback : "patient";
 
-  for (let index = 0; index < attempts; index += 1) {
-    const delay = RETRY_DELAYS_MS[index] ?? RETRY_DELAYS_MS.at(-1) ?? 0;
-    if (delay > 0) await sleep(delay);
-
-    const persistedRole = await readPersistedRole(user.uid);
-    if (persistedRole) return persistedRole;
-
-    if (index === 2 && options.repairMissing !== false) {
-      await repairMissingRole(user.uid, safeFallback);
-    }
-  }
+  const persistedRole = await readPersistedRole(user.uid);
+  if (persistedRole) return persistedRole;
 
   if (options.repairMissing !== false) {
     await repairMissingRole(user.uid, safeFallback);
-    const repairedRole = await readPersistedRole(user.uid);
-    if (repairedRole) return repairedRole;
   }
 
   return safeFallback;
@@ -113,9 +97,10 @@ async function resolveProfile(
 export async function resolveUserAccount(
   user: FirebaseAuthUser,
   fallbackRole?: AppRole | null,
+  options: { repairMissing?: boolean } = {},
 ): Promise<ResolvedAccount> {
   const [role, profileResult] = await Promise.all([
-    resolveUserRole(user, { fallbackRole }),
+    resolveUserRole(user, { fallbackRole, repairMissing: options.repairMissing }),
     resolveProfile(user),
   ]);
 

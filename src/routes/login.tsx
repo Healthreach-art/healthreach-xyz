@@ -7,6 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { LogIn, AlertCircle, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { dashboardPathForRole, resolveUserRole } from "@/lib/auth-session";
+import { useAuth } from "@/hooks/useAuth";
 
 type LoginSearch = { mode?: "admin"; denied?: "admin"; redirect?: string };
 
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { authError } = useAuth();
   const { mode, denied, redirect: redirectTo } = useSearch({ from: "/login" });
   const isAdminMode = mode === "admin";
   const safeRedirect = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
@@ -167,10 +169,10 @@ function LoginPage() {
             </p>
           </div>
 
-          {error && (
+          {(error || authError) && (
             <div className="mb-4 flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
+              <span>{error || authError}</span>
             </div>
           )}
 
