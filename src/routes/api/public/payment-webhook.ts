@@ -1,32 +1,99 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createHmac, timingSafeEqual } from "crypto";
+import { z } from "zod";
 
-const DEFAULT_WEBHOOK_URL =
-  "https://us-central1-healthreachcare-prod.cloudfunctions.net/paymentProviderWebhook";
+const eventSchema = z.object({
+  event: z.string(),
+  data: z.object({
+    reference: z.string().min(1).max(200),
+    status: z.string().optional(),
+    amount: z.number().optional(),
+    currency: z.string().optional(),
+    channel: z.string().optional(),
+    paid_at: z.string().nullable().optional(),
+    customer: z.object({ email: z.string().optional() }).partial().optional(),
+    metadata: z.any().optional(),
+  }).passthrough(),
+});
+
+function safeId(value: unknown) {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value) ? value : null;
+}
 
 export const Route = createFileRoute("/api/public/payment-webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const endpoint = (process.env.FIREBASE_PAYMENT_WEBHOOK_URL ?? DEFAULT_WEBHOOK_URL).trim();
+        const secret = (process.env["PAYSTACK_SECRET_KEY"] ?? "").trim();
+        if (!secret) return new Response("Not configured", { status: 500 });
+
         const body = await request.text();
-        let response: Response;
-        try {
-          response = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": request.headers.get("content-type") ?? "application/json",
-              "x-webhook-signature": request.headers.get("x-webhook-signature") ?? "",
-            },
-            body,
-          });
-        } catch (error) {
-          console.error("Could not forward payment webhook to Firebase.", error);
-          return new Response("Payment webhook could not be processed", { status: 502 });
+        const signature = request.headers.get("x-paystack-signature") ?? "";
+        const expected = createHmac("sha512", secret).update(body).digest("hex");
+        const a = Buffer.from(signature, "utf8");
+        const b = Buffer.from(expected, "utf8");
+        if (a.length !== b.length || !timingSafeEqual(a, b)) {
+          return new Response("Invalid signature", { status: 401 });
         }
-        return new Response(await response.text(), {
-          status: response.status,
-          headers: { "Content-Type": response.headers.get("content-type") ?? "text/plain" },
-        });
+
+        let parsed: z.infer<typeof eventSchema>;
+        try {
+          parsed = eventSchema.parse(JSON.parse(body));
+        } catch {
+          return new Response("Invalid payload", { status: 400 });
+        }
+
+        const { event, data } = parsed;
+        const meta = (typeof data.metadata === "object" && data.metadata) ? data.metadata as Record<string, unknown> : {};
+        const reference = data.reference;
+        const now = new Date().toISOString();
+        const status =
+          event === "charge.success" ? "paid" :
+          event === "charge.failed" ? "failed" :
+          event.startsWith("refund") ? "refunded" : null;
+
+        if (!status) return new Response("ignored", { status: 200 });
+
+        try {
+          const { serviceMergeDocument } = await import("@/lib/firebase-service.server");
+          const orderId = safeId(meta.order_id);
+          const bookingId = safeId(meta.booking_id);
+          const userId = safeId(meta.user_id);
+
+          await serviceMergeDocument("payments", reference.replace(/[^A-Za-z0-9_-]/g, "_"), {
+            reference,
+            provider: "paystack",
+            status,
+            event,
+            amount_cents: data.amount ?? null,
+            currency: data.currency ?? "ZAR",
+            channel: data.channel ?? null,
+            customer_email: data.customer?.email ?? null,
+            user_id: userId,
+            order_id: orderId,
+            booking_id: bookingId,
+            purpose: typeof meta.purpose === "string" ? meta.purpose : null,
+            paid_at: data.paid_at ?? null,
+            updated_at: now,
+          });
+
+          if (orderId && status === "paid") {
+            await serviceMergeDocument("orders", orderId, {
+              payment_status: "paid", payment_reference: reference, paid_at: now, updated_at: now,
+            });
+          }
+          if (bookingId && status === "paid") {
+            await serviceMergeDocument("appointments", bookingId, {
+              payment_status: "paid", payment_reference: reference, updated_at: now,
+            });
+          }
+        } catch (error) {
+          console.error("[paystack-webhook] processing failed", error);
+          // Non-200 makes Paystack retry later.
+          return new Response("Processing failed", { status: 500 });
+        }
+
+        return new Response("ok", { status: 200 });
       },
     },
   },
