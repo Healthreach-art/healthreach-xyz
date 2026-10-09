@@ -9,6 +9,7 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 import { ServiceRatingPrompt } from "@/components/ServiceRatingPrompt";
 import { CookieConsent } from "@/components/CookieConsent";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { PatientBottomNav } from "@/components/PatientBottomNav";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -115,6 +116,23 @@ function AppShell() {
   const { user, loading } = useAuth();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const showSidebar = !!user && !loading && !NO_SIDEBAR_ROUTES.has(pathname);
+
+  if (user && pathname.startsWith("/dashboard/patient")) {
+    return (
+      <div className="flex min-h-screen w-full flex-col">
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur">
+          <Link to="/dashboard/patient" className="flex items-center gap-2" aria-label="HealthReachCare home">
+            <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-11 w-auto" />
+            <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">HealthReachCare</span>
+          </Link>
+        </header>
+        <main className="flex-1 pb-24">
+          <Outlet />
+        </main>
+        <PatientBottomNav />
+      </div>
+    );
+  }
 
   if (!showSidebar) {
     return (
