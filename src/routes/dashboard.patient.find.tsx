@@ -19,6 +19,9 @@ interface Doctor {
 }
 
 export const Route = createFileRoute("/dashboard/patient/find")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : "",
+  }),
   head: () => ({ meta: [{ title: "Book Appointment — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><FindCarePage /></RoleGuard>,
 });
@@ -41,7 +44,8 @@ interface HomecareProvider {
 const HOMECARE_RADIUS_OPTIONS = [25, 50, 100] as const;
 
 function FindCarePage() {
-  const [q, setQ] = useState("");
+  const searchParams = Route.useSearch();
+  const [q, setQ] = useState(searchParams.q);
   const [specialty, setSpecialty] = useState<string>("any");
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [homecare, setHomecare] = useState<HomecareProvider[]>([]);
@@ -49,6 +53,8 @@ function FindCarePage() {
   const [loading, setLoading] = useState(true);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
+
+  useEffect(() => { setQ(searchParams.q); }, [searchParams.q]);
 
   useEffect(() => {
     (async () => {

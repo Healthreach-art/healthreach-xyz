@@ -1,140 +1,209 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft,  ClipboardList, Pill, FileText, Activity, Heart, Calendar, ShoppingBag } from "lucide-react";
+import { CalendarDays, ChevronRight, ClipboardList, FileText, HousePlus, Loader2, Pill, Stethoscope } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/activity")({
   head: () => ({ meta: [{ title: "Health Records — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 
-interface Rx { id: string; medication_name: string; doctor_name: string; dosage: string; created_at: string; is_active: boolean }
-interface Order { id: string; medication_name: string; quantity: number; status: string; created_at: string }
-interface Reminder { id: string; medication_name: string; dosage: string; frequency: string; is_chronic: boolean }
+type ActivityFilter = "All" | "Appointments" | "Orders" | "Prescriptions" | "Home Care";
+type ActivityKind = "appointment" | "order" | "prescription" | "homecare";
+type DataRow = Record<string, unknown> & { id: string };
+
+interface ActivityItem {
+  id: string;
+  kind: ActivityKind;
+  title: string;
+  detail: string;
+  occurredAt: Date | null;
+  status: string;
+}
+
+const FILTERS: ActivityFilter[] = ["All", "Appointments", "Orders", "Prescriptions", "Home Care"];
+
+function asDate(value: unknown): Date | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
+    try { return value.toDate(); } catch { return null; }
+  }
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDate(value: Date | null) {
+  if (!value) return "Date unavailable";
+  const date = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(value);
+  const time = new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).format(value);
+  return `${date} · ${time}`;
+}
+
+function statusLabel(value: unknown, fallback: string) {
+  const status = typeof value === "string" ? value.toLowerCase().replace(/_/g, " ") : "";
+  if (!status) return fallback;
+  if (["delivered", "completed", "successful", "success"].includes(status)) return status === "completed" ? "Completed" : status === "successful" || status === "success" ? "Successful" : "Delivered";
+  if (["scheduled", "confirmed", "assigned"].includes(status)) return "Scheduled";
+  if (["processed", "approved", "active"].includes(status)) return "Processed";
+  if (["processing", "accepted", "in transit", "out for delivery"].includes(status)) return "Processing";
+  if (["reviewing", "under review", "pending review"].includes(status)) return "Reviewing";
+  if (status === "requested" || status === "pending") return "Pending";
+  return status.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function statusClass(status: string) {
+  if (["Delivered", "Completed", "Successful"].includes(status)) return "bg-emerald-100 text-emerald-800";
+  if (status === "Scheduled") return "bg-violet-100 text-violet-800";
+  if (status === "Processed") return "bg-sky-100 text-sky-800";
+  if (status === "Processing") return "bg-blue-100 text-blue-800";
+  return "bg-muted text-muted-foreground";
+}
+
+function iconFor(kind: ActivityKind) {
+  if (kind === "appointment") return Stethoscope;
+  if (kind === "order") return Pill;
+  if (kind === "prescription") return FileText;
+  return HousePlus;
+}
+
+function matchesFilter(kind: ActivityKind, filter: ActivityFilter) {
+  if (filter === "All") return true;
+  if (filter === "Appointments") return kind === "appointment";
+  if (filter === "Orders") return kind === "order";
+  if (filter === "Prescriptions") return kind === "prescription";
+  return kind === "homecare";
+}
 
 function Page() {
   const { user } = useAuth();
-  const [rx, setRx] = useState<Rx[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [filter, setFilter] = useState<ActivityFilter>("All");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
+    let active = true;
     (async () => {
-      const [r1, r2, r3] = await Promise.all([
-        firestoreClient.from("prescriptions").select("id, medication_name, doctor_name, dosage, created_at, is_active").eq("patient_id", user.id).order("created_at", { ascending: false }),
-        firestoreClient.from("orders").select("id, medication_name, quantity, status, created_at").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(20),
-        firestoreClient.from("medication_reminders").select("id, medication_name, dosage, frequency, is_chronic").eq("user_id", user.id).eq("active", true),
+      setLoading(true);
+      const [ordersResult, prescriptionsResult, bookingsResult, homecareResult] = await Promise.all([
+        firestoreClient.from("orders").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
+        firestoreClient.from("prescriptions").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
+        firestoreClient.from("bookings").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
+        firestoreClient.from("homecare_requests").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
       ]);
-      setRx((r1.data ?? []) as Rx[]);
-      setOrders((r2.data ?? []) as Order[]);
-      setReminders((r3.data ?? []) as Reminder[]);
+      if (!active) return;
+      const orders = (ordersResult.data ?? []) as DataRow[];
+      const prescriptions = (prescriptionsResult.data ?? []) as DataRow[];
+      const bookings = (bookingsResult.data ?? []) as DataRow[];
+      const homecareRequests = (homecareResult.data ?? []) as DataRow[];
+      const items: ActivityItem[] = [
+        ...orders.map((row) => ({
+          id: `order-${row.id}`,
+          kind: "order" as const,
+          title: row.delivery_id ? "Delivery" : "Medicine Order",
+          detail: [row.medication_name, row.quantity ? `Qty ${row.quantity}` : null, row.pharmacy_name].filter(Boolean).join(" · ") || "Medicine order",
+          occurredAt: asDate(row.created_at ?? row.createdAt),
+          status: statusLabel(row.status, "Pending"),
+        })),
+        ...prescriptions.map((row) => ({
+          id: `prescription-${row.id}`,
+          kind: "prescription" as const,
+          title: "Prescription Uploaded",
+          detail: [row.medication_name, row.doctor_name ? `Dr ${row.doctor_name}` : null, row.dosage].filter(Boolean).join(" · ") || "Prescription added to your records",
+          occurredAt: asDate(row.created_at ?? row.createdAt),
+          status: statusLabel(row.status ?? (row.is_active ? "processed" : "reviewing"), "Reviewing"),
+        })),
+        ...bookings.map((row) => {
+          const source = String(row.source ?? "").toLowerCase();
+          const service = String(row.service ?? row.service_type ?? "").toLowerCase();
+          const isHomecare = service.includes("home") || service.includes("care");
+          const isWhatsApp = source.includes("whatsapp");
+          return {
+            id: `booking-${row.id}`,
+            kind: isHomecare ? "homecare" as const : "appointment" as const,
+            title: isWhatsApp ? "WhatsApp Booking" : isHomecare ? "Home Care Request" : "Doctor Consultation",
+            detail: String(row.summary ?? row.details ?? row.specialty ?? row.service ?? "Booking request"),
+            occurredAt: asDate(row.created_at ?? row.createdAt ?? row.scheduled_at ?? row.scheduledAt),
+            status: statusLabel(row.status, "Pending"),
+          };
+        }),
+        ...homecareRequests.map((row) => ({
+          id: `homecare-${row.id}`,
+          kind: "homecare" as const,
+          title: "Home Care Request",
+          detail: [row.service_type, row.description].filter(Boolean).join(" · ") || "Home care visit",
+          occurredAt: asDate(row.created_at ?? row.createdAt ?? row.preferred_at),
+          status: statusLabel(row.status, row.preferred_at ? "Scheduled" : "Pending"),
+        })),
+      ];
+      setActivities(items.sort((a, b) => (b.occurredAt?.getTime() ?? 0) - (a.occurredAt?.getTime() ?? 0)));
+      setLoading(false);
     })();
+    return () => { active = false; };
   }, [user]);
 
-  const chronic = reminders.filter((r) => r.is_chronic);
-  const deliveredCount = orders.filter((o) => o.status === "delivered").length;
-
-  const stats = [
-    { label: "Active prescriptions", value: rx.filter((r) => r.is_active).length, icon: FileText, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Chronic medications", value: chronic.length, icon: Heart, color: "text-rose-600", bg: "bg-rose-100" },
-    { label: "Medication reminders", value: reminders.length, icon: Calendar, color: "text-healthcare-teal", bg: "bg-healthcare-mint/40" },
-    { label: "Lifetime orders", value: deliveredCount, icon: ShoppingBag, color: "text-healthcare-green", bg: "bg-healthcare-green/15" },
-  ];
+  const visibleActivities = useMemo(() => activities.filter((item) => matchesFilter(item.kind, filter)), [activities, filter]);
+  const emptyLinks: Record<ActivityFilter, { to: string; label: string }> = {
+    All: { to: "/dashboard/patient/find", label: "Find a doctor" },
+    Appointments: { to: "/dashboard/patient/find", label: "Book an appointment" },
+    Orders: { to: "/dashboard/patient/search", label: "Search medicines" },
+    Prescriptions: { to: "/dashboard/patient/prescriptions", label: "View prescriptions" },
+    "Home Care": { to: "/dashboard/patient/homecare", label: "Request home care" },
+  };
 
   return (
-    <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
-      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
-      </Link>
+    <div className="container-narrow space-y-6 px-4 py-8 pb-24 sm:px-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <ClipboardList className="h-6 w-6 text-primary" /> Health Records
-        </h1>
-        <p className="text-sm text-muted-foreground">Your prescriptions, chronic medications, and order history at a glance.</p>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground"><ClipboardList className="h-6 w-6 text-primary" /> Activities</h1>
+        <p className="text-sm text-muted-foreground">Your complete health journey in one place.</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-2xl border border-border bg-card p-4">
-            <div className={`h-9 w-9 rounded-xl ${s.bg} flex items-center justify-center mb-2`}>
-              <s.icon className={`h-4 w-4 ${s.color}`} />
-            </div>
-            <p className="text-xs text-muted-foreground">{s.label}</p>
-            <p className="text-2xl font-bold text-foreground">{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Prescriptions</h2>
-          <Link to="/dashboard/patient/prescriptions" className="text-xs text-primary font-semibold hover:underline">Manage →</Link>
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="flex w-max gap-2" role="group" aria-label="Filter activities">
+          {FILTERS.map((item) => (
+            <button key={item} type="button" aria-pressed={filter === item} onClick={() => setFilter(item)}
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${filter === item ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"}`}>
+              {item}
+            </button>
+          ))}
         </div>
-        {rx.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No prescriptions on file yet.</p>
-        ) : (
-          <div className="divide-y divide-border">
-            {rx.slice(0, 6).map((r) => (
-              <div key={r.id} className="py-3 flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center"><Pill className="h-4 w-4 text-primary" /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-foreground">{r.medication_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.dosage || "—"} • Dr {r.doctor_name || "Unknown"} • {new Date(r.created_at).toLocaleDateString("en-ZA", { dateStyle: "medium" })}
-                  </p>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : visibleActivities.length ? (
+        <div className="space-y-3">
+          {visibleActivities.map((item) => {
+            const Icon = iconFor(item.kind);
+            return (
+              <article key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-sm font-semibold text-foreground">{item.title}</h2>
+                  <p className="truncate text-sm text-muted-foreground">{item.detail}</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{formatDate(item.occurredAt)}</p>
                 </div>
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${r.is_active ? "bg-healthcare-green/15 text-healthcare-green" : "bg-muted text-muted-foreground"}`}>
-                  {r.is_active ? "Active" : "Inactive"}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Heart className="h-5 w-5 text-rose-600" /> Chronic medication</h2>
-          <Link to="/dashboard/patient/reminders" className="text-xs text-primary font-semibold hover:underline">Reminders →</Link>
-        </div>
-        {chronic.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No chronic medications tracked.</p>
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-3">
-            {chronic.map((c) => (
-              <div key={c.id} className="rounded-xl border border-border p-3">
-                <p className="font-semibold text-sm">{c.medication_name}</p>
-                <p className="text-xs text-muted-foreground">{c.dosage} • {c.frequency}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Activity className="h-5 w-5 text-healthcare-green" /> Order history</h2>
-          <Link to="/dashboard/patient/orders" className="text-xs text-primary font-semibold hover:underline">All orders →</Link>
-        </div>
-        {orders.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No orders yet.</p>
-        ) : (
-          <div className="divide-y divide-border">
-            {orders.slice(0, 8).map((o) => (
-              <div key={o.id} className="py-3 flex items-center justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <p className="font-semibold text-foreground truncate">{o.medication_name}</p>
-                  <p className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString("en-ZA", { dateStyle: "medium" })} • Qty {o.quantity}</p>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass(item.status)}`}>{item.status}</span>
+                  <ChevronRight className="hidden h-4 w-4 text-muted-foreground sm:block" />
                 </div>
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{o.status.replace(/_/g, " ")}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-12 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary"><ClipboardList className="h-6 w-6" /></div>
+          <h2 className="font-semibold text-foreground">No {filter === "All" ? "activities" : filter.toLowerCase()} yet</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Your care updates will appear here as you use HealthReachCare.</p>
+          <Link to={emptyLinks[filter].to as any} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+            {emptyLinks[filter].label}<ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

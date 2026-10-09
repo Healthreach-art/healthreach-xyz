@@ -10,7 +10,7 @@ When you have all details, give a clear summary and end your reply with exactly 
 BOOKING_SUMMARY: <one-line summary with service, name, suburb, date/time, details>`;
 
 const Msg = z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) });
-const WHATSAPP_FALLBACK = "Hi! To book a doctor, home care, or medication right now, tap the 'Chat on WhatsApp' button below and our team will confirm your booking immediately.";
+const WHATSAPP_FALLBACK = "Hi! To book a doctor, home care, or medication right now, chat with our team on WhatsApp: https://wa.me/27797285078";
 
 function fallbackReply() {
   return { reply: WHATSAPP_FALLBACK, error: null };

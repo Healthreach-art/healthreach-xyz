@@ -4,24 +4,16 @@ import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Pill,
-  Building2,
   Truck,
   ShieldCheck,
   Heart,
   Clock,
-  Users,
   HousePlus,
   Stethoscope,
   CalendarCheck as CalendarCheckIcon,
 } from "lucide-react";
 import heroAsset from "@/assets/hero-delivery.png.asset.json";
 const heroBg = heroAsset.url;
-import rolePatient from "@/assets/role-patient.jpg";
-import rolePharmacy from "@/assets/role-pharmacy.jpg";
-import roleHospital from "@/assets/role-hospital.jpg";
-import roleDriver from "@/assets/role-driver.jpg";
-import roleDoctor from "@/assets/role-doctor.jpg";
-import roleHomecare from "@/assets/role-homecare.jpg";
 import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
 import tileTrack from "@/assets/tile-track-delivery.png";
@@ -106,46 +98,29 @@ const features = [
 
 const roles = [
   {
-    icon: Users,
-    img: rolePatient,
-    title: "Patients",
-    description: "Order medication, track deliveries, and manage your health records.",
-    to: "/for-patients",
-  },
-  {
-    icon: Stethoscope,
-    img: roleDoctor,
-    title: "Doctors",
-    description: "HPCSA-verified doctors take bookings, issue digital prescriptions, and review patient files.",
-    to: "/for-doctors",
-  },
-  {
     icon: Pill,
-    img: rolePharmacy,
-    title: "Pharmacies",
-    description: "Manage inventory, fulfill orders, and process prescriptions efficiently.",
+    title: "Pharmacy",
+    description: "Manage prescriptions, medicine orders and deliveries.",
     to: "/for-pharmacies",
   },
   {
-    icon: Building2,
-    img: roleHospital,
-    title: "Hospitals",
-    description: "Issue digital prescriptions and coordinate patient care seamlessly.",
-    to: "/signup?role=hospital",
-  },
-  {
-    icon: Truck,
-    img: roleDriver,
-    title: "Drivers",
-    description: "Accept deliveries, navigate routes, and confirm drop-offs on the go.",
-    to: "/for-drivers",
-  },
-  {
     icon: HousePlus,
-    img: roleHomecare,
-    title: "Home Care Providers",
-    description: "Provide trusted care at home, manage your profile and documents, receive assignments, schedule visits, and keep customers updated throughout the care journey.",
-    to: "/signup?role=homecare_company",
+    title: "Homecare Provider",
+    description: "Manage homecare services, bookings, staff and patient visits.",
+    to: "/signup",
+    search: { role: "homecare_company" },
+  },
+  {
+    icon: Stethoscope,
+    title: "Doctors",
+    description: "Manage consultations, appointments, patient records and prescriptions.",
+    to: "/for-doctors",
+  },
+  {
+    icon: Heart,
+    title: "Patients",
+    description: "Access healthcare services, prescriptions, appointments and medicine deliveries.",
+    to: "/for-patients",
   },
 ];
 
@@ -252,30 +227,25 @@ function HomePage() {
               Tailored dashboards and workflows for each participant in the healthcare ecosystem.
             </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2">
             {roles.map((role) => (
-              <div key={role.title} className="healthcare-card overflow-hidden flex flex-col group">
-                <div className="relative h-44 w-full overflow-hidden bg-muted">
-                  <img
-                    src={role.img}
-                    alt={role.title}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute top-3 left-3 flex h-10 w-10 items-center justify-center rounded-lg bg-background/90 backdrop-blur-sm">
-                    <role.icon className="h-5 w-5 text-primary" />
+              <Link
+                key={role.title}
+                to={role.to as any}
+                search={role.search as any}
+                className="group h-full rounded-2xl border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md"
+              >
+                <div className="flex h-full flex-col justify-between">
+                  <div>
+                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <role.icon className="h-6 w-6" />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">{role.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{role.description}</p>
                   </div>
+                  <span className="mt-6 inline-flex text-sm font-semibold text-primary transition-transform group-hover:translate-x-1">Get Started →</span>
                 </div>
-                <div className="p-6 flex flex-col flex-1">
-                  <h3 className="text-lg font-semibold text-foreground">{role.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed flex-1">{role.description}</p>
-                  <Link to={role.to as any} className="mt-4">
-                    <Button variant="ghost" size="sm" className="w-fit text-primary p-0 hover:bg-transparent">
-                      Learn more →
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

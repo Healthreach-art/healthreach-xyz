@@ -81,18 +81,27 @@ const DOCUMENT_LABELS: Record<string, string> = {
 
 function getDocuments(row: Row) {
   return Object.entries(row).flatMap(([key, value]) => {
-    if (key !== "file_path" && !/(?:_path|_paths|_url)$/.test(key)) return [];
-    const values = Array.isArray(value) ? value : [value];
+    if (key !== "file_path" && key !== "certifications" && !/(?:_path|_paths|_url)$/.test(key)) return [];
+    const values = Array.isArray(value) ? value : key === "certifications" && value && typeof value === "object"
+      ? Object.entries(value).map(([name, path]) => ({ name, path }))
+      : [value];
     return values.flatMap((item, index) => {
-      if (typeof item !== "string" || !item.trim()) return [];
+      const itemPath = typeof item === "string"
+        ? item
+        : item && typeof item === "object"
+          ? String((item as Record<string, unknown>).path ?? (item as Record<string, unknown>).url ?? (item as Record<string, unknown>).file_path ?? (item as Record<string, unknown>).name ?? "")
+          : "";
+      if (!itemPath.trim()) return [];
       const label = key === "file_path"
         ? String(row.doc_key ?? row.document_type ?? "Uploaded document").replace(/_/g, " ")
+        : key === "certifications"
+          ? typeof item === "object" && item && "name" in item ? String(item.name) : "Certification"
         : DOCUMENT_LABELS[key] ?? key
         .replace(/_(?:path|paths|url)$/, "")
         .split("_")
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(" ");
-      return [{ key: `${key}-${index}`, label: values.length > 1 ? `${label} ${index + 1}` : label, path: item.trim() }];
+      return [{ key: `${key}-${index}`, label: values.length > 1 && key !== "certifications" ? `${label} ${index + 1}` : label, path: itemPath.trim() }];
     });
   });
 }
@@ -366,8 +375,6 @@ function FirebaseAdminPage() {
       <div className="space-y-4">
         {rows.length === 0 && <p className="text-muted-foreground py-8 text-center">No  records in this section.</p>}
         {rows.map((r) => {
-          const docs = isProviderTab ? getDocuments(r) : [];
-          const hasDocs = docs.length > 0;
           const isExpanded = expandedDocs[r.id];
 
           return (
@@ -409,7 +416,7 @@ function FirebaseAdminPage() {
                     className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
                   >
                     <FileText className="h-3.5 w-3.5" />
-                    {hasDocs ? `${docs.length} Uploaded Verification Documents` : "No documents submitted yet"}
+                    View Verification Documents
                     {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                   </button>
 

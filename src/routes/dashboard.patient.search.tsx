@@ -1,10 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { firestoreClient } from "@/lib/firestore-client";
-import { ArrowLeft } from "lucide-react";
-import { Search, Loader2, Plus, Stethoscope } from "lucide-react";
+import { ChevronRight, Home, Loader2, Pill, Plus, Search, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
@@ -16,6 +15,13 @@ import { listPatientMarketplace } from "@/lib/patient-marketplace.functions";
 
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; description?: string | null; category?: string | null; }
 interface Ph { user_id: string; organization_name: string | null; full_name: string; }
+
+const POPULAR_SERVICES = [
+  { name: "General Medicine", description: "Consultations & treatment" },
+  { name: "Pediatrics", description: "Child healthcare" },
+  { name: "Cardiology", description: "Heart specialist" },
+  { name: "Diabetes Care", description: "Specialised care" },
+];
 
 export const Route = createFileRoute("/dashboard/patient/search")({
   head: () => ({ meta: [{ title: "Search Medicines — HealthReachCare" }] }),
@@ -30,6 +36,12 @@ function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [rxFor, setRxFor] = useState<Med | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  function focusMedicineSearch() {
+    searchRef.current?.focus();
+    searchRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -83,25 +95,63 @@ function SearchPage() {
 
   return (
     <>
-      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
-      </Link>
-    <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Search Medicines</h1>
-        <p className="text-sm text-muted-foreground">Find any medicine across all approved pharmacies.</p>
-      </div>
-      <div className="relative">
-        <label htmlFor="med-search" className="sr-only">Search medicines</label>
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <input id="med-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, symptom, ingredient, category…" autoFocus aria-label="Search medicines"
-          className="w-full h-12 rounded-2xl border border-border bg-card pl-12 pr-4 text-sm shadow focus:outline-none focus:ring-2 focus:ring-primary" />
-      </div>
-      {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
-      {!loading && filtered.length === 0 && (
-        <div className="healthcare-card p-8 text-center text-sm text-muted-foreground">No medicines match.</div>
-      )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="container-narrow space-y-7 px-4 py-8 pb-24 sm:px-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Search</h1>
+          <p className="text-sm text-muted-foreground">Find doctors, medicines and care services.</p>
+        </div>
+
+        <div className="relative">
+          <label htmlFor="med-search" className="sr-only">Search doctors, medicines and services</label>
+          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <input ref={searchRef} id="med-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search doctors, medicines, services..." aria-label="Search doctors, medicines and services"
+            className="h-12 w-full rounded-2xl border border-border bg-card pl-12 pr-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Link to="/dashboard/patient/find" search={{ q: "" }} className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-accent">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-800"><Stethoscope className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1"><strong className="block text-sm text-foreground">Doctors</strong><span className="text-xs text-muted-foreground">Book an appointment</span></span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </Link>
+          <button type="button" onClick={focusMedicineSearch} className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800"><Pill className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1"><strong className="block text-sm text-foreground">Medicines</strong><span className="text-xs text-muted-foreground">Order &amp; deliver</span></span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </button>
+          <Link to="/dashboard/patient/homecare" className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-accent">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800"><Home className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1"><strong className="block text-sm text-foreground">Home Care</strong><span className="text-xs text-muted-foreground">Care at home</span></span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
+
+        <section aria-labelledby="popular-services-title">
+          <h2 id="popular-services-title" className="mb-3 text-lg font-bold text-foreground">Popular Services</h2>
+          <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+            {POPULAR_SERVICES.map((service) => (
+              <Link key={service.name} to="/dashboard/patient/find" search={{ q: service.name } as any} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Stethoscope className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1"><strong className="block text-sm text-foreground">{service.name}</strong><span className="text-xs text-muted-foreground">{service.description}</span></span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section aria-labelledby="medicines-title" className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 id="medicines-title" className="text-lg font-bold text-foreground">Medicine catalog</h2>
+              <p className="text-sm text-muted-foreground">Available medicines from approved pharmacies.</p>
+            </div>
+            <Link to="/dashboard/patient/orders" className="shrink-0 text-sm font-semibold text-primary hover:underline">Orders</Link>
+          </div>
+          {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
+          {!loading && filtered.length === 0 && (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">No medicines match.</div>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((med) => {
           const ph = pharmacies.find((p) => p.user_id === med.pharmacy_id);
           return (
@@ -138,8 +188,9 @@ function SearchPage() {
             </div>
           );
         })}
-      </div>
-      <Dialog open={!!rxFor} onOpenChange={(o) => !o && setRxFor(null)}>
+          </div>
+        </section>
+        <Dialog open={!!rxFor} onOpenChange={(o) => !o && setRxFor(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Stethoscope className="h-5 w-5 text-primary" /> Prescription required</DialogTitle>
@@ -164,8 +215,8 @@ function SearchPage() {
             />
           )}
         </DialogContent>
-      </Dialog>
-    </div>
+        </Dialog>
+      </div>
     </>
   );
 }

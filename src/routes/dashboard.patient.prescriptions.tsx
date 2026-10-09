@@ -273,7 +273,7 @@ function Page() {
                   </Button>
                   {canRefill && (u.repeats_total ?? 0) > (u.repeats_used ?? 0) && (
                     <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
-                      <Link to="/dashboard/patient/find">
+                      <Link to="/dashboard/patient/find" search={{ q: "" }}>
                         <RefreshCw className="h-3 w-3" /> Refill
                       </Link>
                     </Button>
