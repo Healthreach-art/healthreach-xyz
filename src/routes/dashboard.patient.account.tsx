@@ -104,7 +104,7 @@ function AccountPage() {
       >
         <LogOut className="h-5 w-5" /> Sign out
       </button>
-      <DeleteAccountButton />
+      <DeleteAccountButton variant="inline" />
     </div>
   );
 }
