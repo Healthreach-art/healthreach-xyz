@@ -17,6 +17,7 @@ type DataRow = Record<string, unknown> & { id: string };
 interface ActivityItem {
   id: string;
   kind: ActivityKind;
+  to: string;
   title: string;
   detail: string;
   occurredAt: Date | null;
@@ -39,7 +40,7 @@ function formatDate(value: Date | null) {
   if (!value) return "Date unavailable";
   const date = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(value);
   const time = new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).format(value);
-  return `${date} · ${time}`;
+  return `${date} • ${time}`;
 }
 
 function statusLabel(value: unknown, fallback: string) {
@@ -58,8 +59,15 @@ function statusClass(status: string) {
   if (["Delivered", "Completed", "Successful"].includes(status)) return "bg-emerald-100 text-emerald-800";
   if (status === "Scheduled") return "bg-violet-100 text-violet-800";
   if (status === "Processed") return "bg-sky-100 text-sky-800";
-  if (status === "Processing") return "bg-blue-100 text-blue-800";
+  if (status === "Processing") return "bg-amber-100 text-amber-800";
   return "bg-muted text-muted-foreground";
+}
+
+function iconClass(kind: ActivityKind) {
+  if (kind === "appointment") return "bg-teal-100 text-teal-800";
+  if (kind === "order") return "bg-green-100 text-green-800";
+  if (kind === "prescription") return "bg-blue-100 text-blue-800";
+  return "bg-emerald-100 text-emerald-800";
 }
 
 function iconFor(kind: ActivityKind) {
@@ -103,6 +111,7 @@ function Page() {
         ...orders.map((row) => ({
           id: `order-${row.id}`,
           kind: "order" as const,
+          to: "/dashboard/patient/orders",
           title: row.delivery_id ? "Delivery" : "Medicine Order",
           detail: [row.medication_name, row.quantity ? `Qty ${row.quantity}` : null, row.pharmacy_name].filter(Boolean).join(" · ") || "Medicine order",
           occurredAt: asDate(row.created_at ?? row.createdAt),
@@ -111,6 +120,7 @@ function Page() {
         ...prescriptions.map((row) => ({
           id: `prescription-${row.id}`,
           kind: "prescription" as const,
+          to: "/dashboard/patient/prescriptions",
           title: "Prescription Uploaded",
           detail: [row.medication_name, row.doctor_name ? `Dr ${row.doctor_name}` : null, row.dosage].filter(Boolean).join(" · ") || "Prescription added to your records",
           occurredAt: asDate(row.created_at ?? row.createdAt),
@@ -124,8 +134,9 @@ function Page() {
           return {
             id: `booking-${row.id}`,
             kind: isHomecare ? "homecare" as const : "appointment" as const,
+            to: isHomecare ? "/dashboard/patient/homecare" : isWhatsApp ? "/dashboard/patient/activity" : "/dashboard/patient/consultations",
             title: isWhatsApp ? "WhatsApp Booking" : isHomecare ? "Home Care Request" : "Doctor Consultation",
-            detail: String(row.summary ?? row.details ?? row.specialty ?? row.service ?? "Booking request"),
+            detail: String(row.summary ?? row.details ?? row.doctor_name ?? row.specialty ?? row.service ?? "Booking request"),
             occurredAt: asDate(row.created_at ?? row.createdAt ?? row.scheduled_at ?? row.scheduledAt),
             status: statusLabel(row.status, "Pending"),
           };
@@ -133,6 +144,7 @@ function Page() {
         ...homecareRequests.map((row) => ({
           id: `homecare-${row.id}`,
           kind: "homecare" as const,
+          to: "/dashboard/patient/homecare",
           title: "Home Care Request",
           detail: [row.service_type, row.description].filter(Boolean).join(" · ") || "Home care visit",
           occurredAt: asDate(row.created_at ?? row.createdAt ?? row.preferred_at),
@@ -157,15 +169,15 @@ function Page() {
   return (
     <div className="container-narrow space-y-6 px-4 py-8 pb-24 sm:px-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground"><ClipboardList className="h-6 w-6 text-primary" /> Activities</h1>
-        <p className="text-sm text-muted-foreground">Your complete health journey in one place.</p>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground sm:text-3xl"><ClipboardList className="h-6 w-6 text-primary" /> Activities</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Your complete health journey in one place.</p>
       </div>
 
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div className="flex w-max gap-2" role="group" aria-label="Filter activities">
           {FILTERS.map((item) => (
             <button key={item} type="button" aria-pressed={filter === item} onClick={() => setFilter(item)}
-              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${filter === item ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"}`}>
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${filter === item ? "bg-emerald-800 text-white" : "border border-border bg-muted/60 text-muted-foreground hover:bg-muted"}`}>
               {item}
             </button>
           ))}
@@ -179,8 +191,8 @@ function Page() {
           {visibleActivities.map((item) => {
             const Icon = iconFor(item.kind);
             return (
-              <article key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div>
+              <Link key={item.id} to={item.to as any} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:gap-4">
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${iconClass(item.kind)}`}><Icon className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate text-sm font-semibold text-foreground">{item.title}</h2>
                   <p className="truncate text-sm text-muted-foreground">{item.detail}</p>
@@ -188,9 +200,9 @@ function Page() {
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass(item.status)}`}>{item.status}</span>
-                  <ChevronRight className="hidden h-4 w-4 text-muted-foreground sm:block" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
-              </article>
+              </Link>
             );
           })}
         </div>

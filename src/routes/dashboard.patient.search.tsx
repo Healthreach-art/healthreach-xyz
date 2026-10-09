@@ -3,7 +3,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { firestoreClient } from "@/lib/firestore-client";
-import { ChevronRight, Home, Loader2, Pill, Plus, Search, Stethoscope } from "lucide-react";
+import { ChevronRight, HousePlus, Loader2, Pill, Plus, Search, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
@@ -97,8 +97,8 @@ function SearchPage() {
     <>
       <div className="container-narrow space-y-7 px-4 py-8 pb-24 sm:px-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Search</h1>
-          <p className="text-sm text-muted-foreground">Find doctors, medicines and care services.</p>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Search</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Find doctors, medicines and care services.</p>
         </div>
 
         <div className="relative">
@@ -109,25 +109,25 @@ function SearchPage() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Link to="/dashboard/patient/find" search={{ q: "" }} className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-accent">
+          <Link to="/dashboard/patient/find" search={{ q: "" }} className="group flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50 p-4 transition-colors hover:bg-sky-100">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-800"><Stethoscope className="h-5 w-5" /></span>
             <span className="min-w-0 flex-1"><strong className="block text-sm text-foreground">Doctors</strong><span className="text-xs text-muted-foreground">Book an appointment</span></span>
             <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </Link>
-          <button type="button" onClick={focusMedicineSearch} className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent">
+          <button type="button" onClick={focusMedicineSearch} className="group flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-left transition-colors hover:bg-emerald-100">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800"><Pill className="h-5 w-5" /></span>
             <span className="min-w-0 flex-1"><strong className="block text-sm text-foreground">Medicines</strong><span className="text-xs text-muted-foreground">Order &amp; deliver</span></span>
             <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </button>
-          <Link to="/dashboard/patient/homecare" className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-accent">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800"><Home className="h-5 w-5" /></span>
+          <Link to="/dashboard/patient/homecare" className="group flex items-center gap-3 rounded-2xl border border-teal-100 bg-teal-50 p-4 transition-colors hover:bg-teal-100">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-800"><HousePlus className="h-5 w-5" /></span>
             <span className="min-w-0 flex-1"><strong className="block text-sm text-foreground">Home Care</strong><span className="text-xs text-muted-foreground">Care at home</span></span>
             <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
 
         <section aria-labelledby="popular-services-title">
-          <h2 id="popular-services-title" className="mb-3 text-lg font-bold text-foreground">Popular Services</h2>
+          <h2 id="popular-services-title" className="mb-3 text-base font-bold text-foreground sm:text-lg">Popular Services</h2>
           <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
             {POPULAR_SERVICES.map((service) => (
               <Link key={service.name} to="/dashboard/patient/find" search={{ q: service.name } as any} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent">

@@ -10,6 +10,7 @@ import {
   Clock,
   HousePlus,
   Stethoscope,
+  Users,
   CalendarCheck as CalendarCheckIcon,
 } from "lucide-react";
 import heroAsset from "@/assets/hero-delivery.png.asset.json";
@@ -77,7 +78,7 @@ const features = [
     description: "Book doctors and pharmacists in minutes — in-person or virtual.",
   },
   {
-    icon: Heart,
+    icon: Users,
     img: tileRx,
     title: "Prescriptions & Care",
     description: "Upload prescriptions, manage refills, and coordinate patient care.",
@@ -227,7 +228,7 @@ function HomePage() {
               Tailored dashboards and workflows for each participant in the healthcare ecosystem.
             </p>
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
             {roles.map((role) => (
               <Link
                 key={role.title}
@@ -237,7 +238,7 @@ function HomePage() {
               >
                 <div className="flex h-full flex-col justify-between">
                   <div>
-                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                       <role.icon className="h-6 w-6" />
                     </div>
                     <h3 className="text-xl font-bold text-foreground">{role.title}</h3>
