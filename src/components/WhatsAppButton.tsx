@@ -3,6 +3,7 @@ import { MessageCircle, Send, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useServerFn } from "@tanstack/react-start";
 import { askBookingAssistant } from "@/lib/ai-booking.functions";
+import { useAuth } from "@/hooks/useAuth";
 
 const WA_NUMBER = "27797285078";
 const waLink = (t: string) => `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(t)}`;
@@ -19,6 +20,8 @@ export function WhatsAppButton() {
   const [msgs, setMsgs] = useState<Msg[]>([GREETING]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
+  const { user } = useAuth();
   const ask = useServerFn(askBookingAssistant);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -48,8 +51,25 @@ export function WhatsAppButton() {
     }
   }
 
+  async function saveBooking() {
+    if (!summary || saved) return;
+    const ref = `WA-${Date.now().toString(36).toUpperCase()}`;
+    setSaved(ref);
+    if (!user?.id) return;
+    try {
+      const { fsSet } = await import("@/lib/firestore");
+      const s = summary.toLowerCase();
+      const service = s.includes("home care") || s.includes("homecare") ? "homecare" : s.includes("medic") || s.includes("refill") ? "medicine" : "doctor";
+      await fsSet("bookings", ref, {
+        reference: ref, patient_id: user.id, patient_email: user.email ?? null,
+        source: "whatsapp_assistant", service, summary, status: "pending",
+        created_at: new Date().toISOString(),
+      }, false);
+    } catch (e) { console.error("save booking", e); }
+  }
+
   const waText = summary
-    ? `Hi HealthReachCare, I'd like to book: ${summary}`
+    ? `Hi HealthReachCare, I'd like to book${saved ? ` (ref ${saved})` : ""}: ${summary}`
     : "Hi HealthReachCare, I'd like to make a booking.";
 
   return (
@@ -87,7 +107,8 @@ export function WhatsAppButton() {
           {summary && (
             <div className="space-y-2 border-t border-border bg-card p-3 text-xs">
               <div className="font-medium">Booking summary: <span className="font-normal">{summary}</span></div>
-              <a href={waLink(waText)} target="_blank" rel="noopener noreferrer" className="block rounded-lg bg-primary py-2 text-center text-sm font-semibold text-primary-foreground">Confirm on WhatsApp</a>
+              <a href={waLink(waText)} onClick={saveBooking} target="_blank" rel="noopener noreferrer" className="block rounded-lg bg-primary py-2 text-center text-sm font-semibold text-primary-foreground">Confirm on WhatsApp</a>
+              {saved && <p className="text-center text-muted-foreground">Saved — reference {saved}. See it under Activities.</p>}
             </div>
           )}
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-2 border-t border-border p-2">
