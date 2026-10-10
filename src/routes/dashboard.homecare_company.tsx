@@ -44,9 +44,29 @@ function HomecareProviderPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data: p } = await firestoreClient.from("homecare_providers")
-      .select("id, user_id, provider_type, business_name, registration_number, contact_person, full_name, email, phone, address, latitude, longitude, service_areas, services, operating_hours, availability, pricing_notes, hourly_rate, qualifications, certifications, approval_status, approved_by, approved_at, rejection_reason, requested_documents, is_active, service_radius_km, created_at, updated_at")
+    let { data: p } = await firestoreClient.from("homecare_providers")
+      .select("*")
       .eq("user_id", user.id).maybeSingle();
+    if (!p) {
+      // first visit: create the provider's own onboarding record (pending admin review)
+      const now = new Date().toISOString();
+      const fresh = {
+        id: user.id, user_id: user.id, email: user.email ?? null,
+        provider_type: "company", status: "pending_review", approval_status: "pending_review",
+        is_active: false, services: [], service_areas: [], certifications: [],
+        requested_documents: [], service_radius_km: 25, created_at: now, updated_at: now,
+      };
+      const { error } = await firestoreClient.from("homecare_providers").insert(fresh as never);
+      if (!error) p = fresh as any;
+    }
+    if (p) {
+      p = {
+        ...p,
+        provider_type: p.provider_type ?? (p.homecare_type === "individual" ? "individual" : "company"),
+        business_name: p.business_name ?? p.organization_name ?? null,
+        approval_status: p.approval_status ?? p.status ?? "pending_review",
+      };
+    }
     setProvider(p);
     if (p) {
       const [{ data: d }, { data: s }, { data: a }] = await Promise.all([
@@ -78,7 +98,8 @@ function HomecareProviderPage() {
       <div className="container-narrow px-4 py-10">
         <div className="healthcare-card p-6 text-center">
           <p className="font-semibold">We couldn't find your home care record.</p>
-          <p className="text-sm text-muted-foreground mt-1">Please sign out and sign in again, or contact support.</p>
+          <p className="text-sm text-muted-foreground mt-1">We could not set up your home care profile automatically. Please try again, or contact support.</p>
+          <Button className="mt-4" onClick={() => { setLoading(true); void load(); }}>Try again</Button>
         </div>
       </div>
     );
