@@ -651,7 +651,14 @@ function PharmacyDashboard() {
             </Button>
           </div>
           {!loading && orderGroups.length === 0 && (
-            <p className="text-sm text-muted-foreground py-6 text-center">No orders yet. Add medications to your inventory so patients can find and order from you.</p>
+            <div className="py-6 text-center space-y-3">
+              <p className="text-sm text-muted-foreground">No orders yet. Add medications to your inventory so patients can find and order from you.</p>
+              {inventory.length === 0 && (
+                <Button asChild size="sm">
+                  <Link to="/dashboard/pharmacy/inventory"><Package className="h-4 w-4 mr-1" /> Load Essential OTC Pack</Link>
+                </Button>
+              )}
+            </div>
           )}
           <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
             {orderGroups.map((g) => {
