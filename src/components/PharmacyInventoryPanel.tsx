@@ -51,6 +51,7 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   const { user } = useAuth();
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingStarterPack, setLoadingStarterPack] = useState(false);
 
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
@@ -75,6 +76,79 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   }
 
   useEffect(() => { loadInventory(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
+
+  async function loadStarterPack() {
+    if (!user) return;
+    setLoadingStarterPack(true);
+
+    try {
+      const { data: existing, error: existingError } = await firestoreClient
+        .from("medications")
+        .select("name")
+        .eq("pharmacy_id", user.id)
+        .eq("is_demo", false);
+      if (existingError) throw new Error(existingError.message);
+
+      const { data: profile, error: profileError } = await firestoreClient
+        .from("profiles")
+        .select("latitude, longitude")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profileError) throw new Error(profileError.message);
+      if (!profile) throw new Error("Pharmacy profile not found.");
+
+      if (profile.latitude == null || profile.longitude == null) {
+        const { error: locationError } = await firestoreClient
+          .from("profiles")
+          .update({
+            address: "83 Rivonia Rd, Sandhurst, Sandton",
+            latitude: -26.1076,
+            longitude: 28.0567,
+            service_radius_km: 60,
+          })
+          .eq("user_id", user.id);
+        if (locationError) throw new Error(locationError.message);
+      }
+
+      const existingNames = new Set((existing ?? []).map((med) => med.name.trim().toLowerCase()));
+      const now = new Date().toISOString();
+      const starterPack = [
+        { name: "Panado 500mg Tablets (24s)", category: "Pain Relief", price: 49.99, stock_quantity: 60 },
+        { name: "Allergex 4mg Tablets (30s)", category: "Allergy", price: 65, stock_quantity: 45 },
+        { name: "Brufen 400mg Tablets (30s)", category: "Pain Relief", price: 85, stock_quantity: 50 },
+        { name: "Betadine Antiseptic Ointment 50g", category: "First Aid", price: 79.5, stock_quantity: 35 },
+        { name: "Gaviscon Double Action Liquid 300ml", category: "Digestive", price: 115, stock_quantity: 25 },
+        { name: "Centrum Select 50+ (30s)", category: "Vitamins & Supplements", price: 189, stock_quantity: 30 },
+        { name: "Iliadin 0.05% Metered Nose Spray 10ml", category: "Cold & Flu", price: 72, stock_quantity: 40 },
+        { name: "Prospan Cough Syrup 100ml", category: "Cold & Flu", price: 110, stock_quantity: 25 },
+      ]
+        .filter((med) => !existingNames.has(med.name.toLowerCase()))
+        .map((med) => ({
+          ...med,
+          pharmacy_id: user.id,
+          requires_prescription: false,
+          is_demo: false,
+          created_at: now,
+          updated_at: now,
+        }));
+
+      if (starterPack.length === 0) {
+        await loadInventory();
+        toast.info("The Essential OTC Pack is already in your inventory.");
+        return;
+      }
+
+      const { error } = await firestoreClient.from("medications").insert(starterPack);
+      if (error) throw new Error(error.message);
+
+      await loadInventory();
+      toast.success("Essential OTC pack loaded successfully!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load the Essential OTC Pack.");
+    } finally {
+      setLoadingStarterPack(false);
+    }
+  }
 
   function openAdd() {
     setEditingMed(null);
@@ -192,6 +266,10 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
         </div>
         <div className="flex items-center gap-2">
           <BulkMedicineImportDialog onImported={loadInventory} />
+          <Button size="sm" variant="outline" onClick={loadStarterPack} disabled={loadingStarterPack || loading}>
+            {loadingStarterPack ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
+            Load Essential OTC Pack
+          </Button>
           <Button size="sm" variant="outline" onClick={openAdd}>+ Add Item</Button>
         </div>
       </div>
