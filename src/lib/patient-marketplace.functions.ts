@@ -43,15 +43,23 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
       branches: [] as PatientMarketplaceBranch[],
     };
 
-    const { data: meds, error: medsError } = await firestoreAdmin
+    // Firestore rejects an inequality filter combined with orderBy on a different
+    // field, so filter by stock server-side and sort by name in memory.
+    const { data: rawMeds, error: medsError } = await firestoreAdmin
       .from("medications")
       .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category")
-      .gt("stock_quantity", 0)
-      .order("name", { ascending: true });
+      .gt("stock_quantity", 0);
 
-    if (medsError) throw new Error(medsError.message);
+    if (medsError) {
+      console.error("listPatientMarketplace medications:", medsError.message);
+      return empty;
+    }
 
-    const pharmacyIds = Array.from(new Set((meds ?? []).map((m) => m.pharmacy_id)));
+    const meds = [...(rawMeds ?? [])].sort((a: any, b: any) =>
+      String(a.name ?? "").localeCompare(String(b.name ?? "")),
+    );
+
+    const pharmacyIds = Array.from(new Set(meds.map((m: any) => m.pharmacy_id)));
     if (pharmacyIds.length === 0) return empty;
 
     const { data: roles, error: rolesError } = await firestoreAdmin
