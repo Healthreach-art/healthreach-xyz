@@ -98,7 +98,8 @@ function HomecareProviderPage() {
       <div className="container-narrow px-4 py-10">
         <div className="healthcare-card p-6 text-center">
           <p className="font-semibold">We couldn't find your home care record.</p>
-          <p className="text-sm text-muted-foreground mt-1">Please sign out and sign in again, or contact support.</p>
+          <p className="text-sm text-muted-foreground mt-1">We could not set up your home care profile automatically. Please try again, or contact support.</p>
+          <Button className="mt-4" onClick={() => { setLoading(true); void load(); }}>Try again</Button>
         </div>
       </div>
     );
