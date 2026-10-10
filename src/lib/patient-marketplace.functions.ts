@@ -68,7 +68,7 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
       .eq("role", "pharmacy")
       .in("user_id", pharmacyIds);
 
-    if (rolesError) throw new Error(rolesError.message);
+    if (rolesError) { console.error("marketplace roles:", rolesError.message); return empty; }
     const pharmacyRoleIds = new Set((roles ?? []).map((r) => r.user_id));
     if (pharmacyRoleIds.size === 0) return empty;
 
@@ -78,7 +78,7 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
       .in("user_id", Array.from(pharmacyRoleIds))
       .eq("approval_status", "approved");
 
-    if (pharmaciesError) throw new Error(pharmaciesError.message);
+    if (pharmaciesError) { console.error("marketplace pharmacies:", pharmaciesError.message); return empty; }
 
     const approvedIds = new Set((pharmacies ?? []).map((p) => p.user_id));
 
