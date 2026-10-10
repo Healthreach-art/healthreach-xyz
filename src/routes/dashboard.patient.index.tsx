@@ -137,7 +137,7 @@ function PatientDashboard() {
   const activeStepIdx = latestActive ? (STATUS_STEP[latestActive.status] ?? 0) : -1;
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-background min-h-screen overflow-x-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="space-y-6">
             {/* Greeting */}
@@ -156,16 +156,16 @@ function PatientDashboard() {
                 <Link
                   key={c.title}
                   to={c.to}
-                  className={`group rounded-3xl ${c.bg} p-4 sm:p-5 border hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col`}
+                  className={`group rounded-3xl ${c.bg} p-3 sm:p-5 border min-w-0 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col`}
                 >
                   {c.img ? (
-                    <img src={c.img} alt="" width={96} height={96} loading="lazy" className="h-20 w-20 sm:h-24 sm:w-24 object-contain mb-2 self-center" />
+                    <img src={c.img} alt="" width={96} height={96} loading="lazy" className="h-16 w-16 sm:h-24 sm:w-24 object-contain mb-2 self-center" />
                   ) : c.icon ? (
-                    <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-white/60 mb-2 self-center flex items-center justify-center">
+                    <div className="h-16 w-16 sm:h-24 sm:w-24 rounded-2xl bg-white/60 mb-2 self-center flex items-center justify-center">
                       <c.icon className="h-10 w-10 sm:h-12 sm:w-12 text-current" strokeWidth={1.5} />
                     </div>
                   ) : null}
-                  <p className="text-sm font-bold leading-tight">{c.title}</p>
+                  <p className="text-sm font-bold leading-tight break-words">{c.title}</p>
                   {c.subtitle && (
                     <p className="text-[11px] text-current/70 mt-0.5">{c.subtitle}</p>
                   )}
@@ -177,9 +177,9 @@ function PatientDashboard() {
             <MedicationReminderWidget />
 
             {/* Delivery Tracker */}
-            <div className="rounded-3xl bg-card border border-border p-5 sm:p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
+            <div className="rounded-3xl bg-card border border-border p-4 sm:p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
+                <div className="flex min-w-0 items-center gap-3">
                   <h2 className="text-lg font-bold text-foreground">Delivery Tracker</h2>
                   <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                     activeStepIdx < 0 ? "bg-muted text-muted-foreground" :
@@ -251,14 +251,14 @@ function PatientDashboard() {
                   {pickupCode && (
                     <div className="rounded-2xl border border-healthcare-sky/30 bg-healthcare-sky/10 p-4">
                       <p className="text-[10px] uppercase tracking-widest font-bold text-healthcare-sky">Pharmacy Pickup Code</p>
-                      <p className="text-3xl font-bold font-mono text-foreground tracking-[0.4em] mt-1">{pickupCode}</p>
+                      <p className="text-2xl sm:text-3xl font-bold font-mono text-foreground tracking-[0.2em] sm:tracking-[0.4em] break-all mt-1">{pickupCode}</p>
                       <p className="text-[11px] text-muted-foreground mt-1">Share with the driver at pickup.</p>
                     </div>
                   )}
                   {deliveryCode && (
                     <div className="rounded-2xl border border-healthcare-green/30 bg-healthcare-green/10 p-4">
                       <p className="text-[10px] uppercase tracking-widest font-bold text-healthcare-green">Your Delivery Code</p>
-                      <p className="text-3xl font-bold font-mono text-foreground tracking-[0.4em] mt-1">{deliveryCode}</p>
+                      <p className="text-2xl sm:text-3xl font-bold font-mono text-foreground tracking-[0.2em] sm:tracking-[0.4em] break-all mt-1">{deliveryCode}</p>
                       <p className="text-[11px] text-muted-foreground mt-1">Give this to the driver on arrival.</p>
                     </div>
                   )}
