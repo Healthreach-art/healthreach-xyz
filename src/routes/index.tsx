@@ -151,26 +151,26 @@ function HomePage() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/60 to-foreground/30" />
         </div>
-        <div className="relative container-narrow px-4 sm:px-6 py-24 sm:py-32 lg:py-40">
+        <div className="relative container-narrow px-4 sm:px-6 py-16 sm:py-24 lg:py-36">
           <div className="max-w-2xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/20 px-4 py-1.5 text-sm font-medium text-primary-foreground backdrop-blur-sm">
-              <Clock className="h-4 w-4" />
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/20 px-3 py-1.5 text-xs sm:text-sm font-medium text-primary-foreground backdrop-blur-sm">
+              <Clock className="h-4 w-4 shrink-0" />
               Healthcare, simplified
             </div>
             <h1 className="text-3xl sm:text-5xl break-words lg:text-6xl font-bold tracking-tight text-primary-foreground leading-[1.1]">
               HealthReachCare
             </h1>
-            <p className="mt-6 text-lg text-primary-foreground/80 leading-relaxed max-w-xl">
+            <p className="mt-4 sm:mt-6 text-base sm:text-lg text-primary-foreground/80 leading-relaxed max-w-xl">
               Your central hub for integrated healthcare. Connect with doctors, pharmacies, home care providers, hospitals, and delivery services in one seamless platform.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
-              <Link to="/login">
-                <Button variant="hero" size="xl">
+            <div className="mt-6 sm:mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
+              <Link to="/login" className="w-full sm:w-auto">
+                <Button variant="hero" size="xl" className="w-full sm:w-auto">
                   Sign In
                 </Button>
               </Link>
-              <Link to="/signup">
-                <Button variant="heroOutline" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+              <Link to="/signup" className="w-full sm:w-auto">
+                <Button variant="heroOutline" size="xl" className="w-full sm:w-auto border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
                   Create an account
                 </Button>
               </Link>
