@@ -18,6 +18,7 @@ type Branch = {
   service_radius_km: number;
   is_primary: boolean;
   is_active: boolean;
+  created_at?: string | null;
 };
 
 const empty = { name: "", phone: "", service_radius_km: 60, is_primary: false };
@@ -38,11 +39,19 @@ export function PharmacyBranchesManager() {
     const { data, error } = await firestoreClient
       .from("pharmacy_branches")
       .select("*")
-      .eq("pharmacy_id", user.id)
-      .order("is_primary", { ascending: false })
-      .order("created_at", { ascending: true });
-    if (error) toast.error(error.message);
-    setBranches((data as Branch[]) || []);
+      .eq("pharmacy_id", user.id);
+    if (error) {
+      console.warn("pharmacy_branches query:", error.message);
+    }
+
+    const list = ((data as Branch[]) || []).sort((a, b) => {
+      if (Boolean(b.is_primary) !== Boolean(a.is_primary)) {
+        return b.is_primary ? 1 : -1;
+      }
+      return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+    });
+
+    setBranches(list);
     setLoading(false);
   }
 
