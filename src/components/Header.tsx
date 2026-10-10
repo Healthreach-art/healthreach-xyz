@@ -20,9 +20,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container-narrow flex h-16 items-center justify-between px-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-2" aria-label="HealthReachCare home">
-          <img src={logo} alt="HealthReachCare" width={160} height={44} className="h-11 w-auto" />
-          <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
+        <Link to="/" className="flex min-w-0 items-center gap-2" aria-label="HealthReachCare home">
+          <img src={logo} alt="HealthReachCare" width={160} height={44} className="h-9 w-auto shrink-0 sm:h-11" />
+          <span className="truncate text-base font-bold tracking-tight text-foreground sm:text-xl">
             HealthReachCare
           </span>
         </Link>
@@ -66,7 +66,7 @@ export function Header() {
         </div>
 
         <button
-          className="md:hidden p-2 text-muted-foreground"
+          className="md:hidden shrink-0 p-2 text-muted-foreground"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
         >

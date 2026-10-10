@@ -138,7 +138,7 @@ function HomePage() {
     return <Navigate to={`/dashboard/${role}` as any} />;
   }
   return (
-    <div>
+    <div className="overflow-x-hidden">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
@@ -157,13 +157,13 @@ function HomePage() {
               <Clock className="h-4 w-4" />
               Healthcare, simplified
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-primary-foreground leading-[1.1]">
+            <h1 className="text-3xl sm:text-5xl break-words lg:text-6xl font-bold tracking-tight text-primary-foreground leading-[1.1]">
               HealthReachCare
             </h1>
             <p className="mt-6 text-lg text-primary-foreground/80 leading-relaxed max-w-xl">
               Your central hub for integrated healthcare. Connect with doctors, pharmacies, home care providers, hospitals, and delivery services in one seamless platform.
             </p>
-            <div className="mt-8 flex flex-wrap gap-4">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
               <Link to="/login">
                 <Button variant="hero" size="xl">
                   Sign In
