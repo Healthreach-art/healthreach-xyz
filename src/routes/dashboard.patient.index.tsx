@@ -10,13 +10,12 @@ import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { customerPrice } from "@/lib/pricing";
 import {
-  ArrowRight, Star, Pill, MessageSquare,
-  Siren, PhoneCall, CalendarCheck, FileText,
+  ArrowRight, Star, Pill, MessageSquare, Siren, PhoneCall,
+  Home, type LucideIcon,
 } from "lucide-react";
 import tileAppt from "@/assets/tile-book-appointment.png";
 import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
-import tileTrack from "@/assets/tile-track-delivery.png";
 
 
 export const Route = createFileRoute("/dashboard/patient/")({
@@ -37,11 +36,11 @@ interface OrderRow {
   pharmacy_id: string;
 }
 
-const ACTION_CARDS: Array<{ title: string; subtitle?: string; img?: string; icon?: any; to: string; bg: string }> = [
-  { title: "Book Appointment", subtitle: "Doctor or Homecare", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-purple-50" },
-  { title: "Order Medicine", img: tileMed, to: "/dashboard/patient/search", bg: "bg-healthcare-green/10" },
-  { title: "Upload Prescription", img: tileRx, to: "/dashboard/patient/prescriptions", bg: "bg-healthcare-mint/20" },
-  { title: "Track Delivery", img: tileTrack, to: "/dashboard/patient/orders", bg: "bg-healthcare-light" },
+const ACTION_CARDS: Array<{ title: string; subtitle?: string; img?: string; icon?: LucideIcon; to: string; bg: string }> = [
+  { title: "Order Medication", img: tileMed, to: "/dashboard/patient/search", bg: "bg-emerald-50 text-emerald-950 border-emerald-100" },
+  { title: "Book Doctor Appointment", subtitle: "Find nearby doctors & specialists", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-blue-50 text-blue-950 border-blue-100" },
+  { title: "Request Home Care Services", subtitle: "Verified caregivers & nurses", icon: Home, to: "/dashboard/patient/homecare", bg: "bg-purple-50 text-purple-950 border-purple-100" },
+  { title: "Upload Prescription", subtitle: "Quick upload for Rx orders", img: tileRx, to: "/dashboard/patient/prescriptions", bg: "bg-amber-50 text-amber-950 border-amber-100" },
 ];
 
 
@@ -59,8 +58,6 @@ function PatientDashboard() {
   const [mapDropoff, setMapDropoff] = useState<string | null>(null);
   const [pickupCode, setPickupCode] = useState<string | null>(null);
   const [deliveryCode, setDeliveryCode] = useState<string | null>(null);
-  const [activePrescriptionsCount, setActivePrescriptionsCount] = useState(0);
-  const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -127,24 +124,10 @@ function PatientDashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, load)
       .subscribe();
 
-    // Side stats
-    (async () => {
-      const [{ count: rxCount }, { count: apptCount }] = await Promise.all([
-        firestoreClient.from("prescription_uploads").select("id", { count: "exact", head: true })
-          .eq("patient_id", user.id).eq("status", "approved"),
-        firestoreClient.from("pharmacy_appointments").select("id", { count: "exact", head: true })
-          .eq("patient_id", user.id).gte("preferred_at", new Date().toISOString()),
-      ]).catch(() => [{ count: 0 } as any, { count: 0 } as any]);
-      if (cancelled) return;
-      setActivePrescriptionsCount(rxCount ?? 0);
-      setUpcomingAppointmentsCount(apptCount ?? 0);
-    })();
-
     return () => { cancelled = true; firestoreClient.removeChannel(ch); };
   }, [user?.id]);
 
   const driverInitial = (driverName || "?").charAt(0).toUpperCase();
-  const activeOrdersCount = orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length;
 
   // Map latest active order status → tracker index
   const STATUS_STEP: Record<string, number> = {
@@ -156,13 +139,11 @@ function PatientDashboard() {
   return (
     <div className="bg-background min-h-screen">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
-          {/* MAIN COLUMN */}
-          <div className="space-y-6">
+        <div className="space-y-6">
             {/* Greeting */}
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Welcome{firstName ? `, ${firstName}` : ""} <span className="inline-block">👋</span>
+                Welcome, {firstName || "Patient"} <span className="inline-block">👋</span>
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Your health is our priority. Let's take care of it today.
@@ -170,28 +151,30 @@ function PatientDashboard() {
             </div>
 
             {/* Action cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {ACTION_CARDS.map((c) => (
                 <Link
                   key={c.title}
                   to={c.to}
-                  className={`group rounded-3xl ${c.bg} p-4 sm:p-5 border border-border/40 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col`}
+                  className={`group rounded-3xl ${c.bg} p-4 sm:p-5 border hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col`}
                 >
                   {c.img ? (
                     <img src={c.img} alt="" width={96} height={96} loading="lazy" className="h-20 w-20 sm:h-24 sm:w-24 object-contain mb-2 self-center" />
                   ) : c.icon ? (
                     <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-white/60 mb-2 self-center flex items-center justify-center">
-                      <c.icon className="h-10 w-10 sm:h-12 sm:w-12 text-primary" strokeWidth={1.5} />
+                      <c.icon className="h-10 w-10 sm:h-12 sm:w-12 text-current" strokeWidth={1.5} />
                     </div>
                   ) : null}
-                  <p className="text-sm font-bold text-foreground leading-tight">{c.title}</p>
+                  <p className="text-sm font-bold leading-tight">{c.title}</p>
                   {c.subtitle && (
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{c.subtitle}</p>
+                    <p className="text-[11px] text-current/70 mt-0.5">{c.subtitle}</p>
                   )}
-                  <ArrowRight className="h-4 w-4 text-muted-foreground mt-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="h-4 w-4 text-current/70 mt-2 group-hover:translate-x-1 transition-transform" />
                 </Link>
               ))}
             </div>
+
+            <MedicationReminderWidget />
 
             {/* Delivery Tracker */}
             <div className="rounded-3xl bg-card border border-border p-5 sm:p-6 shadow-sm">
@@ -354,13 +337,8 @@ function PatientDashboard() {
                 </table>
               </div>
             </div>
-          </div>
-
-          {/* RIGHT PANEL */}
-          <aside className="space-y-5">
-            {/* Medication Reminders */}
-            <MedicationReminderWidget />
-
+            {/* Emergency and support */}
+            <section className="grid gap-5 lg:grid-cols-2">
             {/* Emergency */}
             <div className="rounded-3xl bg-card border-2 border-red-200 p-5 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
@@ -388,29 +366,6 @@ function PatientDashboard() {
               <p className="text-[11px] text-center text-muted-foreground mt-2">Your safety is our priority</p>
             </div>
 
-            {/* Health Summary */}
-            <div className="rounded-3xl bg-card border border-border p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-foreground">Health Summary</h3>
-                <span className="text-[11px] text-muted-foreground border border-border px-2 py-1 rounded-lg">This Month ▾</span>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { icon: Pill, color: "text-healthcare-green", bg: "bg-healthcare-green/10", label: "Active Prescriptions", value: String(activePrescriptionsCount) },
-                  { icon: CalendarCheck, color: "text-healthcare-sky", bg: "bg-healthcare-sky/15", label: "Upcoming Appointments", value: String(upcomingAppointmentsCount) },
-                  { icon: FileText, color: "text-orange-600", bg: "bg-orange-100", label: "Active Orders", value: String(activeOrdersCount) },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-center gap-3">
-                    <div className={`h-9 w-9 rounded-xl ${row.bg} flex items-center justify-center`}>
-                      <row.icon className={`h-4 w-4 ${row.color}`} />
-                    </div>
-                    <p className="flex-1 text-sm text-foreground">{row.label}</p>
-                    <p className="text-sm font-bold text-foreground">{row.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Need help */}
             <div className="rounded-3xl bg-card border border-border p-5 shadow-sm">
               <h3 className="font-bold text-foreground">Need Help?</h3>
@@ -429,7 +384,7 @@ function PatientDashboard() {
                 <ArrowRight className="h-4 w-4 text-healthcare-green" />
               </Link>
             </div>
-          </aside>
+            </section>
         </div>
       </div>
     </div>

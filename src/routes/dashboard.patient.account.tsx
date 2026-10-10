@@ -3,15 +3,15 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import {
-  CalendarCheck, Home, Pill, Truck, FileText, Stethoscope, Bell, ClipboardList,
   Users, MapPin, LifeBuoy, Wallet, CreditCard, ChevronRight, LogOut, RefreshCw,
+  ShieldCheck, Lock, FileText, type LucideIcon,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/account")({
   head: () => ({
     meta: [
       { title: "My Account — HealthReachCare" },
-      { name: "description", content: "Manage your HealthReachCare profile, care services, addresses and account settings." },
+      { name: "description", content: "Manage your HealthReachCare profile, payments and preferences." },
       { property: "og:title", content: "My Account — HealthReachCare" },
       { property: "og:description", content: "Manage your HealthReachCare profile and settings." },
       { property: "og:type", content: "website" },
@@ -21,45 +21,42 @@ export const Route = createFileRoute("/dashboard/patient/account")({
   component: () => <RoleGuard allow="patient"><AccountPage /></RoleGuard>,
 });
 
-type Item = { to: string; label: string; icon: typeof Home };
+type Item = { to: string; label: string; icon: LucideIcon };
 const SECTIONS: { title: string; items: Item[] }[] = [
   {
-    title: "Care and services",
+    title: "Wallet & Payments",
     items: [
-      { to: "/dashboard/patient/find", label: "Book Appointment", icon: CalendarCheck },
-      { to: "/dashboard/patient/homecare", label: "Home Care", icon: Home },
-      { to: "/dashboard/patient/search", label: "Order Medicine", icon: Pill },
-      { to: "/dashboard/patient/orders", label: "Orders & Deliveries", icon: Truck },
+      { to: "/dashboard/patient/wallet", label: "HealthReachCare Wallet", icon: Wallet },
+      { to: "/dashboard/patient/payment-methods", label: "Payment Methods & Cards", icon: CreditCard },
+      { to: "/dashboard/patient/medical-aid", label: "Medical Aid Details", icon: ShieldCheck },
+    ],
+  },
+  {
+    title: "Saved Places & Records",
+    items: [
+      { to: "/dashboard/patient/addresses", label: "Saved Delivery Addresses", icon: MapPin },
       { to: "/dashboard/patient/prescriptions", label: "Prescriptions & Documents", icon: FileText },
-      { to: "/dashboard/patient/consultations", label: "My Consultations", icon: Stethoscope },
-      { to: "/dashboard/patient/reminders", label: "Reminders", icon: Bell },
+      { to: "/dashboard/patient/family", label: "Family Dependents", icon: Users },
     ],
   },
   {
-    title: "Personal and health information",
+    title: "Safety & Support",
     items: [
-      { to: "/dashboard/patient/activity", label: "Health Records", icon: ClipboardList },
-      { to: "/dashboard/patient/family", label: "Family Profiles", icon: Users },
-      { to: "/dashboard/patient/addresses", label: "Addresses", icon: MapPin },
-      { to: "/dashboard/patient/medical-aid", label: "Medical Aid", icon: CreditCard },
-      { to: "/dashboard/patient/wallet", label: "Wallet", icon: Wallet },
+      { to: "/dashboard/patient/support", label: "Emergency Contacts & Support", icon: LifeBuoy },
+      { to: "/privacy", label: "Privacy & POPIA Preferences", icon: Lock },
     ],
-  },
-  {
-    title: "Help and account management",
-    items: [{ to: "/dashboard/patient/support", label: "Support", icon: LifeBuoy }],
   },
 ];
 
 function AccountPage() {
-  const { profile, signOut } = useAuth();
+  const { profile, user, signOut } = useAuth();
   const navigate = useNavigate();
   const name = profile?.full_name || "Patient";
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Account</h1>
-        <p className="text-sm text-muted-foreground">Manage your profile, settings and preferences.</p>
+        <p className="text-sm text-muted-foreground">Manage your profile, payments, and preferences.</p>
       </div>
 
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
@@ -68,8 +65,9 @@ function AccountPage() {
         </div>
         <div>
           <p className="font-semibold text-foreground">{name}</p>
-          <p className="text-sm text-primary">Patient</p>
+          <p className="text-sm text-muted-foreground">{profile?.email || user?.email || "No email available"}</p>
         </div>
+        <span className="ml-auto rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">Patient</span>
       </div>
 
       <Link to="/dashboard/patient/orders" className="flex items-center gap-3 rounded-2xl bg-healthcare-mint/30 p-4">
@@ -98,13 +96,18 @@ function AccountPage() {
         </section>
       ))}
 
-      <button
-        onClick={async () => { await signOut(); navigate({ to: "/login" }); }}
-        className="flex w-full items-center gap-3 rounded-2xl border border-destructive/40 px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/5"
-      >
-        <LogOut className="h-5 w-5" /> Sign out
-      </button>
-      <DeleteAccountButton variant="inline" />
+      <section>
+        <h2 className="mb-2 text-sm font-semibold text-primary">Session</h2>
+        <div className="space-y-3">
+          <button
+            onClick={async () => { await signOut(); navigate({ to: "/login" }); }}
+            className="flex w-full items-center gap-3 rounded-2xl border border-destructive/40 px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/5"
+          >
+            <LogOut className="h-5 w-5" /> Sign out
+          </button>
+          <DeleteAccountButton variant="inline" />
+        </div>
+      </section>
     </div>
   );
 }

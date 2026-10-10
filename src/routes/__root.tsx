@@ -120,7 +120,7 @@ function AppShell() {
   if (user && pathname.startsWith("/dashboard/patient")) {
     return (
       <div className="flex min-h-screen w-full flex-col">
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur">
+        <header className="sticky top-0 z-40 h-16 border-b border-border bg-background/95 backdrop-blur px-4 flex items-center">
           <Link to="/dashboard/patient" className="flex items-center gap-2" aria-label="HealthReachCare home">
             <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-11 w-auto" />
             <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">HealthReachCare</span>
@@ -137,9 +137,10 @@ function AppShell() {
   if (!showSidebar) {
     return (
       <div className="flex min-h-screen flex-col w-full">
-        <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-4">
-          <Link to="/" aria-label="HealthReachCare home">
-            <img src={logoUrl} alt="HealthReachCare" width={120} height={32} className="h-7 w-auto" />
+        <header className="sticky top-0 z-40 h-16 border-b border-border bg-background/95 backdrop-blur px-4 flex items-center">
+          <Link to="/" className="flex items-center gap-2" aria-label="HealthReachCare home">
+            <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-11 w-auto" />
+            <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">HealthReachCare</span>
           </Link>
         </header>
         <main className="flex-1">
@@ -177,10 +178,11 @@ function SidebarShell() {
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="sticky top-0 z-40 h-12 flex items-center gap-2 border-b border-border bg-background/95 backdrop-blur px-3">
-            <SidebarTrigger />
-            <Link to="/" aria-label="HealthReachCare home">
-              <img src={logoUrl} alt="HealthReachCare" width={120} height={32} className="h-7 w-auto" />
+          <header className="sticky top-0 z-40 h-16 border-b border-border bg-background/95 backdrop-blur px-4 flex items-center">
+            <SidebarTrigger className="mr-2" />
+            <Link to="/" className="flex items-center gap-2" aria-label="HealthReachCare home">
+              <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-11 w-auto" />
+              <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">HealthReachCare</span>
             </Link>
           </header>
           <main className="flex-1">
@@ -192,4 +194,3 @@ function SidebarShell() {
     </SidebarProvider>
   );
 }
-
