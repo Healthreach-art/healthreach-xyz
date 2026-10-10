@@ -43,15 +43,23 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
       branches: [] as PatientMarketplaceBranch[],
     };
 
-    const { data: meds, error: medsError } = await firestoreAdmin
+    // Firestore rejects an inequality filter combined with orderBy on a different
+    // field, so filter by stock server-side and sort by name in memory.
+    const { data: rawMeds, error: medsError } = await firestoreAdmin
       .from("medications")
       .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category")
-      .gt("stock_quantity", 0)
-      .order("name", { ascending: true });
+      .gt("stock_quantity", 0);
 
-    if (medsError) throw new Error(medsError.message);
+    if (medsError) {
+      console.error("listPatientMarketplace medications:", medsError.message);
+      return empty;
+    }
 
-    const pharmacyIds = Array.from(new Set((meds ?? []).map((m) => m.pharmacy_id)));
+    const meds = [...(rawMeds ?? [])].sort((a: any, b: any) =>
+      String(a.name ?? "").localeCompare(String(b.name ?? "")),
+    );
+
+    const pharmacyIds = Array.from(new Set(meds.map((m: any) => m.pharmacy_id)));
     if (pharmacyIds.length === 0) return empty;
 
     const { data: roles, error: rolesError } = await firestoreAdmin
@@ -60,7 +68,7 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
       .eq("role", "pharmacy")
       .in("user_id", pharmacyIds);
 
-    if (rolesError) throw new Error(rolesError.message);
+    if (rolesError) { console.error("marketplace roles:", rolesError.message); return empty; }
     const pharmacyRoleIds = new Set((roles ?? []).map((r) => r.user_id));
     if (pharmacyRoleIds.size === 0) return empty;
 
@@ -70,7 +78,7 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
       .in("user_id", Array.from(pharmacyRoleIds))
       .eq("approval_status", "approved");
 
-    if (pharmaciesError) throw new Error(pharmaciesError.message);
+    if (pharmaciesError) { console.error("marketplace pharmacies:", pharmaciesError.message); return empty; }
 
     const approvedIds = new Set((pharmacies ?? []).map((p) => p.user_id));
 
