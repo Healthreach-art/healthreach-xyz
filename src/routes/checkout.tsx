@@ -83,6 +83,7 @@ function CheckoutPage() {
   const [success, setSuccess] = useState(false);
   const [rxIssues, setRxIssues] = useState<{ medId: string; message: string }[]>([]);
   const [priority, setPriority] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<string>("");
   const [pharmacyCoords, setPharmacyCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -195,6 +196,7 @@ function CheckoutPage() {
     e.preventDefault();
     if (!user) { navigate({ to: "/login" }); return; }
     if (items.length === 0) { toast.error("Your cart is empty."); return; }
+    if (!termsAccepted) { toast.error("Please accept the terms before paying."); return; }
     const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
     const bad = items.find((i) => !i.pharmacyId || !UUID_RE.test(i.pharmacyId));
     if (bad) {
@@ -476,7 +478,23 @@ function CheckoutPage() {
             <p className="text-xs text-muted-foreground">You'll be redirected to Paystack to complete payment securely. Card details never touch HealthReachCare.</p>
           </div>
 
-          <Button type="submit" size="lg" className="w-full rounded-xl h-12" disabled={processing}>
+          {/* Required consent before payment (South African dispensing rules) */}
+          <div className="healthcare-card p-5 space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox checked={termsAccepted} onCheckedChange={(v) => setTermsAccepted(!!v)} className="mt-0.5" />
+              <span className="text-xs leading-relaxed text-muted-foreground">
+                I understand that HealthReachCare is a technology platform connecting me with independent,
+                licensed pharmacies and registered healthcare providers, who are responsible for the care they give.
+                I confirm that prescription medicines (Schedule 2 and above) will only be dispensed after a pharmacist
+                checks a valid South African prescription, and that the pharmacist may refuse or adjust an order.
+                I agree to the{" "}
+                <Link to="/terms" className="text-primary underline" target="_blank">Terms of Service</Link> and{" "}
+                <Link to="/privacy" className="text-primary underline" target="_blank">Privacy Policy (POPIA)</Link>.
+              </span>
+            </label>
+          </div>
+
+          <Button type="submit" size="lg" className="w-full rounded-xl h-12" disabled={processing || !termsAccepted}>
             {processing
               ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
               : <><Lock className="h-4 w-4" /> Pay R{total.toFixed(2)} with Paystack</>}
