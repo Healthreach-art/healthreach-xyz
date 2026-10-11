@@ -16,7 +16,8 @@ interface Props {
   className?: string;
 }
 
-const DEFAULT_CENTER: Coords = [-33.9249, 18.4241]; // Cape Town
+const DEFAULT_CENTER: Coords = [-26.2041, 28.0473]; // Johannesburg
+const ACTIVE_STATUSES = new Set(["pending", "accepted", "preparing", "ready", "assigned", "picked_up", "in_transit"]);
 
 /** Leaflet OSM map with REAL driving route (Mapbox) + LIVE driver marker (realtime). */
 export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, className }: Props) {
@@ -29,6 +30,9 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
   const [info, setInfo] = useState<{ km: number | null; min: number | null }>({ km: null, min: null });
   const [collapsed, setCollapsed] = useState(false);
   const fetchDirections = useServerFn(getDirections);
+  // Privacy: customer location is only shown while an order is actively in progress.
+  const isActive = !!status && ACTIVE_STATUSES.has(status);
+  const safeDropoff = isActive ? dropoff : null;
 
 
   useEffect(() => {
@@ -73,18 +77,18 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
 
   // Render real driving route + endpoint pins on pickup/dropoff change
   useEffect(() => {
-    if (!ready || !mapRef.current || !pickup || !dropoff) return;
+    if (!ready || !mapRef.current || !pickup) return;
     const { L, map, layer } = mapRef.current;
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetchDirections({ data: { pickup, dropoff } });
+        const res = await fetchDirections({ data: { pickup, dropoff: safeDropoff || pickup } });
         if (cancelled) return;
         layer.clearLayers();
         driverMarkerRef.current = null;
         const a = res.pickup as Coords | null;
-        const b = res.dropoff as Coords | null;
-        const route = (res.route as Coords[] | null) ?? (a && b ? [a, b] : []);
+        const b = safeDropoff ? (res.dropoff as Coords | null) : null;
+        const route = b ? ((res.route as Coords[] | null) ?? (a ? [a, b] : [])) : [];
         ptsRef.current = { a, b, route };
         if (a) L.marker(a, { icon: pinIcon(L, "#0ea5e9", "P") }).addTo(layer).bindTooltip("Pharmacy (pickup)");
         if (b) L.marker(b, { icon: pinIcon(L, "#10b981", "C") }).addTo(layer).bindTooltip("Customer (drop-off)");
@@ -101,13 +105,17 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
       }
     })();
     return () => { cancelled = true; };
-  }, [ready, pickup, dropoff, fetchDirections]);
+  }, [ready, pickup, safeDropoff, fetchDirections]);
 
   // Driver pin: prefer live coords; otherwise interpolate along the route
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     const { L, map, layer } = mapRef.current;
     const { a, b, route } = ptsRef.current;
+    if (!isActive && !liveCoords) {
+      if (driverMarkerRef.current) { layer.removeLayer(driverMarkerRef.current); driverMarkerRef.current = null; }
+      return;
+    }
     let pos: Coords | null = liveCoords;
     if (!pos && route.length >= 2) {
       const t = status === "delivered" ? 1 : status === "in_transit" ? 0.65 : status === "picked_up" ? 0.2 : 0.0;
@@ -123,7 +131,7 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
       driverMarkerRef.current = L.marker(pos, { icon: driverIcon(L) }).addTo(layer).bindTooltip("Driver");
     }
     if (liveCoords) map.panTo(pos, { animate: true });
-  }, [ready, liveCoords, status, pickup, dropoff]);
+  }, [ready, liveCoords, status, pickup, safeDropoff, isActive]);
 
   // Leaflet needs invalidateSize when the container is re-shown from display:none
   useEffect(() => {
