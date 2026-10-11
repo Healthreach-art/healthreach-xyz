@@ -232,8 +232,14 @@ class FirestoreQuery<T extends RowData[] | RowData | null> implements PromiseLik
     try {
       let rows: RowData[];
       if (this.operation === "select") {
-        rows = await fsList<RowData>(this.collectionName, ...this.constraints);
+        // limit must run after in-memory filters, otherwise matching rows get cut off first
+        const filtersInMemory = this.localFilters.length > 0 || this.orGroups.length > 0;
+        const serverConstraints = !filtersInMemory && this.maxCount !== null
+          ? [...this.constraints, firestoreLimit(this.maxCount)]
+          : this.constraints;
+        rows = await fsList<RowData>(this.collectionName, ...serverConstraints);
         rows = this.applyLocalFilters(rows);
+        if (filtersInMemory && this.maxCount !== null) rows = rows.slice(0, this.maxCount);
         if (this.rangeValue) rows = rows.slice(this.rangeValue[0], this.rangeValue[1] + 1);
         rows = rows.map((row) => this.project(row));
       } else if (this.operation === "insert" || this.operation === "upsert") {
@@ -278,6 +284,7 @@ class FirestoreQuery<T extends RowData[] | RowData | null> implements PromiseLik
   }
 
   private applyLocalFilters(rows: RowData[]): RowData[] {
+    if (this.orGroups.length) rows = rows.filter((row) => this.orGroups.every((g) => evaluateOrNode(g, row)));
     if (this.localFilters.length === 0) return rows;
     return rows.filter((row) =>
       this.localFilters.some(({ field, op, value }) => {
