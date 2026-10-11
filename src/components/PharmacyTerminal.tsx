@@ -15,6 +15,7 @@ import { PharmacyReviewActions, PrescriptionStatusBadge, type PrescriptionUpload
 import { PharmacyOffersInbox } from "@/components/PharmacyOffersInbox";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { toast } from "sonner";
+import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 
 interface Order {
   id: string;
@@ -25,6 +26,7 @@ interface Order {
   status: string;
   total_amount: number;
   created_at: string;
+  prescription_upload_id?: string | null;
   delivery_address?: string | null;
   priority?: boolean | null;
   scheduled_for?: string | null;
@@ -307,7 +309,7 @@ export function PharmacyTerminal() {
                       </div>
                       {pickupCodes[group.primaryOrderId] && <p className="mt-2 text-xs font-semibold text-primary">Driver pickup code: <span className="font-mono tracking-widest">{pickupCodes[group.primaryOrderId]}</span></p>}
                       <ul className="my-3 space-y-1 text-sm">
-                        {group.items.map((item) => <li key={item.id} className="flex justify-between gap-2"><span>{item.medication_name} × {item.quantity}</span><span className="text-muted-foreground">R {Number(item.total_amount).toFixed(2)}</span></li>)}
+                        {group.items.map((item) => <li key={item.id} className="flex justify-between gap-2"><span className="inline-flex flex-wrap items-center gap-2">{item.medication_name} × {item.quantity}<PrescriptionBadge prescriptionAttached={!!item.prescription_upload_id} /></span><span className="text-muted-foreground">R {Number(item.total_amount).toFixed(2)}</span></li>)}
                       </ul>
                       <p className="flex items-start gap-1.5 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{address}</p>
                       <div className="mt-3 flex flex-wrap gap-2">

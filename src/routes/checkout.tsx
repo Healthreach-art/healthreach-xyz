@@ -21,6 +21,7 @@ import { placeOrderWithRouting } from "@/lib/dispatch.functions";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
+import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
 import { Users } from "lucide-react";
 
@@ -514,6 +515,7 @@ function CheckoutPage() {
                 <li key={it.medId} className="flex items-start gap-3 py-3 text-sm">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{it.name}</p>
+                    <div className="mt-1"><PrescriptionBadge requiresPrescription={it.requiresPrescription} prescriptionAttached={!!it.prescriptionUploadId} /></div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{it.pharmacyName}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <label htmlFor={`qty-${it.medId}`} className="sr-only">Quantity for {it.name}</label>

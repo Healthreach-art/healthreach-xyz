@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCart } from "@/hooks/useCart";
 import { customerPrice } from "@/lib/pricing";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
+import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 import { toast } from "sonner";
 import pharmacy1 from "@/assets/pharmacy-1.jpg";
 import pharmacy2 from "@/assets/pharmacy-2.jpg";
@@ -268,6 +269,7 @@ function Storefront() {
                   <img src={medGeneric} alt="" loading="lazy" className="h-20 w-20 rounded-xl object-cover shrink-0" />
                   <div className="flex-1 min-w-0 flex flex-col">
                     <p className="text-sm font-semibold text-foreground line-clamp-2">{med.name}</p>
+                    <div className="mt-1"><PrescriptionBadge requiresPrescription={med.requires_prescription} /></div>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                       {med.stock_quantity} in stock {med.requires_prescription && "· Rx"}
                     </p>

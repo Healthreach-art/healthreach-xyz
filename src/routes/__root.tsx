@@ -117,7 +117,10 @@ function AppShell() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const showSidebar = !!user && !loading && !NO_SIDEBAR_ROUTES.has(pathname);
 
-  if (user && role === "pharmacy" && pathname.startsWith("/dashboard/pharmacy")) {
+  if (user && (
+    (role === "pharmacy" && pathname.startsWith("/dashboard/pharmacy")) ||
+    (role === "homecare_company" && pathname === "/dashboard/homecare_company")
+  )) {
     return (
       <div className="flex min-h-screen w-full flex-col overflow-x-hidden">
         <main className="flex-1">

@@ -84,7 +84,8 @@ export function AppSidebar() {
     { title: "Contact", url: "/contact", icon: Phone },
   ];
 
-  if (role === "pharmacy") return null;
+  // Hide the desktop sidebar for pharmacy and home-care provider terminals.
+  if (role === "pharmacy" || role === "homecare_company") return null;
 
   const renderGroup = (label: string, items: Item[]) =>
     items.length ? (

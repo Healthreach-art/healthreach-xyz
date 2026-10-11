@@ -14,6 +14,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { cancelOrder } from "@/lib/orders.functions";
 import { ReviewDialog } from "@/components/ReviewDialog";
 import { groupAndHydrate, type GroupedOrder } from "@/lib/orderGroups";
+import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 
 
 interface OrderRow {
@@ -260,7 +261,7 @@ export function OrderHistory() {
                 <ul className="text-sm space-y-0.5">
                   {g.items.map((it) => (
                     <li key={it.id} className="flex justify-between gap-2">
-                      <span className="font-medium">{it.medication_name} <span className="text-muted-foreground font-normal">× {it.quantity}</span></span>
+                      <span className="flex flex-wrap items-center gap-2 font-medium">{it.medication_name} <span className="text-muted-foreground font-normal">× {it.quantity}</span><PrescriptionBadge prescriptionAttached={!!it.prescription_upload_id} /></span>
                       <span className="text-xs text-muted-foreground">R {Number(it.total_amount).toFixed(2)}</span>
                     </li>
                   ))}

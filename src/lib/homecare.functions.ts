@@ -305,3 +305,34 @@ export const getMyHomecareBanking = createServerFn({ method: "GET" })
       branch_code: data?.branch_code ?? "",
     };
   });
+
+/** Owner-only update of a provider's protected banking details. */
+export const saveMyHomecareBanking = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .inputValidator((d) => z.object({
+    bank_name: z.string().max(120).optional(),
+    account_holder: z.string().max(160).optional(),
+    account_number: z.string().max(80).optional(),
+    branch_code: z.string().max(40).optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const { data: provider, error: providerError } = await firestoreAdmin
+      .from("homecare_providers")
+      .select("id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (providerError) throw new Error(providerError.message);
+    if (!provider) throw new Error("Home care provider profile not found.");
+    const { error } = await firestoreAdmin
+      .from("homecare_providers")
+      .update({
+        bank_name: data.bank_name?.trim() || null,
+        account_holder: data.account_holder?.trim() || null,
+        account_number: data.account_number?.trim() || null,
+        branch_code: data.branch_code?.trim() || null,
+      })
+      .eq("id", provider.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { firestoreClient } from "@/lib/firestore-client";
@@ -8,15 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { toast } from "sonner";
 import {
-  HomeIcon, Loader2, Upload, FileText, Users, ClipboardList, Trash2, CheckCircle2, XCircle,
+  Building2, CalendarClock, CheckCircle2, ClipboardList, HomeIcon, Loader2, LogOut, Trash2, Upload, XCircle,
 } from "lucide-react";
 import { docsFor, APPROVAL_LABEL, ASSIGNMENT_LABEL, HOMECARE_SERVICES } from "@/lib/homecare";
-import { getHomecareDocumentUrl, getMyHomecareBanking } from "@/lib/homecare.functions";
+import { getHomecareDocumentUrl, getMyHomecareBanking, saveMyHomecareBanking } from "@/lib/homecare.functions";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
+import { HomecareBottomNav, type HomecareTerminalTab } from "@/components/HomecareBottomNav";
 
 export const Route = createFileRoute("/dashboard/homecare_company")({
   head: () => ({
@@ -35,12 +37,14 @@ export const Route = createFileRoute("/dashboard/homecare_company")({
 type Provider = any;
 
 function HomecareProviderPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
   const [docs, setDocs] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<HomecareTerminalTab>("overview");
+  const [statusBusy, setStatusBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -107,26 +111,59 @@ function HomecareProviderPage() {
 
   const status = provider.approval_status as string;
   const requested: string[] = Array.isArray(provider.requested_documents) ? provider.requested_documents : [];
+  const offeredCount = assignments.filter((assignment) => assignment.status === "offered").length;
+  const activeVisitCount = assignments.filter((assignment) => ["accepted", "scheduled", "in_progress"].includes(assignment.status)).length;
+  const completedCount = assignments.filter((assignment) => ["completed", "confirmed"].includes(assignment.status)).length;
+  const navTab: HomecareTerminalTab = provider.provider_type === "individual" && activeTab === "staff" ? "profile" : activeTab;
+
+  const toggleAvailability = async () => {
+    if (status !== "approved") {
+      toast.error("Availability can only be changed after your provider account is approved.");
+      return;
+    }
+    setStatusBusy(true);
+    const { error } = await firestoreClient.from("homecare_providers")
+      .update({ is_active: !provider.is_active })
+      .eq("id", provider.id);
+    setStatusBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(provider.is_active ? "You are paused and will not receive new assignments." : "You are available for new assignments.");
+    await load();
+  };
 
   return (
-    <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <HomeIcon className="h-6 w-6 text-primary" />
-            {provider.provider_type === "individual" ? "Home Care Provider" : "Home Care Company"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {provider.business_name || provider.full_name || provider.email}
-          </p>
+    <div className="min-h-screen bg-background pb-20">
+      <header className="border-b border-border bg-card px-4 py-4 sm:px-6">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Home care provider terminal</p>
+              <h1 className="mt-1 flex items-center gap-2 text-xl font-bold sm:text-2xl">
+                <HomeIcon className="h-5 w-5 text-primary" />
+                {provider.business_name || provider.full_name || provider.email}
+              </h1>
+              <p className="mt-1 text-xs text-muted-foreground">{provider.provider_type === "individual" ? "Independent provider" : "Home care company"} · {APPROVAL_LABEL[status] ?? status}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={status === "approved" ? provider.is_active ? "default" : "secondary" : status === "rejected" || status === "suspended" ? "destructive" : "secondary"}>
+                {status === "approved" ? provider.is_active ? "Available for assignments" : "Paused" : APPROVAL_LABEL[status] ?? status}
+              </Badge>
+              <Button size="sm" variant={provider.is_active ? "outline" : "default"} disabled={statusBusy || status !== "approved"} onClick={toggleAvailability}>
+                {statusBusy ? "Updating…" : status !== "approved" ? "Verification required" : provider.is_active ? "Pause new assignments" : "Go available"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => void signOut()}><LogOut className="mr-1 h-4 w-4" /> Sign out</Button>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <TerminalMetric label="New offers" value={offeredCount} icon={ClipboardList} />
+            <TerminalMetric label="Active visits" value={activeVisitCount} icon={CalendarClock} />
+            <TerminalMetric label="Completed visits" value={completedCount} icon={CheckCircle2} />
+          </div>
         </div>
-        <Badge variant={status === "approved" ? "default" : status === "rejected" || status === "suspended" ? "destructive" : "secondary"}>
-          {APPROVAL_LABEL[status] ?? status}
-        </Badge>
-      </div>
+      </header>
 
       {status !== "approved" && (
-        <div className="healthcare-card p-4 text-sm">
+        <div className="mx-auto mt-4 max-w-6xl px-4 sm:px-6"><div className="healthcare-card p-4 text-sm">
           <p className="font-semibold">Your account is not active yet.</p>
           <p className="text-muted-foreground mt-1">
             An administrator reviews every home care provider before any customer visit can be assigned.
@@ -136,39 +173,67 @@ function HomecareProviderPage() {
           {requested.length > 0 && (
             <p className="mt-2">Still needed: <span className="font-semibold">{requested.join(", ")}</span></p>
           )}
-        </div>
+        </div></div>
       )}
 
-      <Tabs defaultValue="profile">
-        <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="documents"><FileText className="h-4 w-4 mr-1" />Documents</TabsTrigger>
-          {provider.provider_type !== "individual" && <TabsTrigger value="staff"><Users className="h-4 w-4 mr-1" />Staff</TabsTrigger>}
-          <TabsTrigger value="assignments"><ClipboardList className="h-4 w-4 mr-1" />Assignments</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile" className="mt-4">
-          <ProfileForm provider={provider} onSaved={load} />
-        </TabsContent>
-        <TabsContent value="documents" className="mt-4">
-          <DocumentsPanel provider={provider} docs={docs} onChanged={load} requested={requested} />
-        </TabsContent>
-        {provider.provider_type !== "individual" && (
-          <TabsContent value="staff" className="mt-4">
-            <StaffPanel provider={provider} staff={staff} onChanged={load} />
+      <Tabs value={navTab} onValueChange={(tab) => setActiveTab(tab as HomecareTerminalTab)}>
+        <main className="mx-auto max-w-6xl space-y-4 px-4 py-5 sm:px-6">
+          <TabsContent value="overview" className="mt-0 space-y-4">
+            <section className="healthcare-card p-5">
+              <div className="flex items-start gap-3">
+                <Building2 className="mt-0.5 h-5 w-5 text-primary" />
+                <div>
+                  <h2 className="font-semibold">Operational status</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {provider.is_active && status === "approved"
+                      ? "You are visible for matching and can receive new visit assignments."
+                      : status !== "approved"
+                        ? "Complete verification before you can receive assignments."
+                        : "You are paused and will not receive new assignments."}
+                  </p>
+                  {provider.operating_hours && <p className="mt-2 text-xs text-muted-foreground">Operating hours: {provider.operating_hours}</p>}
+                  {provider.availability && <p className="mt-1 text-xs text-muted-foreground">Weekly availability: {provider.availability}</p>}
+                </div>
+              </div>
+            </section>
+            <section className="healthcare-card p-5">
+              <h2 className="mb-3 font-semibold">Latest visits</h2>
+              {assignments.length ? <AssignmentsPanel assignments={assignments.slice(0, 3)} provider={provider} onChanged={load} /> : <p className="text-sm text-muted-foreground">No visit assignments yet.</p>}
+            </section>
           </TabsContent>
-        )}
-        <TabsContent value="assignments" className="mt-4">
-          <AssignmentsPanel assignments={assignments} provider={provider} onChanged={load} />
-        </TabsContent>
+          <TabsContent value="assignments" className="mt-0">
+            <section className="mb-4 flex items-center justify-between gap-3">
+              <div><h2 className="text-lg font-semibold">Visit assignments</h2><p className="text-sm text-muted-foreground">Review requests, confirm visits, and update visit progress.</p></div>
+              <Button size="sm" variant="outline" onClick={() => void load()}>Refresh</Button>
+            </section>
+            <AssignmentsPanel assignments={assignments} provider={provider} onChanged={load} />
+          </TabsContent>
+          <TabsContent value="documents" className="mt-0">
+            <DocumentsPanel provider={provider} docs={docs} onChanged={load} requested={requested} />
+          </TabsContent>
+          {provider.provider_type !== "individual" && (
+            <TabsContent value="staff" className="mt-0">
+              <StaffPanel provider={provider} staff={staff} onChanged={load} />
+            </TabsContent>
+          )}
+          <TabsContent value="profile" className="mt-0">
+            <ProfileForm provider={provider} onSaved={load} />
+          </TabsContent>
+        </main>
       </Tabs>
+      <HomecareBottomNav activeTab={navTab} onChange={setActiveTab} showTeam={provider.provider_type !== "individual"} />
     </div>
   );
+}
+
+function TerminalMetric({ label, value, icon: Icon }: { label: string; value: number; icon: typeof ClipboardList }) {
+  return <div className="rounded-lg border border-border bg-background px-3 py-2"><div className="flex items-center gap-1.5 text-[10px] text-muted-foreground sm:text-xs"><Icon className="h-3.5 w-3.5" />{label}</div><p className="mt-0.5 text-sm font-bold sm:text-lg">{value}</p></div>;
 }
 
 /* ---------------- profile ---------------- */
 
 function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void }) {
+  const saveBanking = useServerFn(saveMyHomecareBanking);
   const isCompany = provider.provider_type !== "individual";
   const [form, setForm] = useState({
     business_name: provider.business_name ?? "",
@@ -191,6 +256,7 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
     branch_code: "",
   });
   const [services, setServices] = useState<string[]>(provider.services ?? []);
+  const [bankingLoaded, setBankingLoaded] = useState(false);
   const [address, setAddress] = useState<PickedAddress | null>(
     provider.address ? { address: provider.address, lat: provider.latitude, lng: provider.longitude } as PickedAddress : null,
   );
@@ -201,7 +267,10 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
     void getMyHomecareBanking().then((b) => {
       if (cancelled) return;
       setForm((f) => ({ ...f, ...b }));
-    }).catch(() => undefined);
+      setBankingLoaded(true);
+    }).catch((error: unknown) => {
+      if (!cancelled) toast.error(error instanceof Error ? `Could not load banking details: ${error.message}` : "Could not load banking details.");
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -221,10 +290,14 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
 
   const saveAddress = async (a: PickedAddress | null) => {
     setAddress(a);
-    if (a?.lat && a?.lng) await saveField({ address: a.address, latitude: a.lat, longitude: a.lng });
+    if (a?.lat != null && a.lng != null) await saveField({ address: a.address, latitude: a.lat, longitude: a.lng });
   };
 
   const saveAll = async () => {
+    if (!bankingLoaded) {
+      toast.error("Wait for banking details to load before saving.");
+      return;
+    }
     const { error } = await firestoreClient.from("homecare_providers").update({
       business_name: form.business_name,
       full_name: form.full_name,
@@ -241,13 +314,20 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
       service_areas: String(form.service_areas).split(",").map((s: string) => s.trim()).filter(Boolean),
       certifications: String(form.certifications).split(",").map((s: string) => s.trim()).filter(Boolean),
       services,
-      bank_name: form.bank_name || null,
-      account_holder: form.account_holder || null,
-      account_number: form.account_number || null,
-      branch_code: form.branch_code || null,
-      ...(address?.lat && address?.lng ? { address: address.address, latitude: address.lat, longitude: address.lng } : {}),
+      ...(address?.lat != null && address.lng != null ? { address: address.address, latitude: address.lat, longitude: address.lng } : {}),
     }).eq("id", provider.id);
     if (error) { toast.error(error.message); return; }
+    try {
+      await saveBanking({ data: {
+        bank_name: form.bank_name,
+        account_holder: form.account_holder,
+        account_number: form.account_number,
+        branch_code: form.branch_code,
+      } });
+    } catch (bankError) {
+      toast.error(bankError instanceof Error ? `Profile saved, but banking details were not saved: ${bankError.message}` : "Profile saved, but banking details were not saved.");
+      return;
+    }
     toast.success("Saved");
     onSaved();
   };
@@ -261,13 +341,19 @@ function ProfileForm({ provider, onSaved }: { provider: any; onSaved: () => void
         value={String(form[key] ?? "")}
         placeholder={opts.placeholder}
         onChange={(e) => set(key, e.target.value)}
-        onBlur={() => saveField({
-          [key]: key === "hourly_rate"
-            ? (form.hourly_rate === "" ? null : Number(form.hourly_rate))
-            : key === "service_radius_km"
-              ? (Number(form.service_radius_km) > 0 ? Number(form.service_radius_km) : 25)
-              : (form[key] || null),
-        })}
+        onBlur={() => {
+          if (["bank_name", "account_holder", "account_number", "branch_code"].includes(key)) return;
+          const value = form[key];
+          void saveField({
+            [key]: key === "hourly_rate"
+              ? (form.hourly_rate === "" ? null : Number(form.hourly_rate))
+              : key === "service_radius_km"
+                ? (Number(form.service_radius_km) > 0 ? Number(form.service_radius_km) : 25)
+                : key === "service_areas" || key === "certifications"
+                  ? String(value).split(",").map((item) => item.trim()).filter(Boolean)
+                  : value || null,
+          });
+        }}
       />
     </div>
   );

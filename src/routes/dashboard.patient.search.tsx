@@ -12,6 +12,7 @@ import { customerPrice } from "@/lib/pricing";
 import { toast } from "sonner";
 import medGeneric from "@/assets/med-generic.jpg";
 import { listPatientMarketplace } from "@/lib/patient-marketplace.functions";
+import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 
 interface Med { id: string; pharmacy_id: string; name: string; price: number; stock_quantity: number; requires_prescription?: boolean | null; description?: string | null; category?: string | null; }
 interface Ph { user_id: string; organization_name: string | null; full_name: string; }
@@ -167,6 +168,7 @@ function SearchPage() {
               <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
                 <div>
                   <p className="text-sm font-semibold line-clamp-1">{med.name}</p>
+                  <div className="mt-1"><PrescriptionBadge requiresPrescription={med.requires_prescription} /></div>
                   <Link
                     to="/pharmacy/$id"
                     params={{ id: med.pharmacy_id }}

@@ -21,6 +21,7 @@ import { MEDICINE_CATEGORIES } from "@/lib/categories";
 import { customerPrice } from "@/lib/pricing";
 import { BulkMedicineImportDialog } from "@/components/BulkMedicineImportDialog";
 import medGeneric from "@/assets/med-generic.jpg";
+import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 
 export interface PharmacyInventoryPanelProps {
   /** Only show items at or below the low-stock threshold. */
@@ -54,6 +55,8 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   const [loadingStarterPack, setLoadingStarterPack] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [stockFilter, setStockFilter] = useState("all");
+  const [stockAdjustment, setStockAdjustment] = useState("1");
 
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
@@ -67,12 +70,13 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   async function loadInventory() {
     if (!user) return;
     setLoading(true);
-    const { data } = await firestoreClient
+    const { data, error } = await firestoreClient
       .from("medications")
       .select("*")
       .eq("pharmacy_id", user.id)
       .eq("is_demo", false)
       .order("created_at", { ascending: false });
+    if (error) toast.error(`Could not load inventory: ${error.message}`);
     setInventory((data ?? []) as Medication[]);
     setLoading(false);
   }
@@ -246,12 +250,19 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   const filtered = (lowStockOnly
     ? inventory.filter((i) => i.stock_quantity <= threshold)
     : inventory).filter((item) =>
-      item.name.toLowerCase().includes(search.trim().toLowerCase()) &&
-      (categoryFilter === "all" || item.category === categoryFilter),
+      [item.name, item.category ?? "", item.batch_number ?? ""].some((field) => field.toLowerCase().includes(search.trim().toLowerCase())) &&
+      (categoryFilter === "all" || item.category === categoryFilter) &&
+      (stockFilter === "all" ||
+        (stockFilter === "low" && item.stock_quantity > 0 && item.stock_quantity <= threshold) ||
+        (stockFilter === "out" && item.stock_quantity === 0) ||
+        (stockFilter === "rx" && !!item.requires_prescription) ||
+        (stockFilter === "expiring" && !!item.expiry_date &&
+          new Date(item.expiry_date).getTime() >= Date.now() &&
+          new Date(item.expiry_date).getTime() < Date.now() + 1000 * 60 * 60 * 24 * 30)),
     );
   const categories = Array.from(new Set(inventory.map((item) => item.category).filter((category): category is string => !!category))).sort();
 
-  const lowCount = inventory.filter((i) => i.stock_quantity <= threshold).length;
+  const lowCount = inventory.filter((i) => i.stock_quantity > 0 && i.stock_quantity <= threshold).length;
 
   return (
     <div className="healthcare-card p-6">
@@ -281,12 +292,12 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
       </div>
 
       {!lowStockOnly && (
-        <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_220px]">
+        <div className="mb-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_180px_180px_120px]">
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             aria-label="Search inventory"
-            placeholder="Quick search medications…"
+            placeholder="Search medication, category or batch…"
           />
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger aria-label="Filter inventory by category"><SelectValue placeholder="All categories" /></SelectTrigger>
@@ -295,6 +306,29 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
               {categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={stockFilter} onValueChange={setStockFilter}>
+            <SelectTrigger aria-label="Filter inventory by clinical status"><SelectValue placeholder="All stock" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All stock</SelectItem>
+              <SelectItem value="low">Low stock</SelectItem>
+              <SelectItem value="out">Out of stock</SelectItem>
+              <SelectItem value="rx">Rx-only</SelectItem>
+              <SelectItem value="expiring">Expiring soon</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="stock-adjustment" className="shrink-0 text-xs">Adjust by</Label>
+            <Input
+              id="stock-adjustment"
+              aria-label="Stock adjustment increment"
+              type="number"
+              min="1"
+              step="1"
+              value={stockAdjustment}
+              onChange={(event) => setStockAdjustment(event.target.value)}
+              className="tabular-nums"
+            />
+          </div>
         </div>
       )}
 
@@ -312,10 +346,11 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
       <div className="max-h-[70vh] overflow-y-auto pr-1">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((item) => {
-            const low = item.stock_quantity <= threshold;
+            const low = item.stock_quantity > 0 && item.stock_quantity <= threshold;
             const out = item.stock_quantity === 0;
-            const expSoon = item.expiry_date && (new Date(item.expiry_date).getTime() - Date.now()) < 1000 * 60 * 60 * 24 * 30;
-            const expired = item.expiry_date && new Date(item.expiry_date).getTime() < Date.now();
+            const expiryTime = item.expiry_date ? new Date(item.expiry_date).getTime() : null;
+            const expired = expiryTime !== null && expiryTime < Date.now();
+            const expSoon = expiryTime !== null && !expired && expiryTime < Date.now() + 1000 * 60 * 60 * 24 * 30;
             return (
               <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow">
                 <div className="relative h-24 overflow-hidden">
@@ -333,8 +368,13 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
                 </div>
                 <div className="p-3">
                   <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <PrescriptionBadge requiresPrescription={item.requires_prescription} />
+                    {low && <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">Low stock</span>}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{item.category || "—"} · R {Number(item.price).toFixed(2)}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">Customer sees <span className="font-semibold text-foreground">R {customerPrice(item.price).toFixed(2)}</span></p>
+                  {item.description && <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">{item.description}</p>}
                   {(item.batch_number || item.expiry_date) && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       {item.batch_number ? `Batch ${item.batch_number}` : ""}
@@ -344,10 +384,10 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
                   )}
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1">
-                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, -1)}>
+                      <Button size="icon" variant="outline" className="h-7 w-7" aria-label={`Remove ${stockAdjustment} stock units from ${item.name}`} onClick={() => adjustStock(item, -Math.max(1, Math.floor(Number(stockAdjustment) || 1)))}>
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => adjustStock(item, +1)}>
+                      <Button size="icon" variant="outline" className="h-7 w-7" aria-label={`Add ${stockAdjustment} stock units to ${item.name}`} onClick={() => adjustStock(item, Math.max(1, Math.floor(Number(stockAdjustment) || 1)))}>
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>

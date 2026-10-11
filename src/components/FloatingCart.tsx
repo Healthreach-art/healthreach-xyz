@@ -6,6 +6,7 @@ import { ShoppingCart, Plus, Minus, Trash2, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { customerPrice, deliveryFeeForKm } from "@/lib/pricing";
 import { useState } from "react";
+import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 
 export function FloatingCart() {
   const { role } = useAuth();
@@ -52,6 +53,7 @@ export function FloatingCart() {
                 {it.pharmacyName && (
                   <p className="text-[11px] text-muted-foreground line-clamp-1">{it.pharmacyName}</p>
                 )}
+                <div className="mt-1"><PrescriptionBadge requiresPrescription={it.requiresPrescription} prescriptionAttached={!!it.prescriptionUploadId} /></div>
                 <p className="text-sm font-bold text-foreground mt-1">
                   R{(customerPrice(it.price) * it.qty).toFixed(2)}
                 </p>
