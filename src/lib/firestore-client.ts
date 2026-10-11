@@ -147,12 +147,7 @@ class FirestoreQuery<T extends RowData[] | RowData | null> implements PromiseLik
   }
 
   or(expression: string): this {
-    const filters = expression.replace(/^\(|\)$/g, "").split(",");
-    for (const part of filters) {
-      const [field, operator, ...value] = part.split(".");
-      if (!field || !operator || value.length === 0) continue;
-      this.localFilters.push({ field, op: operator, value: value.join(".") });
-    }
+    this.orGroups.push(parseOrExpression(expression));
     return this;
   }
 
@@ -162,7 +157,7 @@ class FirestoreQuery<T extends RowData[] | RowData | null> implements PromiseLik
   }
 
   limit(count: number): this {
-    this.constraints.push(firestoreLimit(count));
+    this.maxCount = count;
     return this;
   }
 
