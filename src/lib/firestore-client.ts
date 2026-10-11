@@ -32,6 +32,7 @@ import {
 import { fsDelete, fsList, fsSet, fsSubscribe, fsUpdate, where } from "./firestore";
 import { getFirebase } from "./firebase";
 import type { FirestoreSchema } from "./firestore-types";
+import { evaluateOrNode, parseOrExpression, type OrNode } from "./or-expression";
 
 type Tables = FirestoreSchema["public"]["Tables"];
 type Row<T extends string> =
@@ -70,6 +71,8 @@ function documentField(field: string) {
 class FirestoreQuery<T extends RowData[] | RowData | null> implements PromiseLike<Result<T>> {
   private constraints: QueryConstraint[] = [];
   private localFilters: Filter[] = [];
+  private orGroups: OrNode[] = [];
+  private maxCount: number | null = null;
   private operation: "select" | "insert" | "upsert" | "update" | "delete" = "select";
   private writeValues: RowData[] = [];
   private selected = false;
