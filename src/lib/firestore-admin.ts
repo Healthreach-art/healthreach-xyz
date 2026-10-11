@@ -7,6 +7,7 @@ type Row<T extends string> =
   T extends keyof Tables ? Tables[T]["Row"] : Record<string, any>;
 type RowData = Record<string, any>;
 type Filter = { field: string; op: string; value: unknown };
+import { evaluateOrNode, parseOrExpression, type OrNode } from "./or-expression";
 type Result<T> = { data: T | null; error: Error | null; count?: number | null };
 
 const PROJECT_ID = "healthreachcare-prod";
@@ -90,6 +91,7 @@ async function firestoreRequest(path: string, init: RequestInit = {}) {
 
 class AdminQuery<T extends RowData[] | RowData | null> implements PromiseLike<Result<T>> {
   private filters: Filter[] = [];
+  private orGroups: OrNode[] = [];
   private orderings: Array<{ field: string; direction: "ASCENDING" | "DESCENDING" }> = [];
   private maxResults: number | null = null;
   private operation: "select" | "insert" | "upsert" | "update" | "delete" = "select";
@@ -130,10 +132,7 @@ class AdminQuery<T extends RowData[] | RowData | null> implements PromiseLike<Re
     return this.addFilter(field, inverse[op] ?? op, value);
   }
   or(expression: string): this {
-    for (const fragment of expression.replace(/^\(|\)$/g, "").split(",")) {
-      const [field, operator, ...parts] = fragment.split(".");
-      if (field && operator && parts.length) this.filters.push({ field, op: operator, value: parts.join(".") });
-    }
+    this.orGroups.push(parseOrExpression(expression));
     return this;
   }
   order(field: string, options?: { ascending?: boolean }): this {
@@ -214,7 +213,8 @@ class AdminQuery<T extends RowData[] | RowData | null> implements PromiseLike<Re
         direction,
       }));
     }
-    if (this.maxResults !== null) structuredQuery.limit = this.maxResults;
+    const filtersInMemory = filters.length > 0 || this.orGroups.length > 0;
+    if (this.maxResults !== null && !filtersInMemory) structuredQuery.limit = this.maxResults;
     const response = await firestoreRequest(":runQuery", {
       method: "POST",
       body: JSON.stringify({ structuredQuery }),
@@ -237,6 +237,8 @@ class AdminQuery<T extends RowData[] | RowData | null> implements PromiseLike<Re
         return false;
       }));
     }
+    if (this.orGroups.length) rows = rows.filter((row) => this.orGroups.every((g) => evaluateOrNode(g, row)));
+    if (filtersInMemory && this.maxResults !== null) rows = rows.slice(0, this.maxResults);
     if (this.rangeValue) rows = rows.slice(this.rangeValue[0], this.rangeValue[1] + 1);
     return rows;
   }
