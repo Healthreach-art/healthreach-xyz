@@ -82,15 +82,21 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
 
     const approvedIds = new Set((pharmacies ?? []).map((p) => p.user_id));
 
-    const { data: branches } = await firestoreAdmin
+    const { data: branches, error: branchesError } = await firestoreAdmin
       .from("pharmacy_branches")
       .select("id, pharmacy_id, name, address, latitude, longitude, is_primary, is_active")
       .in("pharmacy_id", Array.from(approvedIds))
+      .eq("is_primary", true)
       .eq("is_active", true);
+    if (branchesError) {
+      console.error("marketplace branches:", branchesError.message);
+      return empty;
+    }
 
+    const openPharmacyIds = new Set((branches ?? []).map((branch) => branch.pharmacy_id));
     return {
-      meds: ((meds ?? []).filter((m) => approvedIds.has(m.pharmacy_id)) as PatientMarketplaceMedication[]),
-      pharmacies: (pharmacies ?? []) as PatientMarketplacePharmacy[],
+      meds: ((meds ?? []).filter((m) => approvedIds.has(m.pharmacy_id) && openPharmacyIds.has(m.pharmacy_id)) as PatientMarketplaceMedication[]),
+      pharmacies: ((pharmacies ?? []).filter((pharmacy) => openPharmacyIds.has(pharmacy.user_id)) as PatientMarketplacePharmacy[]),
       branches: ((branches ?? []) as any[]).map((b) => ({
         id: b.id, pharmacy_id: b.pharmacy_id, name: b.name, address: b.address,
         latitude: b.latitude, longitude: b.longitude, is_primary: !!b.is_primary,

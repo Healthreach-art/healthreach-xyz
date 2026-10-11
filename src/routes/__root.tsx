@@ -113,9 +113,19 @@ function RootComponent() {
 }
 
 function AppShell() {
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const showSidebar = !!user && !loading && !NO_SIDEBAR_ROUTES.has(pathname);
+
+  if (user && role === "pharmacy" && pathname.startsWith("/dashboard/pharmacy")) {
+    return (
+      <div className="flex min-h-screen w-full flex-col overflow-x-hidden">
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
 
   if (user && pathname.startsWith("/dashboard/patient")) {
     return (

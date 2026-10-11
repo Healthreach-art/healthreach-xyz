@@ -84,6 +84,8 @@ export function AppSidebar() {
     { title: "Contact", url: "/contact", icon: Phone },
   ];
 
+  if (role === "pharmacy") return null;
+
   const renderGroup = (label: string, items: Item[]) =>
     items.length ? (
       <SidebarGroup>

@@ -52,6 +52,8 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingStarterPack, setLoadingStarterPack] = useState(false);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
@@ -241,9 +243,13 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
     loadInventory();
   }
 
-  const filtered = lowStockOnly
+  const filtered = (lowStockOnly
     ? inventory.filter((i) => i.stock_quantity <= threshold)
-    : inventory;
+    : inventory).filter((item) =>
+      item.name.toLowerCase().includes(search.trim().toLowerCase()) &&
+      (categoryFilter === "all" || item.category === categoryFilter),
+    );
+  const categories = Array.from(new Set(inventory.map((item) => item.category).filter((category): category is string => !!category))).sort();
 
   const lowCount = inventory.filter((i) => i.stock_quantity <= threshold).length;
 
@@ -273,6 +279,24 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
           <Button size="sm" variant="outline" onClick={openAdd}>+ Add Item</Button>
         </div>
       </div>
+
+      {!lowStockOnly && (
+        <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_220px]">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search inventory"
+            placeholder="Quick search medications…"
+          />
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger aria-label="Filter inventory by category"><SelectValue placeholder="All categories" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+              {categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {loading && (
         <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>

@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import pharmacyHero from "@/assets/pharmacy-1.jpg";
 import medGeneric from "@/assets/med-generic.jpg";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -41,10 +40,11 @@ import { groupAndHydrate, type GroupedOrder } from "@/lib/orderGroups";
 
 
 import { RoleGuard } from "@/components/RoleGuard";
+import { PharmacyTerminal } from "@/components/PharmacyTerminal";
 
 export const Route = createFileRoute("/dashboard/pharmacy/")({
   head: () => ({ meta: [{ title: "Pharmacy Dashboard — HealthReachCare" }] }),
-  component: () => <RoleGuard allow="pharmacy"><PharmacyDashboard /></RoleGuard>,
+  component: () => <RoleGuard allow="pharmacy"><PharmacyTerminal /></RoleGuard>,
 });
 
 interface Medication {
@@ -539,16 +539,6 @@ function PharmacyDashboard() {
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
           <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
-        </div>
-      </div>
-      {/* Hero banner */}
-      <div className="relative overflow-hidden rounded-2xl mb-6 h-40 sm:h-52">
-        <img src={pharmacyHero} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-r from-healthcare-teal/85 via-primary/60 to-transparent" />
-        <div className="relative z-10 h-full flex flex-col justify-center px-6 sm:px-10 text-primary-foreground">
-          <p className="text-xs uppercase tracking-wider opacity-90">Your storefront</p>
-          <h2 className="text-2xl sm:text-3xl font-bold mt-1">{profile?.organization_name || "My Pharmacy"}</h2>
-          <p className="text-sm opacity-90 mt-1">{pendingCount} pending order{pendingCount === 1 ? "" : "s"} · {inventory.length} item{inventory.length === 1 ? "" : "s"} listed</p>
         </div>
       </div>
       {/* Stats */}

@@ -163,6 +163,7 @@ export function PharmacyFinance() {
                   <th className="text-right px-2 py-2">Delivery</th>
                   <th className="text-right px-2 py-2">You earn</th>
                   <th className="text-left px-2 py-2">Status</th>
+                  <th className="text-left px-2 py-2">Paystack reference</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,6 +183,7 @@ export function PharmacyFinance() {
                         "bg-destructive/10 text-destructive"
                       }`}>{r.status}</span>
                     </td>
+                    <td className="px-2 py-2 font-mono text-xs text-muted-foreground">{r.transaction_ref || "—"}</td>
                   </tr>
                 ))}
               </tbody>

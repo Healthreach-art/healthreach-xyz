@@ -81,6 +81,18 @@ export function PharmacyBranchesManager() {
     if (!form.name.trim()) { toast.error("Branch name required"); return; }
     if (!picked) { toast.error("Pick an address from the map"); return; }
     setBusy(true);
+    const isPrimary = form.is_primary || (!editingId && branches.length === 0);
+    if (isPrimary) {
+      const { error: primaryError } = await firestoreClient
+        .from("pharmacy_branches")
+        .update({ is_primary: false })
+        .eq("pharmacy_id", user.id);
+      if (primaryError) {
+        setBusy(false);
+        toast.error(primaryError.message);
+        return;
+      }
+    }
     const payload = {
       pharmacy_id: user.id,
       name: form.name.trim(),
@@ -89,8 +101,8 @@ export function PharmacyBranchesManager() {
       longitude: picked.lng,
       phone: form.phone || "",
       service_radius_km: Number(form.service_radius_km) || 60,
-      is_primary: form.is_primary,
-      is_active: true,
+      is_primary: isPrimary,
+      is_active: editingId ? branches.find((branch) => branch.id === editingId)?.is_active ?? true : true,
     };
     const { error } = editingId
       ? await firestoreClient.from("pharmacy_branches").update(payload).eq("id", editingId)

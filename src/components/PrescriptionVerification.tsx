@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileCheck2, FileX2, Clock, AlertCircle, RefreshCw, Loader2, ZoomIn, ZoomOut, Flag, History, ShieldAlert, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export type PrescriptionStatus = "pending" | "approved" | "rejected" | "expired" | "reupload_requested";
 
@@ -247,6 +248,7 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
   const [zoom, setZoom] = useState(1);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [showAudit, setShowAudit] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
   const { user } = useAuth();
 
   async function logAction(action: string, extra?: string) {
@@ -279,14 +281,14 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
 
   const [repeats, setRepeats] = useState<number>(row.repeats_total ?? 5);
 
-  async function setStatus(status: PrescriptionStatus) {
+  async function setStatus(status: PrescriptionStatus, noteOverride = notes) {
     setBusy(status);
-    const patch: any = { status, pharmacist_notes: notes, reviewed_by: user?.id ?? null };
+    const patch: any = { status, pharmacist_notes: noteOverride, reviewed_by: user?.id ?? null };
     if (status === "approved") patch.repeats_total = Math.max(1, Math.min(12, repeats || 5));
     const { error } = await firestoreClient.from("prescription_uploads").update(patch).eq("id", row.id);
     setBusy(null);
     if (error) { toast.error(error.message); return; }
-    await logAction(status, notes);
+    await logAction(status, noteOverride);
     toast.success(`Marked as ${status.replace("_", " ")}`);
     onChanged?.();
   }
@@ -364,7 +366,7 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
         <Button size="sm" onClick={() => setStatus("approved")} disabled={!!busy}>
           <FileCheck2 className="h-4 w-4" /> Approve
         </Button>
-        <Button size="sm" variant="destructive" onClick={() => setStatus("rejected")} disabled={!!busy}>
+        <Button size="sm" variant="destructive" onClick={() => setDeclineOpen(true)} disabled={!!busy}>
           <FileX2 className="h-4 w-4" /> Reject
         </Button>
         <Button size="sm" variant="outline" onClick={() => setStatus("reupload_requested")} disabled={!!busy}>
@@ -389,6 +391,32 @@ export function PharmacyReviewActions({ row, onChanged }: ReviewProps) {
           }
         </div>
       )}
+      <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Decline prescription</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Provide the patient with a reason for declining this prescription.</p>
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            required
+            rows={4}
+            placeholder="Reason for declining"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDeclineOpen(false)}>Cancel</Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!!busy || !notes.trim()}
+              onClick={async () => {
+                await setStatus("rejected", notes.trim());
+                setDeclineOpen(false);
+              }}
+            >Decline script</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

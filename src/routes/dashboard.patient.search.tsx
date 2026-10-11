@@ -66,6 +66,8 @@ function SearchPage() {
     const channel = firestoreClient
       .channel("search-meds-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "medications" }, () => { refresh(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "pharmacy_branches" }, () => { refresh(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => { refresh(); })
       .subscribe();
     return () => { cancelled = true; firestoreClient.removeChannel(channel); };
   }, [loadMarketplace]);
