@@ -93,9 +93,11 @@ export function PharmacyFinance() {
         </div>
         <div className="flex h-36 items-end gap-2">
           {summary.months.map((m) => (
-            <div key={m.label} className="flex flex-1 flex-col items-center gap-1">
+            <div key={m.label} className="flex h-full flex-1 flex-col items-center gap-1">
               <span className="text-[10px] text-muted-foreground">{m.value > 0 ? `R${Math.round(m.value)}` : ""}</span>
-              <div className="w-full rounded-t bg-primary/80" style={{ height: `${Math.max(2, (m.value / maxMonth) * 100)}%` }} title={`${m.count} orders`} />
+              <div className="flex w-full flex-1 items-end">
+                <div className="w-full rounded-t bg-primary/80" style={{ height: `${Math.max(2, (m.value / maxMonth) * 100)}%` }} title={`${m.count} orders`} />
+              </div>
               <span className="text-[11px] text-muted-foreground">{m.label}</span>
             </div>
           ))}
@@ -130,14 +132,15 @@ export function PharmacyFinance() {
                 const idMap = new Map((ord ?? []).map(o => [o.id, o.medication_name as string]));
                 const ids = Array.from(idMap.keys());
                 if (!ids.length) { toast.info("No transactions in this period."); return; }
-                const { data: pays } = await firestoreClient
+                const chunks: string[][] = [];
+                for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
+                const res = await Promise.all(chunks.map((c) => firestoreClient
                   .from("payments")
                   .select("id, order_id, amount, status, created_at, pharmacy_amount, platform_fee, delivery_fee, total_paid, invoice_number")
-                  .in("order_id", ids)
-                  .gte("created_at", fromIso)
-                  .lte("created_at", toIso)
-                  .eq("status", "completed")
-                  .order("created_at", { ascending: true });
+                  .in("order_id", c)));
+                const pays = res.flatMap((r) => (r.data ?? []) as any[])
+                  .filter((p) => p.status === "completed" && p.created_at >= fromIso && p.created_at <= toIso)
+                  .sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
                 const taxRows: TaxStatementRow[] = (pays ?? []).map((p: any) => {
                   const gross = Number(p.total_paid ?? p.amount ?? 0);
                   const platform_fee = Number(p.platform_fee ?? gross * FEE_PCT);
