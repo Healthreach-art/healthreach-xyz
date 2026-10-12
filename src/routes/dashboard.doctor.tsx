@@ -17,6 +17,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { submitDoctorDocuments } from "@/lib/doctor-verify.functions";
 import { normalizeServices } from "@/lib/normalize-services.functions";
 import { Sparkles, X } from "lucide-react";
+import { DoctorBottomNav, type DoctorTab } from "@/components/DoctorBottomNav";
+import { DoctorFinance } from "@/components/DoctorFinance";
 
 export const Route = createFileRoute("/dashboard/doctor")({
   head: () => ({ meta: [{ title: "Doctor Dashboard — HealthReachCare" }] }),
@@ -87,6 +89,7 @@ function DoctorDashboard() {
   const [photoUrl, setPhotoUrl] = useState<string>("");
   const [photoBusy, setPhotoBusy] = useState(false);
   const [apptFilter, setApptFilter] = useState<"new" | "upcoming" | "cancelled" | "history">("new");
+  const [tab, setTab] = useState<DoctorTab>("appointments");
   const [aiBusy, setAiBusy] = useState(false);
 
   async function load() {
@@ -349,7 +352,7 @@ function DoctorDashboard() {
   const requestedDocuments = docs?.requested_documents ?? [];
 
   return (
-    <div className="container mx-auto max-w-5xl px-3 sm:px-4 py-4 sm:py-8">
+    <div className="container mx-auto max-w-5xl px-3 sm:px-4 py-4 pb-24 sm:py-8 sm:pb-24">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full healthcare-gradient">
@@ -405,15 +408,21 @@ function DoctorDashboard() {
         )}
       </Card>
 
-      <Tabs defaultValue="appointments">
-        <TabsList>
-          <TabsTrigger value="appointments">
-            Appointments {appts.length ? <Badge variant="secondary" className="ml-2">{appts.length}</Badge> : null}
-          </TabsTrigger>
-          <TabsTrigger value="availability">Availability</TabsTrigger>
-          <TabsTrigger value="profile">Public profile</TabsTrigger>
-          <TabsTrigger value="docs">Legal documents</TabsTrigger>
-        </TabsList>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: "Today", value: appts.filter((a) => a.status !== "cancelled" && new Date(a.scheduled_at).toDateString() === new Date().toDateString()).length },
+          { label: "New requests", value: appts.filter((a) => a.status === "pending").length },
+          { label: "Upcoming", value: appts.filter((a) => a.status === "confirmed" && new Date(a.scheduled_at).getTime() >= Date.now()).length },
+          { label: "Completed", value: appts.filter((a) => a.status === "completed").length },
+        ].map((s) => (
+          <Card key={s.label} className="p-4">
+            <div className="text-xs text-muted-foreground">{s.label}</div>
+            <div className="mt-1 text-2xl font-bold">{s.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Tabs value={tab} onValueChange={(v) => setTab(v as DoctorTab)}>
 
         <TabsContent value="docs">
           <Card className="p-6 space-y-5">
@@ -744,11 +753,18 @@ function DoctorDashboard() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="finance">
+          <DoctorFinance appts={appts} defaultFee={Number(doctorRow?.consultation_fee ?? consultationFee)} />
+        </TabsContent>
+
       </Tabs>
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
         HealthReachCare is a discovery & booking platform only. All medical services, prescriptions, and treatment remain the responsibility of the doctor.
       </p>
+
+      <DoctorBottomNav activeTab={tab} onChange={setTab} />
+
 
       {chatFor && user && (
         <AppointmentChatDialog
