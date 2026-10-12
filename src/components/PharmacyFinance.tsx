@@ -32,18 +32,20 @@ export function PharmacyFinance() {
     let alive = true;
     (async () => {
       setLoading(true);
-      // payments belonging to this pharmacy's orders
+      // payments belonging to this pharmacy's orders (Firestore "in" allows max 30 values per query)
       const { data: ord } = await firestoreClient.from("orders").select("id").eq("pharmacy_id", user.id);
       const ids = (ord ?? []).map(o => o.id);
       if (!ids.length) { if (alive) { setRows([]); setLoading(false); } return; }
-      const { data } = await firestoreClient
+      const chunks: string[][] = [];
+      for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
+      const results = await Promise.all(chunks.map((c) => firestoreClient
         .from("payments")
         .select("id, order_id, amount, status, created_at, pharmacy_amount, platform_fee, delivery_fee, total_paid, transaction_ref, invoice_number")
-        .in("order_id", ids)
-        .order("created_at", { ascending: false })
-        .limit(200);
+        .in("order_id", c)));
       if (!alive) return;
-      setRows((data ?? []) as PaymentRow[]);
+      const all = results.flatMap((r) => (r.data ?? []) as PaymentRow[])
+        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+      setRows(all);
       setLoading(false);
     })();
     return () => { alive = false; };
@@ -62,8 +64,16 @@ export function PharmacyFinance() {
     const w = completed.filter(r => new Date(r.created_at) >= week).reduce((s,r)=>s+pharmacyEarned(r),0);
     const pending = rows.filter(r => r.status === "pending").reduce((s,r)=>s+pharmacyEarned(r),0);
     const refunded = rows.filter(r => r.status === "refunded").length;
-    return { total, platform, today: t, week: w, pending, refunded, pharmacyEarned };
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); d.setMonth(d.getMonth() - (5 - i));
+      const end = new Date(d); end.setMonth(end.getMonth() + 1);
+      const inMonth = completed.filter(r => { const c = new Date(r.created_at); return c >= d && c < end; });
+      return { label: d.toLocaleDateString("en-ZA", { month: "short" }), value: inMonth.reduce((s, r) => s + pharmacyEarned(r), 0), count: inMonth.length };
+    });
+    const avgOrder = completed.length ? completed.reduce((s, r) => s + Number(r.amount), 0) / completed.length : 0;
+    return { total, platform, today: t, week: w, pending, refunded, pharmacyEarned, months, avgOrder, completedCount: completed.length };
   }, [rows]);
+  const maxMonth = Math.max(1, ...summary.months.map(m => m.value));
 
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
@@ -74,6 +84,24 @@ export function PharmacyFinance() {
         <Stat icon={TrendingUp} label="This week" value={`R ${summary.week.toFixed(2)}`} />
         <Stat icon={Receipt} label="All-time net" value={`R ${summary.total.toFixed(2)}`} sub={`Platform fees R ${summary.platform.toFixed(0)}`} />
         <Stat icon={Wallet} label="Pending payouts" value={`R ${summary.pending.toFixed(2)}`} sub={`${summary.refunded} refunded`} accent="text-muted-foreground" />
+      </div>
+
+      <div className="healthcare-card p-6">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="text-sm font-semibold">Net earnings — last 6 months</h3>
+          <span className="text-xs text-muted-foreground">{summary.completedCount} paid orders · avg basket R {summary.avgOrder.toFixed(2)}</span>
+        </div>
+        <div className="flex h-36 items-end gap-2">
+          {summary.months.map((m) => (
+            <div key={m.label} className="flex h-full flex-1 flex-col items-center gap-1">
+              <span className="text-[10px] text-muted-foreground">{m.value > 0 ? `R${Math.round(m.value)}` : ""}</span>
+              <div className="flex w-full flex-1 items-end">
+                <div className="w-full rounded-t bg-primary/80" style={{ height: `${Math.max(2, (m.value / maxMonth) * 100)}%` }} title={`${m.count} orders`} />
+              </div>
+              <span className="text-[11px] text-muted-foreground">{m.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="healthcare-card p-6 space-y-3">
@@ -104,14 +132,15 @@ export function PharmacyFinance() {
                 const idMap = new Map((ord ?? []).map(o => [o.id, o.medication_name as string]));
                 const ids = Array.from(idMap.keys());
                 if (!ids.length) { toast.info("No transactions in this period."); return; }
-                const { data: pays } = await firestoreClient
+                const chunks: string[][] = [];
+                for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
+                const res = await Promise.all(chunks.map((c) => firestoreClient
                   .from("payments")
                   .select("id, order_id, amount, status, created_at, pharmacy_amount, platform_fee, delivery_fee, total_paid, invoice_number")
-                  .in("order_id", ids)
-                  .gte("created_at", fromIso)
-                  .lte("created_at", toIso)
-                  .eq("status", "completed")
-                  .order("created_at", { ascending: true });
+                  .in("order_id", c)));
+                const pays = res.flatMap((r) => (r.data ?? []) as any[])
+                  .filter((p) => p.status === "completed" && p.created_at >= fromIso && p.created_at <= toIso)
+                  .sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
                 const taxRows: TaxStatementRow[] = (pays ?? []).map((p: any) => {
                   const gross = Number(p.total_paid ?? p.amount ?? 0);
                   const platform_fee = Number(p.platform_fee ?? gross * FEE_PCT);
