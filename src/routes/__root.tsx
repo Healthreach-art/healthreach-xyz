@@ -119,7 +119,8 @@ function AppShell() {
 
   if (user && (
     (role === "pharmacy" && pathname.startsWith("/dashboard/pharmacy")) ||
-    (role === "homecare_company" && pathname === "/dashboard/homecare_company")
+    (role === "homecare_company" && pathname === "/dashboard/homecare_company") ||
+    (role === "doctor" && pathname === "/dashboard/doctor")
   )) {
     return (
       <div className="flex min-h-screen w-full flex-col overflow-x-hidden">
