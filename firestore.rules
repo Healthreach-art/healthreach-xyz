@@ -248,7 +248,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /prescription_uploads/{id} {
-      allow read: if isAdmin() || owns('patient_id');
+      allow read: if isAdmin() || owns('patient_id') || owns('pharmacy_id');
       allow create: if ownsNew('patient_id');
       allow update: if isAdmin() || owns('patient_id');
       allow delete: if isAdmin() || owns('patient_id');
