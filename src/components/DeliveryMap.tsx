@@ -41,7 +41,8 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
       if (typeof window === "undefined") return;
       const L = (await import("leaflet")).default;
       if (cancelled || !ref.current || mapRef.current) return;
-      const map = L.map(ref.current, { zoomControl: true, attributionControl: false }).setView(DEFAULT_CENTER, 12);
+      const map = L.map(ref.current, { zoomControl: true, attributionControl: false, scrollWheelZoom: false, tap: false } as any).setView(DEFAULT_CENTER, 12);
+      setTimeout(() => map.invalidateSize(), 100);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
       mapRef.current = { L, map, layer: L.layerGroup().addTo(map) };
       setReady(true);
