@@ -72,13 +72,28 @@ export function PharmacyTerminal() {
   async function loadDashboard() {
     if (!user) return;
     setLoading(true);
-    const ordersQuery = firestoreClient.from("orders").select("*").eq("pharmacy_id", user.id);
-    const [ordersResult, branchResult, profileResult, pxResult] = await Promise.all([
-      (isDemo ? ordersQuery : ordersQuery.eq("is_demo", false)).order("created_at", { ascending: false }),
+    const byNewest = (a: { created_at?: string | null }, b: { created_at?: string | null }) =>
+      String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
+    const isIndexError = (e: { message?: string } | null | undefined) => !!e?.message && /index/i.test(e.message);
+    const ordersQuery = () => firestoreClient.from("orders").select("*").eq("pharmacy_id", user.id);
+    let [ordersResult, branchResult, profileResult, pxResult] = await Promise.all([
+      (isDemo ? ordersQuery() : ordersQuery().eq("is_demo", false)).order("created_at", { ascending: false }),
       firestoreClient.from("pharmacy_branches").select("id, name, address, latitude, longitude, is_primary, is_active").eq("pharmacy_id", user.id),
       firestoreClient.from("profiles").select("license_number, premises_license_number, opening_hours, phone").eq("user_id", user.id).maybeSingle(),
       firestoreClient.from("prescription_uploads").select("*").eq("pharmacy_id", user.id).order("created_at", { ascending: false }),
     ]);
+    // Fallback: if a composite index is missing or still building, query without sorting and sort in memory.
+    if (isIndexError(ordersResult.error)) {
+      const retry = await ordersQuery();
+      if (!retry.error) {
+        const rows = ((retry.data ?? []) as Order[]).filter((o) => isDemo || !(o as { is_demo?: boolean }).is_demo).sort(byNewest);
+        ordersResult = { ...retry, data: rows } as typeof ordersResult;
+      }
+    }
+    if (isIndexError(pxResult.error)) {
+      const retry = await firestoreClient.from("prescription_uploads").select("*").eq("pharmacy_id", user.id);
+      if (!retry.error) pxResult = { ...retry, data: [...(retry.data ?? [])].sort(byNewest) } as typeof pxResult;
+    }
     if (ordersResult.error) toast.error(`Could not load orders: ${ordersResult.error.message}`);
     if (branchResult.error) toast.error(`Could not load branches: ${branchResult.error.message}`);
     if (profileResult.error) toast.error(`Could not load pharmacy details: ${profileResult.error.message}`);
