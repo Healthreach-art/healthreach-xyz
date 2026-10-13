@@ -154,8 +154,12 @@ class FirestoreQuery<T extends RowData[] | RowData | null> implements PromiseLik
     return this;
   }
 
+  private orderSpecs: Array<{ field: string; desc: boolean; constraint: QueryConstraint }> = [];
+
   order(field: string, options?: { ascending?: boolean }): this {
-    this.constraints.push(firestoreOrderBy(field, options?.ascending === false ? "desc" : "asc"));
+    const constraint = firestoreOrderBy(field, options?.ascending === false ? "desc" : "asc");
+    this.orderSpecs.push({ field, desc: options?.ascending === false, constraint });
+    this.constraints.push(constraint);
     return this;
   }
 
@@ -237,7 +241,29 @@ class FirestoreQuery<T extends RowData[] | RowData | null> implements PromiseLik
         const serverConstraints = !filtersInMemory && this.maxCount !== null
           ? [...this.constraints, firestoreLimit(this.maxCount)]
           : this.constraints;
-        rows = await fsList<RowData>(this.collectionName, ...serverConstraints);
+        try {
+          rows = await fsList<RowData>(this.collectionName, ...serverConstraints);
+        } catch (err) {
+          // Missing/building composite index: retry without server sorting, then sort in memory.
+          const msg = String((err as { message?: string })?.message ?? err);
+          if (!this.orderSpecs.length || !/index/i.test(msg)) throw err;
+          const orderSet = new Set(this.orderSpecs.map((s) => s.constraint));
+          rows = await fsList<RowData>(this.collectionName, ...this.constraints.filter((c) => !orderSet.has(c)));
+          const specs = this.orderSpecs;
+          rows.sort((a, b) => {
+            for (const { field, desc } of specs) {
+              const av = a[field] as string | number | null | undefined;
+              const bv = b[field] as string | number | null | undefined;
+              if (av === bv) continue;
+              if (av == null) return 1;
+              if (bv == null) return -1;
+              const cmp = av < bv ? -1 : 1;
+              return desc ? -cmp : cmp;
+            }
+            return 0;
+          });
+          if (!filtersInMemory && this.maxCount !== null) rows = rows.slice(0, this.maxCount);
+        }
         rows = this.applyLocalFilters(rows);
         if (filtersInMemory && this.maxCount !== null) rows = rows.slice(0, this.maxCount);
         if (this.rangeValue) rows = rows.slice(this.rangeValue[0], this.rangeValue[1] + 1);
