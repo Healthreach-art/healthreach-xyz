@@ -263,17 +263,13 @@ function LoginPage() {
             </p>
           )}
 
-          <div className="mt-4 text-center text-xs">
-            {isAdminMode ? (
+          {isAdminMode && (
+            <div className="mt-4 text-center text-xs">
               <Link to="/login" className="text-muted-foreground hover:text-foreground hover:underline">
                 ← Back to standard login
               </Link>
-            ) : (
-              <Link to="/login" search={{ mode: "admin" }} className="text-muted-foreground hover:text-foreground hover:underline inline-flex items-center gap-1">
-                <ShieldCheck className="h-3 w-3" /> Admin sign in
-              </Link>
-            )}
-          </div>
+            </div>
+          )}
 
           {isAdminMode && (
             <p className="mt-6 text-xs text-muted-foreground text-center">

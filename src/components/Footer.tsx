@@ -1,4 +1,5 @@
-import { Link } from "@tanstack/react-router";
+import { useRef } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { MessageCircle, Phone } from "lucide-react";
 import logo from "@/assets/healthreach-logo.png";
 
@@ -6,6 +7,18 @@ const WA_NUMBER = "27797285078";
 const WA_LINK = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi HealthReachCare, I'd like to ask a quick question.")}`;
 
 export function Footer() {
+  const navigate = useNavigate();
+  const clicks = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
+  // Hidden admin entry: 3 quick clicks on the copyright line.
+  const handleSecretClick = () => {
+    const now = Date.now();
+    clicks.current.n = now - clicks.current.t < 800 ? clicks.current.n + 1 : 1;
+    clicks.current.t = now;
+    if (clicks.current.n >= 3) {
+      clicks.current.n = 0;
+      navigate({ to: "/login", search: { mode: "admin" } });
+    }
+  };
   return (
     <footer className="border-t border-border bg-muted/50">
       <div className="container-narrow px-4 sm:px-6 py-12">
@@ -55,7 +68,9 @@ export function Footer() {
         </div>
 
         <div className="mt-10 border-t border-border pt-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} HealthReachCare. All rights reserved.
+          <span onClick={handleSecretClick} className="cursor-default select-none">
+            © {new Date().getFullYear()} HealthReachCare. All rights reserved.
+          </span>
         </div>
       </div>
 
