@@ -140,10 +140,16 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
     }
   }, [collapsed]);
 
-
+  // Keep Leaflet sized correctly when its container resizes (rotation, layout shifts)
+  useEffect(() => {
+    if (!ready || !ref.current || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => mapRef.current?.map?.invalidateSize());
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, [ready]);
 
   return (
-    <div className={className ?? "w-full rounded-xl overflow-hidden border border-border relative"}>
+    <div className={`${className ?? "w-full rounded-xl overflow-hidden border border-border"} relative flex flex-col ${collapsed ? "!h-auto" : ""}`}>
       <div className="flex items-center justify-between gap-2 px-2 py-1 border-b border-border bg-background/95 text-[11px] font-medium">
         <span className="truncate">
           {info.km !== null && <span>{info.km} km</span>}
@@ -160,7 +166,7 @@ export function DeliveryMap({ pickup, dropoff, status, orderId, driverId, classN
           {collapsed ? "Show map" : "Hide map"}
         </button>
       </div>
-      <div ref={ref} className={collapsed ? "h-0 w-full" : "h-full w-full min-h-[160px]"} style={collapsed ? { display: "none" } : undefined} />
+      <div ref={ref} className="relative z-0 w-full flex-1 min-h-[160px]" style={collapsed ? { display: "none" } : undefined} />
     </div>
   );
 }
