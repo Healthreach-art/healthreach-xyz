@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
+import { AddressPicker } from "@/components/AddressPicker";
 import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,8 @@ interface PharmacyDocs {
 interface PharmacyProfileFields {
   organization_name?: string | null;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   phone?: string | null;
   license_number?: string | null;
   pharmacist_name?: string | null;
@@ -83,7 +86,7 @@ function Onboarding() {
     (async () => {
       const [{ data: d }, { data: prof }] = await Promise.all([
         firestoreClient.from("pharmacy_documents" as never).select("*").eq("pharmacy_id", user.id).maybeSingle(),
-        firestoreClient.from("profiles").select("organization_name,address,phone,license_number,pharmacist_name,pharmacist_council_number,business_reg_number,tax_number,responsible_pharmacist_phone,license_expires_at").eq("user_id", user.id).maybeSingle(),
+        firestoreClient.from("profiles").select("organization_name,address,latitude,longitude,phone,license_number,pharmacist_name,pharmacist_council_number,business_reg_number,tax_number,responsible_pharmacist_phone,license_expires_at").eq("user_id", user.id).maybeSingle(),
       ]);
       if (prof) setFields(prof as PharmacyProfileFields);
       if (d) {
@@ -151,11 +154,22 @@ function Onboarding() {
       const v = fields[k];
       if (!v || String(v).trim() === "") { toast.error(`${label} is required.`); return; }
     }
+    if (fields.latitude == null || fields.longitude == null) {
+      toast.error("Choose the physical address from the address suggestions so its map location can be saved.");
+      return;
+    }
+    const pharmacyAddress = fields.address?.trim();
+    if (!pharmacyAddress) {
+      toast.error("Choose a physical address.");
+      return;
+    }
 
     setSubmitting(true);
     const { error: profErr } = await firestoreClient.from("profiles").update({
       organization_name: fields.organization_name,
-      address: fields.address,
+      address: pharmacyAddress,
+      latitude: fields.latitude,
+      longitude: fields.longitude,
       phone: fields.phone,
       license_number: fields.license_number,
       license_expires_at: fields.license_expires_at,
@@ -167,6 +181,22 @@ function Onboarding() {
       approval_status: "under_review",
     } as never).eq("user_id", user.id);
     if (profErr) { setSubmitting(false); toast.error(profErr.message); return; }
+
+    try {
+      const { ensurePrimaryPharmacyBranch } = await import("@/lib/firestore-sync");
+      await ensurePrimaryPharmacyBranch({
+        pharmacyId: user.id,
+        name: fields.organization_name ?? "Pharmacy",
+        address: pharmacyAddress,
+        phone: fields.phone ?? undefined,
+        latitude: fields.latitude,
+        longitude: fields.longitude,
+      });
+    } catch (error) {
+      setSubmitting(false);
+      toast.error(error instanceof Error ? error.message : "Could not save pharmacy location");
+      return;
+    }
 
     const { error: docErr } = await firestoreClient.from("pharmacy_documents" as never).upsert({
       pharmacy_id: user.id,
@@ -211,7 +241,18 @@ function Onboarding() {
           <Field label="Pharmacy / trading name" value={fields.organization_name ?? ""} onChange={(v) => setField("organization_name", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ organization_name: fields.organization_name }).eq("user_id", user.id)} />
           <Field label="Contact phone" value={fields.phone ?? ""} onChange={(v) => setField("phone", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ phone: fields.phone }).eq("user_id", user.id)} />
           <div className="sm:col-span-2">
-            <Field label="Physical address" value={fields.address ?? ""} onChange={(v) => setField("address", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ address: fields.address }).eq("user_id", user.id)} />
+            <AddressPicker
+              value={fields.address && fields.latitude != null && fields.longitude != null
+                ? { address: fields.address, lat: fields.latitude, lng: fields.longitude }
+                : null}
+              onChange={(picked) => setFields((current) => ({
+                ...current,
+                address: picked.address,
+                latitude: picked.lat,
+                longitude: picked.lng,
+              }))}
+              label="Physical address"
+            />
           </div>
           <Field label="Business registration number (CIPC)" value={fields.business_reg_number ?? ""} onChange={(v) => setField("business_reg_number", v)} onBlur={() => user && void firestoreClient.from("profiles").update({ business_reg_number: fields.business_reg_number }).eq("user_id", user.id)} />
           <Field label="Tax / VAT number (optional)" value={fields.tax_number ?? ""} onChange={(v) => setField("tax_number", v)} />

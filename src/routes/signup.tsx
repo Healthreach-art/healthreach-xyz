@@ -44,6 +44,7 @@ function SignupPage() {
   const isHomecare = role === "homecare_company" || role === "homecare_individual";
   const needsOrg = role === "pharmacy" || role === "hospital" || role === "homecare_company";
   const needsApproval = role !== "patient";
+  const needsAddress = role !== "patient";
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -61,6 +62,10 @@ function SignupPage() {
     setError("");
     if (!agreed) {
       setError("You must agree to the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
+    if (needsAddress && !address) {
+      setError("Choose a provider address from the address suggestions so we can save its map location.");
       return;
     }
     setLoading(true);
@@ -175,10 +180,14 @@ function SignupPage() {
               <Input id="phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+27 71 123 4567" maxLength={40} />
             </div>
 
-            <div className="space-y-2">
-              <Label>{role === "pharmacy" ? "Pharmacy street address" : "Physical address"}</Label>
-              <AddressPicker value={address} onChange={setAddress} />
-            </div>
+            {needsAddress && (
+              <AddressPicker
+                value={address}
+                onChange={setAddress}
+                label="Practice / business address"
+                placeholder="Search for your provider address…"
+              />
+            )}
 
             {needsApproval && (
               <div className="rounded-lg bg-accent p-3 text-xs text-muted-foreground">

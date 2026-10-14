@@ -51,7 +51,7 @@ function PrivacyPage() {
           </Section>
 
           <Section title="5. Data security">
-            All data is encrypted in transit (TLS) and at rest. Access is restricted by Firebase Security Rules and role-based controls. Prescription files are stored in private Firebase Storage and accessible only to authorized users.
+            All data is encrypted in transit (TLS) and at rest. Access is restricted by Firebase Security Rules and role-based controls. Prescription and verification files are stored in a private Cloudflare R2 bucket and are available only to their owner, an administrator, or the pharmacy linked to that prescription through a short-lived access link.
           </Section>
 
           <Section title="6. Your rights under POPIA">

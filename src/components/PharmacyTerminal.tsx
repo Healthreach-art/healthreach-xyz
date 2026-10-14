@@ -246,7 +246,7 @@ export function PharmacyTerminal() {
     await loadDashboard();
   }
 
-  if (!authLoading && !isDemo && approvalStatus && ["pending", "rejected", "suspended", "expired", "under_review"].includes(approvalStatus)) {
+  if (!authLoading && !isDemo && approvalStatus !== "approved") {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="healthcare-card max-w-md p-8 text-center">

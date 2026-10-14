@@ -60,6 +60,16 @@ const globalRealtimeCollections = [
   "pharmacy_branches",
 ];
 
+const privateStorageBuckets = new Set([
+  "documents",
+  "prescriptions",
+  "pharmacy-docs",
+  "doctor-docs",
+  "driver-docs",
+  "homecare-docs",
+  "delivery-proofs",
+]);
+
 function rowData(value: object): RowData {
   return { ...value };
 }
@@ -387,6 +397,86 @@ async function sessionFor(user: import("firebase/auth").User | null) {
 }
 
 function storageClient(bucketName: string) {
+  if (privateStorageBuckets.has(bucketName)) {
+    return {
+      upload: async (
+        path: string,
+        file: Blob,
+        options?: { contentType?: string; upsert?: boolean },
+      ) => {
+        try {
+          const { auth } = await getFirebase();
+          await auth.authStateReady();
+          const user = auth.currentUser;
+          if (!user) throw new Error("Please sign in first.");
+          const form = new FormData();
+          form.append("bucket", bucketName);
+          form.append("path", path);
+          form.append("file", file, path.split("/").at(-1) ?? "upload");
+          const response = await fetch("/api/private-files", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${await user.getIdToken()}` },
+            body: form,
+          });
+          if (!response.ok) throw new Error(await response.text());
+          return { data: { path }, error: null };
+        } catch (error) {
+          return { data: null, error: asError(error) };
+        }
+      },
+      remove: async (paths: string[]) => {
+        try {
+          const { auth } = await getFirebase();
+          await auth.authStateReady();
+          const user = auth.currentUser;
+          if (!user) throw new Error("Please sign in first.");
+          const response = await fetch("/api/private-files", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${await user.getIdToken()}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ action: "delete", bucket: bucketName, paths }),
+          });
+          if (!response.ok) throw new Error(await response.text());
+          return { data: paths.map((path) => ({ name: path })), error: null };
+        } catch (error) {
+          return { data: null, error: asError(error) };
+        }
+      },
+      createSignedUrl: async (path: string, expiresIn?: number) => {
+        try {
+          const { auth } = await getFirebase();
+          await auth.authStateReady();
+          const user = auth.currentUser;
+          if (!user) throw new Error("Please sign in first.");
+          const response = await fetch("/api/private-files", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${await user.getIdToken()}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "sign",
+              bucket: bucketName,
+              path,
+              expiresIn,
+            }),
+          });
+          if (!response.ok) throw new Error(await response.text());
+          const result = await response.json() as { signedUrl?: string };
+          if (!result.signedUrl) throw new Error("Private file service returned no URL.");
+          return { data: { signedUrl: result.signedUrl }, error: null };
+        } catch (error) {
+          return { data: null, error: asError(error) };
+        }
+      },
+      getPublicUrl: () => {
+        throw new Error("Private R2 files cannot have public URLs.");
+      },
+    };
+  }
+
   return {
     upload: async (path: string, file: Blob, options?: { contentType?: string; upsert?: boolean }) => {
       try {

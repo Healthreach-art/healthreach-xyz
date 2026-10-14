@@ -79,6 +79,54 @@ const DOCUMENT_LABELS: Record<string, string> = {
   bank_confirmation_path: "Bank confirmation",
 };
 
+function providerRowsFor(tab: TabId, data: Record<TabId, Row[]>): Row[] {
+  const providerRoles: Partial<Record<TabId, string[]>> = {
+    doctors: ["doctor"],
+    pharmacies: ["pharmacy"],
+    drivers: ["driver"],
+    homecare_providers: ["homecare_company", "homecare_individual"],
+  };
+  const roles = providerRoles[tab];
+  if (!roles) return data[tab] ?? [];
+
+  const profiles = new Map(
+    data.profiles.map((profile) => [String(profile.user_id ?? profile.id), profile]),
+  );
+  const providerRows = new Map<string, Row>();
+  for (const provider of data[tab] ?? []) {
+    const userId = String(provider.user_id ?? provider.userId ?? provider.id);
+    const profile = profiles.get(userId);
+    const sourceStatus = profile?.approval_status ?? provider.approval_status ?? provider.status ?? "pending_review";
+    providerRows.set(userId, {
+      ...(profile ?? {}),
+      ...provider,
+      id: provider.id,
+      user_id: userId,
+      status: provider.status === "documents_requested"
+        ? provider.status
+        : sourceStatus === "pending" || sourceStatus === "under_review"
+          ? "pending_review"
+          : sourceStatus,
+    });
+  }
+  for (const assignment of data.user_roles) {
+    if (!roles.includes(String(assignment.role))) continue;
+    const userId = String(assignment.user_id ?? assignment.userId ?? "");
+    const profile = profiles.get(userId);
+    if (!userId || !profile || providerRows.has(userId)) continue;
+    const profileStatus = profile.approval_status ?? "pending_review";
+    providerRows.set(userId, {
+      ...profile,
+      id: userId,
+      user_id: userId,
+      status: profileStatus === "pending" || profileStatus === "under_review"
+        ? "pending_review"
+        : profileStatus,
+    });
+  }
+  return [...providerRows.values()];
+}
+
 function getDocuments(row: Row) {
   return Object.entries(row).flatMap(([key, value]) => {
     if (key !== "file_path" && key !== "certifications" && !/(?:_path|_paths|_url)$/.test(key)) return [];
@@ -293,37 +341,12 @@ function FirebaseAdminPage() {
     return () => unsubs.forEach((u) => u());
   }, [state]);
 
-  // Provider tabs = provider collection + any profile whose role matches.
-  const merged = useMemo(() => {
-    const roleFor: Partial<Record<TabId, string[]>> = {
-      doctors: ["doctor"], pharmacies: ["pharmacy"], drivers: ["driver"],
-      homecare_providers: ["homecare_company", "homecare_individual"],
-    };
-    const out = { ...data };
-    for (const [t, roles] of Object.entries(roleFor) as [TabId, string[]][]) {
-      const ids = new Set(data.user_roles.filter((r) => roles.includes(String(r.role))).map((r) => String(r.user_id ?? r.userId)));
-      const byId = new Map<string, Row>();
-      for (const p of data.profiles) {
-        const uid = String(p.user_id ?? p.id);
-        if (!ids.has(uid)) continue;
-        byId.set(uid, { ...p, id: uid, user_id: uid, name: p.organization_name || p.full_name || p.email, status: p.approval_status || "pending_review" });
-      }
-      for (const r of data[t]) {
-        const uid = String(r.user_id ?? r.userId ?? r.id);
-        byId.set(r.id, { ...(byId.get(uid) ?? {}), ...r });
-        if (uid !== r.id) byId.delete(uid);
-      }
-      out[t] = [...byId.values()];
-    }
-    return out;
-  }, [data]);
-
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = merged[tab] || [];
+    const list = providerRowsFor(tab, data);
     if (!q) return list;
     return list.filter((r) => JSON.stringify(r).toLowerCase().includes(q));
-  }, [merged, tab, search]);
+  }, [data, tab, search]);
 
   const isProviderTab = TABS.find((t) => t.id === tab)?.provider;
 
@@ -377,7 +400,7 @@ function FirebaseAdminPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {TABS.map((t) => {
-          const list = merged[t.id] || [];
+          const list = providerRowsFor(t.id, data);
           const pending = t.provider ? list.filter((r) => r.status === "pending_review").length : 0;
           return (
             <button

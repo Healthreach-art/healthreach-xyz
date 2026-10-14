@@ -474,22 +474,24 @@ function PharmacyDashboard() {
     }
   }
 
-  const gateStatuses = new Set(["pending", "rejected", "suspended", "expired"]);
-  if (!authLoading && !isDemo && approvalStatus && gateStatuses.has(approvalStatus) && approvalStatus !== "approved") {
+  const gateStatuses = new Set(["pending", "pending_review", "rejected", "suspended", "expired"]);
+  if (!authLoading && !isDemo && approvalStatus !== "approved" && approvalStatus !== "under_review") {
 
     const titleMap: Record<string, string> = {
       pending: "Complete your pharmacy verification",
+      pending_review: "Complete your pharmacy verification",
       rejected: "Application rejected",
       suspended: "Account suspended",
       expired: "Licence expired",
     };
     const descMap: Record<string, string> = {
       pending: "Submit your licence, pharmacist credentials and supporting documents. Admins will review and approve your pharmacy.",
+      pending_review: "Submit your licence, pharmacist credentials and supporting documents. Admins will review and approve your pharmacy.",
       rejected: "Your application was rejected. Please update your documents and re-submit for review.",
       suspended: "Your pharmacy is currently suspended. Contact support or update your documents.",
       expired: "Your pharmacy licence has expired. Re-upload a valid licence to continue receiving orders.",
     };
-    const status = approvalStatus ?? "pending";
+    const status = gateStatuses.has(approvalStatus ?? "") ? approvalStatus! : "pending";
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <div className="healthcare-card p-8 max-w-md text-center">

@@ -49,7 +49,11 @@ service cloud.firestore {
       allow create: if isOwner(uid) && request.resource.data.user_id == request.auth.uid;
       allow update: if isAdmin() || (isOwner(uid) || owns('user_id'))
         && request.resource.data.user_id == resource.data.user_id
-        && request.resource.data.approval_status == resource.data.approval_status;
+        && (
+          request.resource.data.approval_status == resource.data.approval_status
+          || request.resource.data.approval_status == 'under_review'
+            && resource.data.approval_status in ['pending', 'rejected']
+        );
       allow delete: if isAdmin();
     }
 
@@ -288,6 +292,8 @@ service cloud.firestore {
     match /pharmacy_branches/{id} {
       allow read: if isAdmin() || owns('pharmacy_id');
       allow create: if isAdmin() || ownsNew('pharmacy_id');
+      allow update: if isAdmin() || owns('pharmacy_id')
+        && request.resource.data.pharmacy_id == resource.data.pharmacy_id;
       allow update, delete: if isAdmin() || owns('pharmacy_id');
     }
     match /pharmacy_appointments/{id} {

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
@@ -201,9 +202,20 @@ export const getHomecareDocumentUrl = createServerFn({ method: "POST" })
     }
     if (!allowed) throw new Error("Not authorised to open this document");
 
-    const { data: signed, error } = await firestoreAdmin.storage
-      .from("homecare-docs").createSignedUrl(doc.file_path, 120);
-    if (error || !signed) throw new Error(error?.message ?? "Could not open document");
+    const requestUrl = getRequest()?.url;
+    if (!requestUrl) throw new Error("Could not determine request origin.");
+    const { createAuthorizedPrivateFileUrl } = await import("@/lib/r2-storage.server");
+    const url = await createAuthorizedPrivateFileUrl(
+      {
+        userId: context.userId,
+        email: typeof context.claims.email === "string" ? context.claims.email : null,
+        authorization: `Bearer ${context.idToken}`,
+      },
+      requestUrl,
+      "homecare-docs",
+      doc.file_path,
+      120,
+    );
 
     await firestoreAdmin.from("admin_audit_log").insert({
       admin_id: context.userId,
@@ -213,7 +225,7 @@ export const getHomecareDocumentUrl = createServerFn({ method: "POST" })
       payload: { provider_id: doc.provider_id },
     });
 
-    return { url: signed.signedUrl };
+    return { url };
   });
 
 /** Admin: assign an approved home care provider to a customer request. */

@@ -147,14 +147,42 @@ export async function setProviderStatus(
   adminUid: string,
   note?: string,
 ) {
-  const approved = status === "approved";
-  // Merge-write so provider docs that only existed in profiles get created.
-  await fsSet(col, id, {
-    id, user_id: id, status, approval_status: status, reviewedBy: adminUid, reviewNote: note ?? null,
-    ...(col === "doctors" || col === "homecare_providers" ? { is_verified: approved, is_active: approved } : {}),
+  const provider = await fsGet<Record<string, unknown>>(col, id);
+  const userId = typeof provider?.user_id === "string"
+    ? provider.user_id
+    : typeof provider?.userId === "string"
+      ? provider.userId
+      : id;
+  const isApproved = status === "approved";
+  const profileStatus = status === "pending_review"
+    ? "pending"
+    : status === "documents_requested"
+      ? "under_review"
+      : status;
+  const reviewedAt = new Date().toISOString();
+  const providerPatch: Record<string, unknown> = {
+    id,
+    user_id: userId,
+    status,
+    approval_status: profileStatus,
+    reviewed_by: adminUid,
+    reviewed_at: reviewedAt,
+    review_note: note ?? null,
+    reviewedBy: adminUid,
+    reviewNote: note ?? null,
+  };
+  if (col === "doctors" || col === "homecare_providers") {
+    providerPatch.is_verified = isApproved;
+    providerPatch.verified_at = isApproved ? reviewedAt : null;
+  }
+  if (col === "doctors") providerPatch.is_active = isApproved;
+  if (col === "homecare_providers") providerPatch.is_active = isApproved;
+  await fsSet(col, id, providerPatch);
+  await fsSet("profiles", userId, {
+    user_id: userId,
+    approval_status: profileStatus,
+    updated_at: reviewedAt,
   });
-  // Patient discovery reads profiles.approval_status — keep it in sync.
-  await fsSet("profiles", id, { approval_status: status, is_verified: approved });
   await fsSet("audit_logs", crypto.randomUUID(), {
     action: `provider_${status}`,
     collection: col,

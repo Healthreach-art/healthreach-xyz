@@ -51,6 +51,7 @@ import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardDoctorRouteImport } from './routes/dashboard.doctor'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as ApiPrivateFilesRouteImport } from './routes/api/private-files'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotwellKnownChar93OauthAuthorizationServerRouteImport } from './routes/[.well-known]/oauth-authorization-server'
@@ -300,6 +301,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPrivateFilesRoute = ApiPrivateFilesRouteImport.update({
+  id: '/api/private-files',
+  path: '/api/private-files',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMockPayRoute = ApiMockPayRouteImport.update({
   id: '/api/mock-pay',
   path: '/api/mock-pay',
@@ -539,6 +545,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-authorization-server': typeof Char91DotwellKnownChar93OauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
+  '/api/private-files': typeof ApiPrivateFilesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
@@ -620,6 +627,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-authorization-server': typeof Char91DotwellKnownChar93OauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
+  '/api/private-files': typeof ApiPrivateFilesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
@@ -701,6 +709,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-authorization-server': typeof Char91DotwellKnownChar93OauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/api/mock-pay': typeof ApiMockPayRoute
+  '/api/private-files': typeof ApiPrivateFilesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
@@ -784,6 +793,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/api/mock-pay'
+    | '/api/private-files'
     | '/auth/callback'
     | '/dashboard/admin'
     | '/dashboard/doctor'
@@ -865,6 +875,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/api/mock-pay'
+    | '/api/private-files'
     | '/auth/callback'
     | '/dashboard/admin'
     | '/dashboard/doctor'
@@ -945,6 +956,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/api/mock-pay'
+    | '/api/private-files'
     | '/auth/callback'
     | '/dashboard/admin'
     | '/dashboard/doctor'
@@ -1027,6 +1039,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthAuthorizationServerRoute: typeof Char91DotwellKnownChar93OauthAuthorizationServerRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiMockPayRoute: typeof ApiMockPayRoute
+  ApiPrivateFilesRoute: typeof ApiPrivateFilesRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   DashboardAdminRoute: typeof DashboardAdminRouteWithChildren
   DashboardDoctorRoute: typeof DashboardDoctorRoute
@@ -1359,6 +1372,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/private-files': {
+      id: '/api/private-files'
+      path: '/api/private-files'
+      fullPath: '/api/private-files'
+      preLoaderRoute: typeof ApiPrivateFilesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/mock-pay': {
@@ -1709,6 +1729,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiMockPayRoute: ApiMockPayRoute,
+  ApiPrivateFilesRoute: ApiPrivateFilesRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   DashboardAdminRoute: DashboardAdminRouteWithChildren,
   DashboardDoctorRoute: DashboardDoctorRoute,

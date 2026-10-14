@@ -1,5 +1,42 @@
 # HealthReach
 
+## Cloudflare Workers production deployment
+
+The TanStack Start app deploys as a Cloudflare Worker. The Worker binds private
+uploads to the `healthreachcare-documents` R2 bucket; prescription and
+verification files are never served from a public bucket URL. The Worker
+checks the caller's Firebase ID token and Firestore ownership/role before
+issuing an access link, which expires within 15 minutes.
+
+The private R2 bucket is `healthreachcare-documents`. Build and deploy the
+generated Nitro Worker entry point:
+
+```sh
+npm run build
+npx wrangler deploy --config .output/server/wrangler.json
+```
+
+Before deployment, authenticate Wrangler with `npx wrangler login` if needed.
+Configure these Worker secrets for the `healthreachcare` service (do not
+commit them):
+
+```sh
+npx wrangler secret put GOOGLE_API_KEY --config .output/server/wrangler.json
+openssl rand -base64 48 | npx wrangler secret put R2_URL_SIGNING_SECRET --config .output/server/wrangler.json
+```
+
+`GOOGLE_API_KEY` must be the Firebase project's Web API key, used to verify
+Firebase ID tokens. The signing secret protects short-lived private-file URLs.
+If the Worker already has the Firebase key configured, do not replace it.
+Deploy only after the build succeeds and both secrets and the R2 bucket are
+configured.
+
+Existing Firebase Storage objects are not copied automatically. If the
+production bucket already contains private files, copy them to R2 before
+switching production traffic, preserving each Firebase object key (including
+its logical prefix such as `prescriptions/` or `pharmacy-docs/`). Keep the
+Firebase source intact until authenticated reads from R2 have been verified.
+
 1. Overview of the Website
 
 - *Name*:HEALTHREACH- *Purpose*: A healthcare management platform connecting patients, pharmacies, hospitals, delivery drivers, and administrators.

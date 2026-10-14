@@ -1,6 +1,6 @@
 /** Persist Firebase account profiles and roles in Firestore. */
 import { firebaseSignIn, firebaseSignUp } from "./firebase-auth";
-import { fsSet, fsGet } from "./firestore";
+import { fsSet, fsGet, fsList, where } from "./firestore";
 
 /**
  * Make sure the user also has a Firebase Auth session, creating the
@@ -47,6 +47,36 @@ export type SyncProfileInput = {
   homecareType?: string;
 };
 
+export async function ensurePrimaryPharmacyBranch(input: {
+  pharmacyId: string;
+  name: string;
+  address: string;
+  phone?: string;
+  latitude: number;
+  longitude: number;
+}): Promise<void> {
+  const branches = await fsList<Record<string, unknown>>(
+    "pharmacy_branches",
+    where("pharmacy_id", "==", input.pharmacyId),
+  );
+  const primary = branches.find((branch) => branch.is_primary) ?? branches[0];
+  const id = primary?.id ?? crypto.randomUUID();
+  const now = new Date().toISOString();
+  await fsSet("pharmacy_branches", id, {
+    pharmacy_id: input.pharmacyId,
+    name: input.name,
+    address: input.address,
+    phone: input.phone ?? null,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    is_primary: true,
+    is_active: primary?.is_active ?? true,
+    service_radius_km: primary?.service_radius_km ?? 20,
+    created_at: primary?.created_at ?? now,
+    updated_at: now,
+  });
+}
+
 /**
  * Write the user's profile and role into Firestore (merge — safe to call
  * repeatedly, never duplicates). Role docs use the deterministic id
@@ -64,6 +94,9 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
       address: input.address ?? null,
       latitude: input.lat ?? null,
       longitude: input.lng ?? null,
+      ...(input.role !== "patient"
+        ? { approval_status: existing?.approval_status ?? "pending" }
+        : {}),
       organization_name: input.organizationName ?? null,
       homecare_type: input.homecareType ?? null,
       ...(existing ? {} : { created_at: new Date().toISOString() }),
@@ -94,8 +127,21 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
         address: input.address ?? null,
         latitude: input.lat ?? null,
         longitude: input.lng ?? null,
+        approval_status: existingProvider?.approval_status ?? "pending",
         homecare_type: input.homecareType ?? null,
-        ...(existingProvider ? {} : { status: "pending_review", created_at: new Date().toISOString() }),
+        status: existingProvider?.status ?? existingProvider?.approval_status ?? "pending_review",
+        ...(input.role === "doctor" ? { is_verified: existingProvider?.is_verified ?? false } : {}),
+        ...(existingProvider ? {} : { created_at: new Date().toISOString() }),
+      });
+    }
+    if (input.role === "pharmacy" && input.address && input.lat != null && input.lng != null) {
+      await ensurePrimaryPharmacyBranch({
+        pharmacyId: input.uid,
+        name: input.organizationName || input.fullName || "Pharmacy",
+        address: input.address,
+        phone: input.phone,
+        latitude: input.lat,
+        longitude: input.lng,
       });
     }
     // Pharmacies need a primary branch with real GPS for patient distance search.
@@ -117,6 +163,7 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
     }
   } catch (err) {
     console.warn("[firestore-sync] profile sync failed:", err);
+    throw err;
   }
 }
 
