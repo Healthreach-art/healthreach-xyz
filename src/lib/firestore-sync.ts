@@ -98,6 +98,23 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
         ...(existingProvider ? {} : { status: "pending_review", created_at: new Date().toISOString() }),
       });
     }
+    // Pharmacies need a primary branch with real GPS for patient distance search.
+    if (input.role === "pharmacy" && input.address && input.lat != null && input.lng != null) {
+      const branchId = `${input.uid}_primary`;
+      const existingBranch = await fsGet("pharmacy_branches", branchId);
+      await fsSet("pharmacy_branches", branchId, {
+        id: branchId,
+        pharmacy_id: input.uid,
+        name: input.organizationName || "Main branch",
+        address: input.address,
+        latitude: input.lat,
+        longitude: input.lng,
+        is_primary: true,
+        is_active: true,
+        service_radius_km: 60,
+        ...(existingBranch ? {} : { created_at: new Date().toISOString() }),
+      });
+    }
   } catch (err) {
     console.warn("[firestore-sync] profile sync failed:", err);
   }

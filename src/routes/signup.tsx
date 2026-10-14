@@ -175,6 +175,11 @@ function SignupPage() {
               <Input id="phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+27 71 123 4567" maxLength={40} />
             </div>
 
+            <div className="space-y-2">
+              <Label>{role === "pharmacy" ? "Pharmacy street address" : "Physical address"}</Label>
+              <AddressPicker value={address} onChange={setAddress} />
+            </div>
+
             {needsApproval && (
               <div className="rounded-lg bg-accent p-3 text-xs text-muted-foreground">
                 ⚠️ This role requires admin approval before you can access the platform.
