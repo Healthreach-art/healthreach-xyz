@@ -24,11 +24,15 @@ import tileAppt from "@/assets/tile-book-appointment.png";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HealthReachCare — Order Medication & Manage Care in South Africa" },
-      { name: "description", content: "Order medication from verified South African pharmacies, upload prescriptions, track deliveries live, and coordinate care — all in one HealthReachCare account." },
-      { property: "og:title", content: "HealthReachCare — Order Medication & Manage Care in South Africa" },
-      { property: "og:description", content: "Order medication, upload prescriptions, track deliveries live, and coordinate care across pharmacies, hospitals and drivers." },
+      { title: "HealthReachCare | Healthcare and Medicine Access" },
+      { name: "description", content: "HealthReachCare connects South African patients with verified pharmacies, doctors and home-care providers — order medicine, upload prescriptions and track deliveries." },
+      { property: "og:title", content: "HealthReachCare | Healthcare and Medicine Access" },
+      { property: "og:description", content: "Connect with verified South African pharmacies, doctors and home-care providers. Order medicine, upload prescriptions and track deliveries." },
       { property: "og:url", content: "https://healthreachcare.co.za/" },
+      { property: "og:type", content: "website" },
+      { property: "og:image", content: "https://healthreachcare.co.za/og-image.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://healthreachcare.co.za/og-image.png" },
     ],
     links: [
       { rel: "canonical", href: "https://healthreachcare.co.za/" },

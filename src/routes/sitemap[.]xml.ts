@@ -13,7 +13,6 @@ export const Route = createFileRoute("/sitemap.xml")({
           "/sitemap-pharmacies.xml",
           "/sitemap-hospitals.xml",
           "/sitemap-drivers.xml",
-          "/sitemap-admin.xml",
         ];
         const now = new Date().toISOString();
         const body = [
