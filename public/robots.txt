@@ -1,4 +1,14 @@
 User-agent: *
 Allow: /
+Disallow: /dashboard/
+Disallow: /admin
+Disallow: /firebase-admin
+Disallow: /signup/admin
+Disallow: /api/
+Disallow: /checkout
+Disallow: /payment
+Disallow: /driver/wallet
+Disallow: /link-account
+Disallow: /reset-password
 
 Sitemap: https://healthreachcare.co.za/sitemap.xml
