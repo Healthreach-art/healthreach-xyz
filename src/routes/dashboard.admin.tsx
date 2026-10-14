@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,8 +28,10 @@ import { Label } from "@/components/ui/label";
 import { RoleGuard } from "@/components/RoleGuard";
 import { PharmacyReviewDialog, type PharmacyApprovalStatus } from "@/components/PharmacyReviewDialog";
 
+// The classic Admin Control Centre (/firebase-admin) is the only admin panel.
 export const Route = createFileRoute("/dashboard/admin")({
-  head: () => ({ meta: [{ title: "Admin Dashboard — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Admin Dashboard — HealthReachCare" }, { name: "robots", content: "noindex" }] }),
+  beforeLoad: () => { throw redirect({ to: "/firebase-admin", replace: true }); },
   component: () => <RoleGuard allow="admin"><AdminDashboard /></RoleGuard>,
 });
 
