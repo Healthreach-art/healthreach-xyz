@@ -1,10 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, ClipboardList, Search, User } from "lucide-react";
+import { Home, ClipboardList, Search, User, Pill } from "lucide-react";
 
 const ITEMS = [
   { to: "/dashboard/patient", label: "Home", icon: Home, exact: true },
   { to: "/dashboard/patient/activity", label: "Activities", icon: ClipboardList, exact: false },
   { to: "/dashboard/patient/search", label: "Search", icon: Search, exact: false },
+  { to: "/dashboard/patient/medications", label: "Meds", icon: Pill, exact: false },
   { to: "/dashboard/patient/account", label: "Account", icon: User, exact: false },
 ] as const;
 
@@ -12,7 +13,7 @@ export function PatientBottomNav() {
   const path = useRouterState({ select: (r) => r.location.pathname }).replace(/\/$/, "");
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-      <ul className="mx-auto grid max-w-3xl grid-cols-4">
+      <ul className="mx-auto grid max-w-3xl grid-cols-5">
         {ITEMS.map((it) => {
           const active = it.exact ? path === it.to : path.startsWith(it.to);
           return (

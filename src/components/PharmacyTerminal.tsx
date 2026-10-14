@@ -74,14 +74,17 @@ export function PharmacyTerminal() {
     setLoading(true);
     const byNewest = (a: { created_at?: string | null }, b: { created_at?: string | null }) =>
       String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
-    const isIndexError = (e: { message?: string } | null | undefined) => !!e?.message && /index/i.test(e.message);
+    const isIndexError = (e: { message?: string; code?: string } | null | undefined) =>
+      !!e && (e.code === "42P10" || /index|order by/i.test(e.message ?? ""));
     const ordersQuery = () => firestoreClient.from("orders").select("*").eq("pharmacy_id", user.id);
-    let [ordersResult, branchResult, profileResult, pxResult] = await Promise.all([
+    const [initialOrdersResult, branchResult, profileResult, initialPxResult] = await Promise.all([
       (isDemo ? ordersQuery() : ordersQuery().eq("is_demo", false)).order("created_at", { ascending: false }),
       firestoreClient.from("pharmacy_branches").select("id, name, address, latitude, longitude, is_primary, is_active").eq("pharmacy_id", user.id),
       firestoreClient.from("profiles").select("license_number, premises_license_number, opening_hours, phone").eq("user_id", user.id).maybeSingle(),
       firestoreClient.from("prescription_uploads").select("*").eq("pharmacy_id", user.id).order("created_at", { ascending: false }),
     ]);
+    let ordersResult = initialOrdersResult;
+    let pxResult = initialPxResult;
     // Fallback: if a composite index is missing or still building, query without sorting and sort in memory.
     if (isIndexError(ordersResult.error)) {
       const retry = await ordersQuery();

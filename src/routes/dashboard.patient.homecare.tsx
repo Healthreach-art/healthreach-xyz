@@ -13,6 +13,36 @@ import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { toast } from "sonner";
 import { ArrowLeft,  HomeIcon, Loader2 } from "lucide-react";
 import { HOMECARE_SERVICES, REQUEST_LABEL, ASSIGNMENT_LABEL } from "@/lib/homecare";
+import { PatientAddressHeader } from "@/components/PatientAddressHeader";
+import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from "@/lib/patient-address";
+
+interface HomecareProvider {
+  id: string;
+  provider_type: string | null;
+  business_name: string | null;
+  full_name: string | null;
+  address: string | null;
+  services: string[] | null;
+  service_areas: string[] | null;
+  hourly_rate: number | null;
+}
+interface HomecareAssignment {
+  id: string;
+  created_at: string;
+  scheduled_at: string | null;
+  status: string;
+  homecare_staff: { full_name: string | null; job_title: string | null } | null;
+}
+interface HomecareRequest {
+  id: string;
+  service_type: string;
+  description: string | null;
+  address: string;
+  preferred_at: string | null;
+  status: string;
+  homecare_assignments: HomecareAssignment[];
+  homecare_providers: HomecareProvider & { phone: string | null; approval_status: string | null } | null;
+}
 
 export const Route = createFileRoute("/dashboard/patient/homecare")({
   head: () => ({
@@ -30,8 +60,9 @@ export const Route = createFileRoute("/dashboard/patient/homecare")({
 
 function PatientHomecarePage() {
   const { user, profile } = useAuth();
-  const [requests, setRequests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState<HomecareRequest[]>([]);
+  const [providers, setProviders] = useState<HomecareProvider[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
   const [serviceType, setServiceType] = useState<string>(HOMECARE_SERVICES[0]);
   const [description, setDescription] = useState("");
   const [preferredAt, setPreferredAt] = useState("");
@@ -45,11 +76,35 @@ function PatientHomecarePage() {
       .from("homecare_requests")
       .select("*, homecare_assignments(*, homecare_staff(full_name, job_title)), homecare_providers(business_name, full_name, phone, provider_type, approval_status)")
       .eq("patient_id", user.id).order("created_at", { ascending: false });
-    setRequests(data ?? []);
+      setRequests((data ?? []) as unknown as HomecareRequest[]);
     setLoading(false);
   }, [user]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const applyAddress = (value: PatientAddress | null) => {
+      if (value?.lat != null && value.lng != null) setAddress({ address: value.address, lat: value.lat, lng: value.lng });
+    };
+    applyAddress(readPatientAddress(user.id));
+    const onChange = (event: Event) => applyAddress((event as CustomEvent<PatientAddress>).detail);
+    window.addEventListener(PATIENT_ADDRESS_CHANGED, onChange);
+    return () => window.removeEventListener(PATIENT_ADDRESS_CHANGED, onChange);
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    firestoreClient.from("homecare_providers")
+      .select("id, provider_type, business_name, full_name, address, services, service_areas, hourly_rate")
+      .eq("approval_status", "approved").eq("is_active", true).limit(60)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) { toast.error(`Could not load home care providers: ${error.message}`); return; }
+        setProviders(data ?? []);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -100,14 +155,34 @@ function PatientHomecarePage() {
   };
 
   return (
+    <>
+    <PatientAddressHeader />
     <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
       <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
         <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
       </Link>
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><HomeIcon className="h-6 w-6 text-primary" /> Home care</h1>
-        <p className="text-sm text-muted-foreground">Request a carer or nurse to visit at home. Every request is reviewed before a provider is assigned.</p>
+        <p className="text-sm text-muted-foreground">Request a verified nurse, caregiver, or home-care visit. Every request is reviewed before a provider is assigned.</p>
       </div>
+
+      <section className="space-y-3" aria-labelledby="homecare-providers-title">
+        <h2 id="homecare-providers-title" className="text-lg font-semibold">Available home care providers</h2>
+        {providers.length === 0 ? <p className="text-sm text-muted-foreground">No verified home care providers are currently listed in your area.</p> : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {providers.map((provider) => (
+              <article key={provider.id} className="healthcare-card p-4">
+                <p className="font-semibold">{provider.provider_type === "individual" ? provider.full_name || provider.business_name : provider.business_name}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{provider.provider_type === "individual" ? "Individual caregiver" : "Home care company"}{provider.address ? ` · ${provider.address}` : ""}</p>
+                {(provider.services ?? []).length > 0 && <p className="mt-2 text-sm">{(provider.services ?? []).join(", ")}</p>}
+                {(provider.service_areas ?? []).length > 0 && <p className="mt-1 text-xs text-muted-foreground">Areas: {(provider.service_areas ?? []).join(", ")}</p>}
+                {provider.hourly_rate != null && <p className="mt-2 text-sm font-semibold">R{Number(provider.hourly_rate).toFixed(2)}/hr</p>}
+                <Badge className="mt-3">Verified &amp; active</Badge>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="healthcare-card p-5 space-y-4">
         <p className="font-semibold text-sm">New request</p>
@@ -146,7 +221,7 @@ function PatientHomecarePage() {
         {loading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
         {!loading && requests.length === 0 && <p className="text-sm text-muted-foreground">No requests yet.</p>}
         {requests.map((r) => {
-          const latest = (r.homecare_assignments ?? []).slice().sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : -1))[0];
+          const latest = (r.homecare_assignments ?? []).slice().sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
           return (
             <div key={r.id} className="healthcare-card p-4 space-y-2">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -193,5 +268,6 @@ function PatientHomecarePage() {
         })}
       </div>
     </div>
+    </>
   );
 }

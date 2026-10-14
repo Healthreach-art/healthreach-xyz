@@ -8,6 +8,7 @@ import { MedicationReminderWidget } from "@/components/MedicationReminderWidget"
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { DeliveryMap } from "@/components/DeliveryMap";
+import { PatientAddressHeader } from "@/components/PatientAddressHeader";
 import { customerPrice } from "@/lib/pricing";
 import {
   ArrowRight, Star, Pill, MessageSquare, Siren, PhoneCall,
@@ -37,7 +38,7 @@ interface OrderRow {
 }
 
 const ACTION_CARDS: Array<{ title: string; subtitle?: string; img?: string; icon?: LucideIcon; to: string; bg: string }> = [
-  { title: "Order Medication", img: tileMed, to: "/dashboard/patient/search", bg: "bg-emerald-50 text-emerald-950 border-emerald-100" },
+  { title: "Order Medication", img: tileMed, to: "/dashboard/patient/medications", bg: "bg-emerald-50 text-emerald-950 border-emerald-100" },
   { title: "Book Doctor Appointment", subtitle: "Find nearby doctors & specialists", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-blue-50 text-blue-950 border-blue-100" },
   { title: "Request Home Care Services", subtitle: "Verified caregivers & nurses", icon: Home, to: "/dashboard/patient/homecare", bg: "bg-purple-50 text-purple-950 border-purple-100" },
   { title: "Upload Prescription", subtitle: "Quick upload for Rx orders", img: tileRx, to: "/dashboard/patient/prescriptions", bg: "bg-amber-50 text-amber-950 border-amber-100" },
@@ -138,6 +139,7 @@ function PatientDashboard() {
 
   return (
     <div className="bg-background min-h-screen overflow-x-hidden">
+      <PatientAddressHeader />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="space-y-6">
             {/* Greeting */}

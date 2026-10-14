@@ -24,6 +24,7 @@ import { PrescriptionPicker } from "@/components/PrescriptionPicker";
 import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
 import { Users } from "lucide-react";
+import { readPatientAddress } from "@/lib/patient-address";
 
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
@@ -118,6 +119,11 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (!user) return;
+    const activeAddress = readPatientAddress(user.id);
+    if (activeAddress?.lat != null && activeAddress.lng != null) {
+      setDelivery({ address: activeAddress.address, lat: activeAddress.lat, lng: activeAddress.lng });
+      return;
+    }
     firestoreClient.from("user_addresses").select("street, lat, lng, is_default").eq("user_id", user.id).order("is_default", { ascending: false }).limit(1)
       .then(({ data }) => {
         const a = data?.[0];

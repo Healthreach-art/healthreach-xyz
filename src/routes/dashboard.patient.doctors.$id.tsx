@@ -82,10 +82,12 @@ function Page() {
   useEffect(() => {
     (async () => {
       const [{ data: d }, { data: r }] = await Promise.all([
-        firestoreClient.from("doctors").select("*").eq("id", id).maybeSingle(),
+        firestoreClient.from("doctors").select("*").eq("id", id).eq("is_active", true).eq("is_verified", true).maybeSingle(),
         firestoreClient.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
       ]);
-      setDoc(d as Doctor); setReviews(r ?? []); setLoading(false);
+      setDoc(d as Doctor);
+      if (d) setMode(d.in_person_available ? "in_person" : d.online_available ? "video" : "phone");
+      setReviews(r ?? []); setLoading(false);
     })();
   }, [id, user]);
 

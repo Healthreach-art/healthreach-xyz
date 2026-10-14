@@ -254,7 +254,9 @@ service cloud.firestore {
     match /prescription_uploads/{id} {
       allow read: if isAdmin() || owns('patient_id') || owns('pharmacy_id');
       allow create: if ownsNew('patient_id');
-      allow update: if isAdmin() || owns('patient_id');
+      allow update: if isAdmin() || owns('patient_id')
+        || owns('pharmacy_id')
+          && request.resource.data.patient_id == resource.data.patient_id;
       allow delete: if isAdmin() || owns('patient_id');
     }
     match /driver_documents/{id} {

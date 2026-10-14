@@ -2,9 +2,11 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
+import { useEffect, useState } from "react";
+import { fetchVerification, isVerificationComplete } from "@/components/PatientVerificationCard";
 import {
   Users, MapPin, LifeBuoy, Wallet, CreditCard, ChevronRight, LogOut, RefreshCw,
-  ShieldCheck, Lock, FileText, type LucideIcon,
+  ShieldCheck, Lock, FileText, ClipboardList, Bell, KeyRound, MessageCircle, type LucideIcon,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/account")({
@@ -32,18 +34,31 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     ],
   },
   {
-    title: "Saved Places & Records",
+    title: "Orders & Care",
     items: [
-      { to: "/dashboard/patient/addresses", label: "Saved Delivery Addresses", icon: MapPin },
+      { to: "/dashboard/patient/orders", label: "Medication Orders", icon: ClipboardList },
       { to: "/dashboard/patient/prescriptions", label: "Prescriptions & Documents", icon: FileText },
-      { to: "/dashboard/patient/family", label: "Family Dependents", icon: Users },
+      { to: "/dashboard/patient/reminders", label: "Medication Reminders", icon: Bell },
     ],
   },
   {
-    title: "Safety & Support",
+    title: "Places & Family",
     items: [
-      { to: "/dashboard/patient/support", label: "Emergency Contacts & Support", icon: LifeBuoy },
+      { to: "/dashboard/patient/addresses", label: "Saved Delivery Addresses", icon: MapPin },
+      { to: "/dashboard/patient/family", label: "Family & Dependents", icon: Users },
+    ],
+  },
+  {
+    title: "Security & Privacy",
+    items: [
       { to: "/privacy", label: "Privacy & POPIA Preferences", icon: Lock },
+      { to: "/forgot-password", label: "Change or reset password", icon: KeyRound },
+    ],
+  },
+  {
+    title: "Support",
+    items: [
+      { to: "/dashboard/patient/support", label: "Customer Support", icon: LifeBuoy },
     ],
   },
 ];
@@ -51,6 +66,11 @@ const SECTIONS: { title: string; items: Item[] }[] = [
 function AccountPage() {
   const { profile, user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [verified, setVerified] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchVerification(user.id).then((value) => setVerified(value?.status === "approved" && isVerificationComplete(value)));
+  }, [user?.id]);
   const name = profile?.full_name || "Patient";
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
@@ -67,7 +87,9 @@ function AccountPage() {
           <p className="font-semibold text-foreground">{name}</p>
           <p className="text-sm text-muted-foreground">{profile?.email || user?.email || "No email available"}</p>
         </div>
-        <span className="ml-auto rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">Patient</span>
+        <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${verified ? "bg-healthcare-green/10 text-healthcare-green" : "bg-muted text-muted-foreground"}`}>
+          <ShieldCheck className="h-3.5 w-3.5" /> {verified ? "Verified patient" : "Patient account"}
+        </span>
       </div>
 
       <Link to="/dashboard/patient/orders" className="flex items-center gap-3 rounded-2xl bg-healthcare-mint/30 p-4">
@@ -96,6 +118,14 @@ function AccountPage() {
         </section>
       ))}
 
+      <a href="https://wa.me/27797285078?text=Hi%20HealthReachCare%2C%20I%20need%20support." target="_blank" rel="noreferrer" className="flex items-center gap-3 border border-border px-4 py-3 text-sm hover:bg-accent">
+        <MessageCircle className="h-5 w-5 text-primary" /><span className="flex-1">Chat with support on WhatsApp</span><ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </a>
+      <section>
+        <h2 className="mb-2 text-sm font-semibold text-primary">Account safety</h2>
+        <DeleteAccountButton variant="inline" />
+      </section>
+
       <section>
         <h2 className="mb-2 text-sm font-semibold text-primary">Session</h2>
         <div className="space-y-3">
@@ -105,7 +135,6 @@ function AccountPage() {
           >
             <LogOut className="h-5 w-5" /> Sign out
           </button>
-          <DeleteAccountButton variant="inline" />
         </div>
       </section>
     </div>
