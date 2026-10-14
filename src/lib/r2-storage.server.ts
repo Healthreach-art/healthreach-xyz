@@ -1,4 +1,15 @@
-import { env } from "cloudflare:workers";
+type WorkerEnv = Partial<(typeof import("cloudflare:workers"))["env"]>;
+
+// Loaded lazily: "cloudflare:workers" exists only in the Worker runtime, not the Node dev server.
+async function getEnv(): Promise<WorkerEnv> {
+  try {
+    const id = "cloudflare:workers";
+    const mod = (await import(/* @vite-ignore */ id)) as { env: WorkerEnv };
+    return mod.env ?? {};
+  } catch {
+    return { R2_URL_SIGNING_SECRET: process.env.R2_URL_SIGNING_SECRET };
+  }
+}
 import { verifyFirebaseIdToken } from "./firebase-auth-middleware";
 
 const FIRESTORE_DOCUMENTS =
@@ -200,7 +211,8 @@ async function canAccess(
   return false;
 }
 
-function getSigningSecret(): string {
+async function getSigningSecret(): Promise<string> {
+  const env = await getEnv();
   const secret = env.R2_URL_SIGNING_SECRET?.trim() ?? "";
   if (secret.length < 32) {
     throw new Error("R2_URL_SIGNING_SECRET must be configured with at least 32 characters.");
@@ -211,7 +223,7 @@ function getSigningSecret(): string {
 async function signatureFor(message: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(getSigningSecret()),
+    new TextEncoder().encode(await getSigningSecret()),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -237,7 +249,7 @@ async function isValidSignature(message: string, signature: string): Promise<boo
   new Uint8Array(signatureBytes).set(bytes);
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(getSigningSecret()),
+    new TextEncoder().encode(await getSigningSecret()),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["verify"],
@@ -260,7 +272,7 @@ async function createSignedUrl(
   path: string,
   expiresIn: number,
 ): Promise<string> {
-  const documentsBucket = env.DOCUMENTS_BUCKET;
+  const documentsBucket = (await getEnv()).DOCUMENTS_BUCKET;
   if (!documentsBucket) {
     throw new Error("The private documents R2 bucket is not bound to this Worker.");
   }
@@ -316,7 +328,7 @@ export async function handlePrivateFileRequest(request: Request): Promise<Respon
       return invalid(403, "This private file link is invalid or expired.");
     }
 
-    const documentsBucket = env.DOCUMENTS_BUCKET;
+    const documentsBucket = (await getEnv()).DOCUMENTS_BUCKET;
     if (!documentsBucket) {
       return invalid(503, "The private documents R2 bucket is not bound to this Worker.");
     }
@@ -341,7 +353,7 @@ export async function handlePrivateFileRequest(request: Request): Promise<Respon
 
   const identity = await getIdentity(request);
   if (identity instanceof Response) return identity;
-  const documentsBucket = env.DOCUMENTS_BUCKET;
+  const documentsBucket = (await getEnv()).DOCUMENTS_BUCKET;
   if (!documentsBucket) {
     return invalid(503, "The private documents R2 bucket is not bound to this Worker.");
   }
