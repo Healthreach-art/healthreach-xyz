@@ -293,12 +293,37 @@ function FirebaseAdminPage() {
     return () => unsubs.forEach((u) => u());
   }, [state]);
 
+  // Provider tabs = provider collection + any profile whose role matches.
+  const merged = useMemo(() => {
+    const roleFor: Partial<Record<TabId, string[]>> = {
+      doctors: ["doctor"], pharmacies: ["pharmacy"], drivers: ["driver"],
+      homecare_providers: ["homecare_company", "homecare_individual"],
+    };
+    const out = { ...data };
+    for (const [t, roles] of Object.entries(roleFor) as [TabId, string[]][]) {
+      const ids = new Set(data.user_roles.filter((r) => roles.includes(String(r.role))).map((r) => String(r.user_id ?? r.userId)));
+      const byId = new Map<string, Row>();
+      for (const p of data.profiles) {
+        const uid = String(p.user_id ?? p.id);
+        if (!ids.has(uid)) continue;
+        byId.set(uid, { ...p, id: uid, user_id: uid, name: p.organization_name || p.full_name || p.email, status: p.approval_status || "pending_review" });
+      }
+      for (const r of data[t]) {
+        const uid = String(r.user_id ?? r.userId ?? r.id);
+        byId.set(r.id, { ...(byId.get(uid) ?? {}), ...r });
+        if (uid !== r.id) byId.delete(uid);
+      }
+      out[t] = [...byId.values()];
+    }
+    return out;
+  }, [data]);
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = data[tab] || [];
+    const list = merged[tab] || [];
     if (!q) return list;
     return list.filter((r) => JSON.stringify(r).toLowerCase().includes(q));
-  }, [data, tab, search]);
+  }, [merged, tab, search]);
 
   const isProviderTab = TABS.find((t) => t.id === tab)?.provider;
 
@@ -352,7 +377,7 @@ function FirebaseAdminPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {TABS.map((t) => {
-          const list = data[t.id] || [];
+          const list = merged[t.id] || [];
           const pending = t.provider ? list.filter((r) => r.status === "pending_review").length : 0;
           return (
             <button

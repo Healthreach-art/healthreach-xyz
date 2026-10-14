@@ -147,7 +147,14 @@ export async function setProviderStatus(
   adminUid: string,
   note?: string,
 ) {
-  await fsUpdate(col, id, { status, reviewedBy: adminUid, reviewNote: note ?? null });
+  const approved = status === "approved";
+  // Merge-write so provider docs that only existed in profiles get created.
+  await fsSet(col, id, {
+    id, user_id: id, status, approval_status: status, reviewedBy: adminUid, reviewNote: note ?? null,
+    ...(col === "doctors" || col === "homecare_providers" ? { is_verified: approved, is_active: approved } : {}),
+  });
+  // Patient discovery reads profiles.approval_status — keep it in sync.
+  await fsSet("profiles", id, { approval_status: status, is_verified: approved });
   await fsSet("audit_logs", crypto.randomUUID(), {
     action: `provider_${status}`,
     collection: col,
