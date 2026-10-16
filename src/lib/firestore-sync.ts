@@ -61,7 +61,7 @@ export async function ensurePrimaryPharmacyBranch(input: {
     where("pharmacy_id", "==", input.pharmacyId),
   ).catch(() => [] as Record<string, unknown>[]);
   const primary = branches.find((branch) => branch.is_primary) ?? branches[0];
-  const id = primary?.id ?? crypto.randomUUID();
+  const id = String(primary?.id ?? crypto.randomUUID());
   const now = new Date().toISOString();
   await fsSet("pharmacy_branches", id, {
     pharmacy_id: input.pharmacyId,
