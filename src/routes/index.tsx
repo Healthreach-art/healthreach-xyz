@@ -45,6 +45,7 @@ export const Route = createFileRoute("/")({
           "@type": "Organization",
           name: "HealthReachCare",
           url: "https://healthreachcare.co.za/",
+          logo: "https://healthreachcare.co.za/icon-512.png",
           email: "support@healthreachcare.co.za",
           telephone: "+27-79-728-5078",
           address: {
