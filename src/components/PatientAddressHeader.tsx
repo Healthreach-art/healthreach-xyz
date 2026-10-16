@@ -90,7 +90,9 @@ export function PatientAddressHeader() {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <MapPin className="h-4 w-4 shrink-0 text-healthcare-green" />
-          <span className="shrink-0 font-semibold">Delivering to</span>
+          <span className="shrink-0 font-semibold">
+            Delivering to {profile?.full_name ? profile.full_name : ""}{active?.label ? ` · ${active.label}` : ""}
+          </span>
           <span className="min-w-0 truncate text-muted-foreground">{active?.address ?? "Choose an address"}</span>
         </div>
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
