@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Mail, Phone, MapPin, MessageCircle } from "lucide-react";
+import { Mail, Phone, MapPin, MessageCircle, User } from "lucide-react";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -23,6 +23,7 @@ const WHATSAPP_NUMBER = "27797285078"; // +27 79 728 5078 in wa.me format
 const PHONE_DISPLAY = "+27 79 728 5078";
 
 const contactInfo = [
+  { icon: User, label: "Contact Person", value: "Nicole Barkhuisen" },
   { icon: Phone, label: "Phone", value: PHONE_DISPLAY, href: "tel:+27797285078" },
   { icon: Mail, label: "Email", value: "support@healthreachcare.co.za", href: "mailto:support@healthreachcare.co.za" },
   { icon: MessageCircle, label: "WhatsApp", value: `Chat on WhatsApp (${PHONE_DISPLAY})`, href: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi HealthReachCare, I'd like to ask a quick question.")}` },

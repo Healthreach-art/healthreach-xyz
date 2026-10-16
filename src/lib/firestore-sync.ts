@@ -59,9 +59,9 @@ export async function ensurePrimaryPharmacyBranch(input: {
   const branches = await fsList<Record<string, unknown>>(
     "pharmacy_branches",
     where("pharmacy_id", "==", input.pharmacyId),
-  );
+  ).catch(() => [] as Record<string, unknown>[]);
   const primary = branches.find((branch) => branch.is_primary) ?? branches[0];
-  const id = primary?.id ?? crypto.randomUUID();
+  const id = String(primary?.id ?? crypto.randomUUID());
   const now = new Date().toISOString();
   await fsSet("pharmacy_branches", id, {
     pharmacy_id: input.pharmacyId,
@@ -112,7 +112,8 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
     };
     const col = providerCol[input.role];
     if (col) {
-      const existingProvider = await fsGet(col, input.uid);
+      // A brand-new provider has no record yet; a denied read of a missing doc means "none".
+      const existingProvider = await fsGet(col, input.uid).catch(() => null);
       await fsSet(col, input.uid, {
         id: input.uid,
         user_id: input.uid,

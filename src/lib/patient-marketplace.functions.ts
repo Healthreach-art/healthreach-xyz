@@ -92,7 +92,6 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
     const branchResults = await Promise.all(chunksOf(pharmacyIds, 30).map((ids) =>
       firestoreAdmin.from("pharmacy_branches")
         .select("id, pharmacy_id, name, address, latitude, longitude, is_primary, is_active")
-        .eq("is_primary", true)
         .eq("is_active", true)
         .in("pharmacy_id", ids),
     ));
@@ -106,13 +105,12 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
     const pharmacies = pharmacyResults.flatMap((result) => result.data ?? []);
     const branches = branchResults.flatMap((result) => result.data ?? []);
     const pharmacyRoleIds = new Set(roles.map((role) => role.user_id));
-    const approvedPharmacyIds = new Set(
+    // Approved pharmacies stay visible whether or not they set up a primary branch.
+    const activePharmacyIds = new Set(
       profiles.filter((profile) => pharmacyRoleIds.has(profile.user_id)
         && pharmacies.some((pharmacy) => pharmacy.user_id === profile.user_id))
         .map((profile) => profile.user_id),
     );
-    const activeBranches = branches.filter((branch) => approvedPharmacyIds.has(branch.pharmacy_id));
-    const activePharmacyIds = new Set(activeBranches.map((branch) => branch.pharmacy_id));
     const visibleMeds = meds.filter((medication) => activePharmacyIds.has(medication.pharmacy_id));
     const pharmacyMap = new Map<string, PatientMarketplacePharmacy>();
     const branchMap = new Map<string, PatientMarketplaceBranch>();
@@ -129,7 +127,10 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
         longitude: profile.longitude ?? null,
       });
     }
-    for (const branch of activeBranches) {
+    const sortedBranches = branches
+      .filter((branch) => activePharmacyIds.has(branch.pharmacy_id))
+      .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)));
+    for (const branch of sortedBranches) {
       if (!branchMap.has(branch.pharmacy_id)) {
         branchMap.set(branch.pharmacy_id, {
           id: branch.id,
@@ -138,9 +139,22 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
           address: branch.address,
           latitude: Number(branch.latitude),
           longitude: Number(branch.longitude),
-          is_primary: true,
+          is_primary: Boolean(branch.is_primary),
         });
       }
+    }
+    // Fall back to the pharmacy's own saved address/location when no branch exists.
+    for (const pharmacy of pharmacyMap.values()) {
+      if (branchMap.has(pharmacy.user_id) || pharmacy.latitude == null || pharmacy.longitude == null) continue;
+      branchMap.set(pharmacy.user_id, {
+        id: `${pharmacy.user_id}_profile`,
+        pharmacy_id: pharmacy.user_id,
+        name: pharmacy.organization_name || pharmacy.full_name,
+        address: pharmacy.address ?? "",
+        latitude: Number(pharmacy.latitude),
+        longitude: Number(pharmacy.longitude),
+        is_primary: true,
+      });
     }
 
     return {

@@ -463,6 +463,12 @@ function storageClient(bucketName: string) {
               expiresIn,
             }),
           });
+          if (response.status === 404 || response.status === 503) {
+            // Files uploaded before the R2 move still live in Firebase Storage
+            // (its own security rules still apply).
+            const { storage } = await getFirebase();
+            return { data: { signedUrl: await getDownloadURL(ref(storage, `${bucketName}/${path}`)) }, error: null };
+          }
           if (!response.ok) throw new Error(await response.text());
           const result = await response.json() as { signedUrl?: string };
           if (!result.signedUrl) throw new Error("Private file service returned no URL.");
