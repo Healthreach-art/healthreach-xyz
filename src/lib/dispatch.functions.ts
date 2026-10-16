@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { firestoreAdmin } from "@/lib/firestore-admin";
+import { customerPrice, deliveryFeeForKm } from "@/lib/pricing";
+import { isMedicineExpired } from "@/lib/medicine-catalog";
 
 const TIERS = [10, 20, 30, 45, 60] as const;
 const MAX_RADIUS_KM = 60;
@@ -14,7 +16,8 @@ const placeOrderSchema = z.object({
     medicationId: uuidLoose,
     medicationName: z.string().min(1),
     quantity: z.number().int().min(1).max(20),
-    pharmacyIdHint: uuidLoose.optional(),
+    pharmacyIdHint: uuidLoose,
+    prescriptionUploadId: uuidLoose.nullable().optional(),
   })).min(1).max(20),
   delivery: z.object({
     address: z.string().min(3).max(500),
@@ -49,17 +52,21 @@ async function findNearbyPharmaciesWithMed(medName: string, lat: number, lng: nu
   const medicationRows = await Promise.all(
     Array.from({ length: Math.ceil(ids.length / 30) }, (_, index) =>
       firestoreAdmin
-        .from("medications")
-        .select("pharmacy_id, stock_quantity")
+        .from("medications_public")
+        .select("pharmacy_id, stock_quantity, expiry_date")
         .in("pharmacy_id", ids.slice(index * 30, index * 30 + 30))
         .ilike("name", medName)
+        .eq("is_active", true)
+        .eq("is_demo", false)
         .gt("stock_quantity", 0),
     ),
   );
   const haveMed = new Set(
     medicationRows.flatMap(({ data, error }) => {
       if (error) throw error;
-      return (data ?? []).map((medication) => medication.pharmacy_id);
+      return (data ?? [])
+        .filter((medication) => !isMedicineExpired(medication.expiry_date))
+        .map((medication) => medication.pharmacy_id);
     }),
   );
   return list.filter((r) => haveMed.has(r.pharmacy_id));
@@ -88,38 +95,6 @@ async function findPharmaciesNear(lat: number, lng: number, maxKm: number) {
     }))
     .filter((pharmacy) => pharmacy.distance_km <= maxKm)
     .sort((first, second) => first.distance_km - second.distance_km);
-}
-
-async function findPharmacyWithAllMeds(medicationIds: string[], lat: number, lng: number, maxKm: number) {
-  const pharmacies = await findPharmaciesNear(lat, lng, maxKm);
-  if (!pharmacies.length) return [];
-  const pharmacyIds = new Set(pharmacies.map((pharmacy) => pharmacy.pharmacy_id));
-  const { data: medications, error } = await firestoreAdmin.from("medications")
-    .select("id, pharmacy_id, stock_quantity")
-    .in("id", medicationIds);
-  if (error) throw error;
-  const matches = new Map<string, number>();
-  for (const medication of medications ?? []) {
-    if (medication.pharmacy_id && pharmacyIds.has(medication.pharmacy_id) && medication.stock_quantity > 0) {
-      matches.set(medication.pharmacy_id, (matches.get(medication.pharmacy_id) ?? 0) + 1);
-    }
-  }
-  return pharmacies
-    .flatMap((pharmacy) => {
-      const matchCount = matches.get(pharmacy.pharmacy_id) ?? 0;
-      if (!matchCount) return [];
-      return [{
-        pharmacy_id: pharmacy.pharmacy_id,
-        distance_km: pharmacy.distance_km,
-        has_all: matchCount === medicationIds.length,
-        match_count: matchCount,
-      }];
-    })
-    .sort((first, second) =>
-      Number(second.has_all) - Number(first.has_all)
-      || second.match_count - first.match_count
-      || first.distance_km - second.distance_km,
-    );
 }
 
 async function createOfferForTier(orderId: string, patientId: string, medName: string, lat: number, lng: number, currentRadius: number) {
@@ -163,35 +138,85 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const medIds = Array.from(new Set(data.items.map((i) => i.medicationId)));
+    const { data: medications, error: medicationsError } = await firestoreAdmin
+      .from("medications_public")
+      .select("*")
+      .in("id", medIds)
+      .eq("is_active", true)
+      .eq("is_demo", false)
+      .gt("stock_quantity", 0);
+    if (medicationsError) throw medicationsError;
 
-    // 1. Pick ONE pharmacy: prefer the closest that stocks ALL meds within 60 km.
-    //    Otherwise fall back to the closest pharmacy (per product decision).
-    let chosenPharmacyId: string | null = null;
-    let chosenKm = 5;
-
-    const matches = await findPharmacyWithAllMeds(medIds, data.delivery.lat, data.delivery.lng, MAX_RADIUS_KM);
-    if (matches.length > 0) {
-      chosenPharmacyId = matches[0].pharmacy_id;
-      chosenKm = Number(matches[0].distance_km.toFixed(2));
-    } else {
-      const list = await findPharmaciesNear(data.delivery.lat, data.delivery.lng, MAX_RADIUS_KM);
-      if (list.length > 0) {
-        chosenPharmacyId = list[0].pharmacy_id;
-        chosenKm = Number(list[0].distance_km.toFixed(2));
+    const medicationById = new Map((medications ?? []).map((medication) => [medication.id, medication]));
+    const pharmacyIds = new Set<string>();
+    for (const item of data.items) {
+      const medication = medicationById.get(item.medicationId);
+      if (!medication || medication.pharmacy_id !== item.pharmacyIdHint) {
+        throw new Error("A medicine is no longer available from the pharmacy shown. Refresh your cart and try again.");
       }
+      if (!Number.isSafeInteger(Number(medication.stock_quantity)) || Number(medication.stock_quantity) < item.quantity) {
+        throw new Error(`${medication.name} does not have enough stock for this order.`);
+      }
+      if (isMedicineExpired(medication.expiry_date)) {
+        throw new Error(`${medication.name} is no longer available because its stock has expired.`);
+      }
+      pharmacyIds.add(String(medication.pharmacy_id));
+    }
+    if (pharmacyIds.size !== 1) {
+      throw new Error("Order medicines from one pharmacy at a time. Remove items from another pharmacy and retry.");
     }
 
-    if (!chosenPharmacyId) {
-      return { orders: [], group: null, matched: false, reason: "no_pharmacy_in_range" };
+    const chosenPharmacyId = Array.from(pharmacyIds)[0];
+    const [{ data: patientProfile, error: patientProfileError },
+      { data: profile, error: profileError }, { data: pharmacy, error: pharmacyError },
+      { data: role, error: roleError }, { data: branch, error: branchError }] = await Promise.all([
+      firestoreAdmin.from("profiles")
+        .select("full_name, phone")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      firestoreAdmin.from("profiles")
+        .select("user_id, latitude, longitude, approval_status")
+        .eq("user_id", chosenPharmacyId)
+        .eq("approval_status", "approved")
+        .maybeSingle(),
+      firestoreAdmin.from("pharmacies")
+        .select("user_id, status")
+        .eq("user_id", chosenPharmacyId)
+        .eq("status", "approved")
+        .maybeSingle(),
+      firestoreAdmin.from("user_roles")
+        .select("user_id, role")
+        .eq("user_id", chosenPharmacyId)
+        .eq("role", "pharmacy")
+        .maybeSingle(),
+      firestoreAdmin.from("pharmacy_branches")
+        .select("id, latitude, longitude")
+        .eq("pharmacy_id", chosenPharmacyId)
+        .eq("is_primary", true)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (patientProfileError) throw patientProfileError;
+    if (profileError) throw profileError;
+    if (pharmacyError) throw pharmacyError;
+    if (roleError) throw roleError;
+    if (branchError) throw branchError;
+    if (!profile || !pharmacy || !role || !branch) {
+      throw new Error("This pharmacy is not currently approved and accepting marketplace orders.");
     }
-
-    const { data: pharmacy } = await firestoreAdmin
-      .from("profiles")
-      .select("latitude, longitude")
-      .eq("user_id", chosenPharmacyId)
-      .maybeSingle();
 
     const isScheduled = !!data.scheduledFor;
+    const now = new Date().toISOString();
+    const chosenKm = branch.latitude != null && branch.longitude != null
+      ? Number(haversineKm(data.delivery.lat, data.delivery.lng, branch.latitude, branch.longitude).toFixed(2))
+      : 5;
+    const subtotalSum = Math.round(data.items.reduce((total, item) => {
+      const medication = medicationById.get(item.medicationId)!;
+      return total + customerPrice(Number(medication.price)) * item.quantity;
+    }, 0) * 100) / 100;
+    const deliveryFee = deliveryFeeForKm(chosenKm);
+    const groupTotal = Math.round((subtotalSum + deliveryFee) * 100) / 100;
 
     // 2. One group = one cart = one delivery code = one package
     const { data: group, error: groupErr } = await firestoreAdmin
@@ -203,15 +228,21 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
         delivery_address: data.delivery.address,
         delivery_lat: data.delivery.lat,
         delivery_lng: data.delivery.lng,
-        pickup_lat: pharmacy?.latitude ?? null,
-        pickup_lng: pharmacy?.longitude ?? null,
+        pickup_lat: branch.latitude ?? null,
+        pickup_lng: branch.longitude ?? null,
         delivery_km: chosenKm,
         priority: !!data.priority,
         scheduled_for: data.scheduledFor ?? null,
         notes: data.notes ?? "",
-        recipient_name: data.recipient?.name ?? null,
-        recipient_phone: data.recipient?.phone ?? null,
+        is_demo: false,
+        recipient_name: data.recipient?.name ?? patientProfile?.full_name ?? null,
+        recipient_phone: data.recipient?.phone ?? patientProfile?.phone ?? null,
         recipient_family_member_id: data.recipient?.familyMemberId ?? null,
+        subtotal: subtotalSum,
+        delivery_fee: deliveryFee,
+        total_amount: groupTotal,
+        created_at: now,
+        updated_at: now,
       } as never)
       .select("id, delivery_code")
       .single();
@@ -223,21 +254,48 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
 
     // 3. One order row per medicine, all sharing the group
     const created: Array<{ orderId: string; matched: boolean }> = [];
-    let subtotalSum = 0;
-    let deliveryFeeFirst = 0;
-
     for (const item of data.items) {
+      const medication = medicationById.get(item.medicationId)!;
+      const prescriptionUploadId = medication.requires_prescription
+        ? item.prescriptionUploadId
+        : null;
+      if (medication.requires_prescription) {
+        if (!prescriptionUploadId) {
+          throw new Error(`${medication.name} requires an approved prescription.`);
+        }
+        const { data: upload, error: uploadError } = await firestoreAdmin
+          .from("prescription_uploads")
+          .select("id, patient_id, pharmacy_id, medication_id, status, expires_at, repeats_total, repeats_used, fraud_score")
+          .eq("id", prescriptionUploadId)
+          .maybeSingle();
+        if (uploadError) throw uploadError;
+        const repeatsTotal = Number(upload?.repeats_total ?? 0);
+        const repeatsUsed = Number(upload?.repeats_used ?? 0);
+        if (
+          !upload
+          || upload.patient_id !== userId
+          || upload.status !== "approved"
+          || upload.pharmacy_id && upload.pharmacy_id !== chosenPharmacyId
+          || upload.medication_id && upload.medication_id !== medication.id
+          || upload.expires_at && new Date(upload.expires_at).getTime() <= Date.now()
+          || Number(upload.fraud_score ?? 0) >= 75
+          || repeatsTotal > 0 && repeatsUsed >= repeatsTotal
+        ) {
+          throw new Error(`The selected prescription for ${medication.name} is no longer valid for this pharmacy.`);
+        }
+      }
       const { data: order, error: orderErr } = await firestoreAdmin
         .from("orders")
         .insert({
           patient_id: userId,
           pharmacy_id: chosenPharmacyId,
           order_group_id: (group as { id: string }).id,
-          medication_id: item.medicationId,
-          medication_name: item.medicationName,
+          medication_id: medication.id,
+          medication_name: medication.name,
+          prescription_upload_id: prescriptionUploadId,
           quantity: item.quantity,
           delivery_fee: 0,
-          total_amount: 0,
+          total_amount: customerPrice(Number(medication.price)) * item.quantity,
           delivery_km: chosenKm,
           priority: !!data.priority,
           scheduled_for: data.scheduledFor ?? null,
@@ -245,37 +303,38 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
           delivery_address: data.delivery.address,
           delivery_lat: data.delivery.lat,
           delivery_lng: data.delivery.lng,
-          pickup_lat: pharmacy?.latitude ?? null,
-          pickup_lng: pharmacy?.longitude ?? null,
+          pickup_lat: branch.latitude ?? null,
+          pickup_lng: branch.longitude ?? null,
           assignment_radius_km: 10,
           notes: data.notes ?? "",
-          recipient_name: data.recipient?.name ?? null,
-          recipient_phone: data.recipient?.phone ?? null,
+          is_demo: false,
+          recipient_name: data.recipient?.name ?? patientProfile?.full_name ?? null,
+          recipient_phone: data.recipient?.phone ?? patientProfile?.phone ?? null,
           recipient_family_member_id: data.recipient?.familyMemberId ?? null,
+          created_at: now,
+          updated_at: now,
         } as never)
         .select("id, total_amount, delivery_fee")
         .single();
 
       if (orderErr || !order) {
         console.error("Order insert failed:", orderErr);
-        continue;
+        throw orderErr ?? new Error("Order could not be created.");
       }
       const row = order as { id: string; total_amount: number; delivery_fee: number };
-      subtotalSum += Number(row.total_amount) - Number(row.delivery_fee);
-      deliveryFeeFirst = Number(row.delivery_fee);
       created.push({ orderId: row.id, matched: true });
+      if (prescriptionUploadId) {
+        const { error: claimError } = await firestoreAdmin
+          .from("prescription_uploads")
+          .update({
+            pharmacy_id: chosenPharmacyId,
+            order_id: row.id,
+            updated_at: now,
+          })
+          .eq("id", prescriptionUploadId);
+        if (claimError) throw claimError;
+      }
     }
-
-    // 4. Roll totals onto the group (one delivery fee per package, not per item)
-    const groupTotal = Math.round((subtotalSum + deliveryFeeFirst) * 100) / 100;
-    await firestoreAdmin
-      .from("order_groups")
-      .update({
-        subtotal: Math.round(subtotalSum * 100) / 100,
-        delivery_fee: deliveryFeeFirst,
-        total_amount: groupTotal,
-      } as never)
-      .eq("id", (group as { id: string }).id);
 
     // 5. ONE notification per package
     const itemCount = data.items.length;

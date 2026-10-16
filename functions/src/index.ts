@@ -11,7 +11,9 @@ import {
   type Transaction,
 } from "firebase-admin/firestore";
 import { defineSecret } from "firebase-functions/params";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 
 export { mcpData, mcpOAuth } from "./mcp-oauth.js";
 
@@ -19,9 +21,19 @@ const app = getApps()[0] ?? initializeApp();
 const db = getFirestore(app);
 const paystackSecret = defineSecret("PAYSTACK_SECRET_KEY");
 const paymentWebhookSecret = defineSecret("PAYMENT_WEBHOOK_SECRET");
+const adminInviteCode = defineSecret("ADMIN_INVITE_CODE");
 const BOOTSTRAP_ADMIN_EMAIL = "admin@healthreachcare.co.za";
 const CAPE_TOWN_LAT = -33.9020;
 const CAPE_TOWN_LNG = 18.4200;
+const SELF_SERVICE_ROLES = [
+  "patient", "pharmacy", "hospital", "driver", "doctor", "homecare_company",
+] as const;
+const PROVIDER_REGISTRATION_COLLECTIONS: Record<string, string> = {
+  pharmacy: "pharmacies",
+  doctor: "doctors",
+  driver: "drivers",
+  homecare_company: "homecare_providers",
+};
 
 class ActionError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -82,6 +94,188 @@ function transactionQuery<T extends DocumentData>(
 ) {
   return transaction.get(query);
 }
+
+type MedicationRecord = DocumentData & {
+  pharmacy_id?: unknown;
+  name?: unknown;
+  price?: unknown;
+  stock_quantity?: unknown;
+  publish_requested?: unknown;
+  is_active?: unknown;
+  is_demo?: unknown;
+  expiry_date?: unknown;
+};
+
+function expiryMillis(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const millis = typeof value === "string"
+    ? new Date(value).getTime()
+    : value instanceof Date
+      ? value.getTime()
+      : typeof value === "object"
+        && "toDate" in value
+        && typeof value.toDate === "function"
+        ? value.toDate().getTime()
+        : Number.NaN;
+  return millis;
+}
+
+function isPublishableMedication(medication: MedicationRecord) {
+  if (
+    medication.publish_requested !== true
+    || medication.is_active !== true
+    || medication.is_demo !== false
+    || typeof medication.name !== "string"
+    || !medication.name.trim()
+    || typeof medication.price !== "number"
+    || !Number.isFinite(medication.price)
+    || typeof medication.stock_quantity !== "number"
+    || !Number.isSafeInteger(medication.stock_quantity)
+    || medication.stock_quantity <= 0
+  ) return false;
+  const expiresAt = expiryMillis(medication.expiry_date);
+  if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt < Date.now())) return false;
+  return true;
+}
+
+async function syncPublicMedication(
+  medicationId: string,
+) {
+  const medicationRef = db.collection("medications").doc(medicationId);
+  const publicRef = db.collection("medications_public").doc(medicationId);
+  await db.runTransaction(async (transaction) => {
+    const medicationSnapshot = await transaction.get(medicationRef);
+    const medication = medicationSnapshot.exists
+      ? medicationSnapshot.data() as MedicationRecord
+      : null;
+    const pharmacyId = typeof medication?.pharmacy_id === "string" ? medication.pharmacy_id : null;
+    if (!medication || !pharmacyId || !isPublishableMedication(medication)) {
+      transaction.delete(publicRef);
+      return;
+    }
+
+    const [role, profile, pharmacy, branches] = await Promise.all([
+      transaction.get(db.collection("user_roles").doc(`${pharmacyId}_pharmacy`)),
+      transaction.get(db.collection("profiles").doc(pharmacyId)),
+      transaction.get(db.collection("pharmacies").doc(pharmacyId)),
+      transaction.get(db.collection("pharmacy_branches")
+        .where("pharmacy_id", "==", pharmacyId)
+        .where("is_primary", "==", true)
+        .where("is_active", "==", true)),
+    ]);
+    const profileData = profile.data() ?? {};
+    const pharmacyData = pharmacy.data() ?? {};
+    const branchSnapshot = branches.docs[0];
+    const branch = branchSnapshot?.data();
+    if (
+      role.get("role") !== "pharmacy"
+      || profileData.approval_status !== "approved"
+      || pharmacyData.status !== "approved"
+      || !branch
+    ) {
+      transaction.delete(publicRef);
+      return;
+    }
+
+    const expiresAt = expiryMillis(medication.expiry_date);
+    transaction.set(publicRef, {
+      pharmacy_id: pharmacyId,
+      name: medication.name,
+      price: medication.price,
+      stock_quantity: medication.stock_quantity,
+      requires_prescription: medication.requires_prescription === true,
+      image_url: typeof medication.image_url === "string" ? medication.image_url : null,
+      description: typeof medication.description === "string" ? medication.description : null,
+      category: typeof medication.category === "string" ? medication.category : null,
+      expiry_date: expiresAt === null ? null : new Date(expiresAt).toISOString(),
+      is_active: true,
+      is_demo: false,
+      pharmacy_name: String(
+        profileData.organization_name
+        || profileData.full_name
+        || pharmacyData.organization_name
+        || pharmacyData.full_name
+        || branch.name
+        || "Pharmacy",
+      ),
+      pharmacy_address: String(branch.address ?? ""),
+      pharmacy_phone: String(profileData.phone || branch.phone || ""),
+      latitude: typeof branch.latitude === "number" ? branch.latitude : null,
+      longitude: typeof branch.longitude === "number" ? branch.longitude : null,
+      branch_id: branchSnapshot.id,
+      updated_at: new Date().toISOString(),
+    });
+  });
+}
+
+async function refreshPharmacyCatalog(pharmacyId: string) {
+  if (!pharmacyId) return;
+  const [medications, publicMedications] = await Promise.all([
+    db.collection("medications").where("pharmacy_id", "==", pharmacyId).get(),
+    db.collection("medications_public").where("pharmacy_id", "==", pharmacyId).get(),
+  ]);
+  const currentIds = new Set(medications.docs.map((document) => document.id));
+  await Promise.all(medications.docs.map((document) => syncPublicMedication(document.id)));
+  await Promise.all(publicMedications.docs
+    .filter((document) => !currentIds.has(document.id))
+    .map((document) => syncPublicMedication(document.id)));
+}
+
+export const publishMedicationToPatientCatalog = onDocumentWritten(
+  "medications/{medicationId}",
+  async (event) => {
+    const medicationId = event.params.medicationId;
+    const before = event.data?.before.exists ? event.data.before.data() as MedicationRecord : null;
+    const after = event.data?.after.exists ? event.data.after.data() as MedicationRecord : null;
+    await syncPublicMedication(medicationId);
+    if (before?.pharmacy_id && before.pharmacy_id !== after?.pharmacy_id) {
+      await refreshPharmacyCatalog(String(before.pharmacy_id));
+    }
+  },
+);
+
+export const refreshMedicationCatalogOnPharmacyChange = onDocumentWritten(
+  "profiles/{pharmacyId}",
+  async (event) => refreshPharmacyCatalog(event.params.pharmacyId),
+);
+
+export const refreshMedicationCatalogOnApprovalChange = onDocumentWritten(
+  "pharmacies/{pharmacyId}",
+  async (event) => refreshPharmacyCatalog(event.params.pharmacyId),
+);
+
+export const refreshMedicationCatalogOnBranchChange = onDocumentWritten(
+  "pharmacy_branches/{branchId}",
+  async (event) => {
+    const before = event.data?.before.exists ? event.data.before.get("pharmacy_id") : null;
+    const after = event.data?.after.exists ? event.data.after.get("pharmacy_id") : null;
+    const pharmacyIds = new Set([before, after].filter((id): id is string => typeof id === "string"));
+    await Promise.all(Array.from(pharmacyIds, refreshPharmacyCatalog));
+  },
+);
+
+export const refreshMedicationCatalogOnRoleChange = onDocumentWritten(
+  "user_roles/{roleId}",
+  async (event) => {
+    const before = event.data?.before.exists ? event.data.before.get("user_id") : null;
+    const after = event.data?.after.exists ? event.data.after.get("user_id") : null;
+    const userIds = new Set([before, after].filter((id): id is string => typeof id === "string"));
+    await Promise.all(Array.from(userIds, refreshPharmacyCatalog));
+  },
+);
+
+export const removeExpiredPublicMedications = onSchedule("every 60 minutes", async () => {
+  const now = new Date().toISOString();
+  while (true) {
+    const expired = await db.collection("medications_public")
+      .where("expiry_date", "<=", now)
+      .limit(300)
+      .get();
+    if (expired.empty) return;
+    await Promise.all(expired.docs.map((document) => syncPublicMedication(document.id)));
+    if (expired.size < 300) return;
+  }
+});
 
 async function verifiedPaystackTopUp(identity: Identity, reference: string, expectedCents: number) {
   const key = paystackSecret.value().trim();
@@ -547,6 +741,10 @@ async function acceptDeliveryOffer(identity: Identity, offerId: string) {
     const order = orderSnapshot.data() ?? {};
     const pharmacy = pharmacySnapshot.docs[0]?.data() ?? {};
     const pickupAddress = pharmacy.address || pharmacy.organization_name || "Pharmacy pickup point";
+    const orderGroupRef = typeof order.order_group_id === "string"
+      ? db.collection("order_groups").doc(order.order_group_id)
+      : null;
+    const orderGroupSnapshot = orderGroupRef ? await transaction.get(orderGroupRef) : null;
 
     transaction.update(offerRef, { status: "accepted", accepted_by: identity.uid, updated_at: now });
     for (const sibling of siblingsSnapshot.docs) {
@@ -579,8 +777,13 @@ async function acceptDeliveryOffer(identity: Identity, offerId: string) {
     for (const location of driverLocationSnapshot.docs) {
       transaction.update(location.ref, { order_id: orderId, updated_at: now });
     }
-    if (!["delivered", "cancelled", "out_for_delivery"].includes(String(order.status))) {
-      transaction.update(orderRef, { status: "ready", updated_at: now });
+    transaction.update(orderRef, {
+      driver_id: identity.uid,
+      ...(!["delivered", "cancelled", "out_for_delivery"].includes(String(order.status)) ? { status: "ready" } : {}),
+      updated_at: now,
+    });
+    if (orderGroupRef && orderGroupSnapshot?.exists) {
+      transaction.update(orderGroupRef, { driver_id: identity.uid, updated_at: now });
     }
     for (const [userId, title, body, link] of [
       [String(order.patient_id ?? ""), "Driver assigned", "A driver accepted your order and is heading to the pharmacy.", "/dashboard/patient#orders"],
@@ -615,8 +818,94 @@ async function declineDeliveryOffer(identity: Identity, offerId: string) {
   });
 }
 
+async function registerSelfServiceRole(identity: Identity, args: ActionArgs) {
+  const role = stringArg(args, "_role");
+  if (role === "admin") {
+    if (identity.email?.toLowerCase() !== BOOTSTRAP_ADMIN_EMAIL) {
+      throw new ActionError("Admin role assignment is restricted to the bootstrap administrator.", 403);
+    }
+  } else if (!(SELF_SERVICE_ROLES as readonly string[]).includes(role)) {
+    throw new ActionError("Unsupported signup role.", 400);
+  }
+
+  const roleRef = db.collection("user_roles").doc(`${identity.uid}_${role}`);
+  const userRoles = db.collection("user_roles").where("user_id", "==", identity.uid);
+  return db.runTransaction(async (transaction) => {
+    const [roleSnapshot, existingRoles] = await Promise.all([
+      transaction.get(roleRef),
+      transactionQuery(transaction, userRoles),
+    ]);
+    if (roleSnapshot.exists) return { ok: true, role };
+    if (!existingRoles.empty) {
+      throw new ActionError("This account already has a different role.", 409);
+    }
+    if (role !== "patient" && role !== "admin") {
+      const profileSnapshot = await transaction.get(db.collection("profiles").doc(identity.uid));
+      const profile = profileSnapshot.data() ?? {};
+      if (
+        !profileSnapshot.exists
+        || profile.user_id !== identity.uid
+        || !["pending", "under_review"].includes(String(profile.approval_status))
+      ) {
+        throw new ActionError("A pending provider application is required for this role.", 403);
+      }
+      const providerCollection = PROVIDER_REGISTRATION_COLLECTIONS[role];
+      if (providerCollection) {
+        const providerSnapshot = await transaction.get(db.collection(providerCollection).doc(identity.uid));
+        const provider = providerSnapshot.data() ?? {};
+        if (
+          !providerSnapshot.exists
+          || provider.user_id !== identity.uid
+          || provider.status !== "pending_review"
+        ) {
+          throw new ActionError("A matching pending provider application is required.", 403);
+        }
+      } else if (role === "hospital" && typeof profile.organization_name !== "string") {
+        throw new ActionError("A hospital application with an organization name is required.", 403);
+      }
+    }
+    transaction.create(roleRef, {
+      id: roleRef.id,
+      user_id: identity.uid,
+      role,
+      created_at: new Date().toISOString(),
+    });
+    return { ok: true, role };
+  });
+}
+
+async function claimAdminWithInvite(identity: Identity, args: ActionArgs) {
+  const expected = adminInviteCode.value().trim();
+  if (!expected) throw new ActionError("Admin invite code is not configured.", 503);
+  if (stringArg(args, "_code").trim() !== expected) {
+    throw new ActionError("Invalid invite code.", 403);
+  }
+
+  const userRoles = await db.collection("user_roles").where("user_id", "==", identity.uid).get();
+  const batch = db.batch();
+  for (const role of userRoles.docs) batch.delete(role.ref);
+  const roleRef = db.collection("user_roles").doc(`${identity.uid}_admin`);
+  batch.set(roleRef, {
+    id: roleRef.id,
+    user_id: identity.uid,
+    role: "admin",
+    created_at: new Date().toISOString(),
+  });
+  batch.set(db.collection("profiles").doc(identity.uid), {
+    user_id: identity.uid,
+    approval_status: "approved",
+    updated_at: new Date().toISOString(),
+  }, { merge: true });
+  await batch.commit();
+  return { ok: true };
+}
+
 async function runAction(identity: Identity, name: string, args: ActionArgs) {
   switch (name) {
+    case "register_self_service_role":
+      return registerSelfServiceRole(identity, args);
+    case "claim_admin_with_code":
+      return claimAdminWithInvite(identity, args);
     case "wallet_credit":
       return walletCredit(identity, args);
     case "wallet_debit":
@@ -650,7 +939,7 @@ async function runAction(identity: Identity, name: string, args: ActionArgs) {
 }
 
 export const privilegedFirestoreAction = onRequest(
-  { region: "us-central1", timeoutSeconds: 120, memory: "512MiB", secrets: [paystackSecret] },
+  { region: "us-central1", timeoutSeconds: 120, memory: "512MiB", secrets: [paystackSecret, adminInviteCode] },
   async (request, response) => {
     if (request.method !== "POST") {
       response.status(405).json({ error: { message: "POST is required." } });

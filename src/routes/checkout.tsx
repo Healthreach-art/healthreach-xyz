@@ -176,6 +176,7 @@ function CheckoutPage() {
           medicationName: i.name,
           quantity: i.qty,
           pharmacyIdHint: i.pharmacyId,
+          prescriptionUploadId: i.prescriptionUploadId ?? null,
         })),
         delivery: { address: delivery!.address, lat: delivery!.lat!, lng: delivery!.lng! },
         notes: "Paid via Paystack",

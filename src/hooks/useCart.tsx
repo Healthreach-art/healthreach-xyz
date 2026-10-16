@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { firestoreClient } from "@/lib/firestore-client";
+import { isMedicineExpired } from "@/lib/medicine-catalog";
 import { toast } from "sonner";
 
 export interface CartItem {
@@ -64,6 +65,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       toast.error(`Cannot add "${item.name}" — invalid medication id.`);
       return;
     }
+    if (items.some((cartItem) => cartItem.pharmacyId !== item.pharmacyId)) {
+      toast.error("This checkout supports one pharmacy at a time. Remove the other pharmacy's items first.");
+      return;
+    }
     setItems((prev) => {
       const idx = prev.findIndex((p) => p.medId === item.medId);
       if (idx >= 0) {
@@ -86,7 +91,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) => prev.map((p) => (p.medId === medId ? { ...p, ...patch } : p)));
   const clear = () => setItems([]);
 
-  // Live-sync price + stock from medications table whenever cart has items.
+  // Live-sync price + stock from the trusted patient catalogue.
   // Refreshes on mount/change and listens for postgres_changes.
   const medKey = items.map((i) => i.medId).sort().join(",");
   useEffect(() => {
@@ -96,15 +101,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const refresh = async () => {
       const { data } = await firestoreClient
-        .from("medications")
-        .select("id, price, stock_quantity")
+        .from("medications_public")
+        .select("id, price, stock_quantity, expiry_date, is_active, is_demo")
         .in("id", ids);
       if (cancelled || !data) return;
       setItems((prev) => {
         const next: CartItem[] = [];
         for (const it of prev) {
           const row = data.find((d: any) => d.id === it.medId);
-          if (!row) { next.push(it); continue; }
+          if (!row || row.is_active !== true || row.is_demo !== false || isMedicineExpired(row.expiry_date)) {
+            toast.error(`${it.name} is no longer available and was removed from your cart`);
+            continue;
+          }
           const newPrice = Number(row.price);
           const stock = Number(row.stock_quantity);
           if (stock <= 0) {
@@ -125,17 +133,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
       .channel(`cart-sync-${ids.join("-")}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "medications" },
+        { event: "*", schema: "public", table: "medications_public" },
         (payload: any) => {
-          const row = payload.new;
-          if (!ids.includes(row.id)) return;
+          const row = payload.new?.id ? payload.new : payload.old;
+          if (!row?.id || !ids.includes(row.id)) return;
+          if (payload.eventType === "DELETE") {
+            setItems((prev) => prev.filter((item) => item.medId !== row.id));
+            toast.error(`${row.name || "A medicine"} is no longer available and was removed from your cart`);
+            return;
+          }
           setItems((prev) =>
             prev.flatMap((it) => {
               if (it.medId !== row.id) return [it];
               const stock = Number(row.stock_quantity);
               const newPrice = Number(row.price);
-              if (stock <= 0) {
-                toast.error(`${it.name} just went out of stock — removed from cart`);
+              if (stock <= 0 || row.is_active !== true || row.is_demo !== false || isMedicineExpired(row.expiry_date)) {
+                toast.error(`${it.name} is no longer available and was removed from your cart`);
                 return [];
               }
               if (newPrice !== it.price) {

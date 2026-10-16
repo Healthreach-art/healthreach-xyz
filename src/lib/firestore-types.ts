@@ -1462,10 +1462,12 @@ export type FirestoreSchema = {
           expiry_date: string | null
           id: string
           image_url: string | null
+          is_active: boolean
           is_demo: boolean
           name: string
           pharmacy_id: string
           price: number
+          publish_requested: boolean
           requires_prescription: boolean | null
           stock_quantity: number
           updated_at: string
@@ -1478,10 +1480,12 @@ export type FirestoreSchema = {
           expiry_date?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean
           is_demo?: boolean
           name: string
           pharmacy_id: string
           price?: number
+          publish_requested?: boolean
           requires_prescription?: boolean | null
           stock_quantity?: number
           updated_at?: string
@@ -1494,10 +1498,12 @@ export type FirestoreSchema = {
           expiry_date?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean
           is_demo?: boolean
           name?: string
           pharmacy_id?: string
           price?: number
+          publish_requested?: boolean
           requires_prescription?: boolean | null
           stock_quantity?: number
           updated_at?: string

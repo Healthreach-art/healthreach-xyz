@@ -476,7 +476,11 @@ async function serveMcpData(request: HttpRequest) {
       const limit = typeof args.limit === "number" && Number.isInteger(args.limit)
         ? Math.min(50, Math.max(1, args.limit))
         : 15;
-      const snapshot = await db.collection("medications").where("stock_quantity", ">", 0).get();
+      const snapshot = await db.collection("medications_public")
+        .where("is_active", "==", true)
+        .where("is_demo", "==", false)
+        .where("stock_quantity", ">", 0)
+        .get();
       data = snapshot.docs.flatMap((document) => {
         const row = document.data();
         const searchable = [row.name, row.description, row.category]

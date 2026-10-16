@@ -139,6 +139,51 @@ The app calls the function in `us-central1` by default. Set
 function to a different endpoint. Set `FIREBASE_PAYMENT_WEBHOOK_URL` only if
 the public webhook function is deployed at a different endpoint.
 
+## Pharmacy medicine catalogue and order security
+
+Pharmacy-entered products are stored in the pharmacy-owned `medications`
+collection. The patient catalogue reads `medications_public`, which is
+read-only to clients. The `publishMedicationToPatientCatalog` Cloud Function
+re-reads the current source medicine and checks its publication request,
+active/non-demo state, positive stock, expiry, pharmacy role, approved profile
+and pharmacy record, and active primary branch in a Firestore transaction
+before writing the public snapshot. Changes to a medicine, pharmacy approval,
+profile, role, or branch refresh or remove that snapshot. Do not grant clients
+write access to `medications_public`. A scheduled hourly cleanup republishes
+or removes products whose stock has expired; the Firebase project must have
+Cloud Scheduler enabled for that function.
+
+Order submission uses the existing authenticated order flow. Firestore rules
+require the selected public medicine to belong to the order's pharmacy, verify
+the pharmacy is still approved and its published branch is active, and check
+current source-medicine publication state and stock before accepting an
+order. The order handler additionally checks that all cart items belong to
+one pharmacy and validates prescription ownership, approval, medicine and
+pharmacy match, expiry, repeat allowance, and fraud score before linking the
+prescription upload to the created order. Pharmacy prescription access is
+limited to uploads linked to that pharmacy's own order. Provider-role records
+are written by the authenticated server action only after it verifies a
+matching pending provider application; client Firestore rules do not allow
+users to create or update roles. The admin invite action requires the
+`ADMIN_INVITE_CODE` Functions secret; bootstrap admin access remains tied to
+the designated Firebase Auth email, not profile data.
+
+Configure `ADMIN_INVITE_CODE` as a Firebase Functions secret before deploying
+if the admin invite flow is used:
+
+```sh
+firebase functions:secrets:set ADMIN_INVITE_CODE --project YOUR_FIREBASE_PROJECT
+```
+
+After reviewing the rules and indexes, build Functions and deploy only to the
+intended Firebase project. The pharmacy-branch and order-linked prescription
+queries require the indexes in `firestore.indexes.json`:
+
+```sh
+npm run functions:build
+firebase deploy --only functions,firestore:rules,firestore:indexes --project YOUR_FIREBASE_PROJECT
+```
+
 ## MCP OAuth server
 
 The MCP server uses a dedicated Firebase Functions OAuth authorization server.

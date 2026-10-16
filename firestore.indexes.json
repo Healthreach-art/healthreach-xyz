@@ -1,6 +1,30 @@
 {
   "indexes": [
     {
+      "collectionGroup": "profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "approval_status", "order": "ASCENDING" },
+        { "fieldPath": "user_id", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pharmacies",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "user_id", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "user_roles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "user_id", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "medications",
       "queryScope": "COLLECTION",
       "fields": [
@@ -32,6 +56,24 @@
       "fields": [
         { "fieldPath": "pharmacy_id", "order": "ASCENDING" },
         { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prescription_uploads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pharmacy_id", "order": "ASCENDING" },
+        { "fieldPath": "order_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pharmacy_branches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pharmacy_id", "order": "ASCENDING" },
+        { "fieldPath": "is_primary", "order": "ASCENDING" },
+        { "fieldPath": "is_active", "order": "ASCENDING" }
       ]
     },
     {

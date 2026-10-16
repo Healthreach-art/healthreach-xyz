@@ -9,211 +9,91 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as CheckoutRouteImport } from './routes/checkout'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as FirebaseAdminRouteImport } from './routes/firebase-admin'
-import { Route as ForDoctorsRouteImport } from './routes/for-doctors'
-import { Route as ForDriversRouteImport } from './routes/for-drivers'
-import { Route as ForPatientsRouteImport } from './routes/for-patients'
-import { Route as ForPharmaciesRouteImport } from './routes/for-pharmacies'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as LinkAccountRouteImport } from './routes/link-account'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as PaymentRouteImport } from './routes/payment'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as SitemapAdminDotxmlRouteImport } from './routes/sitemap-admin[.]xml'
-import { Route as SitemapCoreDotxmlRouteImport } from './routes/sitemap-core[.]xml'
-import { Route as SitemapDriversDotxmlRouteImport } from './routes/sitemap-drivers[.]xml'
-import { Route as SitemapHospitalsDotxmlRouteImport } from './routes/sitemap-hospitals[.]xml'
-import { Route as SitemapPatientsDotxmlRouteImport } from './routes/sitemap-patients[.]xml'
-import { Route as SitemapPharmaciesDotxmlRouteImport } from './routes/sitemap-pharmacies[.]xml'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TrackRouteImport } from './routes/track'
-import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as Char91DotwellKnownChar93OauthAuthorizationServerRouteImport } from './routes/[.well-known]/oauth-authorization-server'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
-import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
-import { Route as ApiPrivateFilesRouteImport } from './routes/api/private-files'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
-import { Route as DashboardDoctorRouteImport } from './routes/dashboard.doctor'
-import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
-import { Route as DashboardHomecare_companyRouteImport } from './routes/dashboard.homecare_company'
-import { Route as DashboardHomecare_staffRouteImport } from './routes/dashboard.homecare_staff'
-import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
-import { Route as DashboardPharmacyRouteImport } from './routes/dashboard.pharmacy'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SitemapPharmaciesDotxmlRouteImport } from './routes/sitemap-pharmacies[.]xml'
+import { Route as SitemapPatientsDotxmlRouteImport } from './routes/sitemap-patients[.]xml'
+import { Route as SitemapHospitalsDotxmlRouteImport } from './routes/sitemap-hospitals[.]xml'
+import { Route as SitemapDriversDotxmlRouteImport } from './routes/sitemap-drivers[.]xml'
+import { Route as SitemapCoreDotxmlRouteImport } from './routes/sitemap-core[.]xml'
+import { Route as SitemapAdminDotxmlRouteImport } from './routes/sitemap-admin[.]xml'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PaymentRouteImport } from './routes/payment'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as LinkAccountRouteImport } from './routes/link-account'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ForPharmaciesRouteImport } from './routes/for-pharmacies'
+import { Route as ForPatientsRouteImport } from './routes/for-patients'
+import { Route as ForDriversRouteImport } from './routes/for-drivers'
+import { Route as ForDoctorsRouteImport } from './routes/for-doctors'
+import { Route as FirebaseAdminRouteImport } from './routes/firebase-admin'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as DoctorsIndexRouteImport } from './routes/doctors.index'
-import { Route as DoctorsIdRouteImport } from './routes/doctors.$id'
-import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding'
-import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
-import { Route as PharmacyIdRouteImport } from './routes/pharmacy.$id'
-import { Route as PharmacyOnboardingRouteImport } from './routes/pharmacy.onboarding'
 import { Route as SignupAdminRouteImport } from './routes/signup.admin'
-import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
-import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
-import { Route as DashboardAdminHomecareRouteImport } from './routes/dashboard.admin.homecare'
-import { Route as DashboardAdminLiveRouteImport } from './routes/dashboard.admin.live'
-import { Route as DashboardAdminLogsRouteImport } from './routes/dashboard.admin.logs'
-import { Route as DashboardPatientIndexRouteImport } from './routes/dashboard.patient.index'
-import { Route as DashboardPatientAccountRouteImport } from './routes/dashboard.patient.account'
-import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard.patient.activity'
-import { Route as DashboardPatientAddressesRouteImport } from './routes/dashboard.patient.addresses'
-import { Route as DashboardPatientConsultationsRouteImport } from './routes/dashboard.patient.consultations'
-import { Route as DashboardPatientFamilyRouteImport } from './routes/dashboard.patient.family'
-import { Route as DashboardPatientFindRouteImport } from './routes/dashboard.patient.find'
-import { Route as DashboardPatientHomecareRouteImport } from './routes/dashboard.patient.homecare'
-import { Route as DashboardPatientMedicalAidRouteImport } from './routes/dashboard.patient.medical-aid'
-import { Route as DashboardPatientMedicationsRouteImport } from './routes/dashboard.patient.medications'
-import { Route as DashboardPatientOrdersRouteImport } from './routes/dashboard.patient.orders'
-import { Route as DashboardPatientPaymentMethodsRouteImport } from './routes/dashboard.patient.payment-methods'
-import { Route as DashboardPatientPrescriptionsRouteImport } from './routes/dashboard.patient.prescriptions'
-import { Route as DashboardPatientRatingsRouteImport } from './routes/dashboard.patient.ratings'
-import { Route as DashboardPatientRemindersRouteImport } from './routes/dashboard.patient.reminders'
-import { Route as DashboardPatientSearchRouteImport } from './routes/dashboard.patient.search'
-import { Route as DashboardPatientSupportRouteImport } from './routes/dashboard.patient.support'
-import { Route as DashboardPatientTransactionsRouteImport } from './routes/dashboard.patient.transactions'
-import { Route as DashboardPatientWalletRouteImport } from './routes/dashboard.patient.wallet'
+import { Route as PharmacyOnboardingRouteImport } from './routes/pharmacy.onboarding'
+import { Route as PharmacyIdRouteImport } from './routes/pharmacy.$id'
+import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
+import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding'
+import { Route as DoctorsIdRouteImport } from './routes/doctors.$id'
+import { Route as DashboardPharmacyRouteImport } from './routes/dashboard.pharmacy'
+import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
+import { Route as DashboardHomecare_staffRouteImport } from './routes/dashboard.homecare_staff'
+import { Route as DashboardHomecare_companyRouteImport } from './routes/dashboard.homecare_company'
+import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
+import { Route as DashboardDoctorRouteImport } from './routes/dashboard.doctor'
+import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as ApiPrivateFilesRouteImport } from './routes/api/private-files'
+import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotwellKnownChar93OauthAuthorizationServerRouteImport } from './routes/[.well-known]/oauth-authorization-server'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as DashboardPharmacyIndexRouteImport } from './routes/dashboard.pharmacy.index'
-import { Route as DashboardPharmacyAnalyticsRouteImport } from './routes/dashboard.pharmacy.analytics'
-import { Route as DashboardPharmacyAppointmentsRouteImport } from './routes/dashboard.pharmacy.appointments'
-import { Route as DashboardPharmacyDocumentsRouteImport } from './routes/dashboard.pharmacy.documents'
-import { Route as DashboardPharmacyFinanceRouteImport } from './routes/dashboard.pharmacy.finance'
-import { Route as DashboardPharmacyInventoryRouteImport } from './routes/dashboard.pharmacy.inventory'
-import { Route as DashboardPharmacyLowStockRouteImport } from './routes/dashboard.pharmacy.low-stock'
+import { Route as DashboardPatientIndexRouteImport } from './routes/dashboard.patient.index'
 import { Route as DashboardPharmacyTransactionsRouteImport } from './routes/dashboard.pharmacy.transactions'
+import { Route as DashboardPharmacyLowStockRouteImport } from './routes/dashboard.pharmacy.low-stock'
+import { Route as DashboardPharmacyInventoryRouteImport } from './routes/dashboard.pharmacy.inventory'
+import { Route as DashboardPharmacyFinanceRouteImport } from './routes/dashboard.pharmacy.finance'
+import { Route as DashboardPharmacyDocumentsRouteImport } from './routes/dashboard.pharmacy.documents'
+import { Route as DashboardPharmacyAppointmentsRouteImport } from './routes/dashboard.pharmacy.appointments'
+import { Route as DashboardPharmacyAnalyticsRouteImport } from './routes/dashboard.pharmacy.analytics'
+import { Route as DashboardPatientWalletRouteImport } from './routes/dashboard.patient.wallet'
+import { Route as DashboardPatientTransactionsRouteImport } from './routes/dashboard.patient.transactions'
+import { Route as DashboardPatientSupportRouteImport } from './routes/dashboard.patient.support'
+import { Route as DashboardPatientSearchRouteImport } from './routes/dashboard.patient.search'
+import { Route as DashboardPatientRemindersRouteImport } from './routes/dashboard.patient.reminders'
+import { Route as DashboardPatientRatingsRouteImport } from './routes/dashboard.patient.ratings'
+import { Route as DashboardPatientPrescriptionsRouteImport } from './routes/dashboard.patient.prescriptions'
+import { Route as DashboardPatientPaymentMethodsRouteImport } from './routes/dashboard.patient.payment-methods'
+import { Route as DashboardPatientOrdersRouteImport } from './routes/dashboard.patient.orders'
+import { Route as DashboardPatientMedicationsRouteImport } from './routes/dashboard.patient.medications'
+import { Route as DashboardPatientMedicalAidRouteImport } from './routes/dashboard.patient.medical-aid'
+import { Route as DashboardPatientHomecareRouteImport } from './routes/dashboard.patient.homecare'
+import { Route as DashboardPatientFindRouteImport } from './routes/dashboard.patient.find'
+import { Route as DashboardPatientFamilyRouteImport } from './routes/dashboard.patient.family'
+import { Route as DashboardPatientConsultationsRouteImport } from './routes/dashboard.patient.consultations'
+import { Route as DashboardPatientAddressesRouteImport } from './routes/dashboard.patient.addresses'
+import { Route as DashboardPatientActivityRouteImport } from './routes/dashboard.patient.activity'
+import { Route as DashboardPatientAccountRouteImport } from './routes/dashboard.patient.account'
+import { Route as DashboardAdminLogsRouteImport } from './routes/dashboard.admin.logs'
+import { Route as DashboardAdminLiveRouteImport } from './routes/dashboard.admin.live'
+import { Route as DashboardAdminHomecareRouteImport } from './routes/dashboard.admin.homecare'
+import { Route as ApiPublicPaymentWebhookRouteImport } from './routes/api/public/payment-webhook'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as DashboardPatientDoctorsIdRouteImport } from './routes/dashboard.patient.doctors.$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CheckoutRoute = CheckoutRouteImport.update({
-  id: '/checkout',
-  path: '/checkout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FirebaseAdminRoute = FirebaseAdminRouteImport.update({
-  id: '/firebase-admin',
-  path: '/firebase-admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForDoctorsRoute = ForDoctorsRouteImport.update({
-  id: '/for-doctors',
-  path: '/for-doctors',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForDriversRoute = ForDriversRouteImport.update({
-  id: '/for-drivers',
-  path: '/for-drivers',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForPatientsRoute = ForPatientsRouteImport.update({
-  id: '/for-patients',
-  path: '/for-patients',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForPharmaciesRoute = ForPharmaciesRouteImport.update({
-  id: '/for-pharmacies',
-  path: '/for-pharmacies',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LinkAccountRoute = LinkAccountRouteImport.update({
-  id: '/link-account',
-  path: '/link-account',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PaymentRoute = PaymentRouteImport.update({
-  id: '/payment',
-  path: '/payment',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapAdminDotxmlRoute = SitemapAdminDotxmlRouteImport.update({
-  id: '/sitemap-admin.xml',
-  path: '/sitemap-admin.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapCoreDotxmlRoute = SitemapCoreDotxmlRouteImport.update({
-  id: '/sitemap-core.xml',
-  path: '/sitemap-core.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapDriversDotxmlRoute = SitemapDriversDotxmlRouteImport.update({
-  id: '/sitemap-drivers.xml',
-  path: '/sitemap-drivers.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapHospitalsDotxmlRoute = SitemapHospitalsDotxmlRouteImport.update({
-  id: '/sitemap-hospitals.xml',
-  path: '/sitemap-hospitals.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapPatientsDotxmlRoute = SitemapPatientsDotxmlRouteImport.update({
-  id: '/sitemap-patients.xml',
-  path: '/sitemap-patients.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapPharmaciesDotxmlRoute = SitemapPharmaciesDotxmlRouteImport.update({
-  id: '/sitemap-pharmacies.xml',
-  path: '/sitemap-pharmacies.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+const TrackRoute = TrackRouteImport.update({
+  id: '/track',
+  path: '/track',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -221,57 +101,179 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TrackRoute = TrackRouteImport.update({
-  id: '/track',
-  path: '/track',
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotwellKnownChar93OauthAuthorizationServerRoute =
-  Char91DotwellKnownChar93OauthAuthorizationServerRouteImport.update({
-    id: '/.well-known/oauth-authorization-server',
-    path: '/.well-known/oauth-authorization-server',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiMockPayRoute = ApiMockPayRouteImport.update({
-  id: '/api/mock-pay',
-  path: '/api/mock-pay',
+const SitemapPharmaciesDotxmlRoute = SitemapPharmaciesDotxmlRouteImport.update({
+  id: '/sitemap-pharmacies.xml',
+  path: '/sitemap-pharmacies.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPrivateFilesRoute = ApiPrivateFilesRouteImport.update({
-  id: '/api/private-files',
-  path: '/api/private-files',
+const SitemapPatientsDotxmlRoute = SitemapPatientsDotxmlRouteImport.update({
+  id: '/sitemap-patients.xml',
+  path: '/sitemap-patients.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
+const SitemapHospitalsDotxmlRoute = SitemapHospitalsDotxmlRouteImport.update({
+  id: '/sitemap-hospitals.xml',
+  path: '/sitemap-hospitals.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardAdminRoute = DashboardAdminRouteImport.update({
-  id: '/dashboard/admin',
-  path: '/dashboard/admin',
+const SitemapDriversDotxmlRoute = SitemapDriversDotxmlRouteImport.update({
+  id: '/sitemap-drivers.xml',
+  path: '/sitemap-drivers.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardDoctorRoute = DashboardDoctorRouteImport.update({
-  id: '/dashboard/doctor',
-  path: '/dashboard/doctor',
+const SitemapCoreDotxmlRoute = SitemapCoreDotxmlRouteImport.update({
+  id: '/sitemap-core.xml',
+  path: '/sitemap-core.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardDriverRoute = DashboardDriverRouteImport.update({
-  id: '/dashboard/driver',
-  path: '/dashboard/driver',
+const SitemapAdminDotxmlRoute = SitemapAdminDotxmlRouteImport.update({
+  id: '/sitemap-admin.xml',
+  path: '/sitemap-admin.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentRoute = PaymentRouteImport.update({
+  id: '/payment',
+  path: '/payment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LinkAccountRoute = LinkAccountRouteImport.update({
+  id: '/link-account',
+  path: '/link-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForPharmaciesRoute = ForPharmaciesRouteImport.update({
+  id: '/for-pharmacies',
+  path: '/for-pharmacies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForPatientsRoute = ForPatientsRouteImport.update({
+  id: '/for-patients',
+  path: '/for-patients',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForDriversRoute = ForDriversRouteImport.update({
+  id: '/for-drivers',
+  path: '/for-drivers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForDoctorsRoute = ForDoctorsRouteImport.update({
+  id: '/for-doctors',
+  path: '/for-doctors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FirebaseAdminRoute = FirebaseAdminRouteImport.update({
+  id: '/firebase-admin',
+  path: '/firebase-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DoctorsIndexRoute = DoctorsIndexRouteImport.update({
+  id: '/doctors/',
+  path: '/doctors/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupAdminRoute = SignupAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => SignupRoute,
+} as any)
+const PharmacyOnboardingRoute = PharmacyOnboardingRouteImport.update({
+  id: '/pharmacy/onboarding',
+  path: '/pharmacy/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PharmacyIdRoute = PharmacyIdRouteImport.update({
+  id: '/pharmacy/$id',
+  path: '/pharmacy/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DriverWalletRoute = DriverWalletRouteImport.update({
+  id: '/driver/wallet',
+  path: '/driver/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DriverOnboardingRoute = DriverOnboardingRouteImport.update({
+  id: '/driver/onboarding',
+  path: '/driver/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DoctorsIdRoute = DoctorsIdRouteImport.update({
+  id: '/doctors/$id',
+  path: '/doctors/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardPharmacyRoute = DashboardPharmacyRouteImport.update({
+  id: '/dashboard/pharmacy',
+  path: '/dashboard/pharmacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardHospitalRoute = DashboardHospitalRouteImport.update({
+  id: '/dashboard/hospital',
+  path: '/dashboard/hospital',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardHomecare_staffRoute = DashboardHomecare_staffRouteImport.update({
+  id: '/dashboard/homecare_staff',
+  path: '/dashboard/homecare_staff',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardHomecare_companyRoute =
@@ -280,225 +282,68 @@ const DashboardHomecare_companyRoute =
     path: '/dashboard/homecare_company',
     getParentRoute: () => rootRouteImport,
   } as any)
-const DashboardHomecare_staffRoute = DashboardHomecare_staffRouteImport.update({
-  id: '/dashboard/homecare_staff',
-  path: '/dashboard/homecare_staff',
+const DashboardDriverRoute = DashboardDriverRouteImport.update({
+  id: '/dashboard/driver',
+  path: '/dashboard/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardHospitalRoute = DashboardHospitalRouteImport.update({
-  id: '/dashboard/hospital',
-  path: '/dashboard/hospital',
+const DashboardDoctorRoute = DashboardDoctorRouteImport.update({
+  id: '/dashboard/doctor',
+  path: '/dashboard/doctor',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardPharmacyRoute = DashboardPharmacyRouteImport.update({
-  id: '/dashboard/pharmacy',
-  path: '/dashboard/pharmacy',
+const DashboardAdminRoute = DashboardAdminRouteImport.update({
+  id: '/dashboard/admin',
+  path: '/dashboard/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DoctorsIndexRoute = DoctorsIndexRouteImport.update({
-  id: '/doctors/',
-  path: '/doctors/',
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DoctorsIdRoute = DoctorsIdRouteImport.update({
-  id: '/doctors/$id',
-  path: '/doctors/$id',
+const ApiPrivateFilesRoute = ApiPrivateFilesRouteImport.update({
+  id: '/api/private-files',
+  path: '/api/private-files',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DriverOnboardingRoute = DriverOnboardingRouteImport.update({
-  id: '/driver/onboarding',
-  path: '/driver/onboarding',
+const ApiMockPayRoute = ApiMockPayRouteImport.update({
+  id: '/api/mock-pay',
+  path: '/api/mock-pay',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DriverWalletRoute = DriverWalletRouteImport.update({
-  id: '/driver/wallet',
-  path: '/driver/wallet',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PharmacyIdRoute = PharmacyIdRouteImport.update({
-  id: '/pharmacy/$id',
-  path: '/pharmacy/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PharmacyOnboardingRoute = PharmacyOnboardingRouteImport.update({
-  id: '/pharmacy/onboarding',
-  path: '/pharmacy/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignupAdminRoute = SignupAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => SignupRoute,
-} as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
-  id: '/api/public/payment-webhook',
-  path: '/api/public/payment-webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardAdminHomecareRoute = DashboardAdminHomecareRouteImport.update({
-  id: '/homecare',
-  path: '/homecare',
-  getParentRoute: () => DashboardAdminRoute,
-} as any)
-const DashboardAdminLiveRoute = DashboardAdminLiveRouteImport.update({
-  id: '/live',
-  path: '/live',
-  getParentRoute: () => DashboardAdminRoute,
-} as any)
-const DashboardAdminLogsRoute = DashboardAdminLogsRouteImport.update({
-  id: '/logs',
-  path: '/logs',
-  getParentRoute: () => DashboardAdminRoute,
+const Char91DotwellKnownChar93OauthAuthorizationServerRoute =
+  Char91DotwellKnownChar93OauthAuthorizationServerRouteImport.update({
+    id: '/.well-known/oauth-authorization-server',
+    path: '/.well-known/oauth-authorization-server',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPharmacyIndexRoute = DashboardPharmacyIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardPharmacyRoute,
 } as any)
 const DashboardPatientIndexRoute = DashboardPatientIndexRouteImport.update({
   id: '/dashboard/patient/',
   path: '/dashboard/patient/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardPatientAccountRoute = DashboardPatientAccountRouteImport.update({
-  id: '/dashboard/patient/account',
-  path: '/dashboard/patient/account',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardPatientActivityRoute =
-  DashboardPatientActivityRouteImport.update({
-    id: '/dashboard/patient/activity',
-    path: '/dashboard/patient/activity',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientAddressesRoute =
-  DashboardPatientAddressesRouteImport.update({
-    id: '/dashboard/patient/addresses',
-    path: '/dashboard/patient/addresses',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientConsultationsRoute =
-  DashboardPatientConsultationsRouteImport.update({
-    id: '/dashboard/patient/consultations',
-    path: '/dashboard/patient/consultations',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientFamilyRoute = DashboardPatientFamilyRouteImport.update({
-  id: '/dashboard/patient/family',
-  path: '/dashboard/patient/family',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardPatientFindRoute = DashboardPatientFindRouteImport.update({
-  id: '/dashboard/patient/find',
-  path: '/dashboard/patient/find',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardPatientHomecareRoute =
-  DashboardPatientHomecareRouteImport.update({
-    id: '/dashboard/patient/homecare',
-    path: '/dashboard/patient/homecare',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientMedicalAidRoute =
-  DashboardPatientMedicalAidRouteImport.update({
-    id: '/dashboard/patient/medical-aid',
-    path: '/dashboard/patient/medical-aid',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientMedicationsRoute =
-  DashboardPatientMedicationsRouteImport.update({
-    id: '/dashboard/patient/medications',
-    path: '/dashboard/patient/medications',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientOrdersRoute = DashboardPatientOrdersRouteImport.update({
-  id: '/dashboard/patient/orders',
-  path: '/dashboard/patient/orders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardPatientPaymentMethodsRoute =
-  DashboardPatientPaymentMethodsRouteImport.update({
-    id: '/dashboard/patient/payment-methods',
-    path: '/dashboard/patient/payment-methods',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientPrescriptionsRoute =
-  DashboardPatientPrescriptionsRouteImport.update({
-    id: '/dashboard/patient/prescriptions',
-    path: '/dashboard/patient/prescriptions',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientRatingsRoute = DashboardPatientRatingsRouteImport.update({
-  id: '/dashboard/patient/ratings',
-  path: '/dashboard/patient/ratings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardPatientRemindersRoute =
-  DashboardPatientRemindersRouteImport.update({
-    id: '/dashboard/patient/reminders',
-    path: '/dashboard/patient/reminders',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientSearchRoute = DashboardPatientSearchRouteImport.update({
-  id: '/dashboard/patient/search',
-  path: '/dashboard/patient/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardPatientSupportRoute = DashboardPatientSupportRouteImport.update({
-  id: '/dashboard/patient/support',
-  path: '/dashboard/patient/support',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardPatientTransactionsRoute =
-  DashboardPatientTransactionsRouteImport.update({
-    id: '/dashboard/patient/transactions',
-    path: '/dashboard/patient/transactions',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DashboardPatientWalletRoute = DashboardPatientWalletRouteImport.update({
-  id: '/dashboard/patient/wallet',
-  path: '/dashboard/patient/wallet',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardPharmacyIndexRoute = DashboardPharmacyIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DashboardPharmacyRoute,
-} as any)
-const DashboardPharmacyAnalyticsRoute =
-  DashboardPharmacyAnalyticsRouteImport.update({
-    id: '/analytics',
-    path: '/analytics',
-    getParentRoute: () => DashboardPharmacyRoute,
-  } as any)
-const DashboardPharmacyAppointmentsRoute =
-  DashboardPharmacyAppointmentsRouteImport.update({
-    id: '/appointments',
-    path: '/appointments',
-    getParentRoute: () => DashboardPharmacyRoute,
-  } as any)
-const DashboardPharmacyDocumentsRoute =
-  DashboardPharmacyDocumentsRouteImport.update({
-    id: '/documents',
-    path: '/documents',
-    getParentRoute: () => DashboardPharmacyRoute,
-  } as any)
-const DashboardPharmacyFinanceRoute =
-  DashboardPharmacyFinanceRouteImport.update({
-    id: '/finance',
-    path: '/finance',
-    getParentRoute: () => DashboardPharmacyRoute,
-  } as any)
-const DashboardPharmacyInventoryRoute =
-  DashboardPharmacyInventoryRouteImport.update({
-    id: '/inventory',
-    path: '/inventory',
+const DashboardPharmacyTransactionsRoute =
+  DashboardPharmacyTransactionsRouteImport.update({
+    id: '/transactions',
+    path: '/transactions',
     getParentRoute: () => DashboardPharmacyRoute,
   } as any)
 const DashboardPharmacyLowStockRoute =
@@ -507,12 +352,167 @@ const DashboardPharmacyLowStockRoute =
     path: '/low-stock',
     getParentRoute: () => DashboardPharmacyRoute,
   } as any)
-const DashboardPharmacyTransactionsRoute =
-  DashboardPharmacyTransactionsRouteImport.update({
-    id: '/transactions',
-    path: '/transactions',
+const DashboardPharmacyInventoryRoute =
+  DashboardPharmacyInventoryRouteImport.update({
+    id: '/inventory',
+    path: '/inventory',
     getParentRoute: () => DashboardPharmacyRoute,
   } as any)
+const DashboardPharmacyFinanceRoute =
+  DashboardPharmacyFinanceRouteImport.update({
+    id: '/finance',
+    path: '/finance',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
+const DashboardPharmacyDocumentsRoute =
+  DashboardPharmacyDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
+const DashboardPharmacyAppointmentsRoute =
+  DashboardPharmacyAppointmentsRouteImport.update({
+    id: '/appointments',
+    path: '/appointments',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
+const DashboardPharmacyAnalyticsRoute =
+  DashboardPharmacyAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => DashboardPharmacyRoute,
+  } as any)
+const DashboardPatientWalletRoute = DashboardPatientWalletRouteImport.update({
+  id: '/dashboard/patient/wallet',
+  path: '/dashboard/patient/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardPatientTransactionsRoute =
+  DashboardPatientTransactionsRouteImport.update({
+    id: '/dashboard/patient/transactions',
+    path: '/dashboard/patient/transactions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientSupportRoute = DashboardPatientSupportRouteImport.update({
+  id: '/dashboard/patient/support',
+  path: '/dashboard/patient/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardPatientSearchRoute = DashboardPatientSearchRouteImport.update({
+  id: '/dashboard/patient/search',
+  path: '/dashboard/patient/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardPatientRemindersRoute =
+  DashboardPatientRemindersRouteImport.update({
+    id: '/dashboard/patient/reminders',
+    path: '/dashboard/patient/reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientRatingsRoute = DashboardPatientRatingsRouteImport.update({
+  id: '/dashboard/patient/ratings',
+  path: '/dashboard/patient/ratings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardPatientPrescriptionsRoute =
+  DashboardPatientPrescriptionsRouteImport.update({
+    id: '/dashboard/patient/prescriptions',
+    path: '/dashboard/patient/prescriptions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientPaymentMethodsRoute =
+  DashboardPatientPaymentMethodsRouteImport.update({
+    id: '/dashboard/patient/payment-methods',
+    path: '/dashboard/patient/payment-methods',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientOrdersRoute = DashboardPatientOrdersRouteImport.update({
+  id: '/dashboard/patient/orders',
+  path: '/dashboard/patient/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardPatientMedicationsRoute =
+  DashboardPatientMedicationsRouteImport.update({
+    id: '/dashboard/patient/medications',
+    path: '/dashboard/patient/medications',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientMedicalAidRoute =
+  DashboardPatientMedicalAidRouteImport.update({
+    id: '/dashboard/patient/medical-aid',
+    path: '/dashboard/patient/medical-aid',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientHomecareRoute =
+  DashboardPatientHomecareRouteImport.update({
+    id: '/dashboard/patient/homecare',
+    path: '/dashboard/patient/homecare',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientFindRoute = DashboardPatientFindRouteImport.update({
+  id: '/dashboard/patient/find',
+  path: '/dashboard/patient/find',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardPatientFamilyRoute = DashboardPatientFamilyRouteImport.update({
+  id: '/dashboard/patient/family',
+  path: '/dashboard/patient/family',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardPatientConsultationsRoute =
+  DashboardPatientConsultationsRouteImport.update({
+    id: '/dashboard/patient/consultations',
+    path: '/dashboard/patient/consultations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientAddressesRoute =
+  DashboardPatientAddressesRouteImport.update({
+    id: '/dashboard/patient/addresses',
+    path: '/dashboard/patient/addresses',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientActivityRoute =
+  DashboardPatientActivityRouteImport.update({
+    id: '/dashboard/patient/activity',
+    path: '/dashboard/patient/activity',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardPatientAccountRoute = DashboardPatientAccountRouteImport.update({
+  id: '/dashboard/patient/account',
+  path: '/dashboard/patient/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardAdminLogsRoute = DashboardAdminLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => DashboardAdminRoute,
+} as any)
+const DashboardAdminLiveRoute = DashboardAdminLiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => DashboardAdminRoute,
+} as any)
+const DashboardAdminHomecareRoute = DashboardAdminHomecareRouteImport.update({
+  id: '/homecare',
+  path: '/homecare',
+  getParentRoute: () => DashboardAdminRoute,
+} as any)
+const ApiPublicPaymentWebhookRoute = ApiPublicPaymentWebhookRouteImport.update({
+  id: '/api/public/payment-webhook',
+  path: '/api/public/payment-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardPatientDoctorsIdRoute =
   DashboardPatientDoctorsIdRouteImport.update({
     id: '/dashboard/patient/doctors/$id',
@@ -1094,179 +1094,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/checkout': {
-      id: '/checkout'
-      path: '/checkout'
-      fullPath: '/checkout'
-      preLoaderRoute: typeof CheckoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/firebase-admin': {
-      id: '/firebase-admin'
-      path: '/firebase-admin'
-      fullPath: '/firebase-admin'
-      preLoaderRoute: typeof FirebaseAdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/for-doctors': {
-      id: '/for-doctors'
-      path: '/for-doctors'
-      fullPath: '/for-doctors'
-      preLoaderRoute: typeof ForDoctorsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/for-drivers': {
-      id: '/for-drivers'
-      path: '/for-drivers'
-      fullPath: '/for-drivers'
-      preLoaderRoute: typeof ForDriversRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/for-patients': {
-      id: '/for-patients'
-      path: '/for-patients'
-      fullPath: '/for-patients'
-      preLoaderRoute: typeof ForPatientsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/for-pharmacies': {
-      id: '/for-pharmacies'
-      path: '/for-pharmacies'
-      fullPath: '/for-pharmacies'
-      preLoaderRoute: typeof ForPharmaciesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/link-account': {
-      id: '/link-account'
-      path: '/link-account'
-      fullPath: '/link-account'
-      preLoaderRoute: typeof LinkAccountRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/payment': {
-      id: '/payment'
-      path: '/payment'
-      fullPath: '/payment'
-      preLoaderRoute: typeof PaymentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap-admin.xml': {
-      id: '/sitemap-admin.xml'
-      path: '/sitemap-admin.xml'
-      fullPath: '/sitemap-admin.xml'
-      preLoaderRoute: typeof SitemapAdminDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap-core.xml': {
-      id: '/sitemap-core.xml'
-      path: '/sitemap-core.xml'
-      fullPath: '/sitemap-core.xml'
-      preLoaderRoute: typeof SitemapCoreDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap-drivers.xml': {
-      id: '/sitemap-drivers.xml'
-      path: '/sitemap-drivers.xml'
-      fullPath: '/sitemap-drivers.xml'
-      preLoaderRoute: typeof SitemapDriversDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap-hospitals.xml': {
-      id: '/sitemap-hospitals.xml'
-      path: '/sitemap-hospitals.xml'
-      fullPath: '/sitemap-hospitals.xml'
-      preLoaderRoute: typeof SitemapHospitalsDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap-patients.xml': {
-      id: '/sitemap-patients.xml'
-      path: '/sitemap-patients.xml'
-      fullPath: '/sitemap-patients.xml'
-      preLoaderRoute: typeof SitemapPatientsDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap-pharmacies.xml': {
-      id: '/sitemap-pharmacies.xml'
-      path: '/sitemap-pharmacies.xml'
-      fullPath: '/sitemap-pharmacies.xml'
-      preLoaderRoute: typeof SitemapPharmaciesDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
+    '/track': {
+      id: '/track'
+      path: '/track'
+      fullPath: '/track'
+      preLoaderRoute: typeof TrackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -1276,102 +1108,179 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/track': {
-      id: '/track'
-      path: '/track'
-      fullPath: '/track'
-      preLoaderRoute: typeof TrackRouteImport
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.mcp/list-tools': {
-      id: '/.mcp/list-tools'
-      path: '/.mcp/list-tools'
-      fullPath: '/.mcp/list-tools'
-      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+    '/sitemap-pharmacies.xml': {
+      id: '/sitemap-pharmacies.xml'
+      path: '/sitemap-pharmacies.xml'
+      fullPath: '/sitemap-pharmacies.xml'
+      preLoaderRoute: typeof SitemapPharmaciesDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.well-known/oauth-authorization-server': {
-      id: '/.well-known/oauth-authorization-server'
-      path: '/.well-known/oauth-authorization-server'
-      fullPath: '/.well-known/oauth-authorization-server'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthAuthorizationServerRouteImport
+    '/sitemap-patients.xml': {
+      id: '/sitemap-patients.xml'
+      path: '/sitemap-patients.xml'
+      fullPath: '/sitemap-patients.xml'
+      preLoaderRoute: typeof SitemapPatientsDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+    '/sitemap-hospitals.xml': {
+      id: '/sitemap-hospitals.xml'
+      path: '/sitemap-hospitals.xml'
+      fullPath: '/sitemap-hospitals.xml'
+      preLoaderRoute: typeof SitemapHospitalsDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/mock-pay': {
-      id: '/api/mock-pay'
-      path: '/api/mock-pay'
-      fullPath: '/api/mock-pay'
-      preLoaderRoute: typeof ApiMockPayRouteImport
+    '/sitemap-drivers.xml': {
+      id: '/sitemap-drivers.xml'
+      path: '/sitemap-drivers.xml'
+      fullPath: '/sitemap-drivers.xml'
+      preLoaderRoute: typeof SitemapDriversDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/private-files': {
-      id: '/api/private-files'
-      path: '/api/private-files'
-      fullPath: '/api/private-files'
-      preLoaderRoute: typeof ApiPrivateFilesRouteImport
+    '/sitemap-core.xml': {
+      id: '/sitemap-core.xml'
+      path: '/sitemap-core.xml'
+      fullPath: '/sitemap-core.xml'
+      preLoaderRoute: typeof SitemapCoreDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
+    '/sitemap-admin.xml': {
+      id: '/sitemap-admin.xml'
+      path: '/sitemap-admin.xml'
+      fullPath: '/sitemap-admin.xml'
+      preLoaderRoute: typeof SitemapAdminDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/admin': {
-      id: '/dashboard/admin'
-      path: '/dashboard/admin'
-      fullPath: '/dashboard/admin'
-      preLoaderRoute: typeof DashboardAdminRouteImport
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/doctor': {
-      id: '/dashboard/doctor'
-      path: '/dashboard/doctor'
-      fullPath: '/dashboard/doctor'
-      preLoaderRoute: typeof DashboardDoctorRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/driver': {
-      id: '/dashboard/driver'
-      path: '/dashboard/driver'
-      fullPath: '/dashboard/driver'
-      preLoaderRoute: typeof DashboardDriverRouteImport
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/homecare_company': {
-      id: '/dashboard/homecare_company'
-      path: '/dashboard/homecare_company'
-      fullPath: '/dashboard/homecare_company'
-      preLoaderRoute: typeof DashboardHomecare_companyRouteImport
+    '/payment': {
+      id: '/payment'
+      path: '/payment'
+      fullPath: '/payment'
+      preLoaderRoute: typeof PaymentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/homecare_staff': {
-      id: '/dashboard/homecare_staff'
-      path: '/dashboard/homecare_staff'
-      fullPath: '/dashboard/homecare_staff'
-      preLoaderRoute: typeof DashboardHomecare_staffRouteImport
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/hospital': {
-      id: '/dashboard/hospital'
-      path: '/dashboard/hospital'
-      fullPath: '/dashboard/hospital'
-      preLoaderRoute: typeof DashboardHospitalRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/pharmacy': {
-      id: '/dashboard/pharmacy'
-      path: '/dashboard/pharmacy'
-      fullPath: '/dashboard/pharmacy'
-      preLoaderRoute: typeof DashboardPharmacyRouteImport
+    '/link-account': {
+      id: '/link-account'
+      path: '/link-account'
+      fullPath: '/link-account'
+      preLoaderRoute: typeof LinkAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-pharmacies': {
+      id: '/for-pharmacies'
+      path: '/for-pharmacies'
+      fullPath: '/for-pharmacies'
+      preLoaderRoute: typeof ForPharmaciesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-patients': {
+      id: '/for-patients'
+      path: '/for-patients'
+      fullPath: '/for-patients'
+      preLoaderRoute: typeof ForPatientsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-drivers': {
+      id: '/for-drivers'
+      path: '/for-drivers'
+      fullPath: '/for-drivers'
+      preLoaderRoute: typeof ForDriversRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-doctors': {
+      id: '/for-doctors'
+      path: '/for-doctors'
+      fullPath: '/for-doctors'
+      preLoaderRoute: typeof ForDoctorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/firebase-admin': {
+      id: '/firebase-admin'
+      path: '/firebase-admin'
+      fullPath: '/firebase-admin'
+      preLoaderRoute: typeof FirebaseAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/doctors/': {
@@ -1381,25 +1290,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DoctorsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/doctors/$id': {
-      id: '/doctors/$id'
-      path: '/doctors/$id'
-      fullPath: '/doctors/$id'
-      preLoaderRoute: typeof DoctorsIdRouteImport
-      parentRoute: typeof rootRouteImport
+    '/signup/admin': {
+      id: '/signup/admin'
+      path: '/admin'
+      fullPath: '/signup/admin'
+      preLoaderRoute: typeof SignupAdminRouteImport
+      parentRoute: typeof SignupRoute
     }
-    '/driver/onboarding': {
-      id: '/driver/onboarding'
-      path: '/driver/onboarding'
-      fullPath: '/driver/onboarding'
-      preLoaderRoute: typeof DriverOnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/driver/wallet': {
-      id: '/driver/wallet'
-      path: '/driver/wallet'
-      fullPath: '/driver/wallet'
-      preLoaderRoute: typeof DriverWalletRouteImport
+    '/pharmacy/onboarding': {
+      id: '/pharmacy/onboarding'
+      path: '/pharmacy/onboarding'
+      fullPath: '/pharmacy/onboarding'
+      preLoaderRoute: typeof PharmacyOnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pharmacy/$id': {
@@ -1409,193 +1311,116 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PharmacyIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/pharmacy/onboarding': {
-      id: '/pharmacy/onboarding'
-      path: '/pharmacy/onboarding'
-      fullPath: '/pharmacy/onboarding'
-      preLoaderRoute: typeof PharmacyOnboardingRouteImport
+    '/driver/wallet': {
+      id: '/driver/wallet'
+      path: '/driver/wallet'
+      fullPath: '/driver/wallet'
+      preLoaderRoute: typeof DriverWalletRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/signup/admin': {
-      id: '/signup/admin'
-      path: '/admin'
-      fullPath: '/signup/admin'
-      preLoaderRoute: typeof SignupAdminRouteImport
-      parentRoute: typeof SignupRoute
-    }
-    '/.lovable/oauth/consent': {
-      id: '/.lovable/oauth/consent'
-      path: '/.lovable/oauth/consent'
-      fullPath: '/.lovable/oauth/consent'
-      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+    '/driver/onboarding': {
+      id: '/driver/onboarding'
+      path: '/driver/onboarding'
+      fullPath: '/driver/onboarding'
+      preLoaderRoute: typeof DriverOnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+    '/doctors/$id': {
+      id: '/doctors/$id'
+      path: '/doctors/$id'
+      fullPath: '/doctors/$id'
+      preLoaderRoute: typeof DoctorsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/payment-webhook': {
-      id: '/api/public/payment-webhook'
-      path: '/api/public/payment-webhook'
-      fullPath: '/api/public/payment-webhook'
-      preLoaderRoute: typeof ApiPublicPaymentWebhookRouteImport
+    '/dashboard/pharmacy': {
+      id: '/dashboard/pharmacy'
+      path: '/dashboard/pharmacy'
+      fullPath: '/dashboard/pharmacy'
+      preLoaderRoute: typeof DashboardPharmacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/admin/homecare': {
-      id: '/dashboard/admin/homecare'
-      path: '/homecare'
-      fullPath: '/dashboard/admin/homecare'
-      preLoaderRoute: typeof DashboardAdminHomecareRouteImport
-      parentRoute: typeof DashboardAdminRoute
-    }
-    '/dashboard/admin/live': {
-      id: '/dashboard/admin/live'
-      path: '/live'
-      fullPath: '/dashboard/admin/live'
-      preLoaderRoute: typeof DashboardAdminLiveRouteImport
-      parentRoute: typeof DashboardAdminRoute
-    }
-    '/dashboard/admin/logs': {
-      id: '/dashboard/admin/logs'
-      path: '/logs'
-      fullPath: '/dashboard/admin/logs'
-      preLoaderRoute: typeof DashboardAdminLogsRouteImport
-      parentRoute: typeof DashboardAdminRoute
-    }
-    '/dashboard/patient/': {
-      id: '/dashboard/patient/'
-      path: '/dashboard/patient'
-      fullPath: '/dashboard/patient/'
-      preLoaderRoute: typeof DashboardPatientIndexRouteImport
+    '/dashboard/hospital': {
+      id: '/dashboard/hospital'
+      path: '/dashboard/hospital'
+      fullPath: '/dashboard/hospital'
+      preLoaderRoute: typeof DashboardHospitalRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/account': {
-      id: '/dashboard/patient/account'
-      path: '/dashboard/patient/account'
-      fullPath: '/dashboard/patient/account'
-      preLoaderRoute: typeof DashboardPatientAccountRouteImport
+    '/dashboard/homecare_staff': {
+      id: '/dashboard/homecare_staff'
+      path: '/dashboard/homecare_staff'
+      fullPath: '/dashboard/homecare_staff'
+      preLoaderRoute: typeof DashboardHomecare_staffRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/activity': {
-      id: '/dashboard/patient/activity'
-      path: '/dashboard/patient/activity'
-      fullPath: '/dashboard/patient/activity'
-      preLoaderRoute: typeof DashboardPatientActivityRouteImport
+    '/dashboard/homecare_company': {
+      id: '/dashboard/homecare_company'
+      path: '/dashboard/homecare_company'
+      fullPath: '/dashboard/homecare_company'
+      preLoaderRoute: typeof DashboardHomecare_companyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/addresses': {
-      id: '/dashboard/patient/addresses'
-      path: '/dashboard/patient/addresses'
-      fullPath: '/dashboard/patient/addresses'
-      preLoaderRoute: typeof DashboardPatientAddressesRouteImport
+    '/dashboard/driver': {
+      id: '/dashboard/driver'
+      path: '/dashboard/driver'
+      fullPath: '/dashboard/driver'
+      preLoaderRoute: typeof DashboardDriverRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/consultations': {
-      id: '/dashboard/patient/consultations'
-      path: '/dashboard/patient/consultations'
-      fullPath: '/dashboard/patient/consultations'
-      preLoaderRoute: typeof DashboardPatientConsultationsRouteImport
+    '/dashboard/doctor': {
+      id: '/dashboard/doctor'
+      path: '/dashboard/doctor'
+      fullPath: '/dashboard/doctor'
+      preLoaderRoute: typeof DashboardDoctorRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/family': {
-      id: '/dashboard/patient/family'
-      path: '/dashboard/patient/family'
-      fullPath: '/dashboard/patient/family'
-      preLoaderRoute: typeof DashboardPatientFamilyRouteImport
+    '/dashboard/admin': {
+      id: '/dashboard/admin'
+      path: '/dashboard/admin'
+      fullPath: '/dashboard/admin'
+      preLoaderRoute: typeof DashboardAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/find': {
-      id: '/dashboard/patient/find'
-      path: '/dashboard/patient/find'
-      fullPath: '/dashboard/patient/find'
-      preLoaderRoute: typeof DashboardPatientFindRouteImport
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/homecare': {
-      id: '/dashboard/patient/homecare'
-      path: '/dashboard/patient/homecare'
-      fullPath: '/dashboard/patient/homecare'
-      preLoaderRoute: typeof DashboardPatientHomecareRouteImport
+    '/api/private-files': {
+      id: '/api/private-files'
+      path: '/api/private-files'
+      fullPath: '/api/private-files'
+      preLoaderRoute: typeof ApiPrivateFilesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/medical-aid': {
-      id: '/dashboard/patient/medical-aid'
-      path: '/dashboard/patient/medical-aid'
-      fullPath: '/dashboard/patient/medical-aid'
-      preLoaderRoute: typeof DashboardPatientMedicalAidRouteImport
+    '/api/mock-pay': {
+      id: '/api/mock-pay'
+      path: '/api/mock-pay'
+      fullPath: '/api/mock-pay'
+      preLoaderRoute: typeof ApiMockPayRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/medications': {
-      id: '/dashboard/patient/medications'
-      path: '/dashboard/patient/medications'
-      fullPath: '/dashboard/patient/medications'
-      preLoaderRoute: typeof DashboardPatientMedicationsRouteImport
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/orders': {
-      id: '/dashboard/patient/orders'
-      path: '/dashboard/patient/orders'
-      fullPath: '/dashboard/patient/orders'
-      preLoaderRoute: typeof DashboardPatientOrdersRouteImport
+    '/.well-known/oauth-authorization-server': {
+      id: '/.well-known/oauth-authorization-server'
+      path: '/.well-known/oauth-authorization-server'
+      fullPath: '/.well-known/oauth-authorization-server'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthAuthorizationServerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/patient/payment-methods': {
-      id: '/dashboard/patient/payment-methods'
-      path: '/dashboard/patient/payment-methods'
-      fullPath: '/dashboard/patient/payment-methods'
-      preLoaderRoute: typeof DashboardPatientPaymentMethodsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/patient/prescriptions': {
-      id: '/dashboard/patient/prescriptions'
-      path: '/dashboard/patient/prescriptions'
-      fullPath: '/dashboard/patient/prescriptions'
-      preLoaderRoute: typeof DashboardPatientPrescriptionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/patient/ratings': {
-      id: '/dashboard/patient/ratings'
-      path: '/dashboard/patient/ratings'
-      fullPath: '/dashboard/patient/ratings'
-      preLoaderRoute: typeof DashboardPatientRatingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/patient/reminders': {
-      id: '/dashboard/patient/reminders'
-      path: '/dashboard/patient/reminders'
-      fullPath: '/dashboard/patient/reminders'
-      preLoaderRoute: typeof DashboardPatientRemindersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/patient/search': {
-      id: '/dashboard/patient/search'
-      path: '/dashboard/patient/search'
-      fullPath: '/dashboard/patient/search'
-      preLoaderRoute: typeof DashboardPatientSearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/patient/support': {
-      id: '/dashboard/patient/support'
-      path: '/dashboard/patient/support'
-      fullPath: '/dashboard/patient/support'
-      preLoaderRoute: typeof DashboardPatientSupportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/patient/transactions': {
-      id: '/dashboard/patient/transactions'
-      path: '/dashboard/patient/transactions'
-      fullPath: '/dashboard/patient/transactions'
-      preLoaderRoute: typeof DashboardPatientTransactionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/patient/wallet': {
-      id: '/dashboard/patient/wallet'
-      path: '/dashboard/patient/wallet'
-      fullPath: '/dashboard/patient/wallet'
-      preLoaderRoute: typeof DashboardPatientWalletRouteImport
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/pharmacy/': {
@@ -1605,39 +1430,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPharmacyIndexRouteImport
       parentRoute: typeof DashboardPharmacyRoute
     }
-    '/dashboard/pharmacy/analytics': {
-      id: '/dashboard/pharmacy/analytics'
-      path: '/analytics'
-      fullPath: '/dashboard/pharmacy/analytics'
-      preLoaderRoute: typeof DashboardPharmacyAnalyticsRouteImport
-      parentRoute: typeof DashboardPharmacyRoute
+    '/dashboard/patient/': {
+      id: '/dashboard/patient/'
+      path: '/dashboard/patient'
+      fullPath: '/dashboard/patient/'
+      preLoaderRoute: typeof DashboardPatientIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/dashboard/pharmacy/appointments': {
-      id: '/dashboard/pharmacy/appointments'
-      path: '/appointments'
-      fullPath: '/dashboard/pharmacy/appointments'
-      preLoaderRoute: typeof DashboardPharmacyAppointmentsRouteImport
-      parentRoute: typeof DashboardPharmacyRoute
-    }
-    '/dashboard/pharmacy/documents': {
-      id: '/dashboard/pharmacy/documents'
-      path: '/documents'
-      fullPath: '/dashboard/pharmacy/documents'
-      preLoaderRoute: typeof DashboardPharmacyDocumentsRouteImport
-      parentRoute: typeof DashboardPharmacyRoute
-    }
-    '/dashboard/pharmacy/finance': {
-      id: '/dashboard/pharmacy/finance'
-      path: '/finance'
-      fullPath: '/dashboard/pharmacy/finance'
-      preLoaderRoute: typeof DashboardPharmacyFinanceRouteImport
-      parentRoute: typeof DashboardPharmacyRoute
-    }
-    '/dashboard/pharmacy/inventory': {
-      id: '/dashboard/pharmacy/inventory'
-      path: '/inventory'
-      fullPath: '/dashboard/pharmacy/inventory'
-      preLoaderRoute: typeof DashboardPharmacyInventoryRouteImport
+    '/dashboard/pharmacy/transactions': {
+      id: '/dashboard/pharmacy/transactions'
+      path: '/transactions'
+      fullPath: '/dashboard/pharmacy/transactions'
+      preLoaderRoute: typeof DashboardPharmacyTransactionsRouteImport
       parentRoute: typeof DashboardPharmacyRoute
     }
     '/dashboard/pharmacy/low-stock': {
@@ -1647,12 +1451,208 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPharmacyLowStockRouteImport
       parentRoute: typeof DashboardPharmacyRoute
     }
-    '/dashboard/pharmacy/transactions': {
-      id: '/dashboard/pharmacy/transactions'
-      path: '/transactions'
-      fullPath: '/dashboard/pharmacy/transactions'
-      preLoaderRoute: typeof DashboardPharmacyTransactionsRouteImport
+    '/dashboard/pharmacy/inventory': {
+      id: '/dashboard/pharmacy/inventory'
+      path: '/inventory'
+      fullPath: '/dashboard/pharmacy/inventory'
+      preLoaderRoute: typeof DashboardPharmacyInventoryRouteImport
       parentRoute: typeof DashboardPharmacyRoute
+    }
+    '/dashboard/pharmacy/finance': {
+      id: '/dashboard/pharmacy/finance'
+      path: '/finance'
+      fullPath: '/dashboard/pharmacy/finance'
+      preLoaderRoute: typeof DashboardPharmacyFinanceRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
+    '/dashboard/pharmacy/documents': {
+      id: '/dashboard/pharmacy/documents'
+      path: '/documents'
+      fullPath: '/dashboard/pharmacy/documents'
+      preLoaderRoute: typeof DashboardPharmacyDocumentsRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
+    '/dashboard/pharmacy/appointments': {
+      id: '/dashboard/pharmacy/appointments'
+      path: '/appointments'
+      fullPath: '/dashboard/pharmacy/appointments'
+      preLoaderRoute: typeof DashboardPharmacyAppointmentsRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
+    '/dashboard/pharmacy/analytics': {
+      id: '/dashboard/pharmacy/analytics'
+      path: '/analytics'
+      fullPath: '/dashboard/pharmacy/analytics'
+      preLoaderRoute: typeof DashboardPharmacyAnalyticsRouteImport
+      parentRoute: typeof DashboardPharmacyRoute
+    }
+    '/dashboard/patient/wallet': {
+      id: '/dashboard/patient/wallet'
+      path: '/dashboard/patient/wallet'
+      fullPath: '/dashboard/patient/wallet'
+      preLoaderRoute: typeof DashboardPatientWalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/transactions': {
+      id: '/dashboard/patient/transactions'
+      path: '/dashboard/patient/transactions'
+      fullPath: '/dashboard/patient/transactions'
+      preLoaderRoute: typeof DashboardPatientTransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/support': {
+      id: '/dashboard/patient/support'
+      path: '/dashboard/patient/support'
+      fullPath: '/dashboard/patient/support'
+      preLoaderRoute: typeof DashboardPatientSupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/search': {
+      id: '/dashboard/patient/search'
+      path: '/dashboard/patient/search'
+      fullPath: '/dashboard/patient/search'
+      preLoaderRoute: typeof DashboardPatientSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/reminders': {
+      id: '/dashboard/patient/reminders'
+      path: '/dashboard/patient/reminders'
+      fullPath: '/dashboard/patient/reminders'
+      preLoaderRoute: typeof DashboardPatientRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/ratings': {
+      id: '/dashboard/patient/ratings'
+      path: '/dashboard/patient/ratings'
+      fullPath: '/dashboard/patient/ratings'
+      preLoaderRoute: typeof DashboardPatientRatingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/prescriptions': {
+      id: '/dashboard/patient/prescriptions'
+      path: '/dashboard/patient/prescriptions'
+      fullPath: '/dashboard/patient/prescriptions'
+      preLoaderRoute: typeof DashboardPatientPrescriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/payment-methods': {
+      id: '/dashboard/patient/payment-methods'
+      path: '/dashboard/patient/payment-methods'
+      fullPath: '/dashboard/patient/payment-methods'
+      preLoaderRoute: typeof DashboardPatientPaymentMethodsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/orders': {
+      id: '/dashboard/patient/orders'
+      path: '/dashboard/patient/orders'
+      fullPath: '/dashboard/patient/orders'
+      preLoaderRoute: typeof DashboardPatientOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/medications': {
+      id: '/dashboard/patient/medications'
+      path: '/dashboard/patient/medications'
+      fullPath: '/dashboard/patient/medications'
+      preLoaderRoute: typeof DashboardPatientMedicationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/medical-aid': {
+      id: '/dashboard/patient/medical-aid'
+      path: '/dashboard/patient/medical-aid'
+      fullPath: '/dashboard/patient/medical-aid'
+      preLoaderRoute: typeof DashboardPatientMedicalAidRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/homecare': {
+      id: '/dashboard/patient/homecare'
+      path: '/dashboard/patient/homecare'
+      fullPath: '/dashboard/patient/homecare'
+      preLoaderRoute: typeof DashboardPatientHomecareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/find': {
+      id: '/dashboard/patient/find'
+      path: '/dashboard/patient/find'
+      fullPath: '/dashboard/patient/find'
+      preLoaderRoute: typeof DashboardPatientFindRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/family': {
+      id: '/dashboard/patient/family'
+      path: '/dashboard/patient/family'
+      fullPath: '/dashboard/patient/family'
+      preLoaderRoute: typeof DashboardPatientFamilyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/consultations': {
+      id: '/dashboard/patient/consultations'
+      path: '/dashboard/patient/consultations'
+      fullPath: '/dashboard/patient/consultations'
+      preLoaderRoute: typeof DashboardPatientConsultationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/addresses': {
+      id: '/dashboard/patient/addresses'
+      path: '/dashboard/patient/addresses'
+      fullPath: '/dashboard/patient/addresses'
+      preLoaderRoute: typeof DashboardPatientAddressesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/activity': {
+      id: '/dashboard/patient/activity'
+      path: '/dashboard/patient/activity'
+      fullPath: '/dashboard/patient/activity'
+      preLoaderRoute: typeof DashboardPatientActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/patient/account': {
+      id: '/dashboard/patient/account'
+      path: '/dashboard/patient/account'
+      fullPath: '/dashboard/patient/account'
+      preLoaderRoute: typeof DashboardPatientAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/admin/logs': {
+      id: '/dashboard/admin/logs'
+      path: '/logs'
+      fullPath: '/dashboard/admin/logs'
+      preLoaderRoute: typeof DashboardAdminLogsRouteImport
+      parentRoute: typeof DashboardAdminRoute
+    }
+    '/dashboard/admin/live': {
+      id: '/dashboard/admin/live'
+      path: '/live'
+      fullPath: '/dashboard/admin/live'
+      preLoaderRoute: typeof DashboardAdminLiveRouteImport
+      parentRoute: typeof DashboardAdminRoute
+    }
+    '/dashboard/admin/homecare': {
+      id: '/dashboard/admin/homecare'
+      path: '/homecare'
+      fullPath: '/dashboard/admin/homecare'
+      preLoaderRoute: typeof DashboardAdminHomecareRouteImport
+      parentRoute: typeof DashboardAdminRoute
+    }
+    '/api/public/payment-webhook': {
+      id: '/api/public/payment-webhook'
+      path: '/api/public/payment-webhook'
+      fullPath: '/api/public/payment-webhook'
+      preLoaderRoute: typeof ApiPublicPaymentWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/patient/doctors/$id': {
       id: '/dashboard/patient/doctors/$id'

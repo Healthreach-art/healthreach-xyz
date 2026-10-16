@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { firestoreAdmin } from "@/lib/firestore-admin";
+import { isMedicineExpired } from "@/lib/medicine-catalog";
 
 const UUID_LOOSE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const uuidLoose = z.string().regex(UUID_LOOSE, "Invalid UUID");
@@ -48,8 +49,8 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
     const medIds = Array.from(new Set(data.items.map((i) => i.medId)));
 
     const { data: meds, error: medErr } = await firestoreAdmin
-      .from("medications")
-      .select("id, name, pharmacy_id, requires_prescription, stock_quantity")
+      .from("medications_public")
+      .select("id, name, pharmacy_id, requires_prescription, stock_quantity, expiry_date, is_active, is_demo")
       .in("id", medIds);
     if (medErr) throw new Error(medErr.message);
 
@@ -58,7 +59,13 @@ export const validateCartPrescriptions = createServerFn({ method: "POST" })
 
     for (const it of data.items) {
       const med = meds?.find((m: any) => m.id === it.medId);
-      if (!med) {
+      if (
+        !med
+        || med.is_active !== true
+        || med.is_demo !== false
+        || Number(med.stock_quantity) <= 0
+        || isMedicineExpired(med.expiry_date)
+      ) {
         issues.push({ medId: it.medId, reason: "unknown_medication", message: "Medicine no longer available." });
         continue;
       }

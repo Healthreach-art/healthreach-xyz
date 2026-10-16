@@ -14,22 +14,11 @@ export const claimAdminWithCode = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((i) => codeInput.parse(i))
   .handler(async ({ data, context }) => {
-    const expected = process.env.ADMIN_INVITE_CODE;
-    if (!expected) throw new Error("Admin invite code is not configured");
-    if (data.code.trim() !== expected.trim()) {
-      throw new Error("Invalid invite code");
-    }
-    const userId = context.userId;
-    // Remove any existing role rows for this user, then insert admin.
-    await firestoreAdmin.from("user_roles").delete().eq("user_id", userId);
-    const { error: insertErr } = await firestoreAdmin
-      .from("user_roles")
-      .insert({ user_id: userId, role: "admin" });
-    if (insertErr) throw new Error(insertErr.message);
-    await firestoreAdmin
-      .from("profiles")
-      .update({ approval_status: "approved" })
-      .eq("user_id", userId);
+    const { error } = await firestoreAdmin.rpc("claim_admin_with_code", {
+      _code: data.code,
+      _user_id: context.userId,
+    });
+    if (error) throw error;
     return { ok: true };
   });
 
@@ -95,4 +84,3 @@ export const broadcastNotification = createServerFn({ method: "POST" })
   });
 
 // Demo seed removed — HealthReachCare now ships with no demo data.
-

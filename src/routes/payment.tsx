@@ -96,7 +96,7 @@ function PaymentPage() {
     let cancel = false;
     (async () => {
       const { data: med } = await firestoreClient
-        .from("medications").select("requires_prescription, pharmacy_id").eq("id", medId).maybeSingle();
+        .from("medications_public").select("requires_prescription, pharmacy_id").eq("id", medId).maybeSingle();
       if (cancel || !med) return;
       const required = !!med.requires_prescription;
       setRxRequired(required);
@@ -160,6 +160,7 @@ function PaymentPage() {
           delivery_fee: BASE_DELIVERY,
           total_amount: breakdown.total_paid,
           status: "pending",
+          is_demo: false,
           delivery_address: deliveryAddress,
           notes: `Paid via ${method}`,
         })

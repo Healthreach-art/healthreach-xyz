@@ -22,6 +22,7 @@ interface Med {
   price: number;
   stock_quantity: number;
   requires_prescription?: boolean | null;
+  image_url?: string | null;
   description?: string | null;
   category?: string | null;
 }
@@ -82,9 +83,7 @@ function MedicationMarketplace() {
     }
     void refresh();
     const channel = firestoreClient.channel("patient-medications-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "medications" }, () => void refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "pharmacy_branches" }, () => void refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => void refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "medications_public" }, () => void refresh())
       .subscribe();
     return () => { cancelled = true; void firestoreClient.removeChannel(channel); };
   }, [loadMarketplace]);
@@ -143,7 +142,7 @@ function MedicationMarketplace() {
               return (
                 <article key={medication.id} className="flex min-w-0 overflow-hidden border border-border bg-card">
                   <div className="relative h-28 w-24 shrink-0 bg-muted sm:h-32 sm:w-28">
-                    <img src={medGeneric} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    <img src={medication.image_url || medGeneric} alt="" className="absolute inset-0 h-full w-full object-cover" />
                     {medication.requires_prescription && <span className="absolute left-2 top-2 rounded bg-healthcare-sky px-1.5 py-0.5 text-[10px] font-bold text-white">Rx</span>}
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
@@ -155,7 +154,7 @@ function MedicationMarketplace() {
                       <Link to="/pharmacy/$id" params={{ id: medication.pharmacy_id }} className="mt-1 block truncate text-xs text-primary hover:underline">{pharmacy?.organization_name || pharmacy?.full_name || "Dispensing pharmacy"}</Link>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <div><p className="text-sm font-bold">R{customerPrice(Number(medication.price)).toFixed(2)}</p><p className="text-[10px] text-healthcare-green">In stock</p></div>
+                      <div><p className="text-sm font-bold">R{customerPrice(Number(medication.price)).toFixed(2)}</p><p className="text-[10px] text-healthcare-green">{medication.stock_quantity} available</p></div>
                       {medication.requires_prescription ? <Button size="sm" variant="outline" onClick={() => setRxFor(medication)}><Stethoscope className="mr-1 h-4 w-4" /> Prescription</Button> : <Button size="icon" aria-label={`Add ${medication.name} to cart`} onClick={() => addToCart(medication)}><Plus className="h-4 w-4" /></Button>}
                     </div>
                   </div>

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { firestoreAdmin } from "@/lib/firestore-admin";
+import { isMedicineExpired } from "@/lib/medicine-catalog";
 
 const input = z.object({ problem: z.string().min(3).max(2000) });
 
@@ -36,14 +37,17 @@ export const findPharmaciesForProblem = createServerFn({ method: "POST" })
 
     // Pull catalog with description so AI matches based on what each pharmacy actually stocks
     const { data: meds } = await firestoreAdmin
-      .from("medications")
-      .select("pharmacy_id, name, description, category, price, requires_prescription, stock_quantity")
+      .from("medications_public")
+      .select("pharmacy_id, name, description, category, price, requires_prescription, stock_quantity, expiry_date")
       .in("pharmacy_id", approved.map((p) => p.id))
+      .eq("is_active", true)
+      .eq("is_demo", false)
       .gt("stock_quantity", 0)
       .limit(800);
 
     const medsByPh = new Map<string, { name: string; description: string; category: string; price: number; rx: boolean }[]>();
     for (const m of meds ?? []) {
+      if (isMedicineExpired(m.expiry_date)) continue;
       const arr = medsByPh.get(m.pharmacy_id) ?? [];
       arr.push({
         name: m.name,

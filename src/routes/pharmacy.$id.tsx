@@ -2,9 +2,10 @@ import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-r
 import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useState } from "react";
 import { firestoreClient } from "@/lib/firestore-client";
+import { isMedicineExpired } from "@/lib/medicine-catalog";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Search, Star, Clock, MapPin, Stethoscope, Loader2, ArrowLeft, Plus,
+  Search, MapPin, Stethoscope, Loader2, ArrowLeft, Plus,
   Heart, Thermometer, Sparkles, Repeat, Baby, Bandage, CalendarPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,17 +31,6 @@ function pharmacyImage(id: string) {
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return PHARMACY_IMAGES[h % PHARMACY_IMAGES.length];
 }
-function pharmacyMeta(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return {
-    rating: Number((4.0 + ((h % 100) / 100)).toFixed(1)),
-    deliveryLabel: `${15 + (h % 6) * 5}–${25 + (h % 6) * 5} min`,
-    isOpen: (h % 7) !== 0,
-    fee: (h % 4 === 0) ? 0 : 15 + (h % 4) * 5,
-  };
-}
-
 const CATEGORIES = [
   { key: "All", icon: Sparkles, terms: [] as string[] },
   { key: "Pain Relief", icon: Heart, terms: ["pain", "ibuprofen", "paracetamol", "panado", "aspirin", "disprin", "voltaren"] },
@@ -57,9 +47,10 @@ interface Med { id: string; pharmacy_id: string; name: string; price: number; st
 export const Route = createFileRoute("/pharmacy/$id")({
   loader: async ({ params }) => {
     const { data } = await firestoreClient
-      .from("pharmacy_directory")
+      .from("profiles")
       .select("organization_name, full_name, address")
       .eq("user_id", params.id)
+      .eq("approval_status", "approved")
       .maybeSingle();
     const name = data?.organization_name || data?.full_name || "Pharmacy";
     return { name, address: data?.address ?? null };
@@ -88,15 +79,9 @@ export const Route = createFileRoute("/pharmacy/$id")({
             address: {
               "@type": "PostalAddress",
               streetAddress: loaderData?.address ?? undefined,
-              addressLocality: "Cape Town",
               addressCountry: "ZA",
             },
-            aggregateRating: {
-              "@type": "AggregateRating",
-              ratingValue: "4.5",
-              reviewCount: "120",
-            },
-          }),
+            }),
         },
       ],
     };
@@ -110,6 +95,7 @@ function Storefront() {
   const { user } = useAuth();
   const cart = useCart();
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
+  const [isAcceptingOrders, setIsAcceptingOrders] = useState(false);
   const [meds, setMeds] = useState<Med[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -123,17 +109,30 @@ function Storefront() {
 
   useEffect(() => {
     (async () => {
-      const [{ data: prof }, { data: medsData }] = await Promise.all([
-        firestoreClient.from("pharmacy_directory").select("user_id, organization_name, full_name, address, appointments_enabled, walkins_enabled, opening_hours, services, phone").eq("user_id", id).maybeSingle(),
-        firestoreClient.from("medications").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, description").eq("pharmacy_id", id).gt("stock_quantity", 0).order("name"),
+      const [profileResult, approvalResult, branchResult, medicinesResult] = await Promise.all([
+        firestoreClient.from("profiles").select("user_id, organization_name, full_name, address, appointments_enabled, walkins_enabled, opening_hours, services, phone").eq("user_id", id).eq("approval_status", "approved").maybeSingle(),
+        firestoreClient.from("pharmacies").select("user_id").eq("user_id", id).eq("status", "approved").maybeSingle(),
+        firestoreClient.from("pharmacy_branches").select("id").eq("pharmacy_id", id).eq("is_primary", true).eq("is_active", true).limit(1).maybeSingle(),
+        firestoreClient.from("medications_public").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, description, expiry_date, is_active, is_demo").eq("pharmacy_id", id).gt("stock_quantity", 0).order("name"),
       ]);
-      setPharmacy(prof as Pharmacy | null);
-      setMeds((medsData ?? []) as Med[]);
+      const queryError = [profileResult.error, approvalResult.error, branchResult.error, medicinesResult.error]
+        .find((error) => error !== null);
+      if (queryError) {
+        toast.error(`Could not load pharmacy catalogue: ${queryError.message}`);
+        setPharmacy(null);
+        setMeds([]);
+        setLoading(false);
+        return;
+      }
+      setPharmacy(profileResult.data && approvalResult.data ? profileResult.data as Pharmacy : null);
+      setIsAcceptingOrders(!!branchResult.data);
+      setMeds((medicinesResult.data ?? []).filter((med) =>
+        med.is_active === true && med.is_demo === false && !isMedicineExpired(med.expiry_date),
+      ) as Med[]);
       setLoading(false);
     })();
   }, [id]);
 
-  const m = pharmacyMeta(id);
   const name = pharmacy?.organization_name || pharmacy?.full_name || "Pharmacy";
 
   const filtered = meds
@@ -178,18 +177,13 @@ function Storefront() {
         <div className="absolute bottom-5 left-4 right-4 sm:left-8 sm:right-8 max-w-3xl mx-auto">
           <h1 className="text-2xl sm:text-4xl font-bold text-foreground">{name}</h1>
           <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-foreground mt-2">
-            <span className="flex items-center gap-1 font-semibold">
-              <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" /> {m.rating.toFixed(1)}
+            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${isAcceptingOrders ? "bg-healthcare-green text-white" : "bg-muted"}`}>
+              {isAcceptingOrders ? "Accepting orders" : "Not accepting orders"}
             </span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${m.isOpen ? "bg-healthcare-green text-white" : "bg-muted"}`}>
-              {m.isOpen ? "Open" : "Closed"}
-            </span>
-            <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {m.deliveryLabel}</span>
-            <span>{m.fee === 0 ? "Free delivery" : `R${m.fee} delivery`}</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-            <MapPin className="h-3 w-3" /> {pharmacy.address || "Cape Town"}
-          </p>
+          {pharmacy.address && <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            <MapPin className="h-3 w-3" /> {pharmacy.address}
+          </p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {pharmacy.appointments_enabled && (
               <Button size="sm" onClick={() => setApptOpen(true)} className="rounded-full">
@@ -212,8 +206,8 @@ function Storefront() {
             {pharmacy.walkins_enabled && (
               <div>
                 <p className="text-xs font-bold uppercase text-muted-foreground">Walk-in hours</p>
-                <p className="text-sm mt-1">{pharmacy.opening_hours?.trim() || "Mon–Fri 08:00–18:00"}</p>
-                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> {pharmacy.address || "Cape Town"}</p>
+                {pharmacy.opening_hours?.trim() && <p className="text-sm mt-1">{pharmacy.opening_hours}</p>}
+                {pharmacy.address && <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> {pharmacy.address}</p>}
               </div>
             )}
             {(pharmacy.services?.length ?? 0) > 0 && (

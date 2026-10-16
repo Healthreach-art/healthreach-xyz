@@ -53,7 +53,7 @@ const globalRealtimeCollections = [
   "notifications", "documents", "pharmacy_documents", "doctor_documents",
   "driver_documents", "homecare_documents", "payments", "wallets", "wallet_transactions",
   "saved_payment_methods", "prescriptions", "prescription_uploads", "prescription_audit_log",
-  "medications", "medication_reminders", "ratings", "doctor_reviews", "family_members",
+  "medications", "medications_public", "medication_reminders", "ratings", "doctor_reviews", "family_members",
   "user_addresses", "card_pins", "driver_locations", "driver_status", "driver_bank_accounts",
   "driver_payouts", "appointment_messages", "order_messages", "complaints",
   "admin_audit_log", "admin_invites", "e_prescriptions", "notification_preferences",
@@ -682,7 +682,7 @@ export const firestoreClient = {
     const subscriptions: Array<() => void> = [];
     const handlers: Array<{
       table?: string;
-      filter?: Filter;
+      filters: Filter[];
       callback: (payload: { new: RowData; old: RowData | null; eventType: string }) => void;
     }> = [];
     let closed = false;
@@ -694,11 +694,14 @@ export const firestoreClient = {
       ) => {
         const handler: (typeof handlers)[number] = {
           table: config.table,
+          filters: [],
           callback: listener,
         };
         if (config.filter) {
-          const [field, value] = config.filter.split("=eq.");
-          if (field && value !== undefined) handler.filter = { field, op: "eq", value };
+          for (const part of config.filter.split("&")) {
+            const match = /^([^=]+)=(eq|neq)\.(.*)$/.exec(part);
+            if (match) handler.filters.push({ field: match[1], op: match[2], value: match[3] === "null" ? null : match[3] });
+          }
         }
         handlers.push(handler);
         return channel;
@@ -707,7 +710,9 @@ export const firestoreClient = {
         for (const handler of handlers) {
           const tables = handler.table ? [handler.table] : globalRealtimeCollections;
           for (const table of tables) {
-            const constraints = handler.filter ? [where(handler.filter.field, "==", handler.filter.value)] : [];
+            const constraints = handler.filters.map(({ field, op, value }) =>
+              op === "neq" ? where(field, "!=", value) : where(field, "==", value),
+            );
             const previous = new Map<string, RowData>();
             let initialized = false;
             void fsSubscribe<RowData>(table, constraints, (rows) => {

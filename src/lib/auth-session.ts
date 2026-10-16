@@ -1,5 +1,6 @@
 import type { FirebaseAuthUser } from "@/lib/firebase-auth";
-import { fsGet, fsList, fsSet, where } from "@/lib/firestore";
+import { fsGet, fsList, where } from "@/lib/firestore";
+import { registerSelfServiceRole } from "@/lib/role.functions";
 
 export type AppRole =
   | "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor"
@@ -48,9 +49,9 @@ async function readPersistedRole(userId: string): Promise<AppRole | null> {
   return isAppRole(role) ? role : null;
 }
 
-async function repairMissingRole(userId: string, role: AppRole) {
+async function repairMissingRole(role: AppRole) {
   if (!SELF_SERVICE_ROLES.includes(role)) return;
-  await fsSet("user_roles", `${userId}_${role}`, { user_id: userId, role });
+  await registerSelfServiceRole({ data: { role } });
 }
 
 export async function resolveUserRole(
@@ -69,12 +70,12 @@ export async function resolveUserRole(
     if (persistedRole) return persistedRole;
 
     if (index === 2 && options.repairMissing !== false) {
-      await repairMissingRole(user.uid, safeFallback);
+      await repairMissingRole(safeFallback);
     }
   }
 
   if (options.repairMissing !== false) {
-    await repairMissingRole(user.uid, safeFallback);
+    await repairMissingRole(safeFallback);
     const repairedRole = await readPersistedRole(user.uid);
     if (repairedRole) return repairedRole;
   }

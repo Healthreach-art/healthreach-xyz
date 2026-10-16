@@ -22,20 +22,116 @@ service cloud.firestore {
       return signedIn() && request.auth.token.email == 'admin@healthreachcare.co.za';
     }
     function isAdmin() {
-      return isBootstrapAdmin() || signedIn() && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin'));
+      return isBootstrapAdmin()
+        || signedIn()
+          && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin'))
+          && get(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin')).data.role == 'admin';
     }
     function hasRole(role) {
       return signedIn()
         && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_' + role))
         && get(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_' + role)).data.role == role;
     }
+    function isApprovedPharmacy(pharmacyId) {
+      return pharmacyId is string
+        && exists(/databases/$(database)/documents/user_roles/$(pharmacyId + '_pharmacy'))
+        && get(/databases/$(database)/documents/user_roles/$(pharmacyId + '_pharmacy')).data.role == 'pharmacy'
+        && exists(/databases/$(database)/documents/profiles/$(pharmacyId))
+        && get(/databases/$(database)/documents/profiles/$(pharmacyId)).data.approval_status == 'approved'
+        && exists(/databases/$(database)/documents/pharmacies/$(pharmacyId))
+        && get(/databases/$(database)/documents/pharmacies/$(pharmacyId)).data.status == 'approved';
+    }
     function canReadOrder(order) {
       return isAdmin()
         || signedIn() && (
           order.patient_id == request.auth.uid
-          || order.pharmacy_id == request.auth.uid
-          || order.driver_id == request.auth.uid
+          || order.pharmacy_id == request.auth.uid && hasRole('pharmacy')
+          || order.driver_id == request.auth.uid && hasRole('driver')
         );
+    }
+    function publishedMedication(medicationId, pharmacyId) {
+      return exists(/databases/$(database)/documents/medications_public/$(medicationId))
+        && get(/databases/$(database)/documents/medications_public/$(medicationId)).data.pharmacy_id == pharmacyId
+        && get(/databases/$(database)/documents/medications_public/$(medicationId)).data.is_active == true
+        && get(/databases/$(database)/documents/medications_public/$(medicationId)).data.is_demo == false
+        && isApprovedPharmacy(pharmacyId)
+        && exists(/databases/$(database)/documents/pharmacy_branches/$(get(/databases/$(database)/documents/medications_public/$(medicationId)).data.branch_id))
+        && get(/databases/$(database)/documents/pharmacy_branches/$(get(/databases/$(database)/documents/medications_public/$(medicationId)).data.branch_id)).data.pharmacy_id == pharmacyId
+        && get(/databases/$(database)/documents/pharmacy_branches/$(get(/databases/$(database)/documents/medications_public/$(medicationId)).data.branch_id)).data.is_primary == true
+        && get(/databases/$(database)/documents/pharmacy_branches/$(get(/databases/$(database)/documents/medications_public/$(medicationId)).data.branch_id)).data.is_active == true;
+    }
+    function sourceMedicationHasStock(medicationId, pharmacyId, quantity, medicationName) {
+      return exists(/databases/$(database)/documents/medications/$(medicationId))
+        && get(/databases/$(database)/documents/medications/$(medicationId)).data.pharmacy_id == pharmacyId
+        && get(/databases/$(database)/documents/medications/$(medicationId)).data.name == medicationName
+        && get(/databases/$(database)/documents/medications/$(medicationId)).data.publish_requested == true
+        && get(/databases/$(database)/documents/medications/$(medicationId)).data.is_active == true
+        && get(/databases/$(database)/documents/medications/$(medicationId)).data.is_demo == false
+        && get(/databases/$(database)/documents/medications/$(medicationId)).data.stock_quantity is int
+        && get(/databases/$(database)/documents/medications/$(medicationId)).data.stock_quantity >= quantity;
+    }
+    function pharmacyOrderTransition(from, to) {
+      return (from in ['pending', 'scheduled'] && to in ['accepted', 'cancelled'])
+        || (from == 'accepted' && to in ['preparing', 'ready', 'cancelled'])
+        || (from == 'preparing' && to in ['ready', 'cancelled']);
+    }
+    function driverOrderTransition(from, to) {
+      return (from in ['accepted', 'preparing', 'ready'] && to == 'ready')
+        || (from == 'ready' && to == 'out_for_delivery')
+        || (from == 'out_for_delivery' && to == 'delivered')
+        || (from in ['ready', 'out_for_delivery'] && to == 'cancelled');
+    }
+    function validOrderPrescription() {
+      let medication = get(/databases/$(database)/documents/medications_public/$(request.resource.data.medication_id)).data;
+      return medication.requires_prescription != true
+        || request.resource.data.prescription_upload_id is string
+          && exists(/databases/$(database)/documents/prescription_uploads/$(request.resource.data.prescription_upload_id))
+          && get(/databases/$(database)/documents/prescription_uploads/$(request.resource.data.prescription_upload_id)).data.patient_id == request.auth.uid
+          && get(/databases/$(database)/documents/prescription_uploads/$(request.resource.data.prescription_upload_id)).data.status == 'approved'
+          && (
+            !('medication_id' in get(/databases/$(database)/documents/prescription_uploads/$(request.resource.data.prescription_upload_id)).data)
+            || get(/databases/$(database)/documents/prescription_uploads/$(request.resource.data.prescription_upload_id)).data.medication_id == request.resource.data.medication_id
+          )
+          && (
+            get(/databases/$(database)/documents/prescription_uploads/$(request.resource.data.prescription_upload_id)).data.pharmacy_id == null
+            || get(/databases/$(database)/documents/prescription_uploads/$(request.resource.data.prescription_upload_id)).data.pharmacy_id == request.resource.data.pharmacy_id
+          );
+    }
+    function patientOrderUpdate() {
+      return owns('patient_id')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'cancelled_at', 'cancelled_by', 'cancellation_reason',
+          'updated_at', 'hidden_for_patient_at',
+        ])
+        && (
+          request.resource.data.status == resource.data.status
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'cancelled_at', 'cancelled_by', 'cancellation_reason',
+            ])
+          || request.resource.data.status == 'cancelled'
+            && resource.data.status in ['pending', 'scheduled', 'accepted', 'preparing', 'ready']
+            && request.resource.data.cancelled_by == request.auth.uid
+        );
+    }
+    function pharmacyOrderUpdate() {
+      return owns('pharmacy_id')
+        && hasRole('pharmacy')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at'])
+        && pharmacyOrderTransition(resource.data.status, request.resource.data.status);
+    }
+    function driverOrderUpdate() {
+      return owns('driver_id')
+        && hasRole('driver')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at'])
+        && driverOrderTransition(resource.data.status, request.resource.data.status);
+    }
+    function pharmacyMayHandlePrescription() {
+      return owns('pharmacy_id')
+        && hasRole('pharmacy')
+        && resource.data.order_id is string
+        && exists(/databases/$(database)/documents/orders/$(resource.data.order_id))
+        && get(/databases/$(database)/documents/orders/$(resource.data.order_id)).data.patient_id == resource.data.patient_id
+        && get(/databases/$(database)/documents/orders/$(resource.data.order_id)).data.pharmacy_id == request.auth.uid;
     }
     // Provider approval gate: only approved providers may operate.
     function isApproved(col, id) {
@@ -46,7 +142,10 @@ service cloud.firestore {
     match /profiles/{uid} {
       allow read: if isOwner(uid) || owns('user_id') || isAdmin()
         || signedIn() && resource.data.approval_status == 'approved';
-      allow create: if isOwner(uid) && request.resource.data.user_id == request.auth.uid;
+      allow create: if isOwner(uid)
+        && request.resource.data.user_id == request.auth.uid
+        && (!('approval_status' in request.resource.data)
+          || request.resource.data.approval_status in ['pending', 'under_review']);
       allow update: if isAdmin() || (isOwner(uid) || owns('user_id'))
         && request.resource.data.user_id == resource.data.user_id
         && (
@@ -63,10 +162,6 @@ service cloud.firestore {
       allow read: if isAdmin() || owns('user_id')
         || signedIn() && resource.data.role == 'pharmacy';
       allow write: if isAdmin();
-      // Users may record their own non-admin role (mirrored from sign-up).
-      allow create, update: if signedIn() && request.resource.data.user_id == request.auth.uid
-        && request.resource.data.role != 'admin'
-        && id == request.auth.uid + '_' + request.resource.data.role;
     }
 
     // Provider profiles (doctors, pharmacies, drivers, homecare):
@@ -104,8 +199,38 @@ service cloud.firestore {
     // Orders & bookings: customer owns; assigned provider reads; admin all.
     match /orders/{id} {
       allow read: if canReadOrder(resource.data);
-      allow create: if ownsNew('patient_id');
-      allow update: if canReadOrder(resource.data);
+      allow create: if ownsNew('patient_id')
+        && request.resource.data.keys().hasAll([
+          'patient_id', 'pharmacy_id', 'medication_id', 'medication_name', 'quantity', 'status',
+        ])
+        && request.resource.data.keys().hasOnly([
+          'patient_id', 'pharmacy_id', 'medication_id', 'medication_name', 'quantity',
+          'status', 'order_group_id', 'prescription_upload_id', 'delivery_fee', 'total_amount', 'delivery_km',
+          'priority', 'scheduled_for', 'delivery_address', 'delivery_lat', 'delivery_lng',
+          'pickup_lat', 'pickup_lng', 'assignment_radius_km', 'notes', 'recipient_name',
+          'recipient_phone', 'recipient_family_member_id', 'created_at', 'updated_at', 'is_demo',
+        ])
+        && request.resource.data.medication_id is string
+        && publishedMedication(request.resource.data.medication_id, request.resource.data.pharmacy_id)
+        && sourceMedicationHasStock(
+          request.resource.data.medication_id,
+          request.resource.data.pharmacy_id,
+          request.resource.data.quantity,
+          request.resource.data.medication_name,
+        )
+        && request.resource.data.medication_name
+          == get(/databases/$(database)/documents/medications_public/$(request.resource.data.medication_id)).data.name
+        && request.resource.data.quantity is int
+        && request.resource.data.quantity > 0
+        && request.resource.data.quantity
+          <= get(/databases/$(database)/documents/medications_public/$(request.resource.data.medication_id)).data.stock_quantity
+        && request.resource.data.status in ['pending', 'scheduled']
+        && validOrderPrescription()
+        && (!('is_demo' in request.resource.data) || request.resource.data.is_demo == false);
+      allow update: if isAdmin()
+        || patientOrderUpdate()
+        || pharmacyOrderUpdate()
+        || driverOrderUpdate();
       allow delete: if isAdmin();
     }
     match /bookings/{id} {
@@ -195,9 +320,51 @@ service cloud.firestore {
       allow delete: if isAdmin() || owns('driver_id');
     }
     match /medications/{id} {
-      allow read: if signedIn();
-      allow create: if isAdmin() || ownsNew('pharmacy_id');
-      allow update, delete: if isAdmin() || owns('pharmacy_id');
+      allow read: if isAdmin()
+        || owns('pharmacy_id') && hasRole('pharmacy');
+      allow create: if isAdmin()
+        || hasRole('pharmacy')
+          && ownsNew('pharmacy_id')
+          && request.resource.data.keys().hasAll([
+            'pharmacy_id', 'name', 'price', 'stock_quantity', 'requires_prescription',
+            'is_demo', 'is_active', 'publish_requested',
+          ])
+          && request.resource.data.keys().hasOnly([
+            'pharmacy_id', 'name', 'price', 'stock_quantity', 'category',
+            'requires_prescription', 'image_url', 'expiry_date', 'batch_number',
+            'description', 'is_demo', 'is_active', 'publish_requested',
+            'created_at', 'updated_at',
+          ])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.price is number
+          && request.resource.data.price >= 0
+          && request.resource.data.stock_quantity is int
+          && request.resource.data.stock_quantity >= 0
+          && request.resource.data.requires_prescription is bool
+          && request.resource.data.is_demo == false
+          && request.resource.data.is_active is bool
+          && request.resource.data.publish_requested is bool;
+      allow update: if isAdmin()
+        || hasRole('pharmacy')
+          && owns('pharmacy_id')
+          && request.resource.data.pharmacy_id == resource.data.pharmacy_id
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'price', 'stock_quantity', 'category', 'requires_prescription',
+            'image_url', 'expiry_date', 'batch_number', 'description', 'is_demo',
+            'is_active', 'publish_requested', 'updated_at',
+          ])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.price is number
+          && request.resource.data.price >= 0
+          && request.resource.data.stock_quantity is int
+          && request.resource.data.stock_quantity >= 0
+          && request.resource.data.requires_prescription is bool
+          && request.resource.data.is_demo == false
+          && request.resource.data.is_active is bool
+          && request.resource.data.publish_requested is bool;
+      allow delete: if isAdmin();
     }
     match /pharmacy_offers/{id} {
       allow read: if isAdmin() || owns('pharmacy_id') || owns('patient_id');
@@ -212,9 +379,32 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /order_groups/{id} {
-      allow read: if isAdmin() || owns('patient_id') || owns('pharmacy_id');
-      allow create: if ownsNew('patient_id');
-      allow update: if isAdmin() || owns('patient_id') || owns('pharmacy_id');
+      allow read: if isAdmin()
+        || owns('patient_id')
+        || owns('pharmacy_id') && hasRole('pharmacy')
+        || owns('driver_id') && hasRole('driver');
+      allow create: if ownsNew('patient_id')
+        && isApprovedPharmacy(request.resource.data.pharmacy_id)
+        && request.resource.data.keys().hasOnly([
+          'patient_id', 'pharmacy_id', 'status', 'delivery_address', 'delivery_lat',
+          'delivery_lng', 'pickup_lat', 'pickup_lng', 'delivery_km', 'priority',
+          'scheduled_for', 'notes', 'recipient_name', 'recipient_phone',
+          'recipient_family_member_id', 'created_at', 'updated_at', 'is_demo',
+          'subtotal', 'delivery_fee', 'total_amount', 'assignment_radius_km',
+        ])
+        && request.resource.data.status in ['pending', 'scheduled']
+        && (!('is_demo' in request.resource.data) || request.resource.data.is_demo == false);
+      allow update: if isAdmin()
+        || owns('patient_id')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hidden_for_patient_at'])
+        || owns('pharmacy_id')
+          && hasRole('pharmacy')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at'])
+          && pharmacyOrderTransition(resource.data.status, request.resource.data.status)
+        || owns('driver_id')
+          && hasRole('driver')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at'])
+          && driverOrderTransition(resource.data.status, request.resource.data.status);
       allow delete: if isAdmin();
     }
     match /order_group_events/{id} {
@@ -252,11 +442,41 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /prescription_uploads/{id} {
-      allow read: if isAdmin() || owns('patient_id') || owns('pharmacy_id');
-      allow create: if ownsNew('patient_id');
-      allow update: if isAdmin() || owns('patient_id')
-        || owns('pharmacy_id')
-          && request.resource.data.patient_id == resource.data.patient_id;
+      allow read: if isAdmin()
+        || owns('patient_id')
+        || pharmacyMayHandlePrescription();
+      allow create: if ownsNew('patient_id')
+        && request.resource.data.pharmacy_id == null
+        && request.resource.data.status == 'pending';
+      allow update: if isAdmin()
+        || owns('patient_id')
+          && request.resource.data.patient_id == resource.data.patient_id
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'pharmacy_id', 'order_id', 'updated_at',
+          ])
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.order_id is string
+          && exists(/databases/$(database)/documents/orders/$(request.resource.data.order_id))
+          && get(/databases/$(database)/documents/orders/$(request.resource.data.order_id)).data.patient_id == request.auth.uid
+          && get(/databases/$(database)/documents/orders/$(request.resource.data.order_id)).data.pharmacy_id == request.resource.data.pharmacy_id
+          && (!('medication_id' in resource.data)
+            || resource.data.medication_id == get(/databases/$(database)/documents/orders/$(request.resource.data.order_id)).data.medication_id)
+        || pharmacyMayHandlePrescription()
+          && request.resource.data.patient_id == resource.data.patient_id
+          && request.resource.data.pharmacy_id == resource.data.pharmacy_id
+          && (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flagged', 'updated_at'])
+            && request.resource.data.status == resource.data.status
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status', 'pharmacist_notes', 'reviewed_by', 'repeats_total', 'updated_at',
+            ])
+              && request.resource.data.reviewed_by == request.auth.uid
+              && (
+                request.resource.data.status == resource.data.status
+                || resource.data.status in ['pending', 'reupload_requested']
+                  && request.resource.data.status in ['approved', 'rejected', 'reupload_requested']
+              )
+          );
       allow delete: if isAdmin() || owns('patient_id');
     }
     match /driver_documents/{id} {
@@ -292,11 +512,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /pharmacy_branches/{id} {
-      allow read: if isAdmin() || owns('pharmacy_id');
-      allow create: if isAdmin() || ownsNew('pharmacy_id');
-      allow update: if isAdmin() || owns('pharmacy_id')
+      allow read: if isAdmin()
+        || owns('pharmacy_id') && hasRole('pharmacy')
+        || signedIn() && resource.data.is_primary == true && resource.data.is_active == true;
+      allow create: if isAdmin() || hasRole('pharmacy') && ownsNew('pharmacy_id');
+      allow update: if isAdmin() || hasRole('pharmacy')
+        && owns('pharmacy_id')
         && request.resource.data.pharmacy_id == resource.data.pharmacy_id;
-      allow update, delete: if isAdmin() || owns('pharmacy_id');
+      allow delete: if isAdmin() || hasRole('pharmacy') && owns('pharmacy_id');
     }
     match /pharmacy_appointments/{id} {
       allow read: if isAdmin() || owns('patient_id') || owns('pharmacy_id');

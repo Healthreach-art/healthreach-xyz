@@ -28,6 +28,8 @@ interface Order {
   created_at: string;
   prescription_upload_id?: string | null;
   delivery_address?: string | null;
+  recipient_name?: string | null;
+  recipient_phone?: string | null;
   priority?: boolean | null;
   scheduled_for?: string | null;
 }
@@ -81,7 +83,7 @@ export function PharmacyTerminal() {
       (isDemo ? ordersQuery() : ordersQuery().eq("is_demo", false)).order("created_at", { ascending: false }),
       firestoreClient.from("pharmacy_branches").select("id, name, address, latitude, longitude, is_primary, is_active").eq("pharmacy_id", user.id),
       firestoreClient.from("profiles").select("license_number, premises_license_number, opening_hours, phone").eq("user_id", user.id).maybeSingle(),
-      firestoreClient.from("prescription_uploads").select("*").eq("pharmacy_id", user.id).order("created_at", { ascending: false }),
+      firestoreClient.from("prescription_uploads").select("*").eq("pharmacy_id", user.id).not("order_id", "is", null).order("created_at", { ascending: false }),
     ]);
     let ordersResult = initialOrdersResult;
     let pxResult = initialPxResult;
@@ -94,7 +96,7 @@ export function PharmacyTerminal() {
       }
     }
     if (isIndexError(pxResult.error)) {
-      const retry = await firestoreClient.from("prescription_uploads").select("*").eq("pharmacy_id", user.id);
+      const retry = await firestoreClient.from("prescription_uploads").select("*").eq("pharmacy_id", user.id).not("order_id", "is", null);
       if (!retry.error) pxResult = { ...retry, data: [...(retry.data ?? [])].sort(byNewest) } as typeof pxResult;
     }
     if (ordersResult.error) toast.error(`Could not load orders: ${ordersResult.error.message}`);
@@ -118,22 +120,10 @@ export function PharmacyTerminal() {
     setBranches((branchResult.data ?? []) as Branch[]);
     setMetadata((profileResult.data as PharmacyMetadata | null) ?? null);
     setPrescriptions((pxResult.data ?? []) as PrescriptionUpload[]);
-    const patientIds = Array.from(new Set(orderRows.map((order) => order.patient_id)));
-    const prescriptionPatientIds = (pxResult.data ?? []).map((script) => script.patient_id);
-    const contactIds = Array.from(new Set([...patientIds, ...prescriptionPatientIds]));
-    if (contactIds.length) {
-      const { data: patientRows, error } = await firestoreClient
-        .from("profiles")
-        .select("user_id, full_name, phone")
-        .in("user_id", contactIds);
-      if (error) toast.error(`Could not load patient contact details: ${error.message}`);
-      setPatients(Object.fromEntries((patientRows ?? []).map((row) => [
-        row.user_id,
-        { name: row.full_name || "Patient", phone: row.phone },
-      ])));
-    } else {
-      setPatients({});
-    }
+    setPatients(Object.fromEntries(orderRows.map((order) => [
+      order.patient_id,
+      { name: order.recipient_name || "Patient", phone: order.recipient_phone || null },
+    ])));
     setLoading(false);
     setHasLoaded(true);
   }
@@ -144,7 +134,7 @@ export function PharmacyTerminal() {
     const channel = firestoreClient
       .channel(`pharmacy-terminal-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `pharmacy_id=eq.${user.id}` }, () => { void loadDashboard(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "prescription_uploads", filter: `pharmacy_id=eq.${user.id}` }, () => { void loadDashboard(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "prescription_uploads", filter: `pharmacy_id=eq.${user.id}&order_id=neq.null` }, () => { void loadDashboard(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "pharmacy_branches", filter: `pharmacy_id=eq.${user.id}` }, () => { void loadDashboard(); })
       .subscribe();
     return () => { void firestoreClient.removeChannel(channel); };

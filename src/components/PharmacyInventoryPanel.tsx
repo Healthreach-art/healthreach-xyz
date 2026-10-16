@@ -36,6 +36,8 @@ interface Medication {
   stock_quantity: number;
   price: number;
   category: string | null;
+  is_active: boolean;
+  publish_requested: boolean;
   requires_prescription?: boolean | null;
   image_url?: string | null;
   expiry_date?: string | null;
@@ -52,7 +54,6 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   const { user } = useAuth();
   const [inventory, setInventory] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingStarterPack, setLoadingStarterPack] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
@@ -82,79 +83,6 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   }
 
   useEffect(() => { loadInventory(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
-
-  async function loadStarterPack() {
-    if (!user) return;
-    setLoadingStarterPack(true);
-
-    try {
-      const { data: existing, error: existingError } = await firestoreClient
-        .from("medications")
-        .select("name")
-        .eq("pharmacy_id", user.id)
-        .eq("is_demo", false);
-      if (existingError) throw new Error(existingError.message);
-
-      const { data: profile, error: profileError } = await firestoreClient
-        .from("profiles")
-        .select("latitude, longitude")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (profileError) throw new Error(profileError.message);
-      if (!profile) throw new Error("Pharmacy profile not found.");
-
-      if (profile.latitude == null || profile.longitude == null) {
-        const { error: locationError } = await firestoreClient
-          .from("profiles")
-          .update({
-            address: "83 Rivonia Rd, Sandhurst, Sandton",
-            latitude: -26.1076,
-            longitude: 28.0567,
-            service_radius_km: 60,
-          })
-          .eq("user_id", user.id);
-        if (locationError) throw new Error(locationError.message);
-      }
-
-      const existingNames = new Set((existing ?? []).map((med) => med.name.trim().toLowerCase()));
-      const now = new Date().toISOString();
-      const starterPack = [
-        { name: "Panado 500mg Tablets (24s)", category: "Pain Relief", price: 49.99, stock_quantity: 60 },
-        { name: "Allergex 4mg Tablets (30s)", category: "Allergy", price: 65, stock_quantity: 45 },
-        { name: "Brufen 400mg Tablets (30s)", category: "Pain Relief", price: 85, stock_quantity: 50 },
-        { name: "Betadine Antiseptic Ointment 50g", category: "First Aid", price: 79.5, stock_quantity: 35 },
-        { name: "Gaviscon Double Action Liquid 300ml", category: "Digestive", price: 115, stock_quantity: 25 },
-        { name: "Centrum Select 50+ (30s)", category: "Vitamins & Supplements", price: 189, stock_quantity: 30 },
-        { name: "Iliadin 0.05% Metered Nose Spray 10ml", category: "Cold & Flu", price: 72, stock_quantity: 40 },
-        { name: "Prospan Cough Syrup 100ml", category: "Cold & Flu", price: 110, stock_quantity: 25 },
-      ]
-        .filter((med) => !existingNames.has(med.name.toLowerCase()))
-        .map((med) => ({
-          ...med,
-          pharmacy_id: user.id,
-          requires_prescription: false,
-          is_demo: false,
-          created_at: now,
-          updated_at: now,
-        }));
-
-      if (starterPack.length === 0) {
-        await loadInventory();
-        toast.info("The Essential OTC Pack is already in your inventory.");
-        return;
-      }
-
-      const { error } = await firestoreClient.from("medications").insert(starterPack);
-      if (error) throw new Error(error.message);
-
-      await loadInventory();
-      toast.success("Essential OTC pack loaded successfully!");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not load the Essential OTC Pack.");
-    } finally {
-      setLoadingStarterPack(false);
-    }
-  }
 
   function openAdd() {
     setEditingMed(null);
@@ -200,6 +128,17 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const name = form.name.trim();
+    const price = Number(form.price);
+    const stock = Number(form.stock);
+    if (!name || !Number.isFinite(price) || price <= 0) {
+      toast.error("Enter a medicine name and a price greater than zero.");
+      return;
+    }
+    if (!Number.isSafeInteger(stock) || stock < 0) {
+      toast.error("Stock must be a whole number of zero or more.");
+      return;
+    }
     const desc = form.description.trim();
     if (desc.length < 30) {
       toast.error("A full medicine description is required by law (min 30 characters). Include indications, dosage, ingredients, side effects, and warnings.");
@@ -208,15 +147,20 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
     setSavingMed(true);
     const payload = {
       pharmacy_id: user.id,
-      name: form.name,
-      price: Number(form.price) || 0,
-      stock_quantity: Number(form.stock) || 0,
+      name,
+      price,
+      stock_quantity: stock,
       category: form.category || null,
       requires_prescription: form.requires_prescription,
       image_url: form.image_url || null,
       expiry_date: form.expiry_date || null,
       batch_number: form.batch_number || null,
       description: desc,
+      is_demo: false,
+      is_active: editingMed?.is_active ?? true,
+      publish_requested: editingMed?.publish_requested ?? true,
+      updated_at: new Date().toISOString(),
+      ...(!editingMed ? { created_at: new Date().toISOString() } : {}),
     };
     const { error } = editingMed
       ? await firestoreClient.from("medications").update(payload).eq("id", editingMed.id)
@@ -231,18 +175,38 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
 
   async function adjustStock(med: Medication, delta: number) {
     const next = Math.max(0, med.stock_quantity + delta);
-    const { error } = await firestoreClient.from("medications").update({ stock_quantity: next }).eq("id", med.id);
+    const { error } = await firestoreClient.from("medications").update({
+      stock_quantity: next,
+      updated_at: new Date().toISOString(),
+    }).eq("id", med.id);
     if (error) { toast.error(error.message); return; }
     setInventory((prev) => prev.map((m) => (m.id === med.id ? { ...m, stock_quantity: next } : m)));
   }
 
-  async function confirmDelete() {
+  async function togglePublish(med: Medication) {
+    const publishRequested = !med.publish_requested;
+    const { error } = await firestoreClient.from("medications").update({
+      publish_requested: publishRequested,
+      updated_at: new Date().toISOString(),
+    }).eq("id", med.id);
+    if (error) { toast.error(error.message); return; }
+    setInventory((prev) => prev.map((item) =>
+      item.id === med.id ? { ...item, publish_requested: publishRequested } : item,
+    ));
+    toast.success(publishRequested ? "Medicine publication requested" : "Medicine unpublished");
+  }
+
+  async function confirmArchive() {
     if (!deleteTarget) return;
     setDeleting(true);
-    const { error } = await firestoreClient.from("medications").delete().eq("id", deleteTarget.id);
+    const isActive = !deleteTarget.is_active;
+    const { error } = await firestoreClient.from("medications").update({
+      is_active: isActive,
+      updated_at: new Date().toISOString(),
+    }).eq("id", deleteTarget.id);
     setDeleting(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Medication deleted");
+    toast.success(isActive ? "Medicine restored" : "Medicine archived");
     setDeleteTarget(null);
     loadInventory();
   }
@@ -283,10 +247,6 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
         </div>
         <div className="flex items-center gap-2">
           <BulkMedicineImportDialog onImported={loadInventory} />
-          <Button size="sm" variant="outline" onClick={loadStarterPack} disabled={loadingStarterPack || loading}>
-            {loadingStarterPack ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
-            Load Essential OTC Pack
-          </Button>
           <Button size="sm" variant="outline" onClick={openAdd}>+ Add Item</Button>
         </div>
       </div>
@@ -371,6 +331,8 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
                   <div className="mt-1 flex flex-wrap gap-1">
                     <PrescriptionBadge requiresPrescription={item.requires_prescription} />
                     {low && <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">Low stock</span>}
+                    {item.is_active === false && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Archived</span>}
+                    {item.publish_requested === false && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Unpublished</span>}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{item.category || "—"} · R {Number(item.price).toFixed(2)}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">Customer sees <span className="font-semibold text-foreground">R {customerPrice(item.price).toFixed(2)}</span></p>
@@ -395,8 +357,12 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
                       <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => openEdit(item)}>
                         <Pencil className="h-3 w-3" /> Edit
                       </Button>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => void togglePublish(item)}>
+                        {item.publish_requested === false ? "Publish" : "Unpublish"}
+                      </Button>
                       <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
                         <Trash2 className="h-3 w-3" />
+                        {item.is_active === false ? "Restore" : "Archive"}
                       </Button>
                     </div>
                   </div>
@@ -491,19 +457,21 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete medication?</AlertDialogTitle>
+            <AlertDialogTitle>{deleteTarget?.is_active === false ? "Restore medicine?" : "Archive medicine?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove <span className="font-medium text-foreground">{deleteTarget?.name}</span> from your inventory. This action cannot be undone.
+              {deleteTarget?.is_active === false
+                ? <>Restore <span className="font-medium text-foreground">{deleteTarget?.name}</span> to active inventory. It will be eligible for publication if publication is requested and the pharmacy is approved.</>
+                : <>Archive <span className="font-medium text-foreground">{deleteTarget?.name}</span> and remove it from the patient catalogue. The inventory record will be retained.</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              onClick={(e) => { e.preventDefault(); void confirmArchive(); }}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? "Saving..." : deleteTarget?.is_active === false ? "Restore" : "Archive"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

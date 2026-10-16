@@ -22,12 +22,6 @@ interface Row {
   _selected: boolean;
 }
 
-const SAMPLE = `Panado 500mg tablets - R30 - 50 in stock
-Allergex 4mg - R45 - 20 boxes
-Augmentin 625mg (prescription) - R180 - 12 packs
-Ventolin inhaler (Rx) - R120 - 8 units
-Centrum Adult multivitamin - R220 - 30`;
-
 export function BulkMedicineImportDialog({ onImported }: { onImported: () => void }) {
   const { user } = useAuth();
   const parse = useServerFn(aiParseMedications);
@@ -73,6 +67,11 @@ export function BulkMedicineImportDialog({ onImported }: { onImported: () => voi
       category: r.category,
       requires_prescription: r.requires_prescription,
       description: r.description ?? "",
+      is_demo: false,
+      is_active: true,
+      publish_requested: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }));
     const { error } = await firestoreClient.from("medications").insert(payload);
     setSaving(false);
@@ -122,12 +121,11 @@ export function BulkMedicineImportDialog({ onImported }: { onImported: () => voi
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setText(SAMPLE)}>Use sample</Button>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="bulk-text">Medicine list</Label>
-              <Textarea id="bulk-text" rows={10} value={text} onChange={(e) => setText(e.target.value)} placeholder={SAMPLE} className="font-mono text-xs" />
+              <Textarea id="bulk-text" rows={10} value={text} onChange={(e) => setText(e.target.value)}               placeholder="Paste your actual medicine names, pharmacy prices, and stock counts." className="font-mono text-xs" />
             </div>
 
             <DialogFooter>
