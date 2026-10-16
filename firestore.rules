@@ -63,10 +63,10 @@ service cloud.firestore {
       allow read: if isAdmin() || owns('user_id')
         || signedIn() && resource.data.role == 'pharmacy';
       allow write: if isAdmin();
-      // Users may record their own non-admin role (mirrored from sign-up).
+      // Users may record only non-provider roles mirrored from sign-up.
       allow create, update: if signedIn() && request.resource.data.user_id == request.auth.uid
         && request.resource.data.role in [
-          'patient', 'pharmacy', 'hospital', 'driver', 'doctor', 'homecare_company', 'homecare_staff'
+          'patient', 'hospital', 'homecare_company', 'homecare_staff'
         ]
         && id == request.auth.uid + '_' + request.resource.data.role;
     }
