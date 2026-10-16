@@ -54,7 +54,10 @@ export const ASSIGNMENT_LABEL: Record<string, string> = {
 };
 
 export const REQUEST_LABEL: Record<string, string> = {
-  pending_review: "Requested — waiting for admin review",
+  pending_review: "Request received — awaiting coordinator review",
+  quote_pending: "Quote ready — awaiting your response",
+  quote_accepted: "Quote accepted — coordinator confirming next steps",
+  quote_declined: "Quote declined",
   assigned: "Provider assigned",
   accepted: "Provider accepted",
   scheduled: "Scheduled",

@@ -64,6 +64,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       toast.error(`Cannot add "${item.name}" — invalid medication id.`);
       return;
     }
+    if (items.some((existing) => existing.pharmacyId !== item.pharmacyId)) {
+      toast.error("A checkout can contain medicines from one pharmacy. Finish or clear the current cart before choosing another pharmacy.");
+      return;
+    }
     setItems((prev) => {
       const idx = prev.findIndex((p) => p.medId === item.medId);
       if (idx >= 0) {

@@ -41,6 +41,7 @@ interface Medication {
   expiry_date?: string | null;
   batch_number?: string | null;
   description?: string | null;
+  is_demo?: boolean;
 }
 
 const EMPTY_FORM = {
@@ -73,11 +74,11 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
     const { data, error } = await firestoreClient
       .from("medications")
       .select("*")
-      .eq("pharmacy_id", user.id)
-      .eq("is_demo", false)
-      .order("created_at", { ascending: false });
+      .eq("pharmacy_id", user.id);
     if (error) toast.error(`Could not load inventory: ${error.message}`);
-    setInventory((data ?? []) as Medication[]);
+    setInventory(((data ?? []) as Medication[])
+      .filter((medication) => medication.is_demo !== true)
+      .sort((first, second) => String(second.created_at ?? "").localeCompare(String(first.created_at ?? ""))));
     setLoading(false);
   }
 
@@ -200,27 +201,36 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const name = form.name.trim();
+    const price = Number(form.price);
+    const stock = Number(form.stock);
+    if (!name) { toast.error("Enter a medication name"); return; }
+    if (!Number.isFinite(price) || price <= 0) { toast.error("Enter a valid price greater than R0"); return; }
+    if (!Number.isInteger(stock) || stock < 0) { toast.error("Stock must be a whole number of zero or more"); return; }
     const desc = form.description.trim();
     if (desc.length < 30) {
       toast.error("A full medicine description is required by law (min 30 characters). Include indications, dosage, ingredients, side effects, and warnings.");
       return;
     }
     setSavingMed(true);
+    const now = new Date().toISOString();
     const payload = {
       pharmacy_id: user.id,
-      name: form.name,
-      price: Number(form.price) || 0,
-      stock_quantity: Number(form.stock) || 0,
+      name,
+      price,
+      stock_quantity: stock,
       category: form.category || null,
       requires_prescription: form.requires_prescription,
       image_url: form.image_url || null,
       expiry_date: form.expiry_date || null,
       batch_number: form.batch_number || null,
       description: desc,
+      is_demo: false,
+      updated_at: now,
     };
     const { error } = editingMed
       ? await firestoreClient.from("medications").update(payload).eq("id", editingMed.id)
-      : await firestoreClient.from("medications").insert(payload);
+      : await firestoreClient.from("medications").insert({ ...payload, created_at: now });
     setSavingMed(false);
     if (error) { toast.error(error.message); return; }
     toast.success(editingMed ? "Medication updated" : "Medication added");
@@ -231,7 +241,7 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
 
   async function adjustStock(med: Medication, delta: number) {
     const next = Math.max(0, med.stock_quantity + delta);
-    const { error } = await firestoreClient.from("medications").update({ stock_quantity: next }).eq("id", med.id);
+    const { error } = await firestoreClient.from("medications").update({ stock_quantity: next, updated_at: new Date().toISOString() }).eq("id", med.id);
     if (error) { toast.error(error.message); return; }
     setInventory((prev) => prev.map((m) => (m.id === med.id ? { ...m, stock_quantity: next } : m)));
   }

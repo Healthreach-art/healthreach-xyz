@@ -66,6 +66,20 @@ function LoginPage() {
       const cleanEmail = email.trim();
       const { firebaseSignIn } = await import("@/lib/firebase-auth");
       const firebaseUser = await firebaseSignIn(cleanEmail, password);
+      if (!firebaseUser.emailVerified) {
+        try {
+          if (safeRedirect) sessionStorage.setItem("hr_post_verification_redirect", safeRedirect);
+        } catch {
+          // Verification can continue without a stored post-login destination.
+        }
+        await navigate({
+          to: "/auth/verify-email",
+          search: { redirect: safeRedirect ?? undefined },
+          replace: true,
+        });
+        return;
+      }
+
       const role = cleanEmail.toLowerCase() === "admin@healthreachcare.co.za"
         ? "admin"
         : await resolveUserRole(firebaseUser, { repairMissing: true });

@@ -3,7 +3,7 @@ import { fsGet, fsList, fsSet, where } from "@/lib/firestore";
 
 export type AppRole =
   | "patient" | "pharmacy" | "hospital" | "driver" | "admin" | "doctor"
-  | "homecare_company" | "homecare_staff";
+  | "homecare_company" | "homecare_staff" | "homecare_operations";
 
 export interface ResolvedProfile {
   full_name: string;
@@ -23,6 +23,7 @@ export interface ResolvedAccount {
 
 const APP_ROLES: AppRole[] = [
   "patient", "pharmacy", "hospital", "driver", "admin", "doctor", "homecare_company", "homecare_staff",
+  "homecare_operations",
 ];
 const SELF_SERVICE_ROLES: AppRole[] = [
   "patient", "pharmacy", "hospital", "driver", "doctor", "homecare_company", "homecare_staff",
@@ -36,7 +37,7 @@ export function isAppRole(value: unknown): value is AppRole {
 }
 
 export function dashboardPathForRole(role: AppRole) {
-  return `/dashboard/${role}` as const;
+  return role === "homecare_operations" ? "/dashboard/homecare_operations" as const : `/dashboard/${role}` as const;
 }
 
 async function readPersistedRole(userId: string): Promise<AppRole | null> {
@@ -44,7 +45,10 @@ async function readPersistedRole(userId: string): Promise<AppRole | null> {
     "user_roles",
     where("user_id", "==", userId),
   );
-  const role = roleRows[0]?.role;
+  const roles = roleRows.map((row) => row.role);
+  if (roles.includes("admin")) return "admin";
+  if (roles.includes("homecare_operations")) return "homecare_operations";
+  const role = roles[0];
   return isAppRole(role) ? role : null;
 }
 

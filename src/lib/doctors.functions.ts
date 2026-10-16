@@ -3,62 +3,45 @@ import { z } from "zod";
 import { firestoreAdmin } from "@/lib/firestore-admin";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
-const PLATFORM_FEE = 15;
+export const getDoctorAvailableSlots = createServerFn({ method: "GET" })
+  .middleware([requireFirebaseAuth])
+  .inputValidator((d) => z.object({ doctorId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const result = await firestoreAdmin.rpc("available_doctor_slots", {
+      _doctor_id: data.doctorId,
+    });
+    if (result.error) throw new Error(result.error.message);
+    const payload = result.data as { slots?: Array<{ scheduledAt: string; durationMinutes: number }> } | null;
+    return { slots: payload?.slots ?? [] };
+  });
 
 export const bookDoctorAppointment = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       doctorId: z.string().uuid(),
-      scheduledAt: z.string().min(10).max(64),
+      scheduledAt: z.string().datetime({ offset: true }),
+      durationMinutes: z.number().int().min(30).max(120).multipleOf(30),
       mode: z.enum(["in_person", "video", "phone"]),
       reason: z.string().max(1000).default(""),
-      useMedicalAid: z.boolean().default(false),
-      medicalAidProvider: z.string().max(120).optional(),
-      medicalAidMemberNumber: z.string().max(120).optional(),
-      familyMemberId: z.string().uuid().optional(),
     }).parse(d),
   )
-  .handler(async ({ data, context }) => {
-    const userId = context.userId;
-    const { data: doc, error: docErr } = await firestoreAdmin
-      .from("doctors")
-      .select("id, hospital_id, user_id, consultation_fee, is_active, is_verified, is_demo, full_name")
-      .eq("id", data.doctorId)
-      .maybeSingle();
-    if (docErr || !doc) throw new Error("Doctor not found");
-    if (!(doc as any).is_demo) {
-      if (!doc.is_active) throw new Error("Doctor is not accepting appointments");
-      if (!doc.is_verified) throw new Error("Doctor is not yet verified by HealthReachCare");
+  .handler(async ({ data }) => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const result = await firestoreAdmin.rpc("book_doctor_appointment", {
+      _doctor_id: data.doctorId,
+      _scheduled_at: data.scheduledAt,
+      _duration_minutes: data.durationMinutes,
+      _mode: data.mode,
+      _reason: data.reason,
+    });
+    if (result.error) throw new Error(result.error.message);
+    const booking = result.data as { appointmentId?: string; platformFeeCents?: number } | null;
+    if (!booking?.appointmentId || !Number.isSafeInteger(booking.platformFeeCents)) {
+      throw new Error("The appointment booking service returned an invalid response.");
     }
-
-    // Self-registered doctors have no hospital — fall back to the doctor's own user_id
-    // so the existing notification trigger still has a recipient.
-    const hospitalId = doc.hospital_id ?? doc.user_id ?? userId;
-
-    const { data: appt, error } = await firestoreAdmin
-      .from("doctor_appointments")
-      .insert({
-        patient_id: userId,
-        doctor_id: doc.id,
-        hospital_id: hospitalId,
-        family_member_id: data.familyMemberId ?? null,
-        scheduled_at: new Date(data.scheduledAt).toISOString(),
-        mode: data.mode,
-        reason: data.reason,
-        consultation_fee: doc.consultation_fee,
-        platform_fee: PLATFORM_FEE,
-        use_medical_aid: data.useMedicalAid,
-        medical_aid_provider: data.medicalAidProvider ?? null,
-        medical_aid_member_number: data.medicalAidMemberNumber ?? null,
-        status: "pending",
-        payment_status: "pending",
-      })
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    if (!appt) throw new Error("Appointment could not be created.");
-    return { appointmentId: appt.id, platformFeeCents: PLATFORM_FEE * 100 };
+    return { appointmentId: booking.appointmentId, platformFeeCents: booking.platformFeeCents };
   });
 
 export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
@@ -70,8 +53,17 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    if (context.claims.email_verified !== true) throw new Error("Verify your email before paying for an appointment.");
     const paystackSecret = (process.env.PAYSTACK_SECRET_KEY || process.env.STRIPE_TEST_API_KEY);
     if (!paystackSecret) throw new Error("Payment provider not configured");
+
+    const { data: existing, error: lookupErr } = await firestoreAdmin
+      .from("doctor_appointments")
+      .select("id, patient_id, payment_status, payment_reference, platform_fee")
+      .eq("id", data.appointmentId)
+      .maybeSingle();
+    if (lookupErr) throw new Error(lookupErr.message);
+    if (!existing || existing.patient_id !== context.userId) throw new Error("Appointment not found");
 
     // Verify the reference against Paystack before marking the appointment paid.
     const verifyRes = await fetch(
@@ -80,41 +72,56 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
     );
     const verifyJson = (await verifyRes.json().catch(() => ({}))) as {
       status?: boolean;
-      data?: { status?: string; amount?: number; currency?: string };
+      data?: {
+        status?: string;
+        amount?: number;
+        currency?: string;
+        reference?: string;
+        metadata?: Record<string, unknown>;
+      };
     };
-    if (!verifyRes.ok || !verifyJson.status || verifyJson.data?.status !== "success") {
+    if (
+      !verifyRes.ok
+      || !verifyJson.status
+      || verifyJson.data?.status !== "success"
+      || verifyJson.data.reference !== data.reference
+      || verifyJson.data.metadata?.appointment_id !== data.appointmentId
+      || verifyJson.data.metadata?.payment_type !== "doctor_booking_fee"
+    ) {
       throw new Error("Payment could not be verified");
     }
-    // Paystack amounts are in the lowest currency unit (kobo / cents).
     const paidMinor = Number(verifyJson.data?.amount ?? 0);
-    const expectedMinor = PLATFORM_FEE * 100;
-    if (paidMinor < expectedMinor) {
+    const fee = Number(existing.platform_fee);
+    const expectedMinor = Math.round(fee * 100);
+    if (
+      !Number.isSafeInteger(expectedMinor)
+      || expectedMinor <= 0
+      || paidMinor !== expectedMinor
+      || verifyJson.data.currency !== "ZAR"
+    ) {
       throw new Error("Payment amount does not match the appointment fee");
     }
 
-    // Ensure the appointment belongs to this user and hasn't already been paid with a different reference.
-    const { data: existing, error: lookupErr } = await firestoreAdmin
-      .from("doctor_appointments")
-      .select("id, patient_id, payment_status, payment_reference")
-      .eq("id", data.appointmentId)
-      .maybeSingle();
-    if (lookupErr || !existing) throw new Error("Appointment not found");
-    if (existing.patient_id !== context.userId) throw new Error("Not your appointment");
-    if (existing.payment_status === "paid" && existing.payment_reference && existing.payment_reference !== data.reference) {
+    if (existing.payment_status === "paid" && existing.payment_reference === data.reference) {
+      return { ok: true };
+    }
+    if (existing.payment_status !== "pending") {
       throw new Error("Appointment already paid");
     }
 
-    const { error } = await firestoreAdmin
+    const { error, count } = await firestoreAdmin
       .from("doctor_appointments")
       .update({
         payment_status: "paid",
         payment_reference: data.reference,
-        total_paid: PLATFORM_FEE,
+        total_paid: fee,
         status: "confirmed",
       })
       .eq("id", data.appointmentId)
-      .eq("patient_id", context.userId);
+      .eq("patient_id", context.userId)
+      .eq("payment_status", "pending");
     if (error) throw new Error(error.message);
+    if (count === 0) throw new Error("The payment state changed before it could be recorded. Refresh your appointment.");
     return { ok: true };
   });
 

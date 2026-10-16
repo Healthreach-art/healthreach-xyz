@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
+import { useServerFn } from "@tanstack/react-start";
 import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { toast } from "sonner";
 import { HomeIcon, Loader2, ShieldCheck, ClipboardList, History } from "lucide-react";
 import {
   adminListHomecare, adminReviewHomecare, adminAssignHomecare,
-  adminReviewHomecareDocument, getHomecareDocumentUrl,
+  adminReviewHomecareDocument, getHomecareDocumentUrl, grantHomecareOperationsRole,
 } from "@/lib/homecare.functions";
 import { APPROVAL_LABEL, ASSIGNMENT_LABEL, REQUEST_LABEL, docsFor } from "@/lib/homecare";
 
@@ -32,7 +33,10 @@ export const Route = createFileRoute("/dashboard/admin/homecare")({
 });
 
 function AdminHomecarePage() {
+  const grantOperationsRole = useServerFn(grantHomecareOperationsRole);
   const [loading, setLoading] = useState(true);
+  const [operationsUserId, setOperationsUserId] = useState("");
+  const [grantBusy, setGrantBusy] = useState(false);
   const [providers, setProviders] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -75,6 +79,40 @@ function AdminHomecarePage() {
         <h1 className="text-2xl font-bold flex items-center gap-2"><HomeIcon className="h-6 w-6 text-primary" /> Home care control</h1>
         <p className="text-sm text-muted-foreground">Approve providers, review their documents, and assign customer visits.</p>
       </div>
+
+      <section className="healthcare-card p-4 space-y-3">
+        <div>
+          <h2 className="font-semibold">Provision home care operations</h2>
+          <p className="text-xs text-muted-foreground">
+            Grant the dedicated operations role to an existing account by Firebase UID. The user must sign in again to load the role.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            value={operationsUserId}
+            onChange={(event) => setOperationsUserId(event.target.value)}
+            placeholder="Firebase user UID"
+            className="max-w-md"
+          />
+          <Button
+            disabled={grantBusy || !operationsUserId.trim()}
+            onClick={async () => {
+              setGrantBusy(true);
+              try {
+                const result = await grantOperationsRole({ data: { userId: operationsUserId.trim() } });
+                toast.success(result.alreadyAssigned ? "This user already has the operations role." : "Home care operations role granted.");
+                setOperationsUserId("");
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Could not grant the operations role.");
+              } finally {
+                setGrantBusy(false);
+              }
+            }}
+          >
+            {grantBusy ? "Granting…" : "Grant role"}
+          </Button>
+        </div>
+      </section>
 
       <Tabs defaultValue="pending">
         <TabsList className="flex-wrap h-auto">
@@ -252,7 +290,6 @@ function ProviderCard({ provider, documents, staff, events, onChanged }:
 function RequestCard({ request, approved, onChanged }: { request: any; approved: any[]; onChanged: () => void }) {
   const [providerId, setProviderId] = useState<string>("");
   const [scheduledAt, setScheduledAt] = useState("");
-  const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const latest = (request.homecare_assignments ?? []).slice().sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : -1))[0];
 
@@ -263,7 +300,6 @@ function RequestCard({ request, approved, onChanged }: { request: any; approved:
       await adminAssignHomecare({ data: {
         requestId: request.id, providerId,
         scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
-        amount: amount ? Number(amount) : undefined,
       } });
       toast.success("Provider assigned");
       onChanged();
@@ -285,12 +321,12 @@ function RequestCard({ request, approved, onChanged }: { request: any; approved:
       {request.description && <p className="text-sm">{request.description}</p>}
       {latest && <p className="text-xs text-muted-foreground">Visit status: {ASSIGNMENT_LABEL[latest.status] ?? latest.status}</p>}
 
-      {["pending_review", "rejected"].includes(request.status) && (
+      {request.status === "quote_accepted" && (
         <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
           <div className="space-y-1">
-            <Label>Assign provider</Label>
+            <Label>Coordinate an approved provider</Label>
             <Select value={providerId} onValueChange={setProviderId}>
-              <SelectTrigger><SelectValue placeholder="Choose an approved provider" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Choose after confirming coverage" /></SelectTrigger>
               <SelectContent>
                 {approved.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.business_name || p.full_name || p.email}</SelectItem>
@@ -302,11 +338,7 @@ function RequestCard({ request, approved, onChanged }: { request: any; approved:
             <Label>Schedule</Label>
             <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
           </div>
-          <div className="space-y-1">
-            <Label>Amount (R)</Label>
-            <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-28" />
-          </div>
-          <Button onClick={assign} disabled={busy}>Assign</Button>
+          <Button onClick={assign} disabled={busy || !providerId}>Coordinate visit</Button>
         </div>
       )}
     </div>

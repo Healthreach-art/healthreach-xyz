@@ -27,6 +27,10 @@ function AuthCallback() {
         navigate({ to: "/login" });
         return;
       }
+      if (!user.emailVerified) {
+        navigate({ to: "/auth/verify-email", replace: true });
+        return;
+      }
 
       const intent = typeof window !== "undefined" ? localStorage.getItem("hr_oauth_role") : null;
       const fallbackRole = isAppRole(intent) && intent !== "admin" ? intent : "patient";

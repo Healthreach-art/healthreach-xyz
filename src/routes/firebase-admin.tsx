@@ -300,6 +300,10 @@ function FirebaseAdminPage() {
       const { getUserRoles } = await import("@/lib/firestore");
       unsub = await onFirebaseAuthChange(async (u) => {
         if (!u) { setState("denied"); return; }
+        if (!u.emailVerified) {
+          await navigate({ to: "/auth/verify-email", replace: true });
+          return;
+        }
         const roles: string[] = await getUserRoles(u.uid).catch((): string[] => []);
         const isAdmin = roles.includes("admin") || u.email?.toLowerCase() === BOOTSTRAP_ADMIN;
         if (!isAdmin) { setState("denied"); return; }
@@ -319,7 +323,7 @@ function FirebaseAdminPage() {
       });
     })();
     return () => unsub?.();
-  }, []);
+  }, [navigate]);
 
   // Live Firestore data.
   useEffect(() => {

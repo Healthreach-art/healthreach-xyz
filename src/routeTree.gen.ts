@@ -46,10 +46,12 @@ import { Route as DoctorsIdRouteImport } from './routes/doctors.$id'
 import { Route as DashboardPharmacyRouteImport } from './routes/dashboard.pharmacy'
 import { Route as DashboardHospitalRouteImport } from './routes/dashboard.hospital'
 import { Route as DashboardHomecare_staffRouteImport } from './routes/dashboard.homecare_staff'
+import { Route as DashboardHomecare_operationsRouteImport } from './routes/dashboard.homecare_operations'
 import { Route as DashboardHomecare_companyRouteImport } from './routes/dashboard.homecare_company'
 import { Route as DashboardDriverRouteImport } from './routes/dashboard.driver'
 import { Route as DashboardDoctorRouteImport } from './routes/dashboard.doctor'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard.admin'
+import { Route as AuthVerifyEmailRouteImport } from './routes/auth.verify-email'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiPrivateFilesRouteImport } from './routes/api/private-files'
 import { Route as ApiMockPayRouteImport } from './routes/api/mock-pay'
@@ -276,6 +278,12 @@ const DashboardHomecare_staffRoute = DashboardHomecare_staffRouteImport.update({
   path: '/dashboard/homecare_staff',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardHomecare_operationsRoute =
+  DashboardHomecare_operationsRouteImport.update({
+    id: '/dashboard/homecare_operations',
+    path: '/dashboard/homecare_operations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DashboardHomecare_companyRoute =
   DashboardHomecare_companyRouteImport.update({
     id: '/dashboard/homecare_company',
@@ -295,6 +303,11 @@ const DashboardDoctorRoute = DashboardDoctorRouteImport.update({
 const DashboardAdminRoute = DashboardAdminRouteImport.update({
   id: '/dashboard/admin',
   path: '/dashboard/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
+  id: '/auth/verify-email',
+  path: '/auth/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -554,10 +567,12 @@ export interface FileRoutesByFullPath {
   '/api/mock-pay': typeof ApiMockPayRoute
   '/api/private-files': typeof ApiPrivateFilesRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
+  '/dashboard/homecare_operations': typeof DashboardHomecare_operationsRoute
   '/dashboard/homecare_staff': typeof DashboardHomecare_staffRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRouteWithChildren
@@ -637,10 +652,12 @@ export interface FileRoutesByTo {
   '/api/mock-pay': typeof ApiMockPayRoute
   '/api/private-files': typeof ApiPrivateFilesRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
+  '/dashboard/homecare_operations': typeof DashboardHomecare_operationsRoute
   '/dashboard/homecare_staff': typeof DashboardHomecare_staffRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/doctors/$id': typeof DoctorsIdRoute
@@ -720,10 +737,12 @@ export interface FileRoutesById {
   '/api/mock-pay': typeof ApiMockPayRoute
   '/api/private-files': typeof ApiPrivateFilesRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRoute
   '/dashboard/driver': typeof DashboardDriverRoute
   '/dashboard/homecare_company': typeof DashboardHomecare_companyRoute
+  '/dashboard/homecare_operations': typeof DashboardHomecare_operationsRoute
   '/dashboard/homecare_staff': typeof DashboardHomecare_staffRoute
   '/dashboard/hospital': typeof DashboardHospitalRoute
   '/dashboard/pharmacy': typeof DashboardPharmacyRouteWithChildren
@@ -805,10 +824,12 @@ export interface FileRouteTypes {
     | '/api/mock-pay'
     | '/api/private-files'
     | '/auth/callback'
+    | '/auth/verify-email'
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/driver'
     | '/dashboard/homecare_company'
+    | '/dashboard/homecare_operations'
     | '/dashboard/homecare_staff'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
@@ -888,10 +909,12 @@ export interface FileRouteTypes {
     | '/api/mock-pay'
     | '/api/private-files'
     | '/auth/callback'
+    | '/auth/verify-email'
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/driver'
     | '/dashboard/homecare_company'
+    | '/dashboard/homecare_operations'
     | '/dashboard/homecare_staff'
     | '/dashboard/hospital'
     | '/doctors/$id'
@@ -970,10 +993,12 @@ export interface FileRouteTypes {
     | '/api/mock-pay'
     | '/api/private-files'
     | '/auth/callback'
+    | '/auth/verify-email'
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/driver'
     | '/dashboard/homecare_company'
+    | '/dashboard/homecare_operations'
     | '/dashboard/homecare_staff'
     | '/dashboard/hospital'
     | '/dashboard/pharmacy'
@@ -1054,10 +1079,12 @@ export interface RootRouteChildren {
   ApiMockPayRoute: typeof ApiMockPayRoute
   ApiPrivateFilesRoute: typeof ApiPrivateFilesRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
   DashboardAdminRoute: typeof DashboardAdminRouteWithChildren
   DashboardDoctorRoute: typeof DashboardDoctorRoute
   DashboardDriverRoute: typeof DashboardDriverRoute
   DashboardHomecare_companyRoute: typeof DashboardHomecare_companyRoute
+  DashboardHomecare_operationsRoute: typeof DashboardHomecare_operationsRoute
   DashboardHomecare_staffRoute: typeof DashboardHomecare_staffRoute
   DashboardHospitalRoute: typeof DashboardHospitalRoute
   DashboardPharmacyRoute: typeof DashboardPharmacyRouteWithChildren
@@ -1353,6 +1380,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardHomecare_staffRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/homecare_operations': {
+      id: '/dashboard/homecare_operations'
+      path: '/dashboard/homecare_operations'
+      fullPath: '/dashboard/homecare_operations'
+      preLoaderRoute: typeof DashboardHomecare_operationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/homecare_company': {
       id: '/dashboard/homecare_company'
       path: '/dashboard/homecare_company'
@@ -1379,6 +1413,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/admin'
       fullPath: '/dashboard/admin'
       preLoaderRoute: typeof DashboardAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/verify-email': {
+      id: '/auth/verify-email'
+      path: '/auth/verify-email'
+      fullPath: '/auth/verify-email'
+      preLoaderRoute: typeof AuthVerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -1752,10 +1793,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMockPayRoute: ApiMockPayRoute,
   ApiPrivateFilesRoute: ApiPrivateFilesRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthVerifyEmailRoute: AuthVerifyEmailRoute,
   DashboardAdminRoute: DashboardAdminRouteWithChildren,
   DashboardDoctorRoute: DashboardDoctorRoute,
   DashboardDriverRoute: DashboardDriverRoute,
   DashboardHomecare_companyRoute: DashboardHomecare_companyRoute,
+  DashboardHomecare_operationsRoute: DashboardHomecare_operationsRoute,
   DashboardHomecare_staffRoute: DashboardHomecare_staffRoute,
   DashboardHospitalRoute: DashboardHospitalRoute,
   DashboardPharmacyRoute: DashboardPharmacyRouteWithChildren,

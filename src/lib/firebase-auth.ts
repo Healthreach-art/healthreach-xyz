@@ -11,7 +11,12 @@ import {
   signOut as sdkSignOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  sendEmailVerification,
+  applyActionCode,
+  checkActionCode,
+  reload,
   updateProfile,
+  type ActionCodeInfo,
   type User as FirebaseUser,
   type Unsubscribe,
 } from "firebase/auth";
@@ -64,6 +69,43 @@ export async function firebaseSignUp(
     await updateProfile(cred.user, { displayName });
   }
   return toAuthUser(cred.user);
+}
+
+/** Send Firebase's verification email with a HealthReachCare continuation URL. */
+export async function firebaseSendEmailVerification(): Promise<boolean> {
+  const { auth } = await getFirebase();
+  const user = auth.currentUser;
+  if (!user) throw new Error("Sign in before requesting an email verification link.");
+  await reload(user);
+  if (user.emailVerified) return false;
+
+  const continueUrl = new URL("/auth/verify-email", window.location.origin);
+  continueUrl.searchParams.set("continue", "1");
+  await sendEmailVerification(user, { url: continueUrl.toString() });
+  try {
+    window.localStorage.setItem("hr_email_verification_resend_until", String(Date.now() + 60_000));
+  } catch (error) {
+    console.warn("[auth] Could not persist the verification resend cooldown.", error);
+  }
+  return true;
+}
+
+/** Apply the Firebase email verification action code from the email link. */
+export async function firebaseApplyEmailVerificationCode(
+  actionCode: string,
+): Promise<ActionCodeInfo> {
+  const { auth } = await getFirebase();
+  const action = await checkActionCode(auth, actionCode);
+  await applyActionCode(auth, actionCode);
+  return action;
+}
+
+/** Refresh the signed-in user's server-confirmed email verification state. */
+export async function firebaseReloadCurrentUser(): Promise<FirebaseAuthUser | null> {
+  const { auth } = await getFirebase();
+  if (!auth.currentUser) return null;
+  await reload(auth.currentUser);
+  return auth.currentUser ? toAuthUser(auth.currentUser) : null;
 }
 
 /** Sign in with email and password. */

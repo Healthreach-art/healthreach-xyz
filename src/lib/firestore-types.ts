@@ -1297,6 +1297,11 @@ export type FirestoreSchema = {
           patient_id: string
           preferred_at: string | null
           provider_id: string | null
+          quote_amount: number | null
+          quote_currency: string | null
+          quote_details: string | null
+          quote_issued_at: string | null
+          quote_responded_at: string | null
           service_type: string
           status: string
           updated_at: string
@@ -1314,6 +1319,11 @@ export type FirestoreSchema = {
           patient_id: string
           preferred_at?: string | null
           provider_id?: string | null
+          quote_amount?: number | null
+          quote_currency?: string | null
+          quote_details?: string | null
+          quote_issued_at?: string | null
+          quote_responded_at?: string | null
           service_type: string
           status?: string
           updated_at?: string
@@ -1331,6 +1341,11 @@ export type FirestoreSchema = {
           patient_id?: string
           preferred_at?: string | null
           provider_id?: string | null
+          quote_amount?: number | null
+          quote_currency?: string | null
+          quote_details?: string | null
+          quote_issued_at?: string | null
+          quote_responded_at?: string | null
           service_type?: string
           status?: string
           updated_at?: string
@@ -2999,6 +3014,7 @@ export type FirestoreSchema = {
         | "doctor"
         | "homecare_company"
         | "homecare_staff"
+        | "homecare_operations"
       approval_status:
         | "pending"
         | "approved"
@@ -3163,6 +3179,7 @@ export const Constants = {
         "doctor",
         "homecare_company",
         "homecare_staff",
+        "homecare_operations",
       ],
       approval_status: [
         "pending",

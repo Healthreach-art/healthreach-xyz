@@ -24,6 +24,7 @@ interface Med {
   requires_prescription?: boolean | null;
   description?: string | null;
   category?: string | null;
+  image_url?: string | null;
 }
 interface Pharmacy {
   user_id: string;
@@ -59,6 +60,8 @@ function MedicationMarketplace() {
   const [medications, setMedications] = useState<Med[]>([]);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [rxFor, setRxFor] = useState<Med | null>(null);
@@ -66,6 +69,7 @@ function MedicationMarketplace() {
   useEffect(() => {
     let cancelled = false;
     async function refresh() {
+      setLoadError(null);
       try {
         const data = await loadMarketplace();
         if (cancelled) return;
@@ -75,7 +79,7 @@ function MedicationMarketplace() {
         if (cancelled) return;
         setMedications([]);
         setPharmacies([]);
-        toast.error(error instanceof Error ? `Could not load medicines: ${error.message}` : "Could not load medicines");
+        setLoadError(error instanceof Error ? error.message : "Could not load medicines");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -87,7 +91,7 @@ function MedicationMarketplace() {
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => void refresh())
       .subscribe();
     return () => { cancelled = true; void firestoreClient.removeChannel(channel); };
-  }, [loadMarketplace]);
+  }, [loadMarketplace, retryKey]);
 
   const filtered = useMemo(() => medications.filter((medication) => {
     const needle = query.trim().toLowerCase();
@@ -131,7 +135,13 @@ function MedicationMarketplace() {
           {CATEGORIES.map((item) => <Button key={item} variant={category === item ? "default" : "outline"} size="sm" className="shrink-0" onClick={() => setCategory(item)}>{item}</Button>)}
         </div>
 
-        {loading ? <p className="py-10 text-center text-sm text-muted-foreground">Loading available medicines…</p> : filtered.length === 0 ? (
+        {loading ? <p className="py-10 text-center text-sm text-muted-foreground">Loading available medicines…</p> : loadError ? (
+          <div role="alert" className="border border-destructive/40 bg-destructive/5 p-6 text-center">
+            <p className="font-semibold">Medicine listings could not be loaded</p>
+            <p className="mt-1 text-sm text-muted-foreground">{loadError}</p>
+            <Button className="mt-4" variant="outline" onClick={() => setRetryKey((current) => current + 1)}>Retry</Button>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="border border-dashed border-border p-8 text-center">
             <p className="font-semibold">No medicines found</p>
             <p className="mt-1 text-sm text-muted-foreground">No products are currently listed by approved pharmacies in this area. Try another category or search.</p>
@@ -143,7 +153,7 @@ function MedicationMarketplace() {
               return (
                 <article key={medication.id} className="flex min-w-0 overflow-hidden border border-border bg-card">
                   <div className="relative h-28 w-24 shrink-0 bg-muted sm:h-32 sm:w-28">
-                    <img src={medGeneric} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    <img src={medication.image_url || medGeneric} alt="" className="absolute inset-0 h-full w-full object-cover" />
                     {medication.requires_prescription && <span className="absolute left-2 top-2 rounded bg-healthcare-sky px-1.5 py-0.5 text-[10px] font-bold text-white">Rx</span>}
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
@@ -155,7 +165,7 @@ function MedicationMarketplace() {
                       <Link to="/pharmacy/$id" params={{ id: medication.pharmacy_id }} className="mt-1 block truncate text-xs text-primary hover:underline">{pharmacy?.organization_name || pharmacy?.full_name || "Dispensing pharmacy"}</Link>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <div><p className="text-sm font-bold">R{customerPrice(Number(medication.price)).toFixed(2)}</p><p className="text-[10px] text-healthcare-green">In stock</p></div>
+                      <div><p className="text-sm font-bold">R{customerPrice(Number(medication.price)).toFixed(2)}</p><p className="text-[10px] text-healthcare-green">{medication.stock_quantity} available</p></div>
                       {medication.requires_prescription ? <Button size="sm" variant="outline" onClick={() => setRxFor(medication)}><Stethoscope className="mr-1 h-4 w-4" /> Prescription</Button> : <Button size="icon" aria-label={`Add ${medication.name} to cart`} onClick={() => addToCart(medication)}><Plus className="h-4 w-4" /></Button>}
                     </div>
                   </div>

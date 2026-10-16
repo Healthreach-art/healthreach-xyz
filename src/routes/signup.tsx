@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
-import { UserPlus, AlertCircle, MailCheck, ArrowLeft } from "lucide-react";
+import { UserPlus, AlertCircle, ArrowLeft } from "lucide-react";
 
 
 type SignupRole = "patient" | "pharmacy" | "driver" | "doctor" | "hospital" | "homecare_company" | "homecare_individual";
@@ -54,7 +54,6 @@ function SignupPage() {
   const [address, setAddress] = useState<PickedAddress | null>(null);
   const [error, setError] = useState("");
   const [agreed, setAgreed] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -73,17 +72,40 @@ function SignupPage() {
     const signupRole = isHomecare ? "homecare_company" : role;
     const homecareType = role === "homecare_individual" ? "individual" : role === "homecare_company" ? "company" : undefined;
 
+    let accountCreated = false;
+    let profileSaved = false;
+    let verificationSent = false;
     try {
       const { firebaseSignUp } = await import("@/lib/firebase-auth");
       const { syncProfileToFirestore } = await import("@/lib/firestore-sync");
       const user = await firebaseSignUp(cleanEmail, password, fullName);
+      accountCreated = true;
       await syncProfileToFirestore({
         uid: user.uid, email: cleanEmail, fullName, role: signupRole,
         phone: phone || undefined, address: address?.address, lat: address?.lat, lng: address?.lng,
         organizationName: needsOrg ? orgName : undefined, homecareType,
       });
-      setSuccess(true);
+      profileSaved = true;
+      const { firebaseSendEmailVerification } = await import("@/lib/firebase-auth");
+      verificationSent = await firebaseSendEmailVerification();
+      await navigate({
+        to: "/auth/verify-email",
+        search: { sent: verificationSent ? "1" : undefined },
+        replace: true,
+      });
     } catch (err) {
+      if (accountCreated) {
+        await navigate({
+          to: "/auth/verify-email",
+          search: {
+            sent: verificationSent ? "1" : undefined,
+            sendError: verificationSent ? undefined : "1",
+            setupError: profileSaved ? undefined : "1",
+          },
+          replace: true,
+        });
+        return;
+      }
       const code = (err as { code?: string })?.code ?? "";
       setError(
         code === "auth/email-already-in-use" ? "This email is already registered. Please sign in instead."
@@ -95,33 +117,6 @@ function SignupPage() {
       setLoading(false);
     }
   };
-
-
-  if (success) {
-    return (
-      <div className="flex min-h-[80vh] items-center justify-center px-4">
-        <div className="healthcare-card p-8 max-w-md text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-            <MailCheck className="h-7 w-7 text-primary" />
-          </div>
-          <h2 className="text-xl font-bold text-foreground">Account created</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your account <span className="font-medium text-foreground">{email}</span> is ready.
-            You can now sign in with your email and password.
-          </p>
-          {needsApproval && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Your {meta.label.toLowerCase()} account will be reviewed by an admin before going live.
-            </p>
-          )}
-          <Button className="mt-6 w-full" onClick={() => navigate({ to: "/login" })}>
-            Go to Login
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4 py-8">

@@ -89,16 +89,16 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
       id: input.uid,
       user_id: input.uid,
       email: input.email,
-      full_name: input.fullName ?? null,
-      phone: input.phone ?? null,
-      address: input.address ?? null,
-      latitude: input.lat ?? null,
-      longitude: input.lng ?? null,
+      full_name: input.fullName ?? existing?.full_name ?? null,
+      phone: input.phone ?? existing?.phone ?? null,
+      address: input.address ?? existing?.address ?? null,
+      latitude: input.lat ?? existing?.latitude ?? null,
+      longitude: input.lng ?? existing?.longitude ?? null,
       ...(input.role !== "patient"
         ? { approval_status: existing?.approval_status ?? "pending" }
         : {}),
-      organization_name: input.organizationName ?? null,
-      homecare_type: input.homecareType ?? null,
+      organization_name: input.organizationName ?? existing?.organization_name ?? null,
+      homecare_type: input.homecareType ?? existing?.homecare_type ?? null,
       ...(existing ? {} : { created_at: new Date().toISOString() }),
     });
     await fsSet("user_roles", `${input.uid}_${input.role}`, {
@@ -121,12 +121,12 @@ export async function syncProfileToFirestore(input: SyncProfileInput): Promise<v
         id: input.uid,
         user_id: input.uid,
         email: input.email,
-        organization_name: input.organizationName || null,
-        full_name: input.fullName ?? null,
-        phone: input.phone ?? null,
-        address: input.address ?? null,
-        latitude: input.lat ?? null,
-        longitude: input.lng ?? null,
+        organization_name: input.organizationName ?? existingProvider?.organization_name ?? null,
+        full_name: input.fullName ?? existingProvider?.full_name ?? null,
+        phone: input.phone ?? existingProvider?.phone ?? null,
+        address: input.address ?? existingProvider?.address ?? null,
+        latitude: input.lat ?? existingProvider?.latitude ?? null,
+        longitude: input.lng ?? existingProvider?.longitude ?? null,
         approval_status: existingProvider?.approval_status ?? "pending",
         homecare_type: input.homecareType ?? null,
         status: existingProvider?.status ?? existingProvider?.approval_status ?? "pending_review",
@@ -216,6 +216,8 @@ export async function firebaseGoogleSignIn(defaultRole: string): Promise<string>
   const { firebaseSignInWithGoogle } = await import("./firebase-auth");
   const { getUserRoles } = await import("./firestore");
   const user = await firebaseSignInWithGoogle();
+  if (!user.emailVerified) return "/auth/verify-email";
+
   const email = (user.email ?? "").toLowerCase();
   let roles: string[] = await getUserRoles(user.uid).then((r) => (r as unknown as string[]) ?? []).catch((): string[] => []);
   if (!Array.isArray(roles)) roles = [];
