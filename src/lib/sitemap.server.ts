@@ -37,15 +37,21 @@ export async function fetchPublishedRows(
   select: string,
   filter = "",
 ): Promise<Record<string, string>[]> {
-  let query = firestoreAdmin.from(table).select(select);
-  if (filter) {
-    const [field, operator, value] = filter.split("=");
-    if (operator !== "eq" || !field || value === undefined) {
-      throw new Error(`Unsupported sitemap filter: ${filter}`);
+  try {
+    let query = firestoreAdmin.from(table).select(select);
+    if (filter) {
+      const [field, operator, value] = filter.split("=");
+      if (operator !== "eq" || !field || value === undefined) return [];
+      query = query.eq(field, value === "true" ? true : value === "false" ? false : value);
     }
-    query = query.eq(field, value === "true" ? true : value === "false" ? false : value);
+    const { data, error } = await query;
+    if (error) {
+      console.error(`Sitemap lookup failed for ${table}:`, error.message);
+      return [];
+    }
+    return ((data ?? []) as Record<string, string>[]).filter((r) => r.id);
+  } catch (error) {
+    console.error(`Sitemap lookup failed for ${table}:`, error);
+    return [];
   }
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []) as Record<string, string>[];
 }
