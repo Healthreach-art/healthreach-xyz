@@ -174,7 +174,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /pharmacies/{id} {
-      allow read: if isAdmin() || owns('user_id') || (signedIn() && resource.data.status == 'approved');
+      allow read: if isAdmin() || isOwner(id) || owns('user_id') || (signedIn() && resource.data.status == 'approved');
       allow create: if ownsNew('user_id') && request.resource.data.status == 'pending_review';
       allow update: if isAdmin() || (owns('user_id') && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
@@ -186,7 +186,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /homecare_providers/{id} {
-      allow read: if isAdmin() || owns('user_id') || (signedIn() && resource.data.approval_status == 'approved');
+      allow read: if isAdmin() || isOwner(id) || owns('user_id') || (signedIn() && (resource.data.approval_status == 'approved' || resource.data.status == 'approved'));
       allow create: if ownsNew('user_id') && request.resource.data.status == 'pending_review';
       allow update: if isAdmin() || (owns('user_id') && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
