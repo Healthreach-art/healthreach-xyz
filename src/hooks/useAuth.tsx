@@ -10,6 +10,7 @@ import { fsSubscribe, where } from "@/lib/firestore";
 type AuthUser = {
   id: string;
   email: string | null;
+  emailVerified: boolean;
   user_metadata: { full_name: string; role: AppRole };
   app_metadata: Record<string, never>;
   created_at: string;
@@ -54,6 +55,7 @@ function createAppUser(firebaseUser: FirebaseAuthUser, role: AppRole): AuthUser 
   return {
     id: firebaseUser.uid,
     email: firebaseUser.email,
+    emailVerified: firebaseUser.emailVerified,
     user_metadata: {
       full_name: firebaseUser.displayName ?? "",
       role,

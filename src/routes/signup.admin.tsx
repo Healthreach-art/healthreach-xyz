@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, type FormEvent } from "react";
-import { firestoreClient } from "@/lib/firestore-client";
 import { useServerFn } from "@tanstack/react-start";
 import { claimAdminWithCode } from "@/lib/admin.functions";
 import { ShieldCheck, AlertCircle, CheckCircle } from "lucide-react";
@@ -34,35 +33,49 @@ function AdminSignupPage() {
     setError("");
     setLoading(true);
 
-    // 1. Sign up as a normal user (the DB trigger inserts the default patient role)
-    const { error: authError } = await firestoreClient.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: { full_name: fullName, role: "patient" },
-        emailRedirectTo: window.location.origin,
-      },
-    });
-    if (authError) {
-      setError(authError.message);
-      setLoading(false);
-      return;
-    }
-
-    // 2. If auto-confirm is on, the user is already signed in — claim admin now.
-    // Otherwise instruct them to sign in then revisit.
-    const { data: sessionData } = await firestoreClient.auth.getSession();
-    if (!sessionData.session) {
-      // Try password sign-in (covers projects where auto-confirm is off but
-      // user can still sign in immediately if they verified by email already).
-      await firestoreClient.auth.signInWithPassword({ email: email.trim(), password });
-    }
-
     try {
+      const { firebaseSendEmailVerification, firebaseSignUp, getFirebaseCurrentUser } = await import("@/lib/firebase-auth");
+      const cleanEmail = email.trim();
+      let user = await getFirebaseCurrentUser();
+      if (user && user.email?.toLowerCase() !== cleanEmail.toLowerCase()) {
+        setError("A different account is signed in. Sign out first, then continue with the account you want to enroll.");
+        return;
+      }
+
+      if (!user) {
+        user = await firebaseSignUp(cleanEmail, password, fullName);
+        const { syncProfileToFirestore } = await import("@/lib/firestore-sync");
+        await syncProfileToFirestore({
+          uid: user.uid,
+          email: cleanEmail,
+          fullName,
+          role: "patient",
+        });
+        try {
+          const sent = await firebaseSendEmailVerification();
+          await navigate({ to: "/auth/verify-email", search: { sent: sent ? "1" : undefined, admin: "1" }, replace: true });
+        } catch (sendError) {
+          console.error("[auth] Admin signup verification email could not be sent.", sendError);
+          await navigate({ to: "/auth/verify-email", search: { sendError: "1", admin: "1" }, replace: true });
+        }
+        return;
+      }
+
+      if (!user.emailVerified) {
+        const sent = await firebaseSendEmailVerification();
+        await navigate({ to: "/auth/verify-email", search: { sent: sent ? "1" : undefined, admin: "1" }, replace: true });
+        return;
+      }
+
       await claim({ data: { code: code.trim() } });
       setSuccess(true);
-    } catch (e: any) {
-      setError(e?.message ?? "Could not verify invite code. Sign in and retry.");
+    } catch (e) {
+      const code = (e as { code?: string })?.code ?? "";
+      setError(
+        code === "auth/email-already-in-use"
+          ? "This email already has an account. Sign in to that account, then return here to complete the administrator invite check."
+          : e instanceof Error ? e.message : "Could not complete administrator enrollment.",
+      );
     } finally {
       setLoading(false);
     }
@@ -79,7 +92,7 @@ function AdminSignupPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             Your account has admin privileges. Sign in to open the admin master control.
           </p>
-          <Button className="mt-6" onClick={() => navigate({ to: "/login", search: { mode: "admin" } as any })}>
+          <Button className="mt-6" onClick={() => navigate({ to: "/login", search: { mode: "admin" } })}>
             Go to Admin Sign In
           </Button>
         </div>
@@ -96,7 +109,9 @@ function AdminSignupPage() {
               <ShieldCheck className="h-5 w-5 text-background" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">Create Admin Account</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Restricted — requires a valid invite code</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Restricted — verify your email first, then complete the invite-code check. Verification never grants admin access.
+            </p>
           </div>
 
           {error && (
@@ -130,7 +145,7 @@ function AdminSignupPage() {
           </form>
 
           <div className="mt-4 text-center text-xs">
-            <Link to="/login" search={{ mode: "admin" } as any} className="text-muted-foreground hover:text-foreground hover:underline">
+            <Link to="/login" search={{ mode: "admin" }} className="text-muted-foreground hover:text-foreground hover:underline">
               ← Back to admin sign in
             </Link>
           </div>

@@ -20,6 +20,10 @@ export function RoleGuard({ allow, children }: Props) {
     );
   }
 
+  if (user && !user.emailVerified) {
+    return <Navigate to="/auth/verify-email" replace />;
+  }
+
   if (!user || !role) {
     if (pathname === "/login") return null;
     return <Navigate to="/login" replace />;
@@ -32,4 +36,3 @@ export function RoleGuard({ allow, children }: Props) {
 
   return <>{children}</>;
 }
-

@@ -13,6 +13,151 @@ async function assertAdmin(userId: string) {
   return firestoreAdmin;
 }
 
+async function assertHomecareOperations(userId: string) {
+  const { firestoreAdmin } = await import("@/lib/firestore-admin");
+  const [{ data: admin, error: adminError }, { data: operator, error: operatorError }] = await Promise.all([
+    firestoreAdmin.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),
+    firestoreAdmin.from("user_roles").select("role").eq("user_id", userId).eq("role", "homecare_operations").maybeSingle(),
+  ]);
+  if (adminError) throw new Error(adminError.message);
+  if (operatorError) throw new Error(operatorError.message);
+  if (!admin && !operator) throw new Error("Home care operations role required.");
+  return firestoreAdmin;
+}
+
+export const submitHomecareRequest = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .inputValidator((d) => z.object({
+    serviceType: z.string().trim().min(2).max(120),
+    description: z.string().trim().max(5000).default(""),
+    address: z.string().trim().min(5).max(500),
+    latitude: z.number().finite().min(-90).max(90).nullable().optional(),
+    longitude: z.number().finite().min(-180).max(180).nullable().optional(),
+    preferredAt: z.string().datetime({ offset: true }).nullable().optional(),
+    durationHours: z.number().int().min(1).max(24).nullable().optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    if (context.claims.email_verified !== true) throw new Error("Verify your email before requesting home care.");
+    if (data.preferredAt && Date.parse(data.preferredAt) <= Date.now()) {
+      throw new Error("Choose a preferred visit time in the future.");
+    }
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const { data: patientRole, error: roleError } = await firestoreAdmin
+      .from("user_roles").select("role").eq("user_id", context.userId).eq("role", "patient").maybeSingle();
+    if (roleError) throw new Error(roleError.message);
+    if (!patientRole) throw new Error("A patient account is required to request home care.");
+
+    const now = new Date().toISOString();
+    const { data: created, error } = await firestoreAdmin.from("homecare_requests").insert({
+      patient_id: context.userId,
+      service_type: data.serviceType,
+      description: data.description,
+      address: data.address,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
+      preferred_at: data.preferredAt ?? null,
+      duration_hours: data.durationHours ?? null,
+      provider_id: null,
+      status: "pending_review",
+      created_at: now,
+      updated_at: now,
+    }).select("id").single();
+    if (error) throw new Error(error.message);
+    if (!created?.id) throw new Error("Your home care request could not be created.");
+    return { id: created.id };
+  });
+
+export const listHomecareOperationsRequests = createServerFn({ method: "GET" })
+  .middleware([requireFirebaseAuth])
+  .handler(async ({ context }) => {
+    const firestoreAdmin = await assertHomecareOperations(context.userId);
+    const { data, error } = await firestoreAdmin
+      .from("homecare_requests").select("*").order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { requests: data ?? [] };
+  });
+
+export const listHomecareProvidersForOperations = createServerFn({ method: "GET" })
+  .middleware([requireFirebaseAuth])
+  .handler(async ({ context }) => {
+    const firestoreAdmin = await assertHomecareOperations(context.userId);
+    const { data, error } = await firestoreAdmin
+      .from("homecare_providers")
+      .select("id, business_name, full_name, provider_type, services, service_areas")
+      .eq("approval_status", "approved")
+      .eq("is_active", true)
+      .order("business_name");
+    if (error) throw new Error(error.message);
+    return { providers: data ?? [] };
+  });
+
+export const issueHomecareQuote = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .inputValidator((d) => z.object({
+    requestId: uuid,
+    amount: z.number().finite().nonnegative().max(1_000_000),
+    details: z.string().trim().min(3).max(2000),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { data: result, error } = await firestoreAdmin.rpc("issue_homecare_quote", {
+      _request_id: data.requestId,
+      _amount: data.amount,
+      _details: data.details,
+    });
+    if (error) throw new Error(error.message);
+    if (!result?.ok) throw new Error("The coordinator could not issue the quote.");
+    return { ok: true };
+  });
+
+export const respondToHomecareQuote = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .inputValidator((d) => z.object({
+    requestId: uuid,
+    response: z.enum(["accept", "decline"]),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { data: result, error } = await firestoreAdmin.rpc("respond_homecare_quote", {
+      _request_id: data.requestId,
+      _response: data.response,
+    });
+    if (error) throw new Error(error.message);
+    const status = result?.status;
+    if (status !== "quote_accepted" && status !== "quote_declined") {
+      throw new Error("The quote response service returned an invalid result.");
+    }
+    return { status };
+  });
+
+export const grantHomecareOperationsRole = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .inputValidator((d) => z.object({ userId: z.string().trim().min(1).max(128) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const firestoreAdmin = await assertAdmin(context.userId);
+    const { data: profile, error: profileError } = await firestoreAdmin
+      .from("profiles").select("user_id").eq("user_id", data.userId).maybeSingle();
+    if (profileError) throw new Error(profileError.message);
+    if (!profile) throw new Error("No HealthReachCare profile exists for that user ID.");
+    const { data: existing, error: roleError } = await firestoreAdmin
+      .from("user_roles").select("role").eq("user_id", data.userId).eq("role", "homecare_operations").maybeSingle();
+    if (roleError) throw new Error(roleError.message);
+    if (existing) return { ok: true, alreadyAssigned: true };
+
+    const { error } = await firestoreAdmin.from("user_roles").insert({
+      id: `${data.userId}_homecare_operations`,
+      user_id: data.userId,
+      role: "homecare_operations",
+    });
+    if (error) throw new Error(error.message);
+    const { error: auditError } = await firestoreAdmin.from("admin_audit_log").insert({
+      admin_id: context.userId,
+      action: "homecare.operations_role.grant",
+      target_type: "user",
+      target_id: data.userId,
+    });
+    if (auditError) throw new Error(auditError.message);
+    return { ok: true, alreadyAssigned: false };
+  });
+
 /** Admin: full home care provider list with documents + approval history. */
 export const adminListHomecare = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
@@ -228,72 +373,27 @@ export const getHomecareDocumentUrl = createServerFn({ method: "POST" })
     return { url };
   });
 
-/** Admin: assign an approved home care provider to a customer request. */
+/** Coordinator: record an approved provider after a patient accepts the quote. */
 export const adminAssignHomecare = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
       requestId: uuid,
       providerId: uuid,
-      scheduledAt: z.string().optional(),
-      amount: z.number().nonnegative().max(1000000).optional(),
+      scheduledAt: z.string().datetime({ offset: true }).optional(),
     }).parse(d),
   )
-  .handler(async ({ data, context }) => {
-    const firestoreAdmin = await assertAdmin(context.userId);
-
-    const { data: provider } = await firestoreAdmin
-      .from("homecare_providers").select("id, user_id, approval_status, is_active, business_name, full_name")
-      .eq("id", data.providerId).maybeSingle();
-    if (!provider) throw new Error("Provider not found");
-    if (provider.approval_status !== "approved" || !provider.is_active) {
-      throw new Error("Only an approved, active provider can receive an assignment");
-    }
-
-    const { data: request } = await firestoreAdmin
-      .from("homecare_requests").select("id, patient_id, service_type").eq("id", data.requestId).maybeSingle();
-    if (!request) throw new Error("Request not found");
-
-    await firestoreAdmin.from("homecare_requests")
-      .update({ provider_id: data.providerId, status: "assigned" }).eq("id", data.requestId);
-
-    const { data: assignment, error } = await firestoreAdmin.from("homecare_assignments").insert({
-      request_id: data.requestId,
-      provider_id: data.providerId,
-      status: "offered",
-      scheduled_at: data.scheduledAt ?? null,
-      amount: data.amount ?? null,
-      assigned_by: context.userId,
-    }).select("id").single();
-    if (error) throw new Error(error.message);
-    if (!assignment) throw new Error("Home care assignment could not be created.");
-
-    await firestoreAdmin.from("admin_audit_log").insert({
-      admin_id: context.userId,
-      action: "homecare.assign",
-      target_type: "homecare_request",
-      target_id: data.requestId,
-      payload: { provider_id: data.providerId, assignment_id: assignment.id },
+  .handler(async ({ data }) => {
+    const { data: result, error } = await firestoreAdmin.rpc("coordinate_homecare_request", {
+      _request_id: data.requestId,
+      _provider_id: data.providerId,
+      ...(data.scheduledAt ? { _scheduled_at: data.scheduledAt } : {}),
     });
-
-    await firestoreAdmin.from("notifications").insert([
-      {
-        user_id: provider.user_id,
-        category: "system",
-        title: "New home care assignment",
-        body: `You have been assigned a ${request.service_type} visit. Open your dashboard to accept it.`,
-        link: "/dashboard/homecare_company",
-      },
-      {
-        user_id: request.patient_id,
-        category: "system",
-        title: "Home care provider assigned",
-        body: `${provider.business_name || provider.full_name || "A home care provider"} has been assigned to your request.`,
-        link: "/dashboard/patient/homecare",
-      },
-    ]);
-
-    return { ok: true, assignmentId: assignment.id };
+    if (error) throw new Error(error.message);
+    if (!result?.ok || typeof result.assignmentId !== "string") {
+      throw new Error("The home care coordination service returned an invalid response.");
+    }
+    return { ok: true, assignmentId: result.assignmentId };
   });
 
 /**

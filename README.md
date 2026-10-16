@@ -139,6 +139,7 @@ The app calls the function in `us-central1` by default. Set
 function to a different endpoint. Set `FIREBASE_PAYMENT_WEBHOOK_URL` only if
 the public webhook function is deployed at a different endpoint.
 
+<<<<<<< HEAD
 ## Pharmacy medicine catalogue and order security
 
 Pharmacy-entered products are stored in the pharmacy-owned `medications`
@@ -183,6 +184,51 @@ queries require the indexes in `firestore.indexes.json`:
 npm run functions:build
 firebase deploy --only functions,firestore:rules,firestore:indexes --project YOUR_FIREBASE_PROJECT
 ```
+=======
+## Firebase email verification
+
+The client configuration in `src/lib/firebase-config.functions.ts` targets
+the `healthreachcare-prod` Firebase project. Before deploying verification
+changes, confirm the following in **Firebase Console → Authentication** for
+that project:
+
+- Email/Password and Google sign-in providers are enabled. Google users are
+  routed according to Firebase's `emailVerified` value; verified Google
+  accounts do not receive an email/password verification message.
+- **Settings → Authorized domains** includes the exact production hostname
+  serving this app (`healthreachcare.co.za`, and `www.healthreachcare.co.za`
+  only if it is also used), plus any deployment preview hostnames and
+  `localhost` for local development. The app uses the current website origin
+  for its verification continuation URL.
+- **Templates → Email address verification** uses HealthReachCare sender
+  branding/support details, and its custom action URL is set to
+  `https://healthreachcare.co.za/auth/verify-email`. This lets the app show
+  verification success and expired-link states using Firebase action codes;
+  the route also handles Firebase's post-verification continuation redirect.
+
+Verify the current Console settings and test the generated link on the deployed
+hostname before releasing. This repository change does not alter Firebase
+Console settings or send email.
+
+## Home care coordination
+
+Home care requests go to a central coordinator; patients do not choose
+providers or see unverified service areas or rates. The coordinator confirms
+service feasibility, coverage, and a request-specific ZAR quote. A quote is
+not a payment. The patient must accept it before an approved provider can be
+coordinated. No catalogue, coverage, or price values are seeded by this flow.
+
+An admin can grant the dedicated `homecare_operations` role from the Home Care
+Control page using the existing account's Firebase UID. The user must sign in
+again for the role to load. Operations access is not self-service and does not
+grant admin or provider-approval permissions. Deploy the updated Firestore
+rules with the app/Functions changes before enabling this role in production.
+
+Doctor appointment booking continues to use the existing R15 platform fee.
+The app and Functions builds can be checked locally with `npm run build` and
+`npm run functions:build`; production Firebase settings, accounts, provider
+coverage, and payment delivery must be verified separately before deployment.
+>>>>>>> feat/doctor-homecare-booking
 
 ## MCP OAuth server
 

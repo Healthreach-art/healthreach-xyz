@@ -162,6 +162,15 @@ service cloud.firestore {
       allow read: if isAdmin() || owns('user_id')
         || signedIn() && resource.data.role == 'pharmacy';
       allow write: if isAdmin();
+<<<<<<< HEAD
+=======
+      // Users may record only non-provider roles mirrored from sign-up.
+      allow create, update: if signedIn() && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.role in [
+          'patient', 'hospital', 'homecare_company', 'homecare_staff'
+        ]
+        && id == request.auth.uid + '_' + request.resource.data.role;
+>>>>>>> feat/doctor-homecare-booking
     }
 
     // Provider profiles (doctors, pharmacies, drivers, homecare):
@@ -250,13 +259,26 @@ service cloud.firestore {
     // Home care requests & assignments: customer owns request; admin assigns;
     // assigned provider reads/updates their assignment only.
     match /homecare_requests/{id} {
-      allow read: if isAdmin() || owns('patient_id') || owns('user_id');
-      allow create: if ownsNew('patient_id') || ownsNew('user_id');
-      allow update: if isAdmin() || owns('patient_id') || owns('user_id');
+      allow read: if isAdmin() || hasRole('homecare_operations') || owns('patient_id') || owns('user_id');
+      allow create: if (ownsNew('patient_id') || ownsNew('user_id'))
+        && request.auth.token.email_verified == true
+        && request.resource.data.status == 'pending_review'
+        && request.resource.data.provider_id == null;
+      allow update: if isAdmin()
+        || owns('patient_id')
+          && resource.data.status == 'quote_pending'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'quote_responded_at', 'updated_at'
+          ])
+          && request.resource.data.status in ['quote_accepted', 'quote_declined'];
       allow delete: if isAdmin();
     }
     match /homecare_assignments/{id} {
-      allow read: if isAdmin() || owns('patient_id') || owns('provider_id');
+      allow read: if isAdmin() || hasRole('homecare_operations') || owns('provider_id')
+        || signedIn()
+          && resource.data.request_id is string
+          && exists(/databases/$(database)/documents/homecare_requests/$(resource.data.request_id))
+          && get(/databases/$(database)/documents/homecare_requests/$(resource.data.request_id)).data.patient_id == request.auth.uid;
       allow create: if isAdmin();
       allow update: if isAdmin() || owns('provider_id');
       allow delete: if isAdmin();
@@ -320,6 +342,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || owns('driver_id');
     }
     match /medications/{id} {
+<<<<<<< HEAD
       allow read: if isAdmin()
         || owns('pharmacy_id') && hasRole('pharmacy');
       allow create: if isAdmin()
@@ -365,6 +388,13 @@ service cloud.firestore {
           && request.resource.data.is_active is bool
           && request.resource.data.publish_requested is bool;
       allow delete: if isAdmin();
+=======
+      allow read: if signedIn();
+      allow create: if isAdmin() || ownsNew('pharmacy_id');
+      allow update: if isAdmin() || owns('pharmacy_id')
+        && request.resource.data.pharmacy_id == resource.data.pharmacy_id;
+      allow delete: if isAdmin() || owns('pharmacy_id');
+>>>>>>> feat/doctor-homecare-booking
     }
     match /pharmacy_offers/{id} {
       allow read: if isAdmin() || owns('pharmacy_id') || owns('patient_id');
@@ -512,12 +542,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /pharmacy_branches/{id} {
+<<<<<<< HEAD
       allow read: if isAdmin()
         || owns('pharmacy_id') && hasRole('pharmacy')
         || signedIn() && resource.data.is_primary == true && resource.data.is_active == true;
       allow create: if isAdmin() || hasRole('pharmacy') && ownsNew('pharmacy_id');
       allow update: if isAdmin() || hasRole('pharmacy')
         && owns('pharmacy_id')
+=======
+      allow read: if isAdmin() || owns('pharmacy_id')
+        || signedIn() && resource.data.is_primary == true && resource.data.is_active == true;
+      allow create: if isAdmin() || ownsNew('pharmacy_id');
+      allow update: if isAdmin() || owns('pharmacy_id')
+>>>>>>> feat/doctor-homecare-booking
         && request.resource.data.pharmacy_id == resource.data.pharmacy_id;
       allow delete: if isAdmin() || hasRole('pharmacy') && owns('pharmacy_id');
     }

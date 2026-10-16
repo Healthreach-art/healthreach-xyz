@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { bookDoctorAppointment, markDoctorAppointmentPaid } from "@/lib/doctors.functions";
+import { bookDoctorAppointment, getDoctorAvailableSlots, markDoctorAppointmentPaid } from "@/lib/doctors.functions";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { toast } from "sonner";
 
@@ -21,6 +21,7 @@ declare global {
     PaystackPop?: {
       setup: (opts: {
         key: string; email: string; amount: number; currency?: string; ref?: string;
+        metadata?: Record<string, string>;
         callback: (resp: { reference: string }) => void; onClose: () => void;
       }) => { openIframe: () => void };
     };
@@ -53,31 +54,55 @@ interface Doctor {
   city: string; address: string; rating_avg: number; rating_count: number;
 }
 
+interface AvailableSlot {
+  scheduledAt: string;
+  durationMinutes: number;
+}
+
 function Page() {
   const { id } = Route.useParams();
   const { user } = useAuth();
   const search = Route.useSearch();
   const navigate = useNavigate();
   const book = useServerFn(bookDoctorAppointment);
+  const getSlots = useServerFn(getDoctorAvailableSlots);
   const markPaid = useServerFn(markDoctorAppointmentPaid);
   const verify = useServerFn(verifyPaystackTransaction);
 
   const [doc, setDoc] = useState<Doctor | null>(null);
   const [reviews, setReviews] = useState<{ stars: number; comment: string; created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [when, setWhen] = useState(() => {
-    const w = search.when;
-    if (!w) return "";
-    const d = new Date(w);
-    if (Number.isNaN(d.getTime())) return "";
-    // datetime-local needs YYYY-MM-DDTHH:mm in local time
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  });
+  const [slots, setSlots] = useState<AvailableSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState("");
+  const [when, setWhen] = useState("");
   const [mode, setMode] = useState<"in_person" | "video" | "phone">("in_person");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setSlotsLoading(true);
+    setSlotsError("");
+    void getSlots({ data: { doctorId: id } })
+      .then(({ slots: availableSlots }) => {
+        if (!active) return;
+        setSlots(availableSlots);
+        const requestedTime = search.when ? Date.parse(search.when) : NaN;
+        const matchingSlot = Number.isFinite(requestedTime)
+          ? availableSlots.find((slot) => Date.parse(slot.scheduledAt) === requestedTime)
+          : undefined;
+        setWhen(matchingSlot?.scheduledAt ?? "");
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setSlotsError(error instanceof Error ? error.message : "Could not load appointment availability.");
+      })
+      .finally(() => {
+        if (active) setSlotsLoading(false);
+      });
+    return () => { active = false; };
+  }, [getSlots, id, search.when, user]);
 
   useEffect(() => {
     (async () => {
@@ -95,17 +120,23 @@ function Page() {
     if (!user) return toast.error("Please sign in");
     if (!doc) return;
     if (!when) return toast.error("Pick a date & time");
+    const selectedSlot = slots.find((slot) => slot.scheduledAt === when);
+    if (!selectedSlot) return toast.error("Choose a currently available appointment time.");
     setBusy(true);
     try {
       const { appointmentId, platformFeeCents } = await book({
         data: {
-          doctorId: doc.id, scheduledAt: when, mode, reason: reason.trim(),
+          doctorId: doc.id,
+          scheduledAt: selectedSlot.scheduledAt,
+          durationMinutes: selectedSlot.durationMinutes,
+          mode,
+          reason: reason.trim(),
         },
       });
       void import("@/lib/firestore-sync").then(({ mirrorRecord }) => {
         void mirrorRecord("bookings", appointmentId, {
           type: "doctor", service: `Doctor: ${doc.full_name ?? "appointment"}`, name: user.email,
-          doctorRecordId: doc.id, scheduledAt: new Date(when).toISOString(), mode, reason: reason.trim(),
+          doctorRecordId: doc.id, scheduledAt: selectedSlot.scheduledAt, mode, reason: reason.trim(),
           status: "pending", paymentStatus: "pending",
         });
         void mirrorRecord("payments", appointmentId, {
@@ -119,11 +150,18 @@ function Page() {
         email: user.email || "support@healthreachcare.co.za",
         amount: platformFeeCents,
         currency: "ZAR",
+        ref: `${appointmentId}_${crypto.randomUUID()}`,
+        metadata: { appointment_id: appointmentId, payment_type: "doctor_booking_fee" },
         callback: (resp) => {
           (async () => {
             try {
               const v = await verify({ data: { reference: resp.reference } });
-              if (!v.verified) throw new Error("Payment not verified");
+              if (
+                !v.verified
+                || v.reference !== resp.reference
+                || v.metadata.appointment_id !== appointmentId
+                || v.metadata.payment_type !== "doctor_booking_fee"
+              ) throw new Error("Payment not verified for this appointment");
               await markPaid({ data: { appointmentId, reference: resp.reference } });
               void import("@/lib/firestore-sync").then(({ mirrorRecord }) => {
                 void mirrorRecord("bookings", appointmentId, { status: "confirmed", paymentStatus: "paid" });
@@ -184,7 +222,27 @@ function Page() {
         <h2 className="font-bold text-foreground flex items-center gap-2"><CalendarCheck className="h-5 w-5 text-primary" /> Book appointment</h2>
         <p className="text-xs text-muted-foreground">You are booking with a <span className="font-semibold text-healthcare-teal">Doctor</span></p>
         <div className="grid sm:grid-cols-2 gap-3">
-          <div><Label>Date & time</Label><Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></div>
+          <div>
+            <Label>Available date & time</Label>
+            <Select value={when} onValueChange={setWhen} disabled={slotsLoading || slots.length === 0}>
+              <SelectTrigger><SelectValue placeholder={slotsLoading ? "Loading availability…" : "Choose an available time"} /></SelectTrigger>
+              <SelectContent>
+                {slots.map((slot) => (
+                  <SelectItem key={slot.scheduledAt} value={slot.scheduledAt}>
+                    {new Date(slot.scheduledAt).toLocaleString("en-ZA", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: "Africa/Johannesburg",
+                    })} ({slot.durationMinutes} min)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {slotsError && <p className="mt-1 text-xs text-destructive">{slotsError}</p>}
+            {!slotsLoading && !slotsError && slots.length === 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">No appointment times are currently available.</p>
+            )}
+          </div>
           <div><Label>Consultation type</Label>
             <Select value={mode} onValueChange={(v: any) => setMode(v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>

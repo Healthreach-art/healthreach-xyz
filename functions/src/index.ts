@@ -11,11 +11,112 @@ import {
   type Transaction,
 } from "firebase-admin/firestore";
 import { defineSecret } from "firebase-functions/params";
+<<<<<<< HEAD
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+=======
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+>>>>>>> feat/doctor-homecare-booking
 import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
 export { mcpData, mcpOAuth } from "./mcp-oauth.js";
+
+async function createHomecareNotification(
+  userId: string,
+  requestId: string,
+  status: string,
+  title: string,
+  body: string,
+  link: string,
+) {
+  if (!userId) return;
+  const notificationId = createHash("sha256")
+    .update(`${requestId}:${status}:${userId}`)
+    .digest("hex");
+  await db.collection("notifications").doc(notificationId).set({
+    user_id: userId,
+    category: "system",
+    title,
+    body,
+    link,
+    created_at: new Date().toISOString(),
+    read: false,
+  });
+}
+
+export const notifyHomecareWorkflowChanges = onDocumentUpdated(
+  "homecare_requests/{requestId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    const requestId = event.params.requestId;
+    if (!before || !after || before.status === after.status) return;
+
+    if (before.status === "pending_review" && after.status === "quote_pending") {
+      await createHomecareNotification(
+        String(after.patient_id ?? ""),
+        requestId,
+        "quote_pending",
+        "Your home care quote is ready",
+        "Review the quote and accept or decline it in your home care requests.",
+        "/dashboard/patient/homecare",
+      );
+      return;
+    }
+
+    if (before.status === "quote_pending" && ["quote_accepted", "quote_declined"].includes(String(after.status))) {
+      const operations = await db.collection("user_roles")
+        .where("role", "in", ["admin", "homecare_operations"])
+        .get();
+      const status = String(after.status);
+      const recipients = new Map<string, string>();
+      for (const role of operations.docs) {
+        const userId = String(role.get("user_id") ?? "");
+        if (!userId) continue;
+        const isAdminRole = role.get("role") === "admin";
+        const existing = recipients.get(userId);
+        if (!existing || isAdminRole) {
+          recipients.set(userId, isAdminRole ? "/dashboard/admin/homecare" : "/dashboard/homecare_operations");
+        }
+      }
+      await Promise.all([...recipients].map(([userId, link]) =>
+        createHomecareNotification(
+          userId,
+          requestId,
+          status,
+          status === "quote_accepted" ? "Home care quote accepted" : "Home care quote declined",
+          `A patient ${status === "quote_accepted" ? "accepted" : "declined"} the quote. Review the request in the operations workspace.`,
+          link,
+        ),
+      ));
+      return;
+    }
+
+    if (before.status === "quote_accepted" && after.status === "assigned") {
+      const providerId = String(after.provider_id ?? "");
+      const provider = providerId ? await db.collection("homecare_providers").doc(providerId).get() : null;
+      const providerUserId = String(provider?.get("user_id") ?? "");
+      await Promise.all([
+        createHomecareNotification(
+          String(after.patient_id ?? ""),
+          requestId,
+          "assigned",
+          "Home care visit coordinated",
+          "The coordinator recorded the approved provider and visit details. Review your home care request for the latest status.",
+          "/dashboard/patient/homecare",
+        ),
+        createHomecareNotification(
+          providerUserId,
+          requestId,
+          "assigned",
+          "New home care assignment",
+          "A home care visit has been coordinated. Open your provider dashboard to review the assignment.",
+          "/dashboard/homecare_company",
+        ),
+      ]);
+    }
+  },
+);
 
 const app = getApps()[0] ?? initializeApp();
 const db = getFirestore(app);
@@ -41,8 +142,11 @@ class ActionError extends Error {
   }
 }
 
-type Identity = { uid: string; email: string | null };
+type Identity = { uid: string; email: string | null; emailVerified?: boolean };
 type ActionArgs = Record<string, unknown>;
+
+const DOCTOR_PLATFORM_FEE_CENTS = 1500;
+const SLOT_CLAIM_COLLECTION = "doctor_slot_claims";
 
 function stringArg(args: ActionArgs, key: string) {
   const value = args[key];
@@ -86,6 +190,28 @@ function asMillis(value: unknown) {
   if (typeof value !== "string") return 0;
   const millis = new Date(value).getTime();
   return Number.isFinite(millis) ? millis : 0;
+}
+
+function southAfricanDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const weekdays: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    weekday: weekdays[values.weekday ?? ""] ?? -1,
+  };
+}
+
+function slotClaimId(doctorId: string, scheduledAt: string) {
+  return createHash("sha256").update(`${doctorId}:${scheduledAt}`).digest("hex");
 }
 
 function transactionQuery<T extends DocumentData>(
@@ -818,6 +944,7 @@ async function declineDeliveryOffer(identity: Identity, offerId: string) {
   });
 }
 
+<<<<<<< HEAD
 async function registerSelfServiceRole(identity: Identity, args: ActionArgs) {
   const role = stringArg(args, "_role");
   if (role === "admin") {
@@ -906,6 +1033,368 @@ async function runAction(identity: Identity, name: string, args: ActionArgs) {
       return registerSelfServiceRole(identity, args);
     case "claim_admin_with_code":
       return claimAdminWithInvite(identity, args);
+=======
+async function availableDoctorSlots(identity: Identity, args: ActionArgs) {
+  if (!identity.emailVerified) throw new ActionError("Verify your email before booking an appointment.", 403);
+  const doctorId = stringArg(args, "_doctor_id");
+  const doctorRef = db.collection("doctors").doc(doctorId);
+  const [doctorSnapshot, availabilitySnapshot, claimsSnapshot, appointmentsSnapshot] = await Promise.all([
+    doctorRef.get(),
+    db.collection("doctor_availability").where("doctor_id", "==", doctorId).where("is_active", "==", true).get(),
+    db.collection(SLOT_CLAIM_COLLECTION).where("doctor_id", "==", doctorId).get(),
+    db.collection("doctor_appointments").where("doctor_id", "==", doctorId).get(),
+  ]);
+  if (!doctorSnapshot.exists) throw new ActionError("Doctor not found.", 404);
+  const doctor = doctorSnapshot.data() ?? {};
+  if (!doctor.is_active || !doctor.is_verified || doctor.is_demo) {
+    throw new ActionError("This doctor is not currently accepting bookings.", 409);
+  }
+
+  const appointments = appointmentsSnapshot.docs
+    .map((appointment) => appointment.data())
+    .filter((appointment) => ["pending", "confirmed", "scheduled"].includes(String(appointment.status)));
+  const activeAppointmentIds = new Set(
+    appointmentsSnapshot.docs
+      .filter((appointment) => ["pending", "confirmed", "scheduled"].includes(String(appointment.get("status"))))
+      .map((appointment) => appointment.id),
+  );
+  const claimed = new Set(
+    claimsSnapshot.docs
+      .filter((claim) =>
+        !["cancelled", "released"].includes(String(claim.get("status")))
+        && activeAppointmentIds.has(String(claim.get("appointment_id"))),
+      )
+      .map((claim) => String(claim.get("scheduled_at") ?? "")),
+  );
+  const now = Date.now();
+  const today = southAfricanDateParts(new Date(now));
+  const windows = availabilitySnapshot.docs.map((snapshot) => snapshot.data());
+  const slots: Array<{ scheduledAt: string; durationMinutes: number }> = [];
+
+  for (let offset = 0; offset < 60; offset += 1) {
+    const calendarDate = new Date(Date.UTC(today.year, today.month - 1, today.day + offset));
+    const weekday = calendarDate.getUTCDay();
+    for (const window of windows) {
+      if (Number(window.day_of_week) !== weekday) continue;
+      const startMinute = Math.round(Number(window.start_hour) * 60);
+      const endMinute = Math.round(Number(window.end_hour) * 60);
+      const durationMinutes = Number(window.slot_minutes);
+      if (
+        !Number.isSafeInteger(startMinute) ||
+        !Number.isSafeInteger(endMinute) ||
+        !Number.isSafeInteger(durationMinutes) ||
+        startMinute < 0 ||
+        endMinute > 24 * 60 ||
+        durationMinutes < 30 ||
+        durationMinutes > 120 ||
+        durationMinutes % 30 !== 0
+      ) continue;
+
+      for (let minute = startMinute; minute + durationMinutes <= endMinute; minute += durationMinutes) {
+        const localHour = Math.floor(minute / 60);
+        const localMinute = minute % 60;
+        const utcMillis = Date.UTC(
+          calendarDate.getUTCFullYear(),
+          calendarDate.getUTCMonth(),
+          calendarDate.getUTCDate(),
+          localHour - 2,
+          localMinute,
+        );
+        if (utcMillis <= now) continue;
+        const scheduledAt = new Date(utcMillis).toISOString();
+        const endAt = utcMillis + durationMinutes * 60_000;
+        const isClaimed = Array.from({ length: durationMinutes / 30 }, (_, index) => {
+          const bucket = new Date(utcMillis + index * 30 * 60_000).toISOString();
+          return claimed.has(bucket);
+        }).some(Boolean);
+        const overlapsAppointment = appointments.some((appointment) => {
+          const appointmentStart = asMillis(appointment.scheduled_at);
+          const appointmentDuration = Math.max(30, Number(appointment.duration_minutes) || 30) * 60_000;
+          return appointmentStart < endAt && appointmentStart + appointmentDuration > utcMillis;
+        });
+        if (!isClaimed && !overlapsAppointment) slots.push({ scheduledAt, durationMinutes });
+      }
+    }
+  }
+
+  return { slots: slots.sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt)) };
+}
+
+async function bookDoctorAppointment(identity: Identity, args: ActionArgs) {
+  if (!identity.emailVerified) throw new ActionError("Verify your email before booking an appointment.", 403);
+  const doctorId = stringArg(args, "_doctor_id");
+  const scheduledAt = stringArg(args, "_scheduled_at");
+  const mode = stringArg(args, "_mode");
+  const slotMinutes = integerArg(args, "_duration_minutes", 30, 30, 120);
+  if (slotMinutes % 30 !== 0) throw new ActionError("Choose a valid appointment duration.");
+  const reason = typeof args._reason === "string" ? args._reason : "";
+  if (!["in_person", "video", "phone"].includes(mode)) throw new ActionError("Invalid consultation type.");
+  const scheduledMillis = Date.parse(scheduledAt);
+  if (!Number.isFinite(scheduledMillis) || scheduledMillis < Date.now() + 60_000 || scheduledMillis > Date.now() + 60 * 86_400_000) {
+    throw new ActionError("Choose an available appointment time within the next 60 days.");
+  }
+
+  const doctorRef = db.collection("doctors").doc(doctorId);
+  const availabilityQuery = db.collection("doctor_availability")
+    .where("doctor_id", "==", doctorId)
+    .where("is_active", "==", true);
+  const appointmentsQuery = db.collection("doctor_appointments").where("doctor_id", "==", doctorId);
+  const appointmentRef = db.collection("doctor_appointments").doc();
+  const appointmentDate = new Date(scheduledMillis);
+  const localDate = southAfricanDateParts(appointmentDate);
+  const localHours = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Johannesburg",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(appointmentDate);
+  const timeParts = Object.fromEntries(localHours.map((part) => [part.type, part.value]));
+  const localMinuteOfDay = Number(timeParts.hour) * 60 + Number(timeParts.minute);
+  if (appointmentDate.getUTCSeconds() !== 0 || appointmentDate.getUTCMilliseconds() !== 0) {
+    throw new ActionError("Choose a time on an available appointment slot.");
+  }
+
+  const slotClaims = Array.from({ length: slotMinutes / 30 }, (_, index) => {
+    const instant = new Date(scheduledMillis + index * 30 * 60_000).toISOString();
+    return { instant, ref: db.collection(SLOT_CLAIM_COLLECTION).doc(slotClaimId(doctorId, instant)) };
+  });
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [doctorSnapshot, availabilitySnapshot, appointmentsSnapshot, ...claimSnapshots] = await Promise.all([
+      transaction.get(doctorRef),
+      transactionQuery(transaction, availabilityQuery),
+      transactionQuery(transaction, appointmentsQuery),
+      ...slotClaims.map(({ ref }) => transaction.get(ref)),
+    ]);
+    if (!doctorSnapshot.exists) throw new ActionError("Doctor not found.", 404);
+    const doctor = doctorSnapshot.data() ?? {};
+    if (!doctor.is_active || !doctor.is_verified || doctor.is_demo) {
+      throw new ActionError("This doctor is not currently accepting bookings.", 409);
+    }
+    const modeAvailable = mode === "in_person" ? doctor.in_person_available
+      : mode === "video" ? doctor.online_available
+        : doctor.phone_available;
+    if (!modeAvailable) throw new ActionError("This consultation type is not currently available.", 409);
+
+    const validWindow = availabilitySnapshot.docs.some((snapshot) => {
+      const window = snapshot.data();
+      const startMinute = Number(window.start_hour) * 60;
+      const endMinute = Number(window.end_hour) * 60;
+      const configuredSlot = Number(window.slot_minutes);
+      return Number(window.day_of_week) === localDate.weekday
+        && Number.isInteger(configuredSlot)
+        && configuredSlot === slotMinutes
+        && localMinuteOfDay >= startMinute
+        && localMinuteOfDay + slotMinutes <= endMinute
+        && (localMinuteOfDay - startMinute) % configuredSlot === 0;
+    });
+    if (!validWindow) throw new ActionError("That time is outside the doctor's published availability.", 409);
+    const activeAppointmentIds = new Set(
+      appointmentsSnapshot.docs
+        .filter((snapshot) => ["pending", "confirmed", "scheduled"].includes(String(snapshot.get("status"))))
+        .map((snapshot) => snapshot.id),
+    );
+    const slotAlreadyClaimed = claimSnapshots.some((snapshot) => {
+      if (!snapshot.exists) return false;
+      const appointmentId = snapshot.get("appointment_id");
+      return typeof appointmentId !== "string" || activeAppointmentIds.has(appointmentId);
+    });
+    if (slotAlreadyClaimed) {
+      throw new ActionError("That appointment slot has just been booked. Please choose another time.", 409);
+    }
+    const overlapsAppointment = appointmentsSnapshot.docs.some((snapshot) => {
+      const appointment = snapshot.data();
+      if (!["pending", "confirmed", "scheduled"].includes(String(appointment.status))) return false;
+      const start = asMillis(appointment.scheduled_at);
+      const duration = Math.max(slotMinutes, Number(appointment.duration_minutes) || slotMinutes) * 60_000;
+      return start < scheduledMillis + slotMinutes * 60_000 && start + duration > scheduledMillis;
+    });
+    if (overlapsAppointment) throw new ActionError("That appointment slot is no longer available.", 409);
+
+    const now = new Date().toISOString();
+    const fee = Number(doctor.consultation_fee);
+    if (!Number.isFinite(fee) || fee < 0) throw new ActionError("This doctor does not have a valid consultation fee.", 409);
+    const hospitalId = String(doctor.hospital_id ?? doctor.user_id ?? identity.uid);
+    const appointment = {
+      id: appointmentRef.id,
+      patient_id: identity.uid,
+      doctor_id: doctorId,
+      hospital_id: hospitalId,
+      scheduled_at: new Date(scheduledMillis).toISOString(),
+      duration_minutes: slotMinutes,
+      mode,
+      reason,
+      consultation_fee: fee,
+      platform_fee: DOCTOR_PLATFORM_FEE_CENTS / 100,
+      status: "pending",
+      payment_status: "pending",
+      total_paid: 0,
+      payment_reference: null,
+      slot_claim_ids: slotClaims.map(({ ref }) => ref.id),
+      created_at: now,
+      updated_at: now,
+    };
+    transaction.create(appointmentRef, appointment);
+    slotClaims.forEach(({ ref, instant }) => transaction.set(ref, {
+      doctor_id: doctorId,
+      appointment_id: appointmentRef.id,
+      patient_id: identity.uid,
+      scheduled_at: instant,
+      status: "reserved",
+      created_at: now,
+    }));
+    return { appointmentId: appointmentRef.id, platformFeeCents: DOCTOR_PLATFORM_FEE_CENTS };
+  });
+
+  return result;
+}
+
+async function requireHomecareOperations(identity: Identity) {
+  if (!identity.emailVerified) throw new ActionError("Verify your email before coordinating home care.", 403);
+  if (!(await isAdmin(identity)) && !(await hasRole(identity.uid, "homecare_operations"))) {
+    throw new ActionError("Home care operations role required.", 403);
+  }
+}
+
+async function issueHomecareQuote(identity: Identity, args: ActionArgs) {
+  await requireHomecareOperations(identity);
+  const requestId = stringArg(args, "_request_id");
+  const amount = args._amount;
+  const details = stringArg(args, "_details").trim();
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || amount > 1_000_000) {
+    throw new ActionError("Enter a valid quote amount.");
+  }
+  if (details.length < 3 || details.length > 2000) throw new ActionError("Add the quote scope and conditions.");
+
+  const requestRef = db.collection("homecare_requests").doc(requestId);
+  const auditRef = db.collection("admin_audit_log").doc();
+  const now = new Date().toISOString();
+  await db.runTransaction(async (transaction) => {
+    const requestSnapshot = await transaction.get(requestRef);
+    if (!requestSnapshot.exists) throw new ActionError("Home care request not found.", 404);
+    const request = requestSnapshot.data() ?? {};
+    if (request.status !== "pending_review") {
+      throw new ActionError("This request is no longer awaiting a quote.", 409);
+    }
+    transaction.update(requestRef, {
+      quote_amount: amount,
+      quote_currency: "ZAR",
+      quote_details: details,
+      quote_issued_at: now,
+      status: "quote_pending",
+      updated_at: now,
+    });
+    transaction.create(auditRef, {
+      admin_id: identity.uid,
+      action: "homecare.operations.quote_issued",
+      target_type: "homecare_request",
+      target_id: requestId,
+      payload: { amount, currency: "ZAR" },
+      created_at: now,
+    });
+  });
+  return { ok: true };
+}
+
+async function respondToHomecareQuote(identity: Identity, args: ActionArgs) {
+  if (!identity.emailVerified) throw new ActionError("Verify your email before responding to a quote.", 403);
+  const requestId = stringArg(args, "_request_id");
+  const response = stringArg(args, "_response");
+  if (!["accept", "decline"].includes(response)) throw new ActionError("Invalid quote response.");
+  const requestRef = db.collection("homecare_requests").doc(requestId);
+  const now = new Date().toISOString();
+  const status = response === "accept" ? "quote_accepted" : "quote_declined";
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(requestRef);
+    if (!snapshot.exists) throw new ActionError("Home care request not found.", 404);
+    const request = snapshot.data() ?? {};
+    if (request.patient_id !== identity.uid) throw new ActionError("Home care request not found.", 404);
+    if (request.status !== "quote_pending") throw new ActionError("This quote is no longer awaiting your response.", 409);
+    transaction.update(requestRef, { status, quote_responded_at: now, updated_at: now });
+  });
+  return { status };
+}
+
+async function coordinateHomecareRequest(identity: Identity, args: ActionArgs) {
+  await requireHomecareOperations(identity);
+  const requestId = stringArg(args, "_request_id");
+  const providerId = stringArg(args, "_provider_id");
+  const scheduledAt = typeof args._scheduled_at === "string" ? args._scheduled_at : null;
+  const scheduledMillis = scheduledAt ? Date.parse(scheduledAt) : null;
+  if (scheduledAt && (scheduledMillis === null || !Number.isFinite(scheduledMillis) || scheduledMillis <= Date.now())) {
+    throw new ActionError("Choose a future visit time.");
+  }
+
+  const requestRef = db.collection("homecare_requests").doc(requestId);
+  const providerRef = db.collection("homecare_providers").doc(providerId);
+  const assignmentRef = db.collection("homecare_assignments").doc(`${requestId}_coordination`);
+  const priorAssignmentsQuery = db.collection("homecare_assignments").where("request_id", "==", requestId);
+  const auditRef = db.collection("admin_audit_log").doc();
+  const now = new Date().toISOString();
+
+  return db.runTransaction(async (transaction) => {
+    const [requestSnapshot, providerSnapshot, existingAssignment, priorAssignments] = await Promise.all([
+      transaction.get(requestRef),
+      transaction.get(providerRef),
+      transaction.get(assignmentRef),
+      transactionQuery(transaction, priorAssignmentsQuery),
+    ]);
+    if (!requestSnapshot.exists) throw new ActionError("Home care request not found.", 404);
+    if (!providerSnapshot.exists) throw new ActionError("Provider not found.", 404);
+    const request = requestSnapshot.data() ?? {};
+    const provider = providerSnapshot.data() ?? {};
+    if (request.status !== "quote_accepted" || typeof request.quote_amount !== "number") {
+      throw new ActionError("Only a patient-accepted quote can proceed to provider coordination.", 409);
+    }
+    if (existingAssignment.exists || !priorAssignments.empty) {
+      throw new ActionError("A provider has already been assigned to this request.", 409);
+    }
+    if (provider.approval_status !== "approved" || provider.is_active !== true) {
+      throw new ActionError("Only an approved, active provider can receive an assignment.", 409);
+    }
+
+    const assignment = {
+      id: assignmentRef.id,
+      request_id: requestId,
+      provider_id: providerId,
+      status: "offered",
+      scheduled_at: scheduledAt,
+      amount: request.quote_amount,
+      assigned_by: identity.uid,
+      created_at: now,
+      updated_at: now,
+    };
+    transaction.create(assignmentRef, assignment);
+    transaction.update(requestRef, {
+      provider_id: providerId,
+      status: "assigned",
+      updated_at: now,
+    });
+    transaction.create(auditRef, {
+      admin_id: identity.uid,
+      action: "homecare.operations.provider_coordinated",
+      target_type: "homecare_request",
+      target_id: requestId,
+      payload: { provider_id: providerId, assignment_id: assignmentRef.id },
+      created_at: now,
+    });
+    return { ok: true, assignmentId: assignmentRef.id };
+  });
+}
+
+async function runAction(identity: Identity, name: string, args: ActionArgs) {
+  switch (name) {
+    case "available_doctor_slots":
+      return availableDoctorSlots(identity, args);
+    case "book_doctor_appointment":
+      return bookDoctorAppointment(identity, args);
+    case "issue_homecare_quote":
+      return issueHomecareQuote(identity, args);
+    case "respond_homecare_quote":
+      return respondToHomecareQuote(identity, args);
+    case "coordinate_homecare_request":
+      return coordinateHomecareRequest(identity, args);
+>>>>>>> feat/doctor-homecare-booking
     case "wallet_credit":
       return walletCredit(identity, args);
     case "wallet_debit":
@@ -959,7 +1448,11 @@ export const privilegedFirestoreAction = onRequest(
       const args = body.args && typeof body.args === "object" && !Array.isArray(body.args)
         ? body.args as ActionArgs
         : {};
-      const data = await runAction({ uid: decoded.uid, email: decoded.email ?? null }, body.name, args);
+      const data = await runAction({
+        uid: decoded.uid,
+        email: decoded.email ?? null,
+        emailVerified: decoded.email_verified === true,
+      }, body.name, args);
       response.status(200).json({ data });
     } catch (error) {
       if (error instanceof ActionError) {

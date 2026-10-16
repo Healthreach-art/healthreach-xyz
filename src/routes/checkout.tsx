@@ -205,6 +205,10 @@ function CheckoutPage() {
     if (!user) { navigate({ to: "/login" }); return; }
     if (items.length === 0) { toast.error("Your cart is empty."); return; }
     if (!termsAccepted) { toast.error("Please accept the terms before paying."); return; }
+    if (new Set(items.map((item) => item.pharmacyId)).size !== 1) {
+      toast.error("Your cart contains medicines from multiple pharmacies. Place separate orders for each pharmacy.");
+      return;
+    }
     const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
     const bad = items.find((i) => !i.pharmacyId || !UUID_RE.test(i.pharmacyId));
     if (bad) {

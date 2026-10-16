@@ -25,6 +25,7 @@ interface Med {
   image_url?: string | null;
   description?: string | null;
   category?: string | null;
+  image_url?: string | null;
 }
 interface Pharmacy {
   user_id: string;
@@ -60,6 +61,8 @@ function MedicationMarketplace() {
   const [medications, setMedications] = useState<Med[]>([]);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [rxFor, setRxFor] = useState<Med | null>(null);
@@ -67,6 +70,7 @@ function MedicationMarketplace() {
   useEffect(() => {
     let cancelled = false;
     async function refresh() {
+      setLoadError(null);
       try {
         const data = await loadMarketplace();
         if (cancelled) return;
@@ -76,7 +80,7 @@ function MedicationMarketplace() {
         if (cancelled) return;
         setMedications([]);
         setPharmacies([]);
-        toast.error(error instanceof Error ? `Could not load medicines: ${error.message}` : "Could not load medicines");
+        setLoadError(error instanceof Error ? error.message : "Could not load medicines");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -86,7 +90,7 @@ function MedicationMarketplace() {
       .on("postgres_changes", { event: "*", schema: "public", table: "medications_public" }, () => void refresh())
       .subscribe();
     return () => { cancelled = true; void firestoreClient.removeChannel(channel); };
-  }, [loadMarketplace]);
+  }, [loadMarketplace, retryKey]);
 
   const filtered = useMemo(() => medications.filter((medication) => {
     const needle = query.trim().toLowerCase();
@@ -130,7 +134,13 @@ function MedicationMarketplace() {
           {CATEGORIES.map((item) => <Button key={item} variant={category === item ? "default" : "outline"} size="sm" className="shrink-0" onClick={() => setCategory(item)}>{item}</Button>)}
         </div>
 
-        {loading ? <p className="py-10 text-center text-sm text-muted-foreground">Loading available medicines…</p> : filtered.length === 0 ? (
+        {loading ? <p className="py-10 text-center text-sm text-muted-foreground">Loading available medicines…</p> : loadError ? (
+          <div role="alert" className="border border-destructive/40 bg-destructive/5 p-6 text-center">
+            <p className="font-semibold">Medicine listings could not be loaded</p>
+            <p className="mt-1 text-sm text-muted-foreground">{loadError}</p>
+            <Button className="mt-4" variant="outline" onClick={() => setRetryKey((current) => current + 1)}>Retry</Button>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="border border-dashed border-border p-8 text-center">
             <p className="font-semibold">No medicines found</p>
             <p className="mt-1 text-sm text-muted-foreground">No products are currently listed by approved pharmacies in this area. Try another category or search.</p>

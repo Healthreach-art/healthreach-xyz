@@ -58,20 +58,35 @@ export function BulkMedicineImportDialog({ onImported }: { onImported: () => voi
       toast.error("Select at least one medication");
       return;
     }
+    const invalid = picked.find((row) =>
+      !row.name.trim()
+      || !Number.isFinite(row.price) || row.price <= 0
+      || !Number.isInteger(row.stock_quantity) || row.stock_quantity < 0,
+    );
+    if (invalid) {
+      toast.error("Every selected medicine needs a name, a valid price, and whole-number stock of zero or more.");
+      return;
+    }
     setSaving(true);
+    const now = new Date().toISOString();
     const payload = picked.map((r) => ({
       pharmacy_id: user.id,
-      name: r.name,
+      name: r.name.trim(),
       price: r.price,
       stock_quantity: r.stock_quantity,
       category: r.category,
       requires_prescription: r.requires_prescription,
       description: r.description ?? "",
       is_demo: false,
+<<<<<<< HEAD
       is_active: true,
       publish_requested: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+=======
+      created_at: now,
+      updated_at: now,
+>>>>>>> feat/doctor-homecare-booking
     }));
     const { error } = await firestoreClient.from("medications").insert(payload);
     setSaving(false);

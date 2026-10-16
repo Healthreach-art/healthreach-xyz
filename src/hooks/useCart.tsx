@@ -65,8 +65,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       toast.error(`Cannot add "${item.name}" — invalid medication id.`);
       return;
     }
+<<<<<<< HEAD
     if (items.some((cartItem) => cartItem.pharmacyId !== item.pharmacyId)) {
       toast.error("This checkout supports one pharmacy at a time. Remove the other pharmacy's items first.");
+=======
+    if (items.some((existing) => existing.pharmacyId !== item.pharmacyId)) {
+      toast.error("A checkout can contain medicines from one pharmacy. Finish or clear the current cart before choosing another pharmacy.");
+>>>>>>> feat/doctor-homecare-booking
       return;
     }
     setItems((prev) => {
