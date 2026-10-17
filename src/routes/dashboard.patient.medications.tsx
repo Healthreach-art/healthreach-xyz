@@ -25,7 +25,6 @@ interface Med {
   image_url?: string | null;
   description?: string | null;
   category?: string | null;
-  image_url?: string | null;
 }
 interface Pharmacy {
   user_id: string;

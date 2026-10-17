@@ -40,6 +40,7 @@ declare global {
         amount: number;
         currency?: string;
         ref?: string;
+        metadata?: Record<string, string>;
         callback: (resp: { reference: string }) => void;
         onClose: () => void;
       }) => { openIframe: () => void };

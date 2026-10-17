@@ -103,7 +103,7 @@ function LoginPage() {
         uid: firebaseUser.uid,
         email: email.trim(),
         fullName: firebaseUser.displayName ?? undefined,
-        role,
+        role: role === "homecare_operations" ? "homecare_staff" : role,
       }).catch((error: unknown) => {
         console.error("[auth] Could not sync the signed-in user's Firestore profile.", error);
       });
