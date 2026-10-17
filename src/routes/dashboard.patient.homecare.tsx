@@ -10,12 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { toast } from "sonner";
-import { ArrowLeft,  HomeIcon, Loader2 } from "lucide-react";
+import { ArrowLeft, Activity, Baby, Bandage, Heart, HeartHandshake, HeartPulse, HomeIcon, Loader2, ShieldPlus, Stethoscope, UsersRound } from "lucide-react";
 import { REQUEST_LABEL } from "@/lib/homecare";
+import { HOMECARE_SERVICES } from "@/lib/homecare";
 import { PatientAddressHeader } from "@/components/PatientAddressHeader";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from "@/lib/patient-address";
 import { useServerFn } from "@tanstack/react-start";
 import { respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
+import logo from "@/assets/healthreach-logo.png";
 
 interface HomecareRequest {
   id: string;
@@ -57,6 +59,8 @@ function PatientHomecarePage() {
   const [preferredAt, setPreferredAt] = useState("");
   const [hours, setHours] = useState("");
   const [address, setAddress] = useState<PickedAddress | null>(null);
+  const [savedAddress, setSavedAddress] = useState("");
+  const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
 
@@ -80,13 +84,16 @@ function PatientHomecarePage() {
   useEffect(() => {
     if (!user?.id) return;
     const applyAddress = (value: PatientAddress | null) => {
-      if (value?.lat != null && value.lng != null) setAddress({ address: value.address, lat: value.lat, lng: value.lng });
+      setSavedAddress(value?.address ?? "");
+      setAddress(value?.address && value.lat != null && value.lng != null
+        ? { address: value.address, lat: value.lat, lng: value.lng }
+        : null);
     };
-    applyAddress(readPatientAddress(user.id));
+    applyAddress(readPatientAddress(user.id) ?? (profile?.address ? { address: profile.address, lat: null, lng: null } : null));
     const onChange = (event: Event) => applyAddress((event as CustomEvent<PatientAddress>).detail);
     window.addEventListener(PATIENT_ADDRESS_CHANGED, onChange);
     return () => window.removeEventListener(PATIENT_ADDRESS_CHANGED, onChange);
-  }, [user?.id]);
+  }, [user?.id, profile?.address]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -100,17 +107,17 @@ function PatientHomecarePage() {
   const submit = async () => {
     if (!user) { toast.error("Please sign in to request home care."); return; }
     if (!serviceType.trim()) { toast.error("Describe the type of care you need."); return; }
-    const addr = address ?? (profile?.address ? { address: profile.address } as PickedAddress : null);
-    if (!addr?.address) { toast.error("Please give the address for the visit"); return; }
+    const visitAddress = address?.address || savedAddress.trim() || profile?.address?.trim();
+    if (!visitAddress) { toast.error("Please give the address for the visit"); return; }
     setSaving(true);
     try {
       await createRequest({
         data: {
           serviceType: serviceType.trim(),
           description: description.trim(),
-          address: addr.address,
-          latitude: addr.lat ?? null,
-          longitude: addr.lng ?? null,
+          address: visitAddress,
+          latitude: address?.lat ?? null,
+          longitude: address?.lng ?? null,
           preferredAt: preferredAt ? new Date(preferredAt).toISOString() : null,
           durationHours: hours ? Number(hours) : null,
         },
@@ -119,6 +126,7 @@ function PatientHomecarePage() {
       setDescription("");
       setPreferredAt("");
       setHours("");
+      setStep(1);
       toast.success("Request sent to the HealthReachCare home care coordinator.");
       await load();
     } catch (error) {
@@ -141,80 +149,161 @@ function PatientHomecarePage() {
     }
   };
 
+  const validateStep = (current: number) => {
+    if (current === 1 && !serviceType.trim()) {
+      toast.error("Choose the type of care you need.");
+      return false;
+    }
+    if (current === 2) {
+      if (!description.trim()) {
+        toast.error("Please describe the care you need.");
+        return false;
+      }
+      if (preferredAt && new Date(preferredAt).getTime() <= Date.now()) {
+        toast.error("Choose a preferred time in the future.");
+        return false;
+      }
+      if (hours && (!Number.isInteger(Number(hours)) || Number(hours) < 1 || Number(hours) > 24)) {
+        toast.error("Duration must be between 1 and 24 whole hours.");
+        return false;
+      }
+    }
+    if (current === 3 && !(address?.address || savedAddress || profile?.address)?.trim()) {
+      toast.error("Add the address for the care visit.");
+      return false;
+    }
+    return true;
+  };
+
+  const nextStep = () => {
+    if (validateStep(step)) setStep((current) => Math.min(current + 1, 4));
+  };
+
   return (
     <>
     <PatientAddressHeader />
-    <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
-      <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
-      </Link>
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><HomeIcon className="h-6 w-6 text-primary" /> Home care</h1>
-        <p className="text-sm text-muted-foreground">Send a request to the HealthReachCare coordinator. Availability, coverage and pricing are confirmed with you before a service is agreed.</p>
-      </div>
+    <main className="container-narrow space-y-7 px-4 py-7 sm:px-6 sm:py-8">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
+        <Link to="/dashboard/patient" className="flex items-center gap-3" aria-label="HealthReachCare patient dashboard">
+          <img src={logo} alt="HealthReachCare" className="h-10 w-auto" />
+          <span className="hidden text-sm font-semibold text-slate-900 sm:inline">HealthReachCare</span>
+        </Link>
+        <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Dashboard</Link>
+      </header>
+      <section>
+        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Personalized support at home</p>
+        <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight text-slate-900"><HomeIcon className="h-7 w-7 text-emerald-600" /> Request Homecare</h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-600">Tell us what support you need. A HealthReachCare coordinator will review your request and prepare a personalized quotation before any service is agreed.</p>
+      </section>
 
-      <div className="healthcare-card p-5 space-y-4">
-        <div>
-          <p className="font-semibold text-sm">Request a home care service</p>
-          <p className="text-xs text-muted-foreground mt-1">No service or price is confirmed until the coordinator has reviewed your request and you have accepted a quote.</p>
+      <section className="overflow-hidden rounded-2xl border border-border/60 bg-white shadow-sm">
+        <div className="border-b border-border/60 px-5 py-4 sm:px-6">
+          <ol className="grid grid-cols-4 gap-2">
+            {["Care service", "Requirements", "Location", "Review"].map((label, index) => {
+              const number = index + 1;
+              return <li key={label}><button type="button" onClick={() => number < step && setStep(number)} aria-current={step === number ? "step" : undefined}
+                className={`flex w-full items-center gap-2 text-left text-xs font-medium ${step === number ? "text-emerald-700" : number < step ? "text-emerald-700" : "text-muted-foreground"}`}>
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs ${number <= step ? "border-emerald-600 bg-emerald-600 text-white" : "border-border bg-white"}`}>{number}</span>
+                <span className="hidden sm:inline">{label}</span>
+              </button></li>;
+            })}
+          </ol>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="service-type">What kind of care do you need?</Label>
-            <Input id="service-type" value={serviceType} onChange={(event) => setServiceType(event.target.value)} maxLength={120} placeholder="Describe the care needed" />
+        <div className="space-y-5 p-5 sm:p-6">
+          {step === 1 && <>
+            <div><h2 className="text-lg font-semibold text-slate-900">What kind of care do you need?</h2><p className="mt-1 text-sm text-muted-foreground">Select a service to get started.</p></div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {HOMECARE_SERVICES.map((service, index) => {
+                const icons = [UsersRound, HeartPulse, Bandage, Activity, ShieldPlus, Heart, Baby, HeartHandshake, Stethoscope, Heart];
+                const Icon = icons[index] ?? HomeIcon;
+                const selected = serviceType === service;
+                return <button key={service} type="button" aria-pressed={selected} onClick={() => setServiceType(service)}
+                  className={`flex min-h-24 items-start gap-3 rounded-xl border p-4 text-left transition ${selected ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600" : "border-border/70 hover:border-emerald-300 hover:bg-slate-50/50"}`}>
+                  <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${selected ? "text-emerald-700" : "text-slate-500"}`} />
+                  <span className="text-sm font-semibold text-slate-900">{service}</span>
+                </button>;
+              })}
+            </div>
+            <div className="space-y-2"><Label htmlFor="other-service">Something else?</Label><Input id="other-service" value={HOMECARE_SERVICES.includes(serviceType as typeof HOMECARE_SERVICES[number]) ? "" : serviceType} onChange={(event) => setServiceType(event.target.value)} maxLength={120} placeholder="Describe another type of care" /></div>
+          </>}
+
+          {step === 2 && <>
+            <div><h2 className="text-lg font-semibold text-slate-900">Care requirements & schedule</h2><p className="mt-1 text-sm text-muted-foreground">The more you share, the better the coordinator can match your needs.</p></div>
+            <div className="space-y-2"><Label htmlFor="desc">Describe the care needed</Label><Textarea id="desc" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={5000} rows={5} placeholder="Include the type of support, mobility needs, medication assistance, or anything the care team should know." /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label htmlFor="preferred">Preferred date & time <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="preferred" type="datetime-local" min={new Date().toISOString().slice(0, 16)} value={preferredAt} onChange={(event) => setPreferredAt(event.target.value)} /></div>
+              <div className="space-y-2"><Label htmlFor="hours">Estimated duration in hours <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="hours" type="number" min="1" max="24" step="1" value={hours} onChange={(event) => setHours(event.target.value)} placeholder="e.g. 2" /></div>
+            </div>
+          </>}
+
+          {step === 3 && <>
+            <div><h2 className="text-lg font-semibold text-slate-900">Where is care needed?</h2><p className="mt-1 text-sm text-muted-foreground">Choose or enter the verified address for the visit.</p></div>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+              <p className="mb-2 text-sm font-semibold text-slate-900">Visit address</p>
+              <AddressPicker value={address} onChange={(picked) => { setAddress(picked); setSavedAddress(picked.address); }} placeholder={savedAddress || profile?.address || "Search an address or use current location"} />
+              {(address?.address || savedAddress || profile?.address) && <p className="mt-2 text-xs text-emerald-800">Selected: {address?.address || savedAddress || profile?.address}</p>}
+            </div>
+            <p className="text-xs text-muted-foreground">Your location is only shared with the coordinator and assigned provider as needed to arrange care.</p>
+          </>}
+
+          {step === 4 && <>
+            <div><h2 className="text-lg font-semibold text-slate-900">Review your request</h2><p className="mt-1 text-sm text-muted-foreground">Check your details before sending them to our care coordinator.</p></div>
+            <div className="space-y-3 rounded-xl border border-border/70 bg-slate-50/50 p-4 text-sm">
+              <div><p className="text-xs text-muted-foreground">Care service</p><p className="font-semibold text-slate-900">{serviceType}</p></div>
+              <div><p className="text-xs text-muted-foreground">Care requirements</p><p className="whitespace-pre-wrap text-slate-800">{description}</p></div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div><p className="text-xs text-muted-foreground">Preferred schedule</p><p>{preferredAt ? new Date(preferredAt).toLocaleString() : "Flexible — to be discussed"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Estimated duration</p><p>{hours ? `${hours} hour(s)` : "To be discussed"}</p></div>
+              </div>
+              <div><p className="text-xs text-muted-foreground">Visit address</p><p className="font-medium">{address?.address || savedAddress || profile?.address}</p></div>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="font-semibold text-emerald-950">No upfront unverified charge</p>
+              <p className="mt-1 text-sm text-emerald-900/80">HealthReachCare coordinators will review your needs and prepare a personalized quotation. You can review and accept or decline the quotation before any service is arranged. No payment is taken with this request.</p>
+            </div>
+          </>}
+
+          <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-4">
+            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep((current) => Math.max(current - 1, 1))} disabled={step === 1 || saving}>Back</Button>
+            {step < 4
+              ? <Button type="button" className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" onClick={nextStep}>Continue</Button>
+              : <Button className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" onClick={submit} disabled={saving}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</> : "Send care request"}</Button>}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="preferred">Preferred date & time</Label>
-            <Input id="preferred" type="datetime-local" value={preferredAt} onChange={(e) => setPreferredAt(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="hours">Hours needed</Label>
-            <Input id="hours" type="number" min="1" max="24" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="Optional" />
-          </div>
         </div>
-        <div className="space-y-2">
-          <Label>Visit address</Label>
-          <AddressPicker value={address} onChange={setAddress} placeholder={profile?.address || "Start typing the street address…"} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="desc">What is needed?</Label>
-          <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tell us about the care needed, mobility, medication and anything the carer should know." />
-        </div>
-        <Button onClick={submit} disabled={saving}>{saving ? "Sending…" : "Send request"}</Button>
-      </div>
+      </section>
 
       <div className="space-y-3">
-        <p className="font-semibold text-sm">My requests</p>
+        <div><h2 className="text-lg font-semibold text-slate-900">My active requests</h2><p className="text-sm text-muted-foreground">Track quotations and care coordination updates here.</p></div>
         {loading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
-        {!loading && requests.length === 0 && <p className="text-sm text-muted-foreground">No requests yet.</p>}
+        {!loading && requests.length === 0 && <div className="rounded-2xl border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground">You have no homecare requests yet. Use the guided form above to tell us what support you need.</div>}
         {requests.map((r) => {
           const latestAssignment = (r.homecare_assignments ?? [])
             .slice()
             .sort((first, second) => second.created_at.localeCompare(first.created_at))[0];
           return (
-            <div key={r.id} className="healthcare-card p-4 space-y-2">
+            <div key={r.id} className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">{r.service_type}</p>
                   <p className="text-xs text-muted-foreground">{r.address}</p>
                   {r.preferred_at && <p className="text-xs text-muted-foreground">Preferred: {new Date(r.preferred_at).toLocaleString()}</p>}
                 </div>
-                <Badge variant={r.status === "confirmed" ? "default" : "secondary"}>{REQUEST_LABEL[r.status] ?? r.status}</Badge>
+                <Badge variant={r.status === "confirmed" || r.status === "completed" ? "default" : "secondary"}>{REQUEST_LABEL[r.status] ?? r.status}</Badge>
               </div>
               {r.quote_amount != null && (
-                <div className="rounded-xl border p-3 space-y-1 text-sm">
-                  <p className="font-semibold">Coordinator's quote: {r.quote_currency ?? "ZAR"} {Number(r.quote_amount).toFixed(2)}</p>
+                <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-sm">
+                  <p className="font-semibold text-slate-900">Quotation: {r.quote_currency === "ZAR" || !r.quote_currency ? "R" : `${r.quote_currency} `}{Number(r.quote_amount).toFixed(2)}</p>
                   {r.quote_details && <p>{r.quote_details}</p>}
                   {r.quote_issued_at && <p className="text-xs text-muted-foreground">Issued {new Date(r.quote_issued_at).toLocaleString()}</p>}
                 </div>
               )}
               {r.status === "quote_pending" && (
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "accept")}>
-                    Accept quote
+                  <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "accept")}>
+                    Accept Quotation
                   </Button>
-                  <Button size="sm" variant="outline" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "decline")}>
-                    Decline quote
+                  <Button size="sm" variant="outline" className="rounded-lg" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "decline")}>
+                    Decline Quotation
                   </Button>
                 </div>
               )}
@@ -237,7 +326,7 @@ function PatientHomecarePage() {
           );
         })}
       </div>
-    </div>
+    </main>
     </>
   );
 }

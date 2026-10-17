@@ -19,6 +19,7 @@ import { docsFor, APPROVAL_LABEL, ASSIGNMENT_LABEL, HOMECARE_SERVICES } from "@/
 import { getHomecareDocumentUrl, getMyHomecareBanking, saveMyHomecareBanking } from "@/lib/homecare.functions";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
 import { HomecareBottomNav, type HomecareTerminalTab } from "@/components/HomecareBottomNav";
+import logo from "@/assets/healthreach-logo.png";
 
 export const Route = createFileRoute("/dashboard/homecare_company")({
   head: () => ({
@@ -112,7 +113,8 @@ function HomecareProviderPage() {
   const status = provider.approval_status as string;
   const requested: string[] = Array.isArray(provider.requested_documents) ? provider.requested_documents : [];
   const offeredCount = assignments.filter((assignment) => assignment.status === "offered").length;
-  const activeVisitCount = assignments.filter((assignment) => ["accepted", "scheduled", "in_progress"].includes(assignment.status)).length;
+  const scheduledCount = assignments.filter((assignment) => assignment.status === "scheduled").length;
+  const inProgressCount = assignments.filter((assignment) => assignment.status === "in_progress").length;
   const completedCount = assignments.filter((assignment) => ["completed", "confirmed"].includes(assignment.status)).length;
   const navTab: HomecareTerminalTab = provider.provider_type === "individual" && activeTab === "staff" ? "profile" : activeTab;
 
@@ -133,16 +135,19 @@ function HomecareProviderPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="border-b border-border bg-card px-4 py-4 sm:px-6">
+      <header className="border-b border-border/60 bg-white px-4 py-4 sm:px-6">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Home care provider terminal</p>
-              <h1 className="mt-1 flex items-center gap-2 text-xl font-bold sm:text-2xl">
-                <HomeIcon className="h-5 w-5 text-primary" />
-                {provider.business_name || provider.full_name || provider.email}
-              </h1>
-              <p className="mt-1 text-xs text-muted-foreground">{provider.provider_type === "individual" ? "Independent provider" : "Home care company"} · {APPROVAL_LABEL[status] ?? status}</p>
+            <div className="flex min-w-0 items-start gap-4">
+              <img src={logo} alt="HealthReachCare" className="mt-1 h-10 w-auto shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Homecare provider terminal</p>
+                <h1 className="mt-1 flex items-center gap-2 truncate text-xl font-bold text-slate-900 sm:text-2xl">
+                  <HomeIcon className="h-5 w-5 shrink-0 text-emerald-600" />
+                  {provider.business_name || provider.full_name || provider.email}
+                </h1>
+                <p className="mt-1 text-xs text-muted-foreground">{provider.provider_type === "individual" ? "Independent provider" : "Homecare company"} · {APPROVAL_LABEL[status] ?? status}</p>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={status === "approved" ? provider.is_active ? "default" : "secondary" : status === "rejected" || status === "suspended" ? "destructive" : "secondary"}>
@@ -154,16 +159,17 @@ function HomecareProviderPage() {
               <Button size="sm" variant="ghost" onClick={() => void signOut()}><LogOut className="mr-1 h-4 w-4" /> Sign out</Button>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <TerminalMetric label="New offers" value={offeredCount} icon={ClipboardList} />
-            <TerminalMetric label="Active visits" value={activeVisitCount} icon={CalendarClock} />
+            <TerminalMetric label="Scheduled visits" value={scheduledCount} icon={CalendarClock} />
+            <TerminalMetric label="Visits in progress" value={inProgressCount} icon={HomeIcon} />
             <TerminalMetric label="Completed visits" value={completedCount} icon={CheckCircle2} />
           </div>
         </div>
       </header>
 
       {status !== "approved" && (
-        <div className="mx-auto mt-4 max-w-6xl px-4 sm:px-6"><div className="healthcare-card p-4 text-sm">
+        <div className="mx-auto mt-4 max-w-6xl px-4 sm:px-6">        <div className="rounded-2xl border border-border/60 bg-white p-4 text-sm shadow-sm">
           <p className="font-semibold">Your account is not active yet.</p>
           <p className="text-muted-foreground mt-1">
             An administrator reviews every home care provider before any customer visit can be assigned.
@@ -179,7 +185,7 @@ function HomecareProviderPage() {
       <Tabs value={navTab} onValueChange={(tab) => setActiveTab(tab as HomecareTerminalTab)}>
         <main className="mx-auto max-w-6xl space-y-4 px-4 py-5 sm:px-6">
           <TabsContent value="overview" className="mt-0 space-y-4">
-            <section className="healthcare-card p-5">
+            <section className="rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
               <div className="flex items-start gap-3">
                 <Building2 className="mt-0.5 h-5 w-5 text-primary" />
                 <div>
@@ -196,7 +202,7 @@ function HomecareProviderPage() {
                 </div>
               </div>
             </section>
-            <section className="healthcare-card p-5">
+            <section className="rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
               <h2 className="mb-3 font-semibold">Latest visits</h2>
               {assignments.length ? <AssignmentsPanel assignments={assignments.slice(0, 3)} provider={provider} onChanged={load} /> : <p className="text-sm text-muted-foreground">No visit assignments yet.</p>}
             </section>
@@ -613,7 +619,15 @@ function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: a
   };
 
   if (assignments.length === 0) {
-    return <div className="healthcare-card p-6 text-center text-sm text-muted-foreground">No assignments yet. An administrator assigns customer visits to you.</div>;
+    return <div className="rounded-2xl border border-dashed border-border/70 bg-white p-8 text-center shadow-sm">
+      <ClipboardList className="mx-auto h-8 w-8 text-emerald-600" />
+      <p className="mt-3 font-semibold text-slate-900">No assigned visits yet</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+        {provider?.approval_status === "approved"
+          ? "New offers from the HealthReachCare coordinator will appear here when visits are assigned to you."
+          : "Complete your provider profile and verification documents. An administrator must approve your account before visits can be assigned."}
+      </p>
+    </div>;
   }
 
   return (
@@ -629,7 +643,7 @@ function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: a
         const fee = charge == null ? null : Math.round(charge * PLATFORM_RULES.PLATFORM_FEE_PCT * 100) / 100;
         const earnings = charge == null || fee == null ? null : Math.round((charge - fee) * 100) / 100;
         return (
-          <div key={a.id} className="healthcare-card p-4 space-y-2">
+          <div key={a.id} className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-semibold">{r?.service_type ?? "Home care visit"}</p>
@@ -652,22 +666,22 @@ function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: a
               <p className="sm:col-span-2"><span className="text-muted-foreground">Your earnings: </span><span className="font-bold">{earnings != null ? `R ${earnings.toFixed(2)}` : "To be confirmed"}</span></p>
             </div>
 
-            {r?.description && <p className="text-sm">{r.description}</p>}
+            {r?.description && !pending && a.status !== "declined" && <div className="rounded-xl bg-slate-50 p-3"><p className="mb-1 text-xs font-semibold text-slate-700">Authorized care notes</p><p className="whitespace-pre-wrap text-sm text-slate-700">{r.description}</p></div>}
             <div className="flex flex-wrap gap-2">
               {a.status === "offered" && (
                 <>
-                  <Button size="sm" onClick={() => update(a, { status: "accepted", accepted_at: new Date().toISOString() })}>Accept</Button>
-                  <Button size="sm" variant="outline" onClick={() => update(a, { status: "declined", declined_reason: "Declined by provider" })}>Decline</Button>
+                  <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => update(a, { status: "accepted", accepted_at: new Date().toISOString() })}>Accept Offer</Button>
+                  <Button size="sm" variant="outline" className="rounded-lg" onClick={() => update(a, { status: "declined", declined_reason: "Declined by provider" })}>Decline Offer</Button>
                 </>
               )}
               {a.status === "accepted" && (
-                <Button size="sm" onClick={() => update(a, { status: "scheduled" })}>Confirm schedule</Button>
+                <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => update(a, { status: "scheduled" })}>Confirm schedule</Button>
               )}
               {a.status === "scheduled" && (
-                <Button size="sm" onClick={() => update(a, { status: "in_progress" })}>Start visit</Button>
+                <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => update(a, { status: "in_progress" })}>Start Visit</Button>
               )}
               {a.status === "in_progress" && (
-                <Button size="sm" onClick={() => update(a, { status: "completed", completed_at: new Date().toISOString() })}>Mark completed</Button>
+                <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => update(a, { status: "completed", completed_at: new Date().toISOString() })}>Complete Visit</Button>
               )}
             </div>
           </div>

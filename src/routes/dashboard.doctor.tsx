@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Stethoscope, Upload, Clock, CheckCircle2, AlertCircle, FileText, Calendar, MessageCircle } from "lucide-react";
+import { Stethoscope, Upload, Clock, CheckCircle2, AlertCircle, FileText, Calendar, MessageCircle, Video, MapPin, Phone } from "lucide-react";
 import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,6 +19,7 @@ import { normalizeServices } from "@/lib/normalize-services.functions";
 import { Sparkles, X } from "lucide-react";
 import { DoctorBottomNav, type DoctorTab } from "@/components/DoctorBottomNav";
 import { DoctorFinance } from "@/components/DoctorFinance";
+import logo from "@/assets/healthreach-logo.png";
 
 export const Route = createFileRoute("/dashboard/doctor")({
   head: () => ({ meta: [{ title: "Doctor Dashboard — HealthReachCare" }] }),
@@ -60,6 +61,7 @@ function DoctorDashboard() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [appts, setAppts] = useState<any[]>([]);
+  const [patientNames, setPatientNames] = useState<Record<string, string>>({});
   const [doctorRow, setDoctorRow] = useState<any | null>(null);
   const [avail, setAvail] = useState<AvailRow[]>([]);
   const [chatFor, setChatFor] = useState<{ appointmentId: string; patientId: string } | null>(null);
@@ -88,7 +90,7 @@ function DoctorDashboard() {
   const [subspecialties, setSubspecialties] = useState<string[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string>("");
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [apptFilter, setApptFilter] = useState<"new" | "upcoming" | "cancelled" | "history">("new");
+  const [apptFilter, setApptFilter] = useState<"today" | "upcoming" | "pending" | "completed" | "cancelled">("today");
   const [tab, setTab] = useState<DoctorTab>("appointments");
   const [aiBusy, setAiBusy] = useState(false);
 
@@ -108,6 +110,15 @@ function DoctorDashboard() {
       ]);
       setAppts(a ?? []);
       setAvail((av ?? []) as AvailRow[]);
+      const patientIds = Array.from(new Set((a ?? []).map((appointment) => appointment.patient_id).filter(Boolean)));
+      if (patientIds.length) {
+        const { data: patientProfiles, error: patientError } = await firestoreClient
+          .from("profiles").select("user_id, full_name").in("user_id", patientIds);
+        if (patientError) toast.error(`Could not load patient names: ${patientError.message}`);
+        else setPatientNames(Object.fromEntries((patientProfiles ?? []).map((patient) => [patient.user_id, patient.full_name || "Patient"])));
+      } else {
+        setPatientNames({});
+      }
     } else {
       setAppts([]); setAvail([]);
     }
@@ -168,6 +179,15 @@ function DoctorDashboard() {
       doctor_id: doctorRow.id, day_of_week: dow, start_hour: 9, end_hour: 17, slot_minutes: 30, is_active: true,
     });
     if (error) toast.error(error.message);
+  }
+  async function toggleAvailDay(dow: number, rows: AvailRow[]) {
+    if (!doctorRow?.id) return toast.error("Save your profile first");
+    if (!rows.length) return addAvail(dow);
+    const nextActive = !rows.some((row) => row.is_active);
+    const results = await Promise.all(rows.map((row) => firestoreClient.from("doctor_availability").update({ is_active: nextActive }).eq("id", row.id)));
+    const failed = results.find((result) => result.error);
+    if (failed?.error) toast.error(failed.error.message);
+    else toast.success(nextActive ? "Availability enabled for this day" : "Availability disabled for this day");
   }
   async function updateAvail(id: string, patch: Partial<AvailRow>) {
     const { error } = await firestoreClient.from("doctor_availability").update(patch).eq("id", id);
@@ -350,20 +370,26 @@ function DoctorDashboard() {
   const isPending = !!docs?.submitted_at && !docs?.verified_at && !docs?.rejection_reason;
   const wasRejected = !!docs?.rejection_reason;
   const requestedDocuments = docs?.requested_documents ?? [];
+  const today = new Date().toDateString();
+  const dashboardMetrics = [
+    { label: "Today's appointments", value: appts.filter((appointment) => appointment.status !== "cancelled" && new Date(appointment.scheduled_at).toDateString() === today).length },
+    { label: "Upcoming", value: appts.filter((appointment) => appointment.status === "confirmed" && new Date(appointment.scheduled_at).getTime() >= Date.now()).length },
+    { label: "Pending review", value: appts.filter((appointment) => appointment.status === "pending").length },
+    { label: "Completed", value: appts.filter((appointment) => appointment.status === "completed").length },
+  ];
 
   return (
-    <div className="container mx-auto max-w-5xl px-3 sm:px-4 py-4 pb-24 sm:py-8 sm:pb-24">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full healthcare-gradient">
-            <Stethoscope className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
-          </div>
+    <div className="container mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-4 sm:py-8 sm:pb-24">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex min-w-0 items-center gap-4">
+          <img src={logo} alt="HealthReachCare" className="h-10 w-auto shrink-0" />
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold truncate">Doctor Dashboard</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground truncate">{profile?.full_name || profile?.email}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Doctor workspace</p>
+            <h1 className="truncate text-xl font-bold text-slate-900 sm:text-2xl">{profile?.full_name ? `Welcome, Dr. ${profile.full_name}` : "Welcome to your workspace"}</h1>
+            <p className="truncate text-xs text-muted-foreground sm:text-sm">{profile?.email}</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={signOut}>Sign out</Button>
+        <Button variant="outline" size="sm" className="rounded-xl" onClick={signOut}>Sign out</Button>
       </div>
 
 
@@ -409,15 +435,10 @@ function DoctorDashboard() {
       </Card>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: "Today", value: appts.filter((a) => a.status !== "cancelled" && new Date(a.scheduled_at).toDateString() === new Date().toDateString()).length },
-          { label: "New requests", value: appts.filter((a) => a.status === "pending").length },
-          { label: "Upcoming", value: appts.filter((a) => a.status === "confirmed" && new Date(a.scheduled_at).getTime() >= Date.now()).length },
-          { label: "Completed", value: appts.filter((a) => a.status === "completed").length },
-        ].map((s) => (
-          <Card key={s.label} className="p-4">
-            <div className="text-xs text-muted-foreground">{s.label}</div>
-            <div className="mt-1 text-2xl font-bold">{s.value}</div>
+        {dashboardMetrics.map((metric) => (
+          <Card key={metric.label} className="rounded-2xl border-border/60 bg-white p-4 shadow-sm">
+            <div className="text-xs text-muted-foreground">{metric.label}</div>
+            <div className="mt-1 text-2xl font-bold text-slate-900">{metric.value}</div>
           </Card>
         ))}
       </div>
@@ -620,29 +641,32 @@ function DoctorDashboard() {
         <TabsContent value="appointments">
           <Card className="p-6 space-y-4">
             {(() => {
-              const now = Date.now();
+              const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+              const startOfTomorrow = new Date(startOfToday); startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
               const buckets = {
-                new: appts.filter((a) => a.status === "pending"),
-                upcoming: appts.filter((a) => a.status === "confirmed" && new Date(a.scheduled_at).getTime() >= now - 60 * 60 * 1000),
+                today: appts.filter((a) => a.status !== "cancelled" && new Date(a.scheduled_at).toDateString() === startOfToday.toDateString()),
+                upcoming: appts.filter((a) => a.status === "confirmed" && new Date(a.scheduled_at).getTime() >= startOfTomorrow.getTime()),
+                pending: appts.filter((a) => a.status === "pending"),
+                completed: appts.filter((a) => a.status === "completed"),
                 cancelled: appts.filter((a) => a.status === "cancelled" || a.status === "no_show"),
-                history: appts.filter((a) => a.status === "completed" || (a.status === "confirmed" && new Date(a.scheduled_at).getTime() < now - 60 * 60 * 1000)),
               } as const;
               const list = buckets[apptFilter];
               const tabs: { key: typeof apptFilter; label: string }[] = [
-                { key: "new", label: "New" },
+                { key: "today", label: "Today" },
                 { key: "upcoming", label: "Upcoming" },
+                { key: "pending", label: "Pending" },
+                { key: "completed", label: "Completed" },
                 { key: "cancelled", label: "Cancelled" },
-                { key: "history", label: "History" },
               ];
               return (
                 <>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {tabs.map((t) => (
                       <button
                         key={t.key}
                         type="button"
                         onClick={() => setApptFilter(t.key)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${apptFilter === t.key ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:text-foreground"}`}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${apptFilter === t.key ? "border-emerald-600 bg-emerald-600 text-white" : "border-border bg-white text-muted-foreground hover:text-foreground"}`}
                       >
                         {t.label}
                         {buckets[t.key].length > 0 && <span className="ml-1 opacity-80">({buckets[t.key].length})</span>}
@@ -650,39 +674,50 @@ function DoctorDashboard() {
                     ))}
                   </div>
                   {list.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {apptFilter === "new" && "No new requests."}
+                    <p className="rounded-xl border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+                      {apptFilter === "today" && "No appointments scheduled for today."}
                       {apptFilter === "upcoming" && "No upcoming appointments."}
+                      {apptFilter === "pending" && "No appointments are awaiting your review."}
+                      {apptFilter === "completed" && "No completed appointments yet."}
                       {apptFilter === "cancelled" && "Nothing cancelled."}
-                      {apptFilter === "history" && "No past consultations yet."}
                     </p>
                   ) : (
-                    <div className="divide-y">
+                    <div className="space-y-3">
                       {list.map((a) => (
-                        <div key={a.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-center gap-3">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <div className="text-sm font-medium">{new Date(a.scheduled_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</div>
-                              <div className="text-xs text-muted-foreground capitalize">{a.mode.replace("_", " ")} · {a.status}{a.reason ? ` · ${a.reason.slice(0, 60)}` : ""}</div>
+                        <div key={a.id} className="rounded-xl border border-border/60 p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                                {a.mode === "video" ? <Video className="h-5 w-5" /> : a.mode === "phone" ? <Phone className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-900">{patientNames[a.patient_id] ?? "Patient"}</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                  <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(a.scheduled_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</span>
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 capitalize">{a.mode?.replace("_", " ") ?? "In-person"}</span>
+                                  <Badge variant={a.status === "confirmed" ? "default" : "secondary"} className="capitalize">{a.status?.replace("_", " ")}</Badge>
+                                </div>
+                                {a.reason && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{a.reason}</p>}
+                                {a.mode === "video" && <p className="mt-2 text-xs text-muted-foreground">Secure video meeting link is not available on this appointment yet.</p>}
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id })}>
-                              <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message
+                            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                            <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setChatFor({ appointmentId: a.id, patientId: a.patient_id })}>
+                              <MessageCircle className="mr-1 h-3.5 w-3.5" /> Open Chat
                             </Button>
                             {a.status === "pending" && (
                               <>
-                                <Button size="sm" variant="outline" onClick={() => updateApptStatus(a.id, "confirmed")}>Accept</Button>
+                                <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => updateApptStatus(a.id, "confirmed")}>Accept</Button>
                                 <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Decline</Button>
                               </>
                             )}
                             {a.status === "confirmed" && (
                               <>
-                                <Button size="sm" onClick={() => updateApptStatus(a.id, "completed")}>Mark complete</Button>
+                                <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => updateApptStatus(a.id, "completed")}>Mark complete</Button>
                                 <Button size="sm" variant="ghost" onClick={() => updateApptStatus(a.id, "cancelled")}>Cancel</Button>
                               </>
                             )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -698,49 +733,54 @@ function DoctorDashboard() {
         <TabsContent value="availability">
           <Card className="p-6 space-y-4">
             <div>
-              <p className="text-sm font-medium">Weekly availability</p>
+              <p className="text-sm font-semibold text-slate-900">Weekly availability</p>
               <p className="text-xs text-muted-foreground">
-                Add a time window for each day you take bookings. Patients only see these slots on your public profile.
+                Toggle the days you accept appointments, then set the hours and slot duration. Patients only see active availability.
                 {!doctorRow && " Save your public profile first."}
               </p>
             </div>
             <div className="space-y-3">
               {DOW.map((label, dow) => {
                 const rows = avail.filter((a) => a.day_of_week === dow);
+                const dayActive = rows.some((row) => row.is_active);
                 return (
-                  <div key={dow} className="rounded-xl border border-border p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-semibold">{label}</p>
-                      <Button size="sm" variant="outline" onClick={() => addAvail(dow)} disabled={!doctorRow}>
-                        Add window
+                  <div key={dow} className="rounded-xl border border-border/70 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div><p className="text-sm font-semibold text-slate-900">{label}</p><p className="text-xs text-muted-foreground">{dayActive ? "Available for appointments" : "Closed"}</p></div>
+                      <Button type="button" size="sm" variant={dayActive ? "default" : "outline"} className={dayActive ? "rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" : "rounded-lg"}
+                        onClick={() => void toggleAvailDay(dow, rows)} disabled={!doctorRow} aria-pressed={dayActive}>
+                        {dayActive ? "Available" : rows.length ? "Open day" : "Set hours"}
                       </Button>
                     </div>
                     {rows.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Closed</p>
+                      <p className="text-xs text-muted-foreground">No hours set for this day.</p>
                     ) : (
                       <div className="space-y-2">
                         {rows.map((r) => (
-                          <div key={r.id} className="flex flex-wrap items-center gap-2 text-xs">
-                            <Input type="number" min={0} max={23} value={r.start_hour}
-                              onChange={(e) => updateAvail(r.id, { start_hour: Number(e.target.value) })}
-                              className="w-20" />
-                            <span>to</span>
-                            <Input type="number" min={1} max={24} value={r.end_hour}
-                              onChange={(e) => updateAvail(r.id, { end_hour: Number(e.target.value) })}
-                              className="w-20" />
-                            <span>· slot</span>
-                            <Input type="number" min={10} max={240} step={5} value={r.slot_minutes}
-                              onChange={(e) => updateAvail(r.id, { slot_minutes: Number(e.target.value) })}
-                              className="w-24" />
-                            <span>min</span>
-                            <label className="ml-2 flex items-center gap-1">
-                              <input type="checkbox" checked={r.is_active}
-                                onChange={(e) => updateAvail(r.id, { is_active: e.target.checked })} />
-                              Active
-                            </label>
-                            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => removeAvail(r.id)}>Remove</Button>
+                          <div key={r.id} className={`rounded-lg border p-3 ${r.is_active ? "border-emerald-100 bg-emerald-50/40" : "border-border/60 bg-slate-50/60 opacity-70"}`}>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <label className="text-xs text-muted-foreground" htmlFor={`start-${r.id}`}>From</label>
+                              <select id={`start-${r.id}`} value={r.start_hour} disabled={!r.is_active} onChange={(event) => updateAvail(r.id, { start_hour: Number(event.target.value) })} className="h-9 rounded-lg border border-input bg-white px-2 text-sm">
+                                {Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour}>{String(hour).padStart(2, "0")}:00</option>)}
+                              </select>
+                              <label className="text-xs text-muted-foreground" htmlFor={`end-${r.id}`}>to</label>
+                              <select id={`end-${r.id}`} value={r.end_hour} disabled={!r.is_active} onChange={(event) => updateAvail(r.id, { end_hour: Number(event.target.value) })} className="h-9 rounded-lg border border-input bg-white px-2 text-sm">
+                                {Array.from({ length: 24 }, (_, index) => index + 1).map((hour) => <option key={hour} value={hour}>{String(hour).padStart(2, "0")}:00</option>)}
+                              </select>
+                              <Button type="button" size="sm" variant="ghost" className="ml-auto" onClick={() => removeAvail(r.id)}>Remove window</Button>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Appointment length</span>
+                              {[15, 30, 45, 60].map((minutes) => (
+                                <Button key={minutes} type="button" size="sm" variant={r.slot_minutes === minutes ? "default" : "outline"} disabled={!r.is_active}
+                                  className={`h-8 rounded-full px-3 ${r.slot_minutes === minutes ? "bg-emerald-600 text-white hover:bg-emerald-700" : ""}`}
+                                  onClick={() => updateAvail(r.id, { slot_minutes: minutes })}>{minutes} min</Button>
+                              ))}
+                              {!([15, 30, 45, 60] as number[]).includes(r.slot_minutes) && <span className="text-xs text-muted-foreground">Current: {r.slot_minutes} min</span>}
+                            </div>
                           </div>
                         ))}
+                        <Button type="button" size="sm" variant="outline" className="rounded-lg" onClick={() => addAvail(dow)} disabled={!doctorRow}>Add another time window</Button>
                       </div>
                     )}
                   </div>

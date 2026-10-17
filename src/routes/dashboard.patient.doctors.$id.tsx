@@ -1,18 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2 } from "lucide-react";
+import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2, BadgeCheck, ArrowLeft } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { bookDoctorAppointment, getDoctorAvailableSlots, markDoctorAppointmentPaid } from "@/lib/doctors.functions";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
+import logo from "@/assets/healthreach-logo.png";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
 
@@ -39,6 +39,15 @@ function loadPaystack(): Promise<void> {
   });
 }
 
+function slotDateKey(value: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
 export const Route = createFileRoute("/dashboard/patient/doctors/$id")({
   head: () => ({ meta: [{ title: "Doctor — HealthReachCare" }] }),
   validateSearch: (s: Record<string, unknown>): { when?: string } =>
@@ -49,7 +58,7 @@ export const Route = createFileRoute("/dashboard/patient/doctors/$id")({
 interface Doctor {
   id: string; hospital_id: string; full_name: string; specialty: string; qualifications: string;
   practice_number: string; bio: string; photo_url: string;
-  consultation_fee: number; accepted_medical_aids: string[]; languages: string[];
+  consultation_fee: number | null; accepted_medical_aids: string[] | null; languages: string[] | null;
   online_available: boolean; in_person_available: boolean; phone_available: boolean;
   city: string; address: string; rating_avg: number; rating_count: number;
 }
@@ -76,6 +85,7 @@ function Page() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState("");
   const [when, setWhen] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   const [mode, setMode] = useState<"in_person" | "video" | "phone">("in_person");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -93,6 +103,7 @@ function Page() {
           ? availableSlots.find((slot) => Date.parse(slot.scheduledAt) === requestedTime)
           : undefined;
         setWhen(matchingSlot?.scheduledAt ?? "");
+        setSelectedDate(matchingSlot ? slotDateKey(matchingSlot.scheduledAt) : "");
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -115,6 +126,19 @@ function Page() {
       setReviews(r ?? []); setLoading(false);
     })();
   }, [id, user]);
+
+  const slotGroups = useMemo(() => {
+    const groups = new Map<string, AvailableSlot[]>();
+    for (const slot of slots) {
+      const key = slotDateKey(slot.scheduledAt);
+      groups.set(key, [...(groups.get(key) ?? []), slot]);
+    }
+    return Array.from(groups.entries()).slice(0, 14);
+  }, [slots]);
+
+  useEffect(() => {
+    if (!selectedDate && slotGroups.length) setSelectedDate(slotGroups[0][0]);
+  }, [selectedDate, slotGroups]);
 
   async function confirmBooking() {
     if (!user) return toast.error("Please sign in");
@@ -168,15 +192,15 @@ function Page() {
               });
               toast.success("Appointment confirmed!");
               navigate({ to: "/dashboard/patient/consultations" });
-            } catch (e: any) { toast.error(e?.message || "Could not confirm payment"); }
+            } catch (error: unknown) { toast.error(error instanceof Error ? error.message : "Could not confirm payment"); }
             finally { setBusy(false); }
           })();
         },
         onClose: () => { setBusy(false); toast("Payment cancelled — appointment kept as pending."); },
       });
       handler.openIframe();
-    } catch (e: any) {
-      toast.error(e?.message || "Booking failed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Booking failed");
       setBusy(false);
     }
   }
@@ -184,18 +208,38 @@ function Page() {
   if (loading) return <div className="container-narrow px-4 sm:px-6 py-8 text-sm text-muted-foreground">Loading…</div>;
   if (!doc) return <div className="container-narrow px-4 sm:px-6 py-8 text-sm text-muted-foreground">Doctor not found.</div>;
 
+  const availableModes = [
+    { id: "in_person", label: "In-Person", description: "Visit the practice", icon: MapPin, enabled: doc.in_person_available },
+    { id: "video", label: "Video", description: "Consult online", icon: Video, enabled: doc.online_available },
+    { id: "phone", label: "Phone", description: "Talk by phone", icon: Phone, enabled: doc.phone_available },
+  ] as const;
+  const selectedDateLabel = (date: string) => new Date(`${date}T12:00:00+02:00`).toLocaleDateString("en-ZA", {
+    timeZone: "Africa/Johannesburg",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+
   return (
-    <div className="container-narrow px-4 sm:px-6 py-8 space-y-6">
-      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 flex flex-col sm:flex-row gap-5 shadow-sm">
-        <div className="h-24 w-24 rounded-2xl bg-healthcare-mint/30 flex items-center justify-center shrink-0 overflow-hidden">
-          {doc.photo_url ? <img src={doc.photo_url} alt="" className="h-full w-full object-cover" /> : <UserIcon className="h-10 w-10 text-healthcare-teal" />}
+    <main className="container-narrow space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+      <header className="flex items-center justify-between border-b border-border/60 pb-4">
+        <Link to="/dashboard/patient/find" search={{ q: "" }} className="flex items-center gap-3" aria-label="HealthReachCare doctor directory">
+          <img src={logo} alt="HealthReachCare" className="h-10 w-auto" />
+          <span className="hidden text-sm font-semibold text-slate-900 sm:inline">HealthReachCare</span>
+        </Link>
+        <Link to="/dashboard/patient/find" search={{ q: "" }} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back to doctors</Link>
+      </header>
+      <section className="flex flex-col gap-5 rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:flex-row sm:p-6">
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-emerald-50">
+          {doc.photo_url ? <img src={doc.photo_url} alt={doc.full_name} className="h-full w-full object-cover" /> : <UserIcon className="h-10 w-10 text-emerald-700" />}
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-foreground">Dr. {doc.full_name}</h1>
-          <p className="text-sm text-healthcare-teal font-medium">{doc.specialty}</p>
-          <p className="text-xs text-muted-foreground mt-1">{doc.qualifications}</p>
-          {doc.practice_number && <p className="text-[11px] text-muted-foreground">Practice no. {doc.practice_number}</p>}
-          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
+          <h1 className="text-2xl font-bold text-slate-900">Dr. {doc.full_name}</h1>
+          <p className="mt-1 text-sm font-medium text-emerald-700">{doc.specialty}</p>
+          <p className="mt-1 flex items-center gap-1 text-xs font-medium text-emerald-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified practitioner</p>
+          {doc.qualifications && <p className="mt-2 text-sm text-slate-600">{doc.qualifications}</p>}
+          {doc.practice_number && <p className="mt-1 text-xs text-muted-foreground">Practice number: {doc.practice_number}</p>}
+          <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
             <MapPin className="h-3 w-3" /> {doc.city}{doc.address ? ` · ${doc.address}` : ""}
             {doc.rating_count > 0 && (
               <span className="ml-2 flex items-center gap-0.5">
@@ -210,67 +254,82 @@ function Page() {
             
           </div>
           {doc.bio && <p className="text-sm text-foreground/80 mt-3">{doc.bio}</p>}
+          {!!doc.languages?.length && <p className="mt-3 text-xs text-muted-foreground"><span className="font-semibold text-slate-700">Languages:</span> {doc.languages.join(", ")}</p>}
+          {!!doc.accepted_medical_aids?.length && <p className="mt-1 text-xs text-muted-foreground"><span className="font-semibold text-slate-700">Medical aids:</span> {doc.accepted_medical_aids.join(", ")}</p>}
         </div>
-        <div className="text-right shrink-0">
+        <div className="shrink-0 sm:text-right">
           <p className="text-xs text-muted-foreground">Consultation</p>
-          <p className="text-2xl font-bold text-primary">R{doc.consultation_fee.toFixed(0)}</p>
-          <p className="text-[10px] text-muted-foreground">+ R15 booking fee</p>
+          <p className="text-2xl font-bold text-slate-900">{doc.consultation_fee == null ? "Not listed" : `R${Number(doc.consultation_fee).toFixed(2)}`}</p>
+          <p className="text-xs text-muted-foreground">Consultation fee, paid to the doctor</p>
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
-        <h2 className="font-bold text-foreground flex items-center gap-2"><CalendarCheck className="h-5 w-5 text-primary" /> Book appointment</h2>
-        <p className="text-xs text-muted-foreground">You are booking with a <span className="font-semibold text-healthcare-teal">Doctor</span></p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <Label>Available date & time</Label>
-            <Select value={when} onValueChange={setWhen} disabled={slotsLoading || slots.length === 0}>
-              <SelectTrigger><SelectValue placeholder={slotsLoading ? "Loading availability…" : "Choose an available time"} /></SelectTrigger>
-              <SelectContent>
-                {slots.map((slot) => (
-                  <SelectItem key={slot.scheduledAt} value={slot.scheduledAt}>
-                    {new Date(slot.scheduledAt).toLocaleString("en-ZA", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                      timeZone: "Africa/Johannesburg",
-                    })} ({slot.durationMinutes} min)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {slotsError && <p className="mt-1 text-xs text-destructive">{slotsError}</p>}
-            {!slotsLoading && !slotsError && slots.length === 0 && (
-              <p className="mt-1 text-xs text-muted-foreground">No appointment times are currently available.</p>
-            )}
+      <section className="space-y-5 rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:p-6">
+        <div>
+          <h2 className="flex items-center gap-2 font-bold text-slate-900"><CalendarCheck className="h-5 w-5 text-emerald-600" /> Book an appointment</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Choose a consultation style and an available time.</p>
+        </div>
+        <fieldset className="space-y-2">
+          <Label>Consultation mode</Label>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {availableModes.filter((item) => item.enabled).map(({ id: modeId, label, description, icon: Icon }) => (
+              <button key={modeId} type="button" aria-pressed={mode === modeId} onClick={() => setMode(modeId)}
+                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${mode === modeId ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600" : "border-border/70 hover:border-emerald-300"}`}>
+                <Icon className={`h-5 w-5 ${mode === modeId ? "text-emerald-700" : "text-muted-foreground"}`} />
+                <span><span className="block text-sm font-semibold text-slate-900">{label}</span><span className="block text-xs text-muted-foreground">{description}</span></span>
+              </button>
+            ))}
           </div>
-          <div><Label>Consultation type</Label>
-            <Select value={mode} onValueChange={(v: any) => setMode(v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {doc.in_person_available && <SelectItem value="in_person">In-person</SelectItem>}
-                {doc.online_available && <SelectItem value="video">Video call</SelectItem>}
-                {doc.phone_available && <SelectItem value="phone">Phone call</SelectItem>}
-              </SelectContent>
-            </Select>
+        </fieldset>
+        <div className="space-y-3">
+          <Label>Choose a date</Label>
+          {slotsLoading ? <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading available times…</div> : (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {slotGroups.map(([date]) => (
+                <button key={date} type="button" aria-pressed={selectedDate === date} onClick={() => { setSelectedDate(date); setWhen(""); }}
+                  className={`min-w-24 rounded-xl border px-3 py-2 text-sm transition ${selectedDate === date ? "border-emerald-600 bg-emerald-600 text-white" : "border-border/70 bg-white text-slate-700 hover:border-emerald-300"}`}>
+                  <span className="block text-[11px] opacity-80">{selectedDateLabel(date).split(" ")[0]}</span>
+                  <span className="font-semibold">{selectedDateLabel(date).split(" ").slice(1).join(" ")}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {slotsError && <p role="alert" className="text-sm text-destructive">{slotsError}</p>}
+          {!slotsLoading && !slotsError && slotGroups.length === 0 && <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No appointment times are currently available.</p>}
+          {selectedDate && (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+              {(slotGroups.find(([date]) => date === selectedDate)?.[1] ?? []).map((slot) => (
+                <button key={slot.scheduledAt} type="button" aria-pressed={when === slot.scheduledAt} onClick={() => setWhen(slot.scheduledAt)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${when === slot.scheduledAt ? "border-emerald-600 bg-emerald-600 text-white" : "border-border/70 bg-white text-slate-700 hover:border-emerald-400 hover:text-emerald-700"}`}>
+                  {new Date(slot.scheduledAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })}
+                </button>
+              ))}
+            </div>
+          )}
+          {when && <p className="text-xs text-emerald-800">Selected: {new Date(when).toLocaleString("en-ZA", { dateStyle: "full", timeStyle: "short", timeZone: "Africa/Johannesburg" })}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="visit-reason">Reason for visit <span className="font-normal text-muted-foreground">(optional)</span></Label>
+          <Textarea id="visit-reason" rows={3} value={reason} onChange={(event) => setReason(event.target.value)} maxLength={1000} placeholder="Share anything that may help the doctor prepare." />
+        </div>
+        <div className="rounded-xl bg-slate-50/70 p-4">
+          <h3 className="text-sm font-semibold text-slate-900">Pricing breakdown</h3>
+          <div className="mt-2 space-y-1.5 text-sm">
+            <div className="flex justify-between gap-4"><span className="text-muted-foreground">Consultation fee (paid to doctor)</span><span>{doc.consultation_fee == null ? "Not listed" : `R${Number(doc.consultation_fee).toFixed(2)}`}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-muted-foreground">HealthReachCare booking fee</span><span>R15.00</span></div>
+            <div className="flex justify-between gap-4 border-t border-border/70 pt-2 font-semibold"><span>Pay now</span><span className="text-emerald-700">R15.00</span></div>
           </div>
         </div>
-        <div><Label>Reason for visit</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} placeholder="e.g. Annual check-up, persistent headache…" /></div>
-        <p className="text-[11px] text-muted-foreground">
-          You pay only the R15 booking fee now. Settle the consultation fee directly with the doctor.
-        </p>
-        <div className="flex items-center justify-between border-t border-border pt-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Pay now</p>
-            <p className="text-xl font-bold text-foreground">R15.00</p>
-          </div>
-          <Button onClick={confirmBooking} disabled={busy} className="bg-primary text-primary-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
+          <p className="max-w-md text-xs text-muted-foreground">The R15 booking fee is paid securely now. Settle the consultation fee directly with the doctor.</p>
+          <Button onClick={confirmBooking} disabled={busy || !when || slotsLoading} className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">
             {busy ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing…</>) : "Confirm & pay R15"}
           </Button>
         </div>
-      </div>
+      </section>
 
       {reviews.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-3">
+        <section className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="font-bold text-foreground">Reviews</h2>
           {reviews.map((r, i) => (
             <div key={i} className="border-b border-border last:border-0 pb-2 last:pb-0">
@@ -283,9 +342,9 @@ function Page() {
               {r.comment && <p className="text-sm text-foreground/80 mt-1">{r.comment}</p>}
             </div>
           ))}
-        </div>
+        </section>
       )}
-    </div>
+    </main>
   );
 }
 
