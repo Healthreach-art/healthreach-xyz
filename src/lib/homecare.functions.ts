@@ -99,6 +99,7 @@ export const issueHomecareQuote = createServerFn({ method: "POST" })
     details: z.string().trim().min(3).max(2000),
   }).parse(d))
   .handler(async ({ data }) => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
     const { data: result, error } = await firestoreAdmin.rpc("issue_homecare_quote", {
       _request_id: data.requestId,
       _amount: data.amount,
@@ -116,6 +117,7 @@ export const respondToHomecareQuote = createServerFn({ method: "POST" })
     response: z.enum(["accept", "decline"]),
   }).parse(d))
   .handler(async ({ data }) => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
     const { data: result, error } = await firestoreAdmin.rpc("respond_homecare_quote", {
       _request_id: data.requestId,
       _response: data.response,
@@ -384,6 +386,7 @@ export const adminAssignHomecare = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data }) => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
     const { data: result, error } = await firestoreAdmin.rpc("coordinate_homecare_request", {
       _request_id: data.requestId,
       _provider_id: data.providerId,

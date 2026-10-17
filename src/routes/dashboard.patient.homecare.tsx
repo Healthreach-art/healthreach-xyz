@@ -71,7 +71,7 @@ function PatientHomecarePage() {
       setLoading(false);
       return;
     }
-    setRequests((data ?? []) as HomecareRequest[]);
+    setRequests((data ?? []) as unknown as HomecareRequest[]);
     setLoading(false);
   }, [user]);
 

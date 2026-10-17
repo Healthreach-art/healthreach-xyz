@@ -140,7 +140,7 @@ function Page() {
           status: "pending", paymentStatus: "pending",
         });
         void mirrorRecord("payments", appointmentId, {
-          type: "appointment_platform_fee", amount: platformFeeCents / 100, status: "pending",
+          type: "appointment_platform_fee", amount: (platformFeeCents ?? 0) / 100, status: "pending",
         });
       });
       await loadPaystack();
@@ -148,7 +148,7 @@ function Page() {
       const handler = window.PaystackPop.setup({
         key: PAYSTACK_PUBLIC_KEY,
         email: user.email || "support@healthreachcare.co.za",
-        amount: platformFeeCents,
+        amount: platformFeeCents ?? 0,
         currency: "ZAR",
         ref: `${appointmentId}_${crypto.randomUUID()}`,
         metadata: { appointment_id: appointmentId, payment_type: "doctor_booking_fee" },
