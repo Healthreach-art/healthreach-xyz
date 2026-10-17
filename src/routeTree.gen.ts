@@ -56,7 +56,6 @@ import { Route as DoctorsIdRouteImport } from './routes/doctors.$id'
 import { Route as DriverOnboardingRouteImport } from './routes/driver.onboarding'
 import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
 import { Route as PharmacyIdRouteImport } from './routes/pharmacy.$id'
-import { Route as PharmacyOnboardingRouteImport } from './routes/pharmacy.onboarding'
 import { Route as SignupAdminRouteImport } from './routes/signup.admin'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -333,11 +332,6 @@ const PharmacyIdRoute = PharmacyIdRouteImport.update({
   path: '/pharmacy/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PharmacyOnboardingRoute = PharmacyOnboardingRouteImport.update({
-  id: '/pharmacy/onboarding',
-  path: '/pharmacy/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SignupAdminRoute = SignupAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -580,7 +574,6 @@ export interface FileRoutesByFullPath {
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
-  '/pharmacy/onboarding': typeof PharmacyOnboardingRoute
   '/signup/admin': typeof SignupAdminRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -664,7 +657,6 @@ export interface FileRoutesByTo {
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
-  '/pharmacy/onboarding': typeof PharmacyOnboardingRoute
   '/signup/admin': typeof SignupAdminRoute
   '/doctors': typeof DoctorsIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -750,7 +742,6 @@ export interface FileRoutesById {
   '/driver/onboarding': typeof DriverOnboardingRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/pharmacy/$id': typeof PharmacyIdRoute
-  '/pharmacy/onboarding': typeof PharmacyOnboardingRoute
   '/signup/admin': typeof SignupAdminRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -837,7 +828,6 @@ export interface FileRouteTypes {
     | '/driver/onboarding'
     | '/driver/wallet'
     | '/pharmacy/$id'
-    | '/pharmacy/onboarding'
     | '/signup/admin'
     | '/doctors/'
     | '/.lovable/oauth/consent'
@@ -921,7 +911,6 @@ export interface FileRouteTypes {
     | '/driver/onboarding'
     | '/driver/wallet'
     | '/pharmacy/$id'
-    | '/pharmacy/onboarding'
     | '/signup/admin'
     | '/doctors'
     | '/.lovable/oauth/consent'
@@ -1006,7 +995,6 @@ export interface FileRouteTypes {
     | '/driver/onboarding'
     | '/driver/wallet'
     | '/pharmacy/$id'
-    | '/pharmacy/onboarding'
     | '/signup/admin'
     | '/doctors/'
     | '/.lovable/oauth/consent'
@@ -1092,7 +1080,6 @@ export interface RootRouteChildren {
   DriverOnboardingRoute: typeof DriverOnboardingRoute
   DriverWalletRoute: typeof DriverWalletRoute
   PharmacyIdRoute: typeof PharmacyIdRoute
-  PharmacyOnboardingRoute: typeof PharmacyOnboardingRoute
   DoctorsIndexRoute: typeof DoctorsIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -1450,13 +1437,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PharmacyIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/pharmacy/onboarding': {
-      id: '/pharmacy/onboarding'
-      path: '/pharmacy/onboarding'
-      fullPath: '/pharmacy/onboarding'
-      preLoaderRoute: typeof PharmacyOnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/signup/admin': {
       id: '/signup/admin'
       path: '/admin'
@@ -1806,7 +1786,6 @@ const rootRouteChildren: RootRouteChildren = {
   DriverOnboardingRoute: DriverOnboardingRoute,
   DriverWalletRoute: DriverWalletRoute,
   PharmacyIdRoute: PharmacyIdRoute,
-  PharmacyOnboardingRoute: PharmacyOnboardingRoute,
   DoctorsIndexRoute: DoctorsIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
