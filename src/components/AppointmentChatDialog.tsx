@@ -13,6 +13,13 @@ interface Message {
   sender_role: string;
   body: string;
   created_at: string;
+  read_at: string | null;
+}
+
+declare global {
+  interface Window {
+    __activeChatId?: string | null;
+  }
 }
 
 interface Props {
@@ -53,16 +60,31 @@ export function AppointmentChatDialog({
       if (!cancelled) {
         setMessages((data ?? []) as Message[]);
         setLoading(false);
+        const { error: readError } = await firestoreClient.from("appointment_messages")
+          .update({ read_at: new Date().toISOString() })
+          .eq("appointment_id", appointmentId)
+          .eq("appointment_type", appointmentType)
+          .neq("sender_id", user.id)
+          .is("read_at", null);
+        if (readError) toast.error(`Could not mark messages as read: ${readError.message}`);
       }
     })();
     const ch = firestoreClient
       .channel(`appt-msgs-${appointmentId}`)
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "appointment_messages", filter: `appointment_id=eq.${appointmentId}` },
-        (payload) => setMessages((prev) => [...prev, payload.new as Message]))
+        (payload) => {
+          const message = payload.new as Message;
+          setMessages((prev) => [...prev, message]);
+          if (message.sender_id !== user.id && !message.read_at) {
+            void firestoreClient.from("appointment_messages")
+              .update({ read_at: new Date().toISOString() })
+              .eq("id", message.id);
+          }
+        })
       .subscribe();
-    if (typeof window !== "undefined") (window as any).__activeChatId = appointmentId;
-    return () => { cancelled = true; firestoreClient.removeChannel(ch); if (typeof window !== "undefined") (window as any).__activeChatId = null; };
+    if (typeof window !== "undefined") window.__activeChatId = appointmentId;
+    return () => { cancelled = true; firestoreClient.removeChannel(ch); if (typeof window !== "undefined") window.__activeChatId = null; };
 
   }, [open, appointmentId, appointmentType, user]);
 

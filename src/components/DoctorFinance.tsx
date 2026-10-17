@@ -71,7 +71,7 @@ export function DoctorFinance({ appts, defaultFee }: { appts: Appt[]; defaultFee
       </Card>
 
       <p className="text-[11px] text-muted-foreground">
-        Consultation fees are settled directly between you and the patient (or their medical aid). Patients pay HealthReachCare only the booking fee, so no payout is held by the platform.
+        Appointment payments include the consultation and platform fees and are processed securely through HealthReachCare.
       </p>
     </div>
   );

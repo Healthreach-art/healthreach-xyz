@@ -3,18 +3,17 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
-import { Search, Loader2, Stethoscope, MapPin, Navigation, ArrowLeft, Video, Phone, BadgeCheck } from "lucide-react";
+import { Search, Loader2, Stethoscope, MapPin, Navigation, ArrowLeft, Video, Phone, BadgeCheck, SlidersHorizontal, Star, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DOCTOR_SPECIALTIES } from "@/lib/services";
-import { PatientAddressHeader } from "@/components/PatientAddressHeader";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress } from "@/lib/patient-address";
 import logo from "@/assets/healthreach-logo.png";
 import { toast } from "sonner";
 
 interface Doctor {
-  id: string; full_name: string; specialty: string; city: string;
+  id: string; full_name: string; specialty: string; city: string; hospital_id: string | null;
   photo_url: string; consultation_fee: number | null; rating_avg: number | null; rating_count: number | null;
+  qualifications: string | null; address: string | null;
   latitude: number | null; longitude: number | null;
   subspecialties: string[] | null; services_tags: string[] | null;
   in_person_available: boolean | null; online_available: boolean | null; phone_available: boolean | null;
@@ -38,6 +37,11 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 }
 
 const MAX_RADIUS_KM = 100;
+const SPECIALTIES = [
+  "General Practitioner", "Paediatrician", "Cardiologist", "Dermatologist", "Gynaecologist", "Psychiatrist",
+  "Psychologist", "ENT Specialist", "Ophthalmologist", "Orthopaedic Surgeon", "Neurologist", "Endocrinologist",
+  "Urologist", "Dentist", "Physiotherapist",
+];
 function withDistance(rows: Doctor[], userLoc: { lat: number; lng: number } | null) {
   if (!userLoc) return rows.map((row) => ({ ...row, distance_km: null as number | null }));
   return rows.map((row) => ({
@@ -57,9 +61,13 @@ function FindCarePage() {
   const [specialty, setSpecialty] = useState<string>("any");
   const [consultationModes, setConsultationModes] = useState<string[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [clinicsById, setClinicsById] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLabel, setLocationLabel] = useState("");
+  const [radius, setRadius] = useState(25);
+  const [sortBy, setSortBy] = useState<"distance" | "rating" | "fee">("distance");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [locating, setLocating] = useState(false);
   const [loadError, setLoadError] = useState("");
 
@@ -68,14 +76,43 @@ function FindCarePage() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data, error } = await firestoreClient.from("doctors")
-        .select("id, full_name, specialty, city, photo_url, consultation_fee, rating_avg, rating_count, latitude, longitude, subspecialties, services_tags, in_person_available, online_available, phone_available")
-        .eq("is_active", true).eq("is_verified", true)
+      const columns = "id, full_name, specialty, city, address, hospital_id, qualifications, photo_url, consultation_fee, rating_avg, rating_count, latitude, longitude, subspecialties, services_tags, in_person_available, online_available, phone_available";
+      let { data, error } = await firestoreClient.from("doctors")
+        .select(columns)
+        .eq("status", "approved").eq("is_active", true).eq("is_verified", true)
         .not("user_id", "is", null)
         .order("rating_avg", { ascending: false }).limit(80);
+      if (error) {
+        const fallback = await firestoreClient.from("doctors")
+          .select(columns)
+          .eq("status", "approved").eq("is_active", true)
+          .not("user_id", "is", null)
+          .order("rating_avg", { ascending: false }).limit(80);
+        data = fallback.data;
+        error = fallback.error;
+      }
       if (!active) return;
       if (error) setLoadError(error.message);
-      else setDoctors((data ?? []) as Doctor[]);
+      else {
+        const results = (data ?? []) as Doctor[];
+        setDoctors(results);
+        const hospitalIds = Array.from(new Set(results.map((doctor) => doctor.hospital_id).filter((id): id is string => !!id)));
+        if (hospitalIds.length) {
+          const { data: clinics, error: clinicsError } = await firestoreClient.from("profiles")
+            .select("user_id, organization_name, full_name").in("user_id", hospitalIds);
+          if (!active) return;
+          if (clinicsError) toast.error(`Could not load clinic names: ${clinicsError.message}`);
+          else {
+            const mapped: Record<string, string> = {};
+            ((clinics ?? []) as Array<{ user_id: string; organization_name: string | null; full_name: string | null }>)
+              .forEach((clinic) => {
+                const name = clinic.organization_name || clinic.full_name;
+                if (name) mapped[clinic.user_id] = name;
+              });
+            setClinicsById(mapped);
+          }
+        }
+      }
       setLoading(false);
     })();
     return () => { active = false; };
@@ -126,8 +163,14 @@ function FindCarePage() {
       const hay = [d.full_name, d.specialty, d.city, ...(d.subspecialties ?? []), ...(d.services_tags ?? [])].join(" ").toLowerCase();
       return hay.includes(needle);
     });
-    return withDistance(matched, userLoc);
-  }, [doctors, q, specialty, consultationModes, userLoc]);
+    return withDistance(matched, userLoc)
+      .filter((doctor) => doctor.distance_km == null || doctor.distance_km <= radius)
+      .sort((a, b) => sortBy === "rating"
+        ? (b.rating_avg ?? 0) - (a.rating_avg ?? 0)
+        : sortBy === "fee"
+          ? (a.consultation_fee ?? Number.MAX_SAFE_INTEGER) - (b.consultation_fee ?? Number.MAX_SAFE_INTEGER)
+          : (a.distance_km ?? 9e9) - (b.distance_km ?? 9e9));
+  }, [doctors, q, specialty, consultationModes, userLoc, radius, sortBy]);
 
   const toggleMode = (mode: string) => setConsultationModes((selected) =>
     selected.includes(mode) ? selected.filter((item) => item !== mode) : [...selected, mode],
@@ -135,7 +178,6 @@ function FindCarePage() {
 
   return (
     <>
-      <PatientAddressHeader />
       <main className="container-narrow space-y-7 px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
         <Link to="/dashboard/patient" className="flex items-center gap-3" aria-label="HealthReachCare patient dashboard">
@@ -150,27 +192,33 @@ function FindCarePage() {
           <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight text-slate-900"><Stethoscope className="h-7 w-7 text-emerald-600" /> Find the Right Doctor</h1>
           <p className="mt-2 max-w-xl text-sm text-slate-600">Search verified healthcare professionals by specialty, location, or the way you prefer to consult.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={useMyLocation} disabled={locating} className="rounded-xl">
-          {locating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Navigation className="h-4 w-4 mr-1" />}
-          {userLoc ? "Use current location" : "Calculate from my location"}
-        </Button>
       </section>
       {locationLabel && <p className="text-xs text-muted-foreground">Distance from {locationLabel}</p>}
+
+      <section className="grid gap-3 rounded-2xl border border-border/60 bg-white p-4 shadow-sm sm:grid-cols-[1fr_auto_auto]">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, specialty, or condition..." className="h-11 rounded-xl pl-9" />
+        </div>
+        <select aria-label="Search radius" value={radius} onChange={(event) => setRadius(Number(event.target.value))} className="h-11 rounded-xl border border-border bg-background px-3 text-sm">
+          {[25, 50, 75, 100].map((km) => <option key={km} value={km}>Within {km} km</option>)}
+        </select>
+        <Button variant="outline" onClick={useMyLocation} disabled={locating} className="h-11 rounded-xl">
+          {locating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Navigation className="mr-2 h-4 w-4" />}
+          Use current location
+        </Button>
+      </section>
 
       <div className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-900">Browse specialties</h2>
         <div className="flex gap-2 overflow-x-auto pb-1">
           <Button size="sm" variant={specialty === "any" ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setSpecialty("any")}>All specialties</Button>
-          {DOCTOR_SPECIALTIES.map((item) => <Button key={item} size="sm" variant={specialty === item ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setSpecialty(item)}>{item}</Button>)}
+          {SPECIALTIES.map((item) => <Button key={item} size="sm" variant={specialty === item ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setSpecialty(item)}>{item}</Button>)}
         </div>
       </div>
 
       <section className="rounded-2xl border border-border/60 bg-white p-4 shadow-sm sm:p-5">
       <div className="grid gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search doctor name, city, or service" className="h-11 rounded-xl pl-9" />
-        </div>
         <div className="space-y-2">
           <p className="text-xs font-semibold text-slate-700">Consultation modes <span className="font-normal text-muted-foreground">— select any that work for you</span></p>
           <div className="flex flex-wrap gap-2">
@@ -181,15 +229,38 @@ function FindCarePage() {
             ))}
           </div>
         </div>
+        <Button size="sm" variant="outline" className="w-fit rounded-full" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
+          <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" /> Filters
+        </Button>
       </div>
       </section>
+      {filtersOpen && <section aria-label="Doctor filters" className="flex flex-wrap items-center gap-4 rounded-xl border border-border/60 bg-white p-4">
+        <label className="flex items-center gap-2 text-sm">Maximum distance
+          <select value={radius} onChange={(event) => setRadius(Number(event.target.value))} className="h-9 rounded-lg border border-border bg-background px-2">
+            {[25, 50, 75, 100].map((km) => <option key={km} value={km}>{km} km</option>)}
+          </select>
+        </label>
+        <div className="flex flex-wrap gap-3 text-sm">
+          {[{ id: "in_person", label: "In-Person" }, { id: "video", label: "Video" }, { id: "phone", label: "Phone" }].map(({ id, label }) => <label key={id} className="flex items-center gap-2"><input type="checkbox" checked={consultationModes.includes(id)} onChange={() => toggleMode(id)} />{label}</label>)}
+        </div>
+      </section>}
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : loadError ? (
         <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">Could not load verified doctors: {loadError}</p>
       ) : (
-        <DoctorGrid doctors={filteredDoctors} />
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-slate-900">Showing {filteredDoctors.length} verified doctors</h2>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">Sort by
+              <select aria-label="Sort doctors" value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} className="h-9 rounded-lg border border-border bg-white px-2 text-slate-900">
+                <option value="distance">Distance</option><option value="rating">Rating</option><option value="fee">Consultation fee</option>
+              </select>
+            </label>
+          </div>
+          <DoctorGrid doctors={filteredDoctors} clinicsById={clinicsById} />
+        </>
       )}
       </main>
     </>
@@ -198,7 +269,7 @@ function FindCarePage() {
 
 type WithDist = Doctor & { distance_km: number | null };
 
-function DoctorGrid({ doctors }: { doctors: WithDist[] }) {
+function DoctorGrid({ doctors, clinicsById }: { doctors: WithDist[]; clinicsById: Record<string, string> }) {
   if (doctors.length === 0) return <div className="rounded-2xl border border-dashed border-border/70 bg-slate-50/50 py-12 text-center">
     <Stethoscope className="mx-auto h-9 w-9 text-emerald-600/70" />
     <p className="mt-3 font-semibold text-slate-900">No verified doctors are listed for these filters</p>
@@ -213,23 +284,25 @@ function DoctorGrid({ doctors }: { doctors: WithDist[] }) {
               {d.photo_url ? <img src={d.photo_url} alt={d.full_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-emerald-700"><Stethoscope className="h-7 w-7" /></div>}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-slate-900">{d.full_name}</p>
+              <p className="truncate font-semibold text-slate-900">{d.full_name.toLowerCase().startsWith("dr.") ? d.full_name : `Dr. ${d.full_name}`}</p>
               <p className="mt-0.5 text-sm font-medium text-emerald-700">{d.specialty}</p>
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" /> Verified provider
               </p>
             </div>
           </div>
+          {d.qualifications && <p className="mt-3 text-xs text-muted-foreground">{d.qualifications} · {d.specialty}</p>}
           <div className="mt-4 flex min-h-8 flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">{d.city || "South Africa"}</span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground"><Building2 className="h-3 w-3" />{(d.hospital_id && clinicsById[d.hospital_id]) || d.address || d.city}</span>
               {d.distance_km != null && <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800"><MapPin className="mr-1 inline h-3 w-3" />{d.distance_km} km</span>}
           </div>
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-              {d.in_person_available && "In-person"}{d.online_available && <span className="inline-flex items-center gap-1"><Video className="h-3 w-3" /> Video</span>}{d.phone_available && "Phone"}
+              {d.in_person_available && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />In-Person</span>}{d.online_available && <span className="inline-flex items-center gap-1"><Video className="h-3 w-3" /> Video</span>}{d.phone_available && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />Phone</span>}
           </div>
+          {d.rating_avg != null && d.rating_count != null && d.rating_count > 0 && <p className="mt-3 flex items-center gap-1 text-xs text-slate-600"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />{d.rating_avg.toFixed(1)} ({d.rating_count} reviews)</p>}
           <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-4">
             <div><p className="text-[11px] text-muted-foreground">Consultation fee</p><p className="font-bold text-slate-900">{d.consultation_fee == null ? "Not listed" : `R${Number(d.consultation_fee).toFixed(2)}`}</p></div>
-            <Link to="/dashboard/patient/doctors/$id" params={{ id: d.id }} className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700">Book Appointment <span className="ml-1" aria-hidden="true">→</span></Link>
+            <Link to="/dashboard/patient/doctors/$id" params={{ id: d.id }} className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700">View Profile <span className="ml-1" aria-hidden="true">→</span></Link>
           </div>
         </article>
       ))}

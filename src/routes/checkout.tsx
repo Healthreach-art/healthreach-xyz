@@ -40,6 +40,7 @@ declare global {
         amount: number;
         currency?: string;
         ref?: string;
+        channels?: Array<"card" | "bank" | "ussd" | "bank_transfer">;
         metadata?: Record<string, string>;
         callback: (resp: { reference: string }) => void;
         onClose: () => void;

@@ -244,7 +244,7 @@ function PublicDoctorPage() {
           {days.length === 0 && <p className="text-sm text-muted-foreground">No upcoming weekday slots — please check back soon.</p>}
         </div>
         <div className="flex items-center justify-between border-t border-border pt-3">
-          <p className="text-xs text-muted-foreground">R15 platform booking fee. Consultation fee paid to the doctor.</p>
+          <p className="text-xs text-muted-foreground">The consultation fee and platform fee are paid securely during booking.</p>
           <Button onClick={() => pickSlot(new Date(Date.now() + 24 * 3600 * 1000).toISOString())} className="bg-primary text-primary-foreground">
             Book appointment
           </Button>

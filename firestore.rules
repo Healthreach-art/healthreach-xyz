@@ -168,7 +168,7 @@ service cloud.firestore {
     // owner manages own record; admin reviews; approved records are
     // readable by signed-in users for the Find page.
     match /doctors/{id} {
-      allow read: if isAdmin() || isOwner(id) || owns('user_id') || (signedIn() && resource.data.status == 'approved');
+      allow read: if signedIn() || isAdmin() || isOwner(id) || owns('user_id');
       allow create: if (isOwner(id) || ownsNew('user_id')) && request.resource.data.status == 'pending_review';
       allow update: if isAdmin() || ((isOwner(id) || owns('user_id')) && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();

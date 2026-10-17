@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type FormEvent } from "react";
 import { usePatientLocationBroadcaster } from "@/hooks/usePatientLocationBroadcaster";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
@@ -9,14 +9,16 @@ import { OrderTimeline } from "@/components/OrderTimeline";
 import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { PatientAddressHeader } from "@/components/PatientAddressHeader";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import { customerPrice } from "@/lib/pricing";
 import {
-  ArrowRight, Star, Pill, MessageSquare, Siren, PhoneCall,
+  ArrowRight, Star, Pill, MessageSquare, Siren, PhoneCall, Search, Bell,
   Home, type LucideIcon,
 } from "lucide-react";
 import tileAppt from "@/assets/tile-book-appointment.png";
 import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
+import logo from "@/assets/healthreach-logo.png";
 
 
 export const Route = createFileRoute("/dashboard/patient/")({
@@ -35,21 +37,24 @@ interface OrderRow {
   total_amount: number | string;
   created_at: string;
   pharmacy_id: string;
+  medication_name: string;
+  quantity: number;
 }
 
 const ACTION_CARDS: Array<{ title: string; subtitle?: string; img?: string; icon?: LucideIcon; to: string; bg: string }> = [
-  { title: "Order Medication", img: tileMed, to: "/dashboard/patient/medications", bg: "bg-emerald-50 text-emerald-950 border-emerald-100" },
-  { title: "Book Doctor Appointment", subtitle: "Find nearby doctors & specialists", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-blue-50 text-blue-950 border-blue-100" },
-  { title: "Request Home Care Services", subtitle: "Verified caregivers & nurses", icon: Home, to: "/dashboard/patient/homecare", bg: "bg-purple-50 text-purple-950 border-purple-100" },
-  { title: "Upload Prescription", subtitle: "Quick upload for Rx orders", img: tileRx, to: "/dashboard/patient/prescriptions", bg: "bg-amber-50 text-amber-950 border-amber-100" },
+  { title: "Order Medication", subtitle: "Get your prescriptions filled and delivered to your location.", img: tileMed, to: "/dashboard/patient/medications", bg: "bg-emerald-50 text-emerald-950 border-emerald-100" },
+  { title: "Book Doctor Appointment", subtitle: "Find verified doctors and book your consultation.", img: tileAppt, to: "/dashboard/patient/find", bg: "bg-blue-50 text-blue-950 border-blue-100" },
+  { title: "Request Homecare Services", subtitle: "Get professional homecare support for you or your loved ones.", icon: Home, to: "/dashboard/patient/homecare", bg: "bg-purple-50 text-purple-950 border-purple-100" },
+  { title: "View Prescriptions", subtitle: "Access and manage your prescriptions.", img: tileRx, to: "/dashboard/patient/prescriptions", bg: "bg-amber-50 text-amber-950 border-amber-100" },
 ];
 
 
 function PatientDashboard() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  const userId = user?.id;
   const firstName = profile?.full_name?.split(" ")[0] || "";
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  usePatientLocationBroadcaster({ userId: user?.id });
+  usePatientLocationBroadcaster({ userId });
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
   const [driverName, setDriverName] = useState<string>("");
@@ -59,20 +64,48 @@ function PatientDashboard() {
   const [mapDropoff, setMapDropoff] = useState<string | null>(null);
   const [pickupCode, setPickupCode] = useState<string | null>(null);
   const [deliveryCode, setDeliveryCode] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!userId) return;
+    let cancelled = false;
+    const loadUnreadNotifications = async () => {
+      const { data, error } = await firestoreClient.from("notifications")
+        .select("id")
+        .eq("user_id", userId)
+        .is("read_at", null)
+        .limit(100);
+      if (cancelled) return;
+      if (error) {
+        console.error("[patient-dashboard] Could not load unread notifications.", error);
+        return;
+      }
+      setUnreadNotifications(data?.length ?? 0);
+    };
+    void loadUnreadNotifications();
+    const channel = firestoreClient.channel(`patient-notifications-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, loadUnreadNotifications)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      void firestoreClient.removeChannel(channel);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
     async function load() {
       const { data } = await firestoreClient
         .from("orders")
-        .select("id, order_group_id, status, total_amount, created_at, pharmacy_id")
-        .eq("patient_id", user!.id)
+        .select("id, order_group_id, status, total_amount, created_at, pharmacy_id, medication_name, quantity")
+        .eq("patient_id", userId)
         .eq("is_demo", false)
         .order("created_at", { ascending: false })
         .limit(5);
       if (cancelled) return;
-      const list = (data ?? []) as unknown as OrderRow[];
+      const list = (data ?? []) as OrderRow[];
       setOrders(list);
       const active = list.find((o) => !["delivered", "cancelled"].includes(o.status));
       setActiveOrderId(active?.id ?? null);
@@ -86,9 +119,8 @@ function PatientDashboard() {
           .in("user_id", ids);
         if (cancelled) return;
         const map: Record<string, string> = {};
-        (profs ?? []).forEach((p: any) => {
-          map[p.user_id] = p.organization_name || p.full_name || "Pharmacy";
-        });
+        ((profs ?? []) as Array<{ user_id: string; organization_name: string | null; full_name: string | null }>)
+          .forEach((pharmacy) => { map[pharmacy.user_id] = pharmacy.organization_name || pharmacy.full_name || "Pharmacy"; });
         setPharmaciesById(map);
       }
 
@@ -120,13 +152,13 @@ function PatientDashboard() {
 
     // Realtime — orders + deliveries
     const ch = firestoreClient
-      .channel(`patient-dash-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${user.id}` }, load)
+      .channel(`patient-dash-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `patient_id=eq.${userId}` }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, load)
       .subscribe();
 
     return () => { cancelled = true; firestoreClient.removeChannel(ch); };
-  }, [user?.id]);
+  }, [userId]);
 
   const driverInitial = (driverName || "?").charAt(0).toUpperCase();
 
@@ -137,23 +169,58 @@ function PatientDashboard() {
   const latestActive = orders.find((o) => !["delivered", "cancelled"].includes(o.status));
   const activeStepIdx = latestActive ? (STATUS_STEP[latestActive.status] ?? 0) : -1;
 
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    if (/\b(medicines?|medications?|pharmacies?|pills?|drugs?|prescriptions?)\b/i.test(q)) {
+      void navigate({ to: "/dashboard/patient/medications", search: { q } });
+    } else {
+      void navigate({ to: "/dashboard/patient/find", search: { q } });
+    }
+  }
+
   return (
     <div className="bg-background min-h-screen overflow-x-hidden">
-      <PatientAddressHeader />
+      <NotificationCenter />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="space-y-6">
-            {/* Greeting */}
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Welcome, {firstName || "Patient"} <span className="inline-block">👋</span>
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Your health is our priority. Let's take care of it today.
-              </p>
-            </div>
+            <header className="flex items-center justify-between">
+              <Link to="/dashboard/patient" aria-label="HealthReachCare home">
+                <img src={logo} alt="HealthReachCare" className="h-10 w-auto" />
+              </Link>
+              <div className="flex items-center gap-3">
+                <Link to="/dashboard/patient/activity" aria-label={`${unreadNotifications} unread notifications`} className="relative flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-foreground">
+                  <Bell className="h-5 w-5" />
+                  {unreadNotifications > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-card">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>}
+                </Link>
+                <Link to="/dashboard/patient/account" aria-label="Your profile" className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-emerald-100 font-semibold text-emerald-900">
+                  {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : firstName.charAt(0).toUpperCase() || "P"}
+                </Link>
+              </div>
+            </header>
+
+            <section className="relative grid overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 p-5 shadow-sm sm:grid-cols-[1fr_220px] sm:p-8">
+              <div className="relative z-10 flex flex-col items-start gap-5">
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                    Welcome, {firstName || "Patient"} <span aria-hidden="true">👋</span>
+                  </h1>
+                  <p className="mt-2 max-w-lg text-sm text-slate-700">Your health is our priority. Let's take care of it today.</p>
+                </div>
+                <PatientAddressHeader embedded />
+              </div>
+              <img src={tileAppt} alt="" className="absolute -bottom-8 right-0 h-36 w-36 object-contain opacity-70 sm:relative sm:bottom-auto sm:h-48 sm:w-48 sm:justify-self-end sm:opacity-100" />
+            </section>
+
+            <form onSubmit={submitSearch} className="relative">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} aria-label="Search medicines, doctors, or services" placeholder="Search medicines, doctors, or services..." className="h-14 w-full rounded-2xl border border-border bg-card pl-12 pr-24 text-sm shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />
+              <button type="submit" className="absolute right-2 top-2 h-10 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800">Search</button>
+            </form>
 
             {/* Action cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               {ACTION_CARDS.map((c) => (
                 <Link
                   key={c.title}
@@ -293,8 +360,8 @@ function PatientDashboard() {
                       <tr><td colSpan={6} className="py-6 text-center text-muted-foreground text-sm">No recent orders yet.</td></tr>
                     )}
                     {orders.map((o) => {
-                      const medName = "Medication";
-                      const qty = 1;
+                      const medName = o.medication_name;
+                      const qty = o.quantity;
                       const date = new Date(o.created_at).toLocaleDateString("en-ZA", { month: "short", day: "2-digit", year: "numeric" });
                       const isOnWay = ["out_for_delivery", "ready", "preparing", "accepted"].includes(o.status);
                       const isDelivered = o.status === "delivered";

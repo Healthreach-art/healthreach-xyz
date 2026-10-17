@@ -6,13 +6,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2, BadgeCheck, ArrowLeft } from "lucide-react";
+import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2, BadgeCheck, ArrowLeft, ShieldCheck, CheckCircle2, Landmark } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { bookDoctorAppointment, getDoctorAvailableSlots, markDoctorAppointmentPaid } from "@/lib/doctors.functions";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import logo from "@/assets/healthreach-logo.png";
+import { readPatientAddress } from "@/lib/patient-address";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
 
@@ -21,6 +23,7 @@ declare global {
     PaystackPop?: {
       setup: (opts: {
         key: string; email: string; amount: number; currency?: string; ref?: string;
+        channels?: Array<"card" | "bank" | "ussd" | "bank_transfer">;
         metadata?: Record<string, string>;
         callback: (resp: { reference: string }) => void; onClose: () => void;
       }) => { openIframe: () => void };
@@ -48,6 +51,19 @@ function slotDateKey(value: string) {
   }).format(new Date(value));
 }
 
+function totalPayable(consultationFee: number | null, platformFeeCents: number) {
+  return Number(consultationFee ?? 0) + platformFeeCents / 100;
+}
+
+function distanceInKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const radians = (degrees: number) => (degrees * Math.PI) / 180;
+  const dLat = radians(lat2 - lat1);
+  const dLng = radians(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(6371 * 2 * Math.asin(Math.sqrt(a)) * 10) / 10;
+}
+
 export const Route = createFileRoute("/dashboard/patient/doctors/$id")({
   head: () => ({ meta: [{ title: "Doctor — HealthReachCare" }] }),
   validateSearch: (s: Record<string, unknown>): { when?: string } =>
@@ -60,7 +76,7 @@ interface Doctor {
   practice_number: string; bio: string; photo_url: string;
   consultation_fee: number | null; accepted_medical_aids: string[] | null; languages: string[] | null;
   online_available: boolean; in_person_available: boolean; phone_available: boolean;
-  city: string; address: string; rating_avg: number; rating_count: number;
+  city: string; address: string; latitude: number | null; longitude: number | null; rating_avg: number; rating_count: number;
 }
 
 interface AvailableSlot {
@@ -68,9 +84,17 @@ interface AvailableSlot {
   durationMinutes: number;
 }
 
+interface BookingReservation {
+  appointmentId: string;
+  platformFeeCents: number;
+  scheduledAt: string;
+  mode: "in_person" | "video" | "phone";
+  reason: string;
+}
+
 function Page() {
   const { id } = Route.useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const search = Route.useSearch();
   const navigate = useNavigate();
   const book = useServerFn(bookDoctorAppointment);
@@ -87,8 +111,15 @@ function Page() {
   const [when, setWhen] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [mode, setMode] = useState<"in_person" | "video" | "phone">("in_person");
-  const [reason, setReason] = useState("");
+  const [visitReason, setVisitReason] = useState("");
+  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [bookingStep, setBookingStep] = useState(1);
+  const [reservation, setReservation] = useState<BookingReservation | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"paystack" | "bank_transfer">("paystack");
+  const [clinicName, setClinicName] = useState("");
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -116,16 +147,43 @@ function Page() {
   }, [getSlots, id, search.when, user]);
 
   useEffect(() => {
-    (async () => {
-      const [{ data: d }, { data: r }] = await Promise.all([
-        firestoreClient.from("doctors").select("*").eq("id", id).eq("is_active", true).eq("is_verified", true).maybeSingle(),
-        firestoreClient.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
-      ]);
-      setDoc(d as Doctor);
-      if (d) setMode(d.in_person_available ? "in_person" : d.online_available ? "video" : "phone");
-      setReviews(r ?? []); setLoading(false);
+    let active = true;
+    void (async () => {
+      try {
+        const [{ data: d, error: doctorError }, { data: r, error: reviewError }] = await Promise.all([
+          firestoreClient.from("doctors").select("*").eq("id", id).eq("status", "approved").eq("is_active", true).eq("is_verified", true).maybeSingle(),
+          firestoreClient.from("doctor_reviews").select("stars, comment, created_at").eq("doctor_id", id).order("created_at", { ascending: false }).limit(20),
+        ]);
+        if (!active) return;
+        if (doctorError) throw new Error(`Could not load doctor profile: ${doctorError.message}`);
+        if (reviewError) toast.error(`Could not load doctor reviews: ${reviewError.message}`);
+        const doctor = d as Doctor | null;
+        setDoc(doctor);
+        if (doctor) {
+          setMode(doctor.in_person_available ? "in_person" : doctor.online_available ? "video" : "phone");
+          setClinicName(doctor.address || doctor.city);
+          if (doctor.hospital_id) {
+            const { data: hospital, error: hospitalError } = await firestoreClient.from("profiles")
+              .select("organization_name, full_name").eq("user_id", doctor.hospital_id).maybeSingle();
+            if (hospitalError) toast.error(`Could not load clinic details: ${hospitalError.message}`);
+            if (hospital) setClinicName(hospital.organization_name || hospital.full_name || doctor.address || doctor.city);
+          }
+          if (user?.id && doctor.latitude != null && doctor.longitude != null) {
+            const address = readPatientAddress(user.id);
+            if (address?.lat != null && address.lng != null) {
+              setDistanceKm(distanceInKm(address.lat, address.lng, doctor.latitude, doctor.longitude));
+            }
+          }
+        }
+        setReviews(r ?? []);
+      } catch (error: unknown) {
+        if (active) toast.error(error instanceof Error ? error.message : "Could not load doctor profile.");
+      } finally {
+        if (active) setLoading(false);
+      }
     })();
-  }, [id, user]);
+    return () => { active = false; };
+  }, [id, user?.id]);
 
   const slotGroups = useMemo(() => {
     const groups = new Map<string, AvailableSlot[]>();
@@ -140,42 +198,86 @@ function Page() {
     if (!selectedDate && slotGroups.length) setSelectedDate(slotGroups[0][0]);
   }, [selectedDate, slotGroups]);
 
-  async function confirmBooking() {
+  async function preparePayment() {
     if (!user) return toast.error("Please sign in");
     if (!doc) return;
     if (!when) return toast.error("Pick a date & time");
     const selectedSlot = slots.find((slot) => slot.scheduledAt === when);
     if (!selectedSlot) return toast.error("Choose a currently available appointment time.");
+    if (reservation) {
+      setBookingStep(4);
+      return;
+    }
     setBusy(true);
     try {
+      const appointmentReason = [visitReason, note.trim()].filter(Boolean).join(": ").slice(0, 1000);
       const { appointmentId, platformFeeCents } = await book({
         data: {
           doctorId: doc.id,
           scheduledAt: selectedSlot.scheduledAt,
           durationMinutes: selectedSlot.durationMinutes,
           mode,
-          reason: reason.trim(),
+          reason: appointmentReason,
         },
       });
+      if (platformFeeCents == null || !Number.isSafeInteger(platformFeeCents) || platformFeeCents < 0) {
+        throw new Error("The appointment service returned an invalid platform fee.");
+      }
       void import("@/lib/firestore-sync").then(({ mirrorRecord }) => {
         void mirrorRecord("bookings", appointmentId, {
-          type: "doctor", service: `Doctor: ${doc.full_name ?? "appointment"}`, name: user.email,
-          doctorRecordId: doc.id, scheduledAt: selectedSlot.scheduledAt, mode, reason: reason.trim(),
+          type: "doctor", service: `Doctor: ${doc.full_name}`, name: user.email,
+          doctorRecordId: doc.id, scheduledAt: selectedSlot.scheduledAt, mode, reason: appointmentReason,
           status: "pending", paymentStatus: "pending",
         });
         void mirrorRecord("payments", appointmentId, {
-          type: "appointment_platform_fee", amount: (platformFeeCents ?? 0) / 100, status: "pending",
+          type: "doctor_appointment_payment",
+          amount: Number(doc.consultation_fee ?? 0) + platformFeeCents / 100,
+          status: "pending",
         });
       });
+      setReservation({ appointmentId, platformFeeCents, scheduledAt: selectedSlot.scheduledAt, mode, reason: appointmentReason });
+      setBookingStep(4);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Could not prepare appointment payment");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelReservation() {
+    if (reservation) {
+      const { error } = await firestoreClient.from("doctor_appointments")
+        .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+        .eq("id", reservation.appointmentId)
+        .eq("patient_id", user?.id);
+      if (error) {
+        toast.error(`Could not cancel the pending appointment: ${error.message}`);
+        return;
+      }
+      setReservation(null);
+    }
+    setBookingStep(2);
+  }
+
+  async function confirmBooking() {
+    if (!user) return toast.error("Please sign in");
+    if (!doc || !reservation) return toast.error("Complete the appointment details first.");
+    if (doc.consultation_fee == null) return toast.error("This doctor has not listed a consultation fee yet.");
+    if (!user.email) return toast.error("Add an email address to your account before paying.");
+    if (!user.emailVerified) return toast.error("Verify your email address before paying for an appointment.");
+    const totalCents = Math.round(Number(doc.consultation_fee ?? 0) * 100) + reservation.platformFeeCents;
+    setBusy(true);
+    try {
       await loadPaystack();
       if (!window.PaystackPop) throw new Error("Paystack failed to load");
       const handler = window.PaystackPop.setup({
         key: PAYSTACK_PUBLIC_KEY,
-        email: user.email || "support@healthreachcare.co.za",
-        amount: platformFeeCents ?? 0,
+        email: user.email || "",
+        amount: totalCents,
         currency: "ZAR",
-        ref: `${appointmentId}_${crypto.randomUUID()}`,
-        metadata: { appointment_id: appointmentId, payment_type: "doctor_booking_fee" },
+        ref: `${reservation.appointmentId}_${crypto.randomUUID()}`,
+        channels: paymentMethod === "bank_transfer" ? ["bank_transfer"] : ["card", "bank", "ussd"],
+        metadata: { appointment_id: reservation.appointmentId, payment_type: "doctor_booking_fee" },
         callback: (resp) => {
           (async () => {
             try {
@@ -183,15 +285,15 @@ function Page() {
               if (
                 !v.verified
                 || v.reference !== resp.reference
-                || v.metadata.appointment_id !== appointmentId
+                || v.metadata.appointment_id !== reservation.appointmentId
                 || v.metadata.payment_type !== "doctor_booking_fee"
               ) throw new Error("Payment not verified for this appointment");
-              await markPaid({ data: { appointmentId, reference: resp.reference } });
+              await markPaid({ data: { appointmentId: reservation.appointmentId, reference: resp.reference } });
               void import("@/lib/firestore-sync").then(({ mirrorRecord }) => {
-                void mirrorRecord("bookings", appointmentId, { status: "confirmed", paymentStatus: "paid" });
+                void mirrorRecord("bookings", reservation.appointmentId, { status: "confirmed", paymentStatus: "paid" });
               });
               toast.success("Appointment confirmed!");
-              navigate({ to: "/dashboard/patient/consultations" });
+              setBookingStep(5);
             } catch (error: unknown) { toast.error(error instanceof Error ? error.message : "Could not confirm payment"); }
             finally { setBusy(false); }
           })();
@@ -200,7 +302,7 @@ function Page() {
       });
       handler.openIframe();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Booking failed");
+      toast.error(error instanceof Error ? error.message : "Could not start payment");
       setBusy(false);
     }
   }
@@ -229,18 +331,18 @@ function Page() {
         </Link>
         <Link to="/dashboard/patient/find" search={{ q: "" }} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back to doctors</Link>
       </header>
-      <section className="flex flex-col gap-5 rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:flex-row sm:p-6">
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-emerald-50">
+      <section className="flex flex-col gap-5 rounded-3xl border border-border/60 bg-white p-5 shadow-sm sm:flex-row sm:p-7">
+        <div className="flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-emerald-50">
           {doc.photo_url ? <img src={doc.photo_url} alt={doc.full_name} className="h-full w-full object-cover" /> : <UserIcon className="h-10 w-10 text-emerald-700" />}
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900">Dr. {doc.full_name}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{doc.full_name.toLowerCase().startsWith("dr.") ? doc.full_name : `Dr. ${doc.full_name}`}</h1>
           <p className="mt-1 text-sm font-medium text-emerald-700">{doc.specialty}</p>
           <p className="mt-1 flex items-center gap-1 text-xs font-medium text-emerald-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified practitioner</p>
           {doc.qualifications && <p className="mt-2 text-sm text-slate-600">{doc.qualifications}</p>}
           {doc.practice_number && <p className="mt-1 text-xs text-muted-foreground">Practice number: {doc.practice_number}</p>}
-          <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-            <MapPin className="h-3 w-3" /> {doc.city}{doc.address ? ` · ${doc.address}` : ""}
+          <p className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          <MapPin className="h-3 w-3" /> {distanceKm != null ? `${distanceKm} km · ` : ""}{clinicName || doc.city}
             {doc.rating_count > 0 && (
               <span className="ml-2 flex items-center gap-0.5">
                 <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />{doc.rating_avg.toFixed(1)} ({doc.rating_count})
@@ -253,80 +355,149 @@ function Page() {
             {doc.phone_available && <Pill><Phone className="h-3 w-3" /> Phone</Pill>}
             
           </div>
-          {doc.bio && <p className="text-sm text-foreground/80 mt-3">{doc.bio}</p>}
+          {doc.bio && <div className="mt-4"><h2 className="text-sm font-bold text-slate-900">About</h2><p className="mt-1 text-sm text-foreground/80">{doc.bio}</p></div>}
           {!!doc.languages?.length && <p className="mt-3 text-xs text-muted-foreground"><span className="font-semibold text-slate-700">Languages:</span> {doc.languages.join(", ")}</p>}
           {!!doc.accepted_medical_aids?.length && <p className="mt-1 text-xs text-muted-foreground"><span className="font-semibold text-slate-700">Medical aids:</span> {doc.accepted_medical_aids.join(", ")}</p>}
         </div>
         <div className="shrink-0 sm:text-right">
           <p className="text-xs text-muted-foreground">Consultation</p>
           <p className="text-2xl font-bold text-slate-900">{doc.consultation_fee == null ? "Not listed" : `R${Number(doc.consultation_fee).toFixed(2)}`}</p>
-          <p className="text-xs text-muted-foreground">Consultation fee, paid to the doctor</p>
+          <p className="text-xs text-muted-foreground">Consultation fee</p>
         </div>
       </section>
 
       <section className="space-y-5 rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:p-6">
-        <div>
-          <h2 className="flex items-center gap-2 font-bold text-slate-900"><CalendarCheck className="h-5 w-5 text-emerald-600" /> Book an appointment</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Choose a consultation style and an available time.</p>
-        </div>
-        <fieldset className="space-y-2">
-          <Label>Consultation mode</Label>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {availableModes.filter((item) => item.enabled).map(({ id: modeId, label, description, icon: Icon }) => (
-              <button key={modeId} type="button" aria-pressed={mode === modeId} onClick={() => setMode(modeId)}
-                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${mode === modeId ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600" : "border-border/70 hover:border-emerald-300"}`}>
-                <Icon className={`h-5 w-5 ${mode === modeId ? "text-emerald-700" : "text-muted-foreground"}`} />
-                <span><span className="block text-sm font-semibold text-slate-900">{label}</span><span className="block text-xs text-muted-foreground">{description}</span></span>
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <div className="space-y-3">
-          <Label>Choose a date</Label>
-          {slotsLoading ? <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading available times…</div> : (
+        <h2 className="flex items-center gap-2 font-bold text-slate-900"><CalendarCheck className="h-5 w-5 text-emerald-600" /> Availability</h2>
+        {slotsLoading ? <p className="text-sm text-muted-foreground">Loading live availability…</p> : slotsError ? <p role="alert" className="text-sm text-destructive">{slotsError}</p> : slotGroups.length === 0 ? <p className="text-sm text-muted-foreground">No appointment times are currently available.</p> : (
+          <>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {slotGroups.map(([date]) => (
                 <button key={date} type="button" aria-pressed={selectedDate === date} onClick={() => { setSelectedDate(date); setWhen(""); }}
-                  className={`min-w-24 rounded-xl border px-3 py-2 text-sm transition ${selectedDate === date ? "border-emerald-600 bg-emerald-600 text-white" : "border-border/70 bg-white text-slate-700 hover:border-emerald-300"}`}>
+                  className={`min-w-24 rounded-xl border px-3 py-2 text-sm ${selectedDate === date ? "border-emerald-600 bg-emerald-600 text-white" : "border-border/70 hover:border-emerald-300"}`}>
                   <span className="block text-[11px] opacity-80">{selectedDateLabel(date).split(" ")[0]}</span>
                   <span className="font-semibold">{selectedDateLabel(date).split(" ").slice(1).join(" ")}</span>
                 </button>
               ))}
             </div>
-          )}
-          {slotsError && <p role="alert" className="text-sm text-destructive">{slotsError}</p>}
-          {!slotsLoading && !slotsError && slotGroups.length === 0 && <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No appointment times are currently available.</p>}
-          {selectedDate && (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+            <div className="flex flex-wrap gap-2">
               {(slotGroups.find(([date]) => date === selectedDate)?.[1] ?? []).map((slot) => (
-                <button key={slot.scheduledAt} type="button" aria-pressed={when === slot.scheduledAt} onClick={() => setWhen(slot.scheduledAt)}
-                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${when === slot.scheduledAt ? "border-emerald-600 bg-emerald-600 text-white" : "border-border/70 bg-white text-slate-700 hover:border-emerald-400 hover:text-emerald-700"}`}>
+                <button key={slot.scheduledAt} type="button" aria-pressed={when === slot.scheduledAt} onClick={() => setWhen(slot.scheduledAt)} className={`rounded-lg border px-3 py-2 text-xs ${when === slot.scheduledAt ? "border-emerald-600 bg-emerald-600 text-white" : "text-slate-700 hover:border-emerald-400"}`}>
                   {new Date(slot.scheduledAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })}
                 </button>
               ))}
             </div>
-          )}
-          {when && <p className="text-xs text-emerald-800">Selected: {new Date(when).toLocaleString("en-ZA", { dateStyle: "full", timeStyle: "short", timeZone: "Africa/Johannesburg" })}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="visit-reason">Reason for visit <span className="font-normal text-muted-foreground">(optional)</span></Label>
-          <Textarea id="visit-reason" rows={3} value={reason} onChange={(event) => setReason(event.target.value)} maxLength={1000} placeholder="Share anything that may help the doctor prepare." />
-        </div>
-        <div className="rounded-xl bg-slate-50/70 p-4">
-          <h3 className="text-sm font-semibold text-slate-900">Pricing breakdown</h3>
-          <div className="mt-2 space-y-1.5 text-sm">
-            <div className="flex justify-between gap-4"><span className="text-muted-foreground">Consultation fee (paid to doctor)</span><span>{doc.consultation_fee == null ? "Not listed" : `R${Number(doc.consultation_fee).toFixed(2)}`}</span></div>
-            <div className="flex justify-between gap-4"><span className="text-muted-foreground">HealthReachCare booking fee</span><span>R15.00</span></div>
-            <div className="flex justify-between gap-4 border-t border-border/70 pt-2 font-semibold"><span>Pay now</span><span className="text-emerald-700">R15.00</span></div>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
-          <p className="max-w-md text-xs text-muted-foreground">The R15 booking fee is paid securely now. Settle the consultation fee directly with the doctor.</p>
-          <Button onClick={confirmBooking} disabled={busy || !when || slotsLoading} className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">
-            {busy ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing…</>) : "Confirm & pay R15"}
-          </Button>
-        </div>
+          </>
+        )}
+        <Button onClick={() => { setBookingStep(bookingStep === 5 ? 5 : reservation ? 4 : 1); setBookingOpen(true); }} disabled={slotsLoading || slotGroups.length === 0 || doc.consultation_fee == null} className="h-12 w-full rounded-xl bg-emerald-600 text-base text-white hover:bg-emerald-700">
+          <CalendarCheck className="mr-2 h-5 w-5" /> Book Appointment
+        </Button>
       </section>
+
+      <Dialog open={bookingOpen} onOpenChange={setBookingOpen}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+          {bookingStep < 5 ? (
+            <>
+              <DialogHeader><DialogTitle>Book an appointment</DialogTitle></DialogHeader>
+              <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-3">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-emerald-100">
+                  {doc.photo_url ? <img src={doc.photo_url} alt="" className="h-full w-full object-cover" /> : <UserIcon className="m-3 h-6 w-6 text-emerald-700" />}
+                </div>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900">{doc.full_name}</p><p className="text-xs text-muted-foreground">{doc.specialty} · {distanceKm != null ? `${distanceKm} km · ` : ""}{clinicName || doc.city}</p></div>
+                <p className="shrink-0 text-sm font-semibold">R{Number(doc.consultation_fee ?? 0).toFixed(2)}</p>
+              </div>
+              <ol className="grid grid-cols-4 gap-1" aria-label="Booking progress">
+                {["Date & Time", "Consultation", "Details", "Payment"].map((label, index) => (
+                  <li key={label} className={`border-b-2 pb-2 text-center text-[10px] font-medium sm:text-xs ${bookingStep === index + 1 ? "border-emerald-600 text-emerald-800" : bookingStep > index + 1 ? "border-emerald-300 text-emerald-700" : "border-border text-muted-foreground"}`}>
+                    <span className="block font-bold">{index + 1}</span>{label}
+                  </li>
+                ))}
+              </ol>
+
+              {bookingStep === 1 && (
+                <section className="space-y-4">
+                  <h2 className="text-lg font-bold">Choose Date & Time</h2>
+                  {slotsLoading ? <p className="text-sm text-muted-foreground">Loading available times…</p> : (
+                    <>
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {slotGroups.map(([date]) => <button key={date} type="button" aria-pressed={selectedDate === date} onClick={() => { setSelectedDate(date); setWhen(""); }} className={`min-w-24 rounded-xl border px-3 py-2 text-sm ${selectedDate === date ? "border-emerald-600 bg-emerald-600 text-white" : "border-border hover:border-emerald-400"}`}><span className="block text-[11px]">{selectedDateLabel(date).split(" ")[0]}</span>{selectedDateLabel(date).split(" ").slice(1).join(" ")}</button>)}
+                      </div>
+                      {(["Morning", "Afternoon"] as const).map((period) => {
+                        const times = slotGroups.find(([date]) => date === selectedDate)?.[1].filter((slot) => {
+                          const parts = new Intl.DateTimeFormat("en-ZA", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Africa/Johannesburg" }).formatToParts(new Date(slot.scheduledAt));
+                          const hour = Number(parts.find((part) => part.type === "hour")?.value);
+                          const minute = Number(parts.find((part) => part.type === "minute")?.value);
+                          const minuteOfDay = hour * 60 + minute;
+                          return period === "Morning"
+                            ? minuteOfDay >= 8 * 60 && minuteOfDay <= 11 * 60 + 30
+                            : minuteOfDay >= 13 * 60 && minuteOfDay <= 16 * 60 + 30;
+                        }) ?? [];
+                        return <div key={period} className="space-y-2"><h3 className="text-sm font-semibold">{period}</h3><div className="grid grid-cols-3 gap-2 sm:grid-cols-4">{times.map((slot) => <button key={slot.scheduledAt} type="button" aria-pressed={when === slot.scheduledAt} onClick={() => setWhen(slot.scheduledAt)} className={`rounded-lg border px-2 py-2 text-sm ${when === slot.scheduledAt ? "border-emerald-600 bg-emerald-600 text-white" : "border-border hover:border-emerald-400"}`}>{new Date(slot.scheduledAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })}</button>)}</div></div>;
+                      })}
+                    </>
+                  )}
+                  {slotsError && <p role="alert" className="text-sm text-destructive">{slotsError}</p>}
+                </section>
+              )}
+
+              {bookingStep === 2 && (
+                <section className="space-y-3">
+                  <h2 className="text-lg font-bold">Choose Consultation Mode</h2>
+                  {availableModes.filter((item) => item.enabled).map(({ id: modeId, label, description, icon: Icon }) => <button key={modeId} type="button" aria-pressed={mode === modeId} onClick={() => setMode(modeId)} className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left ${mode === modeId ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600" : "border-border hover:border-emerald-300"}`}><Icon className="h-5 w-5 text-emerald-700" /><span className="flex-1"><strong className="block text-sm">{label === "Video" ? "Video Consultation" : label === "Phone" ? "Phone Consultation" : label}</strong><span className="text-xs text-muted-foreground">{modeId === "in_person" ? "Visit the clinic for your consultation" : modeId === "video" ? "Speak with your doctor via secure video call" : "Talk to your doctor over the phone"}</span></span>{mode === modeId && <CheckCircle2 className="h-5 w-5 text-emerald-700" />}</button>)}
+                </section>
+              )}
+
+              {bookingStep === 3 && (
+                <section className="space-y-4">
+                  <h2 className="text-lg font-bold">Patient Details</h2>
+                  <div className="flex items-center gap-3 rounded-xl border p-3">
+                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-emerald-100 font-semibold text-emerald-800">{profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : profile?.full_name.charAt(0) || "P"}</div>
+                    <div><p className="text-sm font-semibold">{profile?.full_name || user?.user_metadata.full_name || "Patient"}</p><p className="text-xs text-muted-foreground">{user?.email || profile?.email}</p><p className="text-xs text-muted-foreground">{profile?.phone || "Phone number not provided"}</p></div>
+                  </div>
+                  <div className="space-y-2"><Label htmlFor="visit-reason">Reason for visit</Label><select id="visit-reason" value={visitReason} onChange={(event) => setVisitReason(event.target.value)} disabled={!!reservation} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"><option value="">Choose a reason</option>{["General checkup", "Follow-up", "Prescription renewal", "Acute illness", "Other"].map((reasonOption) => <option key={reasonOption}>{reasonOption}</option>)}</select></div>
+                  <div className="space-y-2"><Label htmlFor="doctor-note">Add a note for the doctor (optional)</Label><Textarea id="doctor-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} disabled={!!reservation} maxLength={800} placeholder="Share any helpful details for your visit." /></div>
+                </section>
+              )}
+
+              {bookingStep === 4 && reservation && (
+                <section className="space-y-4">
+                  <h2 className="text-lg font-bold">Payment & Confirmation</h2>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button type="button" aria-pressed={paymentMethod === "paystack"} onClick={() => setPaymentMethod("paystack")} className={`rounded-xl border p-4 text-left ${paymentMethod === "paystack" ? "border-emerald-600 bg-emerald-50" : "border-border"}`}><strong className="block text-sm">Paystack</strong><span className="text-xs text-muted-foreground">Card, bank or USSD</span></button>
+                    <button type="button" aria-pressed={paymentMethod === "bank_transfer"} onClick={() => setPaymentMethod("bank_transfer")} className={`rounded-xl border p-4 text-left ${paymentMethod === "bank_transfer" ? "border-emerald-600 bg-emerald-50" : "border-border"}`}><strong className="flex items-center gap-2 text-sm"><Landmark className="h-4 w-4" /> Bank Transfer</strong><span className="text-xs text-muted-foreground">Secure bank transfer through Paystack</span></button>
+                  </div>
+                  <div className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Consultation fee</span><span>R{Number(doc.consultation_fee ?? 0).toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Platform fee</span><span>R{(reservation.platformFeeCents / 100).toFixed(2)}</span></div>
+                    <div className="flex justify-between border-t pt-2 font-bold"><span>Total</span><span className="text-emerald-800">R{(totalPayable(doc.consultation_fee, reservation.platformFeeCents)).toFixed(2)}</span></div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-emerald-800"><ShieldCheck className="h-4 w-4" /> Your payment is secure</div>
+                </section>
+              )}
+
+              <div className="flex justify-between gap-3 border-t pt-4">
+                {bookingStep > 1 ? <Button variant="outline" disabled={busy} onClick={() => bookingStep === 4 ? setBookingStep(3) : bookingStep === 3 ? void cancelReservation() : setBookingStep(bookingStep - 1)}>Back</Button> : <span />}
+                {bookingStep < 3 ? <Button disabled={!when || (bookingStep === 1 && slotsLoading)} onClick={() => setBookingStep(bookingStep + 1)}>Next</Button> : bookingStep === 3 ? <Button disabled={busy} onClick={() => void preparePayment()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Next</Button> : <Button disabled={busy || !reservation} onClick={() => void confirmBooking()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Pay R{reservation ? totalPayable(doc.consultation_fee, reservation.platformFeeCents).toFixed(2) : "0.00"}</Button>}
+              </div>
+            </>
+          ) : (
+            <section className="space-y-5 py-4 text-center">
+              <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100">
+                {[0, 1, 2, 3, 4, 5].map((piece) => <span key={piece} className={`absolute h-2 w-2 animate-bounce rounded-sm ${["bg-emerald-500", "bg-amber-400", "bg-sky-500"][piece % 3]}`} style={{ top: `${piece % 2 ? 8 : 12}px`, left: `${piece * 15}px`, animationDelay: `${piece * 80}ms` }} />)}
+                <CheckCircle2 className="h-12 w-12 text-emerald-700" />
+              </div>
+              <div><h2 className="text-2xl font-bold text-slate-900">Appointment Booked!</h2><p className="mt-2 text-sm text-muted-foreground">Your appointment with {doc.full_name} has been successfully booked.</p></div>
+              <div className="space-y-2 rounded-2xl border p-4 text-left text-sm">
+                <p><strong>Date:</strong> {reservation && new Date(reservation.scheduledAt).toLocaleDateString("en-ZA", { dateStyle: "full", timeZone: "Africa/Johannesburg" })}</p>
+                <p><strong>Time:</strong> {reservation && new Date(reservation.scheduledAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })}</p>
+                <p><strong>Mode:</strong> {reservation?.mode === "video" ? "Video consultation" : reservation?.mode === "phone" ? "Phone consultation" : "In-person"}</p>
+                <p><strong>Clinic:</strong> {clinicName || doc.city}</p>
+                {distanceKm != null && <p><strong>Distance:</strong> {distanceKm} km</p>}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2"><Button onClick={() => navigate({ to: "/dashboard/patient/consultations" })}>View Appointment</Button><Button variant="outline" onClick={() => navigate({ to: "/dashboard/patient" })}>Back to Home</Button></div>
+            </section>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {reviews.length > 0 && (
         <section className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:p-6">

@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, HousePlus, Search, Stethoscope, Pill } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
-import { PatientAddressHeader } from "@/components/PatientAddressHeader";
 
 const POPULAR_SERVICES = [
   { name: "General Practitioner", description: "Everyday health concerns" },
@@ -19,7 +18,6 @@ export const Route = createFileRoute("/dashboard/patient/search")({
 function SearchPage() {
   return (
     <>
-      <PatientAddressHeader />
       <main className="container-narrow space-y-7 px-4 py-8 pb-24 sm:px-6">
         <header>
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Find a health service</h1>

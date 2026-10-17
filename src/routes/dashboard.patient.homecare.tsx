@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { ArrowLeft, Activity, Baby, Bandage, Heart, HeartHandshake, HeartPulse, HomeIcon, Loader2, ShieldPlus, Stethoscope, UsersRound } from "lucide-react";
 import { REQUEST_LABEL } from "@/lib/homecare";
 import { HOMECARE_SERVICES } from "@/lib/homecare";
-import { PatientAddressHeader } from "@/components/PatientAddressHeader";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from "@/lib/patient-address";
 import { useServerFn } from "@tanstack/react-start";
 import { respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
@@ -181,7 +180,6 @@ function PatientHomecarePage() {
 
   return (
     <>
-    <PatientAddressHeader />
     <main className="container-narrow space-y-7 px-4 py-7 sm:px-6 sm:py-8">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
         <Link to="/dashboard/patient" className="flex items-center gap-3" aria-label="HealthReachCare patient dashboard">

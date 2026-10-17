@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Plus, Search, Stethoscope } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
-import { PatientAddressHeader } from "@/components/PatientAddressHeader";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
@@ -35,6 +34,9 @@ interface Pharmacy {
 const CATEGORIES = ["All", "Pain Relief", "Chronic", "Antibiotics", "Vitamins & Supplements", "Cold & Flu", "Baby & Child", "First Aid"];
 
 export const Route = createFileRoute("/dashboard/patient/medications")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : "",
+  }),
   head: () => ({ meta: [{ title: "Order Medication — HealthReachCare" }] }),
   component: () => <RoleGuard allow="patient"><MedicationMarketplace /></RoleGuard>,
 });
@@ -55,6 +57,7 @@ function matchesCategory(medication: Med, category: string) {
 }
 
 function MedicationMarketplace() {
+  const searchParams = Route.useSearch();
   const cart = useCart();
   const loadMarketplace = useServerFn(listPatientMarketplace);
   const [medications, setMedications] = useState<Med[]>([]);
@@ -62,9 +65,11 @@ function MedicationMarketplace() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(searchParams.q);
   const [category, setCategory] = useState("All");
   const [rxFor, setRxFor] = useState<Med | null>(null);
+
+  useEffect(() => { setQuery(searchParams.q); }, [searchParams.q]);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,7 +120,6 @@ function MedicationMarketplace() {
 
   return (
     <>
-      <PatientAddressHeader />
       <main className="container-narrow space-y-6 px-4 py-7 pb-24 sm:px-6">
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Dashboard</Link>
         <header>

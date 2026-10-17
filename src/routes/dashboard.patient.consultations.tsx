@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft,  Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star, MessageCircle } from "lucide-react";
+import { ArrowLeft, Stethoscope, FileText, Clock, Video, Phone, Building2, X, Star, MessageCircle, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
@@ -18,10 +18,10 @@ export const Route = createFileRoute("/dashboard/patient/consultations")({
 interface Appt {
   id: string; doctor_id: string; hospital_id: string; scheduled_at: string;
   mode: string; status: string; payment_status: string;
-  consultation_fee: number; platform_fee: number;
+  consultation_fee: number; platform_fee: number; total_paid: number;
   reason: string; doctor_notes: string;
 }
-interface DocRow { id: string; user_id: string; full_name: string; specialty: string; photo_url: string }
+interface DocRow { id: string; user_id: string; full_name: string; specialty: string; photo_url: string; address: string; city: string }
 interface Rx { id: string; appointment_id: string; kind: string; title: string; body: string;
   medication_name: string | null; dosage: string | null; instructions: string | null;
   valid_until: string | null; created_at: string }
@@ -37,30 +37,38 @@ function Page() {
   const [chatFor, setChatFor] = useState<{ appointmentId: string; appointmentType: "doctor" | "pharmacy"; providerUserId: string; name: string } | null>(null);
   const [pharmAppts, setPharmAppts] = useState<Array<{ id: string; pharmacy_id: string; reason: string; preferred_at: string; status: string; mode: string; pharmacist_notes: string | null }>>([]);
   const [pharms, setPharms] = useState<Record<string, { name: string }>>({});
+  const [tab, setTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
+  const [detailsFor, setDetailsFor] = useState<Appt | null>(null);
+  const userId = user?.id;
 
-  async function load() {
-    if (!user) return;
-    const { data } = await firestoreClient.from("doctor_appointments").select("*").eq("patient_id", user.id).order("scheduled_at", { ascending: false });
+  const load = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await firestoreClient.from("doctor_appointments").select("*").eq("patient_id", userId).order("scheduled_at", { ascending: false });
+    if (error) {
+      toast.error(`Could not load appointments: ${error.message}`);
+      return;
+    }
     const list = (data ?? []) as Appt[];
     setAppts(list);
     const docIds = Array.from(new Set(list.map((a) => a.doctor_id)));
     if (docIds.length) {
-      const { data: ds } = await firestoreClient.from("doctors").select("id, user_id, full_name, specialty, photo_url").in("id", docIds);
+      const { data: ds, error: doctorError } = await firestoreClient.from("doctors").select("id, user_id, full_name, specialty, photo_url, address, city").in("id", docIds);
+      if (doctorError) toast.error(`Could not load doctor details: ${doctorError.message}`);
       const m: Record<string, DocRow> = {};
-      (ds ?? []).forEach((d: any) => { m[d.id] = d; });
+      ((ds ?? []) as DocRow[]).forEach((doctor) => { m[doctor.id] = doctor; });
       setDocs(m);
     }
     const apptIds = list.map((a) => a.id);
     if (apptIds.length) {
       const { data: rxs } = await firestoreClient.from("e_prescriptions").select("*").in("appointment_id", apptIds);
       const m: Record<string, Rx[]> = {};
-      (rxs ?? []).forEach((r: any) => { (m[r.appointment_id] ||= []).push(r); });
+      ((rxs ?? []) as Rx[]).forEach((prescription) => { (m[prescription.appointment_id] ||= []).push(prescription); });
       setRxByAppt(m);
     }
     // Pharmacy appointments
     const { data: pa } = await firestoreClient
       .from("pharmacy_appointments").select("id, pharmacy_id, reason, preferred_at, status, mode, pharmacist_notes")
-      .eq("patient_id", user.id).order("preferred_at", { ascending: false });
+      .eq("patient_id", userId).order("preferred_at", { ascending: false });
     const pl = (pa ?? []) as typeof pharmAppts;
     setPharmAppts(pl);
     const pIds = Array.from(new Set(pl.map((p) => p.pharmacy_id)));
@@ -68,25 +76,27 @@ function Page() {
       const { data: profs } = await firestoreClient
         .from("pharmacy_directory" as never).select("user_id, full_name, organization_name").in("user_id", pIds);
       const m: Record<string, { name: string }> = {};
-      (profs ?? []).forEach((p: any) => { m[p.user_id] = { name: p.organization_name || p.full_name || "Pharmacy" }; });
+      ((profs ?? []) as Array<{ user_id: string; organization_name: string | null; full_name: string | null }>)
+        .forEach((pharmacy) => { m[pharmacy.user_id] = { name: pharmacy.organization_name || pharmacy.full_name || "Pharmacy" }; });
       setPharms(m);
     }
-  }
+  }, [userId]);
   useEffect(() => {
-    load();
-    if (!user) return;
+    void load();
+    if (!userId) return;
     const ch = firestoreClient
-      .channel(`patient-consult-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `patient_id=eq.${user.id}` }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "pharmacy_appointments", filter: `patient_id=eq.${user.id}` }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "e_prescriptions", filter: `patient_id=eq.${user.id}` }, load)
+      .channel(`patient-consult-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "doctor_appointments", filter: `patient_id=eq.${userId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pharmacy_appointments", filter: `patient_id=eq.${userId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "e_prescriptions", filter: `patient_id=eq.${userId}` }, load)
       .subscribe();
     return () => { firestoreClient.removeChannel(ch); };
-  }, [user]);
+  }, [userId, load]);
 
   async function cancel(id: string) {
-    await firestoreClient.from("doctor_appointments").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", id);
-    toast.success("Appointment cancelled"); load();
+    const { error } = await firestoreClient.from("doctor_appointments").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", id).eq("patient_id", user?.id);
+    if (error) { toast.error(`Could not cancel appointment: ${error.message}`); return; }
+    toast.success("Appointment cancelled"); void load();
   }
 
   async function submitReview() {
@@ -106,18 +116,30 @@ function Page() {
       </Link>
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Stethoscope className="h-6 w-6 text-primary" /> My Consultations
+          <Stethoscope className="h-6 w-6 text-primary" /> My Appointments
         </h1>
-        <p className="text-sm text-muted-foreground">Appointments, prescriptions, sick notes and referrals.</p>
+        <p className="text-sm text-muted-foreground">Manage your upcoming and previous doctor appointments.</p>
       </div>
 
-      {appts.length === 0 && (
+      <div role="tablist" aria-label="Appointment history" className="grid grid-cols-3 rounded-xl bg-muted p-1">
+        {(["upcoming", "past", "cancelled"] as const).map((value) => <button key={value} type="button" role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`rounded-lg px-3 py-2 text-sm font-medium capitalize ${tab === value ? "bg-white text-emerald-800 shadow-sm" : "text-muted-foreground"}`}>{value}</button>)}
+      </div>
+
+      {appts.filter((appointment) => {
+        const isCancelled = appointment.status === "cancelled";
+        const isUpcoming = !isCancelled && !["completed", "no_show"].includes(appointment.status) && Date.parse(appointment.scheduled_at) >= Date.now();
+        return tab === "cancelled" ? isCancelled : tab === "upcoming" ? isUpcoming : !isCancelled && !isUpcoming;
+      }).length === 0 && (
         <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-10 text-center text-sm text-muted-foreground">
-          No consultations yet. Find a doctor and book one.
+          No {tab} appointments. Find a doctor and book one.
         </div>
       )}
 
-      {appts.map((a) => {
+      {appts.filter((appointment) => {
+        const isCancelled = appointment.status === "cancelled";
+        const isUpcoming = !isCancelled && !["completed", "no_show"].includes(appointment.status) && Date.parse(appointment.scheduled_at) >= Date.now();
+        return tab === "cancelled" ? isCancelled : tab === "upcoming" ? isUpcoming : !isCancelled && !isUpcoming;
+      }).map((a) => {
         const doc = docs[a.doctor_id];
         const rxs = rxByAppt[a.id] || [];
         return (
@@ -127,7 +149,7 @@ function Page() {
                 {doc?.photo_url ? <img src={doc.photo_url} alt="" className="h-full w-full object-cover" /> : <Building2 className="h-5 w-5 text-healthcare-teal" />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-foreground">Dr. {doc?.full_name ?? "Doctor"}</p>
+                <p className="font-bold text-foreground">{doc?.full_name ? (doc.full_name.toLowerCase().startsWith("dr.") ? doc.full_name : `Dr. ${doc.full_name}`) : "Doctor"}</p>
                 <p className="text-xs text-healthcare-teal">{doc?.specialty}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                   <Clock className="h-3 w-3" /> {new Date(a.scheduled_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}
@@ -135,6 +157,7 @@ function Page() {
                   {a.mode === "video" ? <><Video className="h-3 w-3" /> Video</> :
                    a.mode === "phone" ? <><Phone className="h-3 w-3" /> Phone</> : "In-person"}
                 </p>
+                {(doc?.address || doc?.city) && <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{doc.address || doc.city}</p>}
                 {a.reason && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.reason}</p>}
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -146,7 +169,7 @@ function Page() {
                 }`}>{a.status}</span>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                   a.payment_status === "paid" ? "bg-healthcare-green/15 text-healthcare-green" : "bg-muted text-muted-foreground"
-                }`}>{a.payment_status === "paid" ? "R15 paid" : "Booking fee pending"}</span>
+                }`}>{a.payment_status === "paid" ? `R${Number(a.total_paid).toFixed(2)} paid` : "Payment pending"}</span>
               </div>
             </div>
 
@@ -176,6 +199,7 @@ function Page() {
             )}
 
             <div className="flex flex-wrap gap-2 pt-1">
+              <Button size="sm" variant="outline" onClick={() => setDetailsFor(a)}>View Details</Button>
               {doc?.user_id && a.status !== "cancelled" && (
                 <Button size="sm" variant="outline" onClick={() => setChatFor({ appointmentId: a.id, appointmentType: "doctor", providerUserId: doc.user_id, name: `Dr. ${doc.full_name}` })}>
                   <MessageCircle className="h-3.5 w-3.5 mr-1" /> Message doctor
@@ -246,6 +270,23 @@ function Page() {
             <Textarea rows={4} placeholder="Tell others about your experience…" value={comment} onChange={(e) => setComment(e.target.value)} maxLength={500} />
             <Button onClick={submitReview} className="w-full">Submit review</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!detailsFor} onOpenChange={(open) => !open && setDetailsFor(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Appointment details</DialogTitle></DialogHeader>
+          {detailsFor && (
+            <div className="space-y-3 text-sm">
+              <p><strong>Doctor:</strong> {docs[detailsFor.doctor_id]?.full_name ? (docs[detailsFor.doctor_id].full_name.toLowerCase().startsWith("dr.") ? docs[detailsFor.doctor_id].full_name : `Dr. ${docs[detailsFor.doctor_id].full_name}`) : "Doctor"}</p>
+              <p><strong>Specialty:</strong> {docs[detailsFor.doctor_id]?.specialty ?? "—"}</p>
+              <p><strong>Date & time:</strong> {new Date(detailsFor.scheduled_at).toLocaleString("en-ZA", { dateStyle: "full", timeStyle: "short" })}</p>
+              <p><strong>Consultation:</strong> {detailsFor.mode === "video" ? "Video" : detailsFor.mode === "phone" ? "Phone" : "In-person"}</p>
+              {(docs[detailsFor.doctor_id]?.address || docs[detailsFor.doctor_id]?.city) && <p><strong>Clinic:</strong> {docs[detailsFor.doctor_id]?.address || docs[detailsFor.doctor_id]?.city}</p>}
+              <p><strong>Status:</strong> {detailsFor.status}</p>
+              {detailsFor.reason && <p><strong>Reason:</strong> {detailsFor.reason}</p>}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

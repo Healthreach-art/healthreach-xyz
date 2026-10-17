@@ -59,7 +59,7 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
 
     const { data: existing, error: lookupErr } = await firestoreAdmin
       .from("doctor_appointments")
-      .select("id, patient_id, payment_status, payment_reference, platform_fee")
+      .select("id, patient_id, payment_status, payment_reference, platform_fee, consultation_fee")
       .eq("id", data.appointmentId)
       .maybeSingle();
     if (lookupErr) throw new Error(lookupErr.message);
@@ -91,8 +91,8 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
       throw new Error("Payment could not be verified");
     }
     const paidMinor = Number(verifyJson.data?.amount ?? 0);
-    const fee = Number(existing.platform_fee);
-    const expectedMinor = Math.round(fee * 100);
+    const amountDue = Number(existing.platform_fee) + Number(existing.consultation_fee);
+    const expectedMinor = Math.round(amountDue * 100);
     if (
       !Number.isSafeInteger(expectedMinor)
       || expectedMinor <= 0
@@ -114,14 +114,26 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
       .update({
         payment_status: "paid",
         payment_reference: data.reference,
-        total_paid: fee,
+        total_paid: amountDue,
         status: "confirmed",
       })
       .eq("id", data.appointmentId)
       .eq("patient_id", context.userId)
       .eq("payment_status", "pending");
     if (error) throw new Error(error.message);
-    if (count === 0) throw new Error("The payment state changed before it could be recorded. Refresh your appointment.");
+    if (count === 0) {
+      const { data: current, error: currentError } = await firestoreAdmin
+        .from("doctor_appointments")
+        .select("payment_status, payment_reference")
+        .eq("id", data.appointmentId)
+        .eq("patient_id", context.userId)
+        .maybeSingle();
+      if (currentError) throw new Error(currentError.message);
+      if (current?.payment_status === "paid" && current.payment_reference === data.reference) {
+        return { ok: true };
+      }
+      throw new Error("The payment state changed before it could be recorded. Refresh your appointment.");
+    }
     return { ok: true };
   });
 

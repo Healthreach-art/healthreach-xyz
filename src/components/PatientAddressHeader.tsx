@@ -15,7 +15,7 @@ interface SavedAddress extends Omit<PatientAddress, "address"> {
   is_default: boolean;
 }
 
-export function PatientAddressHeader() {
+export function PatientAddressHeader({ embedded = false }: { embedded?: boolean }) {
   const { user, profile } = useAuth();
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [active, setActive] = useState<PatientAddress | null>(null);
@@ -24,6 +24,9 @@ export function PatientAddressHeader() {
   const [label, setLabel] = useState("Home");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const displayAddress = active?.address && !/^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(active.address.trim())
+    ? active.address
+    : "";
 
   useEffect(() => {
     if (!user?.id) return;
@@ -87,18 +90,30 @@ export function PatientAddressHeader() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2 text-sm">
-          <MapPin className="h-4 w-4 shrink-0 text-healthcare-green" />
-          <span className="shrink-0 font-semibold">
-            Delivering to {profile?.full_name ? profile.full_name : ""}{active?.label ? ` · ${active.label}` : ""}
+      {embedded ? (
+        <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/50 bg-white/75 px-3 py-2 text-sm shadow-sm">
+          <MapPin className="h-4 w-4 shrink-0 text-emerald-700" />
+          <span className="min-w-0 truncate text-slate-700">
+            {displayAddress ? `Delivering to ${displayAddress}` : "Choose a delivery address"}
           </span>
-          <span className="min-w-0 truncate text-muted-foreground">{active?.address ?? "Choose an address"}</span>
+          <Button variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-emerald-800" onClick={() => setOpen(true)}>
+            Change
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-          {active ? "Change" : "Add address"}
-        </Button>
-      </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <MapPin className="h-4 w-4 shrink-0 text-healthcare-green" />
+            <span className="shrink-0 font-semibold">
+              Delivering to {profile?.full_name ? profile.full_name : ""}{active?.label ? ` · ${active.label}` : ""}
+            </span>
+            <span className="min-w-0 truncate text-muted-foreground">{displayAddress || "Choose an address"}</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+            {active ? "Change" : "Add address"}
+          </Button>
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">

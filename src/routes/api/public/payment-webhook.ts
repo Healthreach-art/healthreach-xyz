@@ -56,9 +56,40 @@ export const Route = createFileRoute("/api/public/payment-webhook")({
 
         try {
           const { serviceMergeDocument } = await import("@/lib/firebase-service.server");
+          const { firestoreAdmin } = await import("@/lib/firestore-admin");
           const orderId = safeId(meta.order_id);
           const bookingId = safeId(meta.booking_id);
+          const appointmentId = safeId(meta.appointment_id);
           const userId = safeId(meta.user_id);
+
+          if (appointmentId && meta.payment_type === "doctor_booking_fee" && status === "paid") {
+            const { data: appointment, error: appointmentError } = await firestoreAdmin
+              .from("doctor_appointments")
+              .select("payment_status, payment_reference, platform_fee, consultation_fee")
+              .eq("id", appointmentId)
+              .maybeSingle();
+            if (appointmentError) throw appointmentError;
+            if (!appointment) throw new Error("Doctor appointment was not found.");
+            const amountDueCents = Math.round((Number(appointment.platform_fee) + Number(appointment.consultation_fee)) * 100);
+            if (data.currency !== "ZAR" || data.amount !== amountDueCents) {
+              throw new Error("Doctor appointment payment amount does not match.");
+            }
+            if (appointment.payment_status === "paid" && appointment.payment_reference !== reference) {
+              throw new Error("Doctor appointment has already been paid with a different reference.");
+            }
+            if (appointment.payment_status === "pending") {
+              const { error: updateError } = await firestoreAdmin.from("doctor_appointments")
+                .update({
+                  payment_status: "paid",
+                  payment_reference: reference,
+                  total_paid: amountDueCents / 100,
+                  status: "confirmed",
+                })
+                .eq("id", appointmentId)
+                .eq("payment_status", "pending");
+              if (updateError) throw updateError;
+            }
+          }
 
           await serviceMergeDocument("payments", reference.replace(/[^A-Za-z0-9_-]/g, "_"), {
             reference,
