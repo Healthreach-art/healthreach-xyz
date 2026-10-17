@@ -16,7 +16,6 @@ import { HOMECARE_SERVICES } from "@/lib/homecare";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from "@/lib/patient-address";
 import { useServerFn } from "@tanstack/react-start";
 import { respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
-import logo from "@/assets/healthreach-logo.png";
 
 interface HomecareRequest {
   id: string;
@@ -181,11 +180,7 @@ function PatientHomecarePage() {
   return (
     <>
     <main className="container-narrow space-y-7 px-4 py-7 sm:px-6 sm:py-8">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
-        <Link to="/dashboard/patient" className="flex items-center gap-3" aria-label="HealthReachCare patient dashboard">
-          <img src={logo} alt="HealthReachCare" className="h-10 w-auto" />
-          <span className="hidden text-sm font-semibold text-slate-900 sm:inline">HealthReachCare</span>
-        </Link>
+      <header className="flex justify-end border-b border-border/60 pb-5">
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Dashboard</Link>
       </header>
       <section>

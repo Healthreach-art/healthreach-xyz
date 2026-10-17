@@ -9,16 +9,15 @@ import { OrderTimeline } from "@/components/OrderTimeline";
 import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { PatientAddressHeader } from "@/components/PatientAddressHeader";
-import { NotificationCenter } from "@/components/NotificationCenter";
+import { PatientNotificationBell } from "@/components/PatientNotificationBell";
 import { customerPrice } from "@/lib/pricing";
 import {
-  ArrowRight, Star, Pill, MessageSquare, Siren, PhoneCall, Search, Bell,
+  ArrowRight, Star, Pill, MessageSquare, Siren, PhoneCall, Search,
   Home, type LucideIcon,
 } from "lucide-react";
 import tileAppt from "@/assets/tile-book-appointment.png";
 import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
-import logo from "@/assets/healthreach-logo.png";
 
 
 export const Route = createFileRoute("/dashboard/patient/")({
@@ -65,34 +64,6 @@ function PatientDashboard() {
   const [pickupCode, setPickupCode] = useState<string | null>(null);
   const [deliveryCode, setDeliveryCode] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    const loadUnreadNotifications = async () => {
-      const { data, error } = await firestoreClient.from("notifications")
-        .select("id")
-        .eq("user_id", userId)
-        .is("read_at", null)
-        .limit(100);
-      if (cancelled) return;
-      if (error) {
-        console.error("[patient-dashboard] Could not load unread notifications.", error);
-        return;
-      }
-      setUnreadNotifications(data?.length ?? 0);
-    };
-    void loadUnreadNotifications();
-    const channel = firestoreClient.channel(`patient-notifications-${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, loadUnreadNotifications)
-      .subscribe();
-    return () => {
-      cancelled = true;
-      void firestoreClient.removeChannel(channel);
-    };
-  }, [userId]);
-
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -182,18 +153,11 @@ function PatientDashboard() {
 
   return (
     <div className="bg-background min-h-screen overflow-x-hidden">
-      <NotificationCenter />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="space-y-6">
-            <header className="flex items-center justify-between">
-              <Link to="/dashboard/patient" aria-label="HealthReachCare home">
-                <img src={logo} alt="HealthReachCare" className="h-10 w-auto" />
-              </Link>
+            <header className="flex items-center justify-end">
               <div className="flex items-center gap-3">
-                <Link to="/dashboard/patient/activity" aria-label={`${unreadNotifications} unread notifications`} className="relative flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-foreground">
-                  <Bell className="h-5 w-5" />
-                  {unreadNotifications > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-card">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>}
-                </Link>
+                <PatientNotificationBell />
                 <Link to="/dashboard/patient/account" aria-label="Your profile" className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-emerald-100 font-semibold text-emerald-900">
                   {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : firstName.charAt(0).toUpperCase() || "P"}
                 </Link>

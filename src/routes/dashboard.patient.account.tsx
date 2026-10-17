@@ -3,7 +3,8 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { useEffect, useState } from "react";
-import { fetchVerification, isVerificationComplete } from "@/components/PatientVerificationCard";
+import { isVerificationComplete } from "@/lib/patient-verification";
+import { fetchVerification } from "@/lib/patient-verification-data";
 import {
   Users, MapPin, LifeBuoy, Wallet, CreditCard, ChevronRight, LogOut, RefreshCw,
   ShieldCheck, Lock, FileText, ClipboardList, Bell, KeyRound, MessageCircle, type LucideIcon,

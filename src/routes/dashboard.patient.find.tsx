@@ -1,13 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Search, Loader2, Stethoscope, MapPin, Navigation, ArrowLeft, Video, Phone, BadgeCheck, SlidersHorizontal, Star, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress } from "@/lib/patient-address";
-import logo from "@/assets/healthreach-logo.png";
 import { toast } from "sonner";
 
 interface Doctor {
@@ -70,53 +69,57 @@ function FindCarePage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locating, setLocating] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const doctorRequestId = useRef(0);
 
   useEffect(() => { setQ(searchParams.q); }, [searchParams.q]);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
+  const loadDoctors = useCallback(async () => {
+    const currentRequest = ++doctorRequestId.current;
+    setLoading(true);
+    setLoadError("");
+    try {
       const columns = "id, full_name, specialty, city, address, hospital_id, qualifications, photo_url, consultation_fee, rating_avg, rating_count, latitude, longitude, subspecialties, services_tags, in_person_available, online_available, phone_available";
-      let { data, error } = await firestoreClient.from("doctors")
+      const { data, error } = await firestoreClient.from("doctors")
         .select(columns)
-        .eq("status", "approved").eq("is_active", true).eq("is_verified", true)
-        .not("user_id", "is", null)
+        .eq("is_active", true).eq("is_verified", true)
         .order("rating_avg", { ascending: false }).limit(80);
-      if (error) {
-        const fallback = await firestoreClient.from("doctors")
-          .select(columns)
-          .eq("status", "approved").eq("is_active", true)
-          .not("user_id", "is", null)
-          .order("rating_avg", { ascending: false }).limit(80);
-        data = fallback.data;
-        error = fallback.error;
-      }
-      if (!active) return;
-      if (error) setLoadError(error.message);
-      else {
-        const results = (data ?? []) as Doctor[];
-        setDoctors(results);
-        const hospitalIds = Array.from(new Set(results.map((doctor) => doctor.hospital_id).filter((id): id is string => !!id)));
-        if (hospitalIds.length) {
-          const { data: clinics, error: clinicsError } = await firestoreClient.from("profiles")
-            .select("user_id, organization_name, full_name").in("user_id", hospitalIds);
-          if (!active) return;
-          if (clinicsError) toast.error(`Could not load clinic names: ${clinicsError.message}`);
-          else {
-            const mapped: Record<string, string> = {};
-            ((clinics ?? []) as Array<{ user_id: string; organization_name: string | null; full_name: string | null }>)
-              .forEach((clinic) => {
-                const name = clinic.organization_name || clinic.full_name;
-                if (name) mapped[clinic.user_id] = name;
-              });
-            setClinicsById(mapped);
-          }
+      if (currentRequest !== doctorRequestId.current) return;
+      if (error) throw error;
+      const results = (data ?? []) as Doctor[];
+      setDoctors(results);
+      const hospitalIds = Array.from(new Set(results.map((doctor) => doctor.hospital_id).filter((id): id is string => !!id)));
+      if (hospitalIds.length) {
+        const { data: clinics, error: clinicsError } = await firestoreClient.from("profiles")
+          .select("user_id, organization_name, full_name").in("user_id", hospitalIds);
+        if (currentRequest !== doctorRequestId.current) return;
+        if (clinicsError) {
+          console.error("[patient-doctors] Could not load clinic names.", clinicsError);
+          toast.error("The doctor list loaded, but some clinic details are unavailable.");
+        } else {
+          const mapped: Record<string, string> = {};
+          ((clinics ?? []) as Array<{ user_id: string; organization_name: string | null; full_name: string | null }>)
+            .forEach((clinic) => {
+              const name = clinic.organization_name || clinic.full_name;
+              if (name) mapped[clinic.user_id] = name;
+            });
+          setClinicsById(mapped);
         }
       }
-      setLoading(false);
-    })();
-    return () => { active = false; };
+    } catch (error) {
+      if (currentRequest !== doctorRequestId.current) return;
+      console.error("[patient-doctors] Could not load verified doctors.", error);
+      setLoadError("We couldn’t load the doctor directory. Check your connection and try again.");
+      setDoctors([]);
+      setClinicsById({});
+    } finally {
+      if (currentRequest === doctorRequestId.current) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadDoctors();
+    return () => { doctorRequestId.current += 1; };
+  }, [loadDoctors]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -179,11 +182,7 @@ function FindCarePage() {
   return (
     <>
       <main className="container-narrow space-y-7 px-4 py-8 sm:px-6">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
-        <Link to="/dashboard/patient" className="flex items-center gap-3" aria-label="HealthReachCare patient dashboard">
-          <img src={logo} alt="HealthReachCare" className="h-10 w-auto" />
-          <span className="hidden text-sm font-semibold text-slate-900 sm:inline">HealthReachCare</span>
-        </Link>
+      <header className="flex justify-end border-b border-border/60 pb-5">
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Dashboard</Link>
       </header>
       <section className="flex flex-wrap items-end justify-between gap-4">
@@ -248,7 +247,10 @@ function FindCarePage() {
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : loadError ? (
-        <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">Could not load verified doctors: {loadError}</p>
+        <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm">
+          <p className="text-destructive">{loadError}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => void loadDoctors()}>Try again</Button>
+        </div>
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">

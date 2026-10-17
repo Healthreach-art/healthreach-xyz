@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,18 @@ export interface PrescriptionUpload {
   fraud_signals?: FraudSignal[] | null;
   dispense_token?: string | null;
   last_dispensed_at?: string | null;
+  ai_trust_score?: number | null;
+  ai_risk_level?: "low" | "medium" | "high" | "unknown" | null;
+  ai_extraction?: {
+    doctor_name: string | null;
+    practice_name: string | null;
+    hpcsa_number: string | null;
+    issue_date: string | null;
+    expiry_estimate: string | null;
+    repeats: number | null;
+    signature_present: boolean;
+    medications: Array<{ name: string; strength: string; quantity: string; instructions: string; route: string }>;
+  } | null;
 }
 
 interface AuditEntry { id: string; action: string; notes: string; created_at: string; actor_id: string; }
@@ -72,18 +84,28 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, family
   const { user } = useAuth();
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<{ file: File; url: string; id: string }[]>([]);
+  const [pending, setPending] = useState<{ file: File; url: string; id: string; uploadId: string }[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+
+  useEffect(() => () => {
+    pendingRef.current.forEach((item) => URL.revokeObjectURL(item.url));
+  }, []);
 
   function addFiles(files: FileList | File[]) {
-    const next: { file: File; url: string; id: string }[] = [];
+    const next: { file: File; url: string; id: string; uploadId: string }[] = [];
     for (const file of Array.from(files)) {
-      const okType = ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type);
-      if (!okType) { toast.error(`${file.name}: use JPG, PNG, WEBP or PDF`); continue; }
+      const okType = ["image/jpeg", "image/png", "application/pdf"].includes(file.type);
+      if (!okType) { toast.error(`${file.name}: use JPG, PNG or PDF`); continue; }
       if (file.size > 8 * 1024 * 1024) { toast.error(`${file.name}: max 8 MB`); continue; }
-      next.push({ file, url: URL.createObjectURL(file), id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
+      next.push({ file, url: URL.createObjectURL(file), id: crypto.randomUUID(), uploadId: crypto.randomUUID() });
     }
-    if (next.length) setPending((p) => [...p, ...next]);
+    if (next.length) {
+      setUploadError(null);
+      setPending((p) => [...p, ...next]);
+    }
   }
 
   function removePending(id: string) {
@@ -97,14 +119,15 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, family
   async function uploadAll() {
     if (!user || pending.length === 0) { toast.error("Please add at least one file"); return; }
     setBusy(true);
+    setUploadError(null);
     setProgress(5);
     let done = 0;
-    let lastRow: PrescriptionUpload | null = null;
+    const batchSize = pending.length;
     try {
       for (const item of pending) {
         const file = item.file;
-        const ext = file.name.split(".").pop() || "bin";
-        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : "jpg";
+        const path = `${user.id}/${item.uploadId}.${ext}`;
         const { error: upErr } = await firestoreClient.storage
           .from("prescriptions")
           .upload(path, file, { contentType: file.type, upsert: false });
@@ -123,23 +146,27 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, family
           } as never)
           .select()
           .single();
-        if (error) throw error;
-        lastRow = data as PrescriptionUpload;
-        if (lastRow) onUploaded?.(lastRow);
+        if (error) {
+          const { error: cleanupError } = await firestoreClient.storage.from("prescriptions").remove([path]);
+          if (cleanupError) {
+            throw new Error("Could not save the prescription record and the uploaded file could not be removed. Please contact support.");
+          }
+          throw error;
+        }
+        const row = data as PrescriptionUpload;
+        onUploaded?.(row);
         done += 1;
-        setProgress(Math.round((done / pending.length) * 100));
+        setProgress(Math.round((done / batchSize) * 100));
+        setPending((current) => current.filter((entry) => entry.id !== item.id));
+        URL.revokeObjectURL(item.url);
       }
-      toast.success(
-        pending.length > 1
-          ? `${pending.length} prescriptions uploaded — AI is verifying them`
-          : pharmacyId
-            ? "Prescription uploaded — awaiting pharmacy review"
-            : "Prescription saved to your library — AI is verifying it now"
-      );
-      pending.forEach((p) => URL.revokeObjectURL(p.url));
-      setPending([]);
-    } catch (e: any) {
-      toast.error(e?.message || "Upload failed");
+      toast.success(batchSize > 1 ? `${batchSize} prescriptions uploaded for review.` : pharmacyId
+        ? "Prescription uploaded — awaiting pharmacy review."
+        : "Prescription saved — pharmacy review is still required.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload failed.";
+      setUploadError(message);
+      toast.error(message, { description: "Successfully uploaded files have been saved. Retry to upload the remaining files." });
     } finally {
       setBusy(false);
       setTimeout(() => setProgress(0), 800);
@@ -155,7 +182,7 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, family
           e.preventDefault(); setDragOver(false);
           if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
         }}
-        className={`flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center cursor-pointer transition-colors ${dragOver ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted/50"}`}
+        className={`flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${dragOver ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted/50"}`}
       >
         <Upload className="h-6 w-6 text-primary" />
         <span className="text-sm font-medium">Drag &amp; drop, or click to upload</span>
@@ -219,9 +246,15 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, family
         </div>
       )}
 
+      {uploadError && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">
+          <span>{uploadError}</span>
+          <Button size="sm" variant="outline" onClick={uploadAll} disabled={busy}>Retry</Button>
+        </div>
+      )}
       {progress > 0 && <Progress value={progress} />}
       <p className="text-[11px] text-muted-foreground text-center">
-        ⏱ Estimated verification time: ~15 minutes during pharmacy hours
+        AI may assist with extraction. It does not approve prescriptions or replace pharmacy review.
       </p>
     </div>
   );

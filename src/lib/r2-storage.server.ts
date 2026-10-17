@@ -11,10 +11,10 @@ async function getEnv(): Promise<WorkerEnv> {
   }
 }
 import { verifyFirebaseIdToken } from "./firebase-auth-middleware";
+import { isOwnerPrivateFilePath, MAX_PRIVATE_FILE_SIZE, validatePrivateFile } from "./private-file-policy";
 
 const FIRESTORE_DOCUMENTS =
   "https://firestore.googleapis.com/v1/projects/healthreachcare-prod/databases/(default)/documents";
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_URL_TTL_SECONDS = 15 * 60;
 const PRIVATE_BUCKETS = new Set([
   "documents",
@@ -32,13 +32,6 @@ const REQUIRED_ROLE: Record<string, string> = {
   "homecare-docs": "homecare_company",
   "delivery-proofs": "driver",
 };
-const ALLOWED_CONTENT_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
-
 export type PrivateFileIdentity = {
   userId: string;
   email: string | null;
@@ -67,14 +60,6 @@ function parseObjectPath(value: string): string | null {
 
 function isPrivateBucket(bucket: string): boolean {
   return PRIVATE_BUCKETS.has(bucket);
-}
-
-function isOwnerPath(bucket: string, path: string, userId: string): boolean {
-  const parts = path.split("/");
-  const ownerPath = bucket === "documents" && parts[0] === "documents"
-    ? parts.slice(1)
-    : parts;
-  return ownerPath.length >= 2 && ownerPath[0] === userId;
 }
 
 function firestoreAuthorization(token: string): string {
@@ -198,7 +183,7 @@ async function canAccess(
   path: string,
 ): Promise<boolean> {
   if (await isAdmin(identity)) return true;
-  if (isOwnerPath(bucket, path, identity.userId)) {
+  if (isOwnerPrivateFilePath(bucket, path, identity.userId)) {
     const requiredRole = REQUIRED_ROLE[bucket];
     return !requiredRole || hasRole(identity, requiredRole);
   }
@@ -306,6 +291,26 @@ export async function createAuthorizedPrivateFileUrl(
   return createSignedUrl(requestUrl, bucket, path, expiresIn);
 }
 
+export async function readAuthorizedPrivateFile(
+  identity: PrivateFileIdentity,
+  bucket: string,
+  rawPath: string,
+): Promise<{ body: ArrayBuffer; contentType: string | null }> {
+  const path = parseObjectPath(rawPath);
+  if (!isPrivateBucket(bucket) || !path) throw new Error("Invalid private file bucket or path.");
+  if (!await canAccess(identity, bucket, path)) {
+    throw new Response("You are not authorized to access this private file.", { status: 403 });
+  }
+  const documentsBucket = (await getEnv()).DOCUMENTS_BUCKET;
+  if (!documentsBucket) throw new Error("The private documents R2 bucket is not bound to this Worker.");
+  const object = await documentsBucket.get(`${bucket}/${path}`);
+  if (!object) throw new Response("Private file not found.", { status: 404 });
+  return {
+    body: await new Response(object.body).arrayBuffer(),
+    contentType: object.httpMetadata?.contentType ?? null,
+  };
+}
+
 export async function handlePrivateFileRequest(request: Request): Promise<Response> {
   if (request.method === "GET") {
     const url = new URL(request.url);
@@ -361,8 +366,8 @@ export async function handlePrivateFileRequest(request: Request): Promise<Respon
   const contentType = request.headers.get("content-type") ?? "";
   if (contentType.includes("multipart/form-data")) {
     const contentLength = Number(request.headers.get("content-length"));
-    if (Number.isFinite(contentLength) && contentLength > MAX_FILE_SIZE + 64 * 1024) {
-      return invalid(413, "Private files must be no larger than 10 MB.");
+    if (Number.isFinite(contentLength) && contentLength > MAX_PRIVATE_FILE_SIZE + 64 * 1024) {
+      return invalid(413, "Private file is larger than the allowed size.");
     }
     const form = await request.formData();
     const bucket = String(form.get("bucket") ?? "");
@@ -371,13 +376,11 @@ export async function handlePrivateFileRequest(request: Request): Promise<Respon
     if (!isPrivateBucket(bucket) || !path || !(file instanceof File)) {
       return invalid(400, "Invalid private file upload.");
     }
-    if (file.size < 1 || file.size > MAX_FILE_SIZE) {
-      return invalid(413, "Private files must be no larger than 10 MB.");
+    const validationError = await validatePrivateFile(file, bucket);
+    if (validationError) {
+      return invalid(file.size > (bucket === "prescriptions" ? 8 : 10) * 1024 * 1024 ? 413 : 415, validationError);
     }
-    if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
-      return invalid(415, "Only PDF, JPEG, PNG, and WEBP files are accepted.");
-    }
-    if (!isOwnerPath(bucket, path, identity.userId) || !await canAccess(identity, bucket, path)) {
+    if (!isOwnerPrivateFilePath(bucket, path, identity.userId) || !await canAccess(identity, bucket, path)) {
       return invalid(403, "You may only upload files to your own authorized folder.");
     }
     await documentsBucket.put(`${bucket}/${path}`, file.stream(), {
@@ -433,7 +436,7 @@ export async function handlePrivateFileRequest(request: Request): Promise<Respon
     for (const path of paths) {
       if (
         !administrator &&
-        (!isOwnerPath(bucket, path!, identity.userId) ||
+        (!isOwnerPrivateFilePath(bucket, path!, identity.userId) ||
           (REQUIRED_ROLE[bucket] && !await hasRole(identity, REQUIRED_ROLE[bucket])))
       ) {
         return invalid(403, "You may only delete files from your own folder.");
