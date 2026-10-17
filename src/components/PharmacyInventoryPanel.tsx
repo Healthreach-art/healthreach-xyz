@@ -16,7 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Pencil, Trash2, Plus, Minus, AlertTriangle, Package } from "lucide-react";
+import { Loader2, Pencil, Trash2, Plus, Minus, AlertTriangle, Package, Search, Boxes } from "lucide-react";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
 import { customerPrice } from "@/lib/pricing";
 import { BulkMedicineImportDialog } from "@/components/BulkMedicineImportDialog";
@@ -46,7 +46,7 @@ interface Medication {
 }
 
 const EMPTY_FORM = {
-  name: "", price: "", stock: "", category: "", requires_prescription: false,
+  name: "", dosage: "", price: "", stock: "", category: "", requires_prescription: false,
   image_url: "", expiry_date: "", batch_number: "", description: "",
 };
 
@@ -82,7 +82,15 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
     setLoading(false);
   }
 
-  useEffect(() => { loadInventory(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
+  useEffect(() => {
+    if (!user?.id) return;
+    void loadInventory();
+    const channel = firestoreClient.channel(`pharmacy-inventory-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "medications", filter: `pharmacy_id=eq.${user.id}` }, () => void loadInventory())
+      .subscribe();
+    return () => { void firestoreClient.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   function openAdd() {
     setEditingMed(null);
@@ -93,6 +101,7 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
     setEditingMed(m);
     setForm({
       name: m.name,
+      dosage: "",
       price: String(m.price ?? ""),
       stock: String(m.stock_quantity ?? ""),
       category: m.category ?? "",
@@ -128,7 +137,11 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
-    const name = form.name.trim();
+    const enteredName = form.name.trim();
+    const dosage = form.dosage.trim();
+    const name = dosage && !enteredName.toLowerCase().includes(dosage.toLowerCase())
+      ? `${enteredName} ${dosage}`
+      : enteredName;
     const price = Number(form.price);
     const stock = Number(form.stock);
     if (!name || !Number.isFinite(price) || price <= 0) {
@@ -217,7 +230,7 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
       [item.name, item.category ?? "", item.batch_number ?? ""].some((field) => field.toLowerCase().includes(search.trim().toLowerCase())) &&
       (categoryFilter === "all" || item.category === categoryFilter) &&
       (stockFilter === "all" ||
-        (stockFilter === "low" && item.stock_quantity > 0 && item.stock_quantity <= threshold) ||
+        (stockFilter === "low" && item.stock_quantity <= threshold) ||
         (stockFilter === "out" && item.stock_quantity === 0) ||
         (stockFilter === "rx" && !!item.requires_prescription) ||
         (stockFilter === "expiring" && !!item.expiry_date &&
@@ -226,19 +239,19 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
     );
   const categories = Array.from(new Set(inventory.map((item) => item.category).filter((category): category is string => !!category))).sort();
 
-  const lowCount = inventory.filter((i) => i.stock_quantity > 0 && i.stock_quantity <= threshold).length;
+  const lowCount = inventory.filter((i) => i.stock_quantity <= threshold).length;
 
   return (
     <div className="healthcare-card p-6">
-      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+      <div className="flex items-center justify-between mb-5 gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           {lowStockOnly ? (
             <AlertTriangle className="h-5 w-5 text-destructive" />
           ) : (
             <Package className="h-5 w-5 text-primary" />
           )}
-          <h2 className="text-lg font-semibold text-foreground">
-            {lowStockOnly ? "Low Stock" : "Inventory"}
+          <h2 className="text-lg font-semibold text-slate-900">
+            {lowStockOnly ? "Low Stock" : "Stock & Inventory"}
           </h2>
           <span className="text-xs font-normal text-muted-foreground">
             {filtered.length} item{filtered.length === 1 ? "" : "s"}
@@ -247,18 +260,30 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
         </div>
         <div className="flex items-center gap-2">
           <BulkMedicineImportDialog onImported={loadInventory} />
-          <Button size="sm" variant="outline" onClick={openAdd}>+ Add Item</Button>
+          <Button size="sm" onClick={openAdd} className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"><Plus className="mr-1 h-4 w-4" />Add New Item</Button>
         </div>
       </div>
 
       {!lowStockOnly && (
-        <div className="mb-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_180px_180px_120px]">
+        <div className="mb-5 space-y-4">
+        <div className="flex flex-wrap gap-2" aria-label="Filter inventory by stock status">
+          {[{ id: "all", label: `All (${inventory.length})` }, { id: "low", label: `Low Stock (${lowCount})` }, { id: "out", label: `Out of Stock (${inventory.filter((item) => item.stock_quantity === 0).length})` }].map((item) => (
+            <button key={item.id} type="button" aria-pressed={stockFilter === item.id} onClick={() => setStockFilter(item.id)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${stockFilter === item.id ? "border-emerald-600 bg-emerald-600 text-white" : "border-border bg-white text-slate-600 hover:border-emerald-300"}`}>{item.label}</button>
+          ))}
+          {stockFilter !== "all" && <button type="button" onClick={() => setStockFilter("all")} className="text-xs text-muted-foreground underline">Clear stock filter</button>}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_180px_180px_120px]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             aria-label="Search inventory"
-            placeholder="Search medication, category or batch…"
+            placeholder="Search medicine or category..."
+            className="rounded-xl pl-9"
           />
+          </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger aria-label="Filter inventory by category"><SelectValue placeholder="All categories" /></SelectTrigger>
             <SelectContent>
@@ -290,6 +315,7 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
             />
           </div>
         </div>
+        </div>
       )}
 
       {loading && (
@@ -303,8 +329,20 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
         </p>
       )}
 
-      <div className="max-h-[70vh] overflow-y-auto pr-1">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="max-h-[70vh] overflow-x-auto overflow-y-auto rounded-xl border border-border/60 bg-white">
+        {filtered.length > 0 && (
+        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+          <thead className="sticky top-0 z-10 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <tr>
+              <th className="px-4 py-3">Medicine &amp; strength</th>
+              <th className="px-4 py-3">Category</th>
+              <th className="px-4 py-3">Stock level</th>
+              <th className="px-4 py-3">Price</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
           {filtered.map((item) => {
             const low = item.stock_quantity > 0 && item.stock_quantity <= threshold;
             const out = item.stock_quantity === 0;
@@ -312,77 +350,85 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
             const expired = expiryTime !== null && expiryTime < Date.now();
             const expSoon = expiryTime !== null && !expired && expiryTime < Date.now() + 1000 * 60 * 60 * 24 * 30;
             return (
-              <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow">
-                <div className="relative h-24 overflow-hidden">
-                  <img src={item.image_url || medGeneric} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                  <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                    out ? "bg-muted text-muted-foreground" : low ? "bg-destructive text-destructive-foreground" : "bg-healthcare-green text-primary-foreground"
-                  }`}>
-                    {out ? "Hidden — out of stock" : `${item.stock_quantity} units`}
+              <tr key={item.id} className="align-middle transition hover:bg-slate-50/70">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <img src={item.image_url || medGeneric} alt="" loading="lazy" className="h-10 w-10 rounded-lg border border-border/50 object-cover" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900">{item.name}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1">
+                        <PrescriptionBadge requiresPrescription={item.requires_prescription} />
+                        {item.batch_number && <span className="text-[10px] text-muted-foreground">Batch {item.batch_number}</span>}
+                        {(expired || expSoon) && <span className={`text-[10px] font-medium ${expired ? "text-destructive" : "text-amber-700"}`}>{expired ? "Expired" : "Expires soon"}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-slate-600">{item.category || "—"}</td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${out ? "bg-slate-100 text-slate-600" : low ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>
+                    {(low || out) && <AlertTriangle className="h-3 w-3" />}{item.stock_quantity} units
                   </span>
-                  {(expired || expSoon) && (
-                    <span className={`absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${expired ? "bg-destructive text-destructive-foreground" : "bg-healthcare-sky/90 text-primary-foreground"}`}>
-                      {expired ? "Expired" : "Expires soon"}
-                    </span>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    <PrescriptionBadge requiresPrescription={item.requires_prescription} />
-                    {low && <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">Low stock</span>}
-                    {item.is_active === false && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Archived</span>}
-                    {item.publish_requested === false && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Unpublished</span>}
+                </td>
+                <td className="px-4 py-3 tabular-nums">
+                  <p className="font-semibold text-slate-900">R{Number(item.price).toFixed(2)}</p>
+                  <p className="text-[10px] text-muted-foreground">Customer R{customerPrice(item.price).toFixed(2)}</p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${out ? "bg-slate-100 text-slate-600" : low ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>
+                    {out ? "Out of Stock" : low ? "Low Stock" : "In Stock"}
+                  </span>
+                  {item.is_active === false && <span className="ml-1 text-[10px] text-muted-foreground">Archived</span>}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Decrease stock of ${item.name}`} onClick={() => adjustStock(item, -Math.max(1, Math.floor(Number(stockAdjustment) || 1)))}><Minus className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Increase stock of ${item.name}`} onClick={() => adjustStock(item, Math.max(1, Math.floor(Number(stockAdjustment) || 1)))}><Plus className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={`${item.is_active === false ? "Restore" : "Archive"} ${item.name}`} onClick={() => setDeleteTarget(item)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.category || "—"} · R {Number(item.price).toFixed(2)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Customer sees <span className="font-semibold text-foreground">R {customerPrice(item.price).toFixed(2)}</span></p>
-                  {item.description && <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">{item.description}</p>}
-                  {(item.batch_number || item.expiry_date) && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {item.batch_number ? `Batch ${item.batch_number}` : ""}
-                      {item.batch_number && item.expiry_date ? " · " : ""}
-                      {item.expiry_date ? `Exp ${new Date(item.expiry_date).toLocaleDateString()}` : ""}
-                    </p>
-                  )}
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <Button size="icon" variant="outline" className="h-7 w-7" aria-label={`Remove ${stockAdjustment} stock units from ${item.name}`} onClick={() => adjustStock(item, -Math.max(1, Math.floor(Number(stockAdjustment) || 1)))}>
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <Button size="icon" variant="outline" className="h-7 w-7" aria-label={`Add ${stockAdjustment} stock units to ${item.name}`} onClick={() => adjustStock(item, Math.max(1, Math.floor(Number(stockAdjustment) || 1)))}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => openEdit(item)}>
-                        <Pencil className="h-3 w-3" /> Edit
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => void togglePublish(item)}>
-                        {item.publish_requested === false ? "Publish" : "Unpublish"}
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
-                        <Trash2 className="h-3 w-3" />
-                        {item.is_active === false ? "Restore" : "Archive"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  {item.publish_requested === false && <button type="button" onClick={() => void togglePublish(item)} className="mt-1 text-[10px] text-emerald-700 underline">Request publication</button>}
+                </td>
+              </tr>
             );
           })}
-        </div>
+          </tbody>
+        </table>
+        )}
+        {!loading && filtered.length === 0 && (
+          <div className="py-12 text-center">
+            <Boxes className="mx-auto h-8 w-8 text-emerald-600/70" />
+            <p className="mt-3 text-sm font-semibold text-slate-900">{inventory.length === 0 ? "No live inventory items yet" : "No medicines match these filters"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{inventory.length === 0 ? "Add a real medicine to your pharmacy inventory to make it available for review and publication." : "Try another search term or stock filter."}</p>
+          </div>
+        )}
       </div>
 
       {/* Add / Edit Medication Dialog */}
       <Dialog open={medDialogOpen} onOpenChange={(o) => { setMedDialogOpen(o); if (!o) setEditingMed(null); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>{editingMed ? "Edit Medication" : "Add Medication"}</DialogTitle>
+            <DialogTitle>{editingMed ? "Edit Medicine" : "Add New Medicine"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              <Label htmlFor="name">Medicine Name</Label>
+              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="Enter the listed medicine name" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="dosage">Dosage / Form</Label>
+                <Input id="dosage" value={form.dosage} onChange={(e) => setForm({ ...form, dosage: e.target.value })} placeholder="Add strength or form to listing" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Select value={form.category || "Other"} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger id="category"><SelectValue placeholder="Choose a category" /></SelectTrigger>
+                  <SelectContent>
+                    {MEDICINE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Full description <span className="text-destructive">*</span></Label>
@@ -407,19 +453,10 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
                 <Input id="stock" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} required />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={form.category || "Other"} onValueChange={(v) => setForm({ ...form, category: v })}>
-                <SelectTrigger id="category"><SelectValue placeholder="Choose a category" /></SelectTrigger>
-                <SelectContent>
-                  {MEDICINE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="batch">Batch number</Label>
-                <Input id="batch" value={form.batch_number} onChange={(e) => setForm({ ...form, batch_number: e.target.value })} placeholder="A1234" />
+                <Input id="batch" value={form.batch_number} onChange={(e) => setForm({ ...form, batch_number: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="expiry">Expiry date</Label>

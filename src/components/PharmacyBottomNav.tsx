@@ -1,6 +1,6 @@
 import { Home, Package, Pill, Plus, Settings } from "lucide-react";
 
-export type PharmacyTab = "home" | "orders" | "rx" | "inventory" | "profile";
+export type PharmacyTab = "home" | "orders" | "rx" | "inventory" | "profile" | "branch" | "finance";
 
 const ITEMS = [
   { id: "home", label: "Home", icon: Home },
@@ -29,7 +29,7 @@ export function PharmacyBottomNav({
             <li key={id} className="h-full">
               <button
                 type="button"
-                aria-label={prescriptionAction ? "Open prescription review queue" : label === "orders" ? `Orders, ${pendingCount} pending` : label}
+                aria-label={prescriptionAction ? "Open prescription review queue" : id === "orders" ? `Orders, ${pendingCount} pending` : label}
                 aria-current={active ? "page" : undefined}
                 onClick={() => onChange(id)}
                 className={`relative flex h-full w-full flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors sm:text-xs ${active ? "text-emerald-700" : "text-muted-foreground hover:text-slate-900"}`}
