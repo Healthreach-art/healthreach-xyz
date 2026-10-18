@@ -95,6 +95,29 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  // After a new deploy, open tabs may request old file names. Reload once to get the new version.
+  useEffect(() => {
+    const reloadOnce = (event: Event) => {
+      const key = "hr-chunk-reload";
+      const last = Number(sessionStorage.getItem(key) || 0);
+      if (Date.now() - last < 30_000) return;
+      sessionStorage.setItem(key, String(Date.now()));
+      event.preventDefault();
+      window.location.reload();
+    };
+    const onRejection = (event: PromiseRejectionEvent) => {
+      const message = String(event.reason?.message ?? event.reason ?? "");
+      if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message)) {
+        reloadOnce(event);
+      }
+    };
+    window.addEventListener("vite:preloadError", reloadOnce);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("vite:preloadError", reloadOnce);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
   return (
     <AuthProvider>
       <CartProvider>
