@@ -30,6 +30,7 @@ const SELF_SERVICE_ROLES: AppRole[] = [
   "patient", "pharmacy", "hospital", "driver", "doctor", "homecare_company", "homecare_staff",
 ];
 const RETRY_DELAYS_MS = [0, 150, 350, 700, 1100, 1600];
+const HOMECARE_OPERATIONS_EMAIL = "support@healthreachcare.co.za";
 
 const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -62,6 +63,12 @@ export async function resolveUserRole(
   user: FirebaseAuthUser,
   options: { attempts?: number; fallbackRole?: AppRole | null; repairMissing?: boolean } = {},
 ): Promise<AppRole> {
+  if (user.email?.trim().toLowerCase() === HOMECARE_OPERATIONS_EMAIL) {
+    if (!user.emailVerified) return "patient";
+    await registerSelfServiceRole({ data: { role: "homecare_operations" } });
+    return "homecare_operations";
+  }
+
   const attempts = options.attempts ?? RETRY_DELAYS_MS.length;
   const preferredFallback = options.fallbackRole ?? null;
   const safeFallback = preferredFallback && preferredFallback !== "admin" ? preferredFallback : "patient";

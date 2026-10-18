@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, HomeIcon } from "lucide-react";
+import { Loader2, HomeIcon, Mail, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { firestoreClient } from "@/lib/firestore-client";
 import {
@@ -22,6 +22,10 @@ import { REQUEST_LABEL } from "@/lib/homecare";
 interface RequestRow {
   id: string;
   patient_id: string;
+  patient_name: string | null;
+  patient_phone: string | null;
+  patient_email: string | null;
+  reference_number: string | null;
   service_type: string;
   description: string | null;
   address: string;
@@ -100,6 +104,14 @@ function HomecareOperationsPage() {
   );
 }
 
+function whatsappNumber(phone: string | null) {
+  if (!phone) return null;
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  else if (digits.startsWith("0")) digits = `27${digits.slice(1)}`;
+  return digits.length >= 8 && digits.length <= 15 ? digits : null;
+}
+
 function RequestSection({ title, requests, providers, onChanged }: {
   title: string;
   requests: RequestRow[];
@@ -170,18 +182,38 @@ function RequestCard({ request, providers, onChanged }: {
   };
 
   const selectedProvider = providers.find((provider) => provider.id === providerId);
+  const patientWhatsApp = whatsappNumber(request.patient_phone);
+  const requestReference = request.reference_number || request.id;
+  const patientMessage = `Hi ${request.patient_name || "there"}, HealthReachCare is following up about your homecare request ${requestReference}.`;
+  const patientEmail = request.patient_email
+    ? `mailto:${request.patient_email}?subject=${encodeURIComponent(`Homecare request ${requestReference}`)}&body=${encodeURIComponent(patientMessage)}`
+    : null;
 
   return (
     <article className="healthcare-card p-4 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-semibold">{request.service_type}</p>
-          <p className="text-xs text-muted-foreground">Request {request.id} · Patient {request.patient_id}</p>
+          <p className="text-xs text-muted-foreground">Request {requestReference} · Patient {request.patient_name || request.patient_id}</p>
+          <p className="text-xs text-muted-foreground">
+            {request.patient_phone || "No phone on file"}
+            {request.patient_email ? ` · ${request.patient_email}` : ""}
+          </p>
           <p className="text-sm mt-1">{request.address}</p>
           {request.preferred_at && <p className="text-xs text-muted-foreground">Preferred: {new Date(request.preferred_at).toLocaleString()}</p>}
           {request.duration_hours != null && <p className="text-xs text-muted-foreground">Requested duration: {request.duration_hours} hours</p>}
         </div>
         <Badge variant="secondary">{REQUEST_LABEL[request.status] ?? request.status}</Badge>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {patientWhatsApp && <Button asChild size="sm" variant="outline"><a
+          href={`https://wa.me/${patientWhatsApp}?text=${encodeURIComponent(patientMessage)}`}
+          target="_blank"
+          rel="noreferrer"
+        ><MessageCircle className="mr-2 h-4 w-4" />WhatsApp patient</a></Button>}
+        {patientEmail && <Button asChild size="sm" variant="outline"><a href={patientEmail}>
+          <Mail className="mr-2 h-4 w-4" />Email patient</a></Button>}
+        {!patientWhatsApp && !patientEmail && <p className="text-xs text-muted-foreground">No patient contact details are available.</p>}
       </div>
       {request.description && <p className="text-sm whitespace-pre-wrap">{request.description}</p>}
 

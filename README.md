@@ -124,8 +124,11 @@ Role-Specific Dashboards
 Wallet and driver-dispatch mutations run in the `privilegedFirestoreAction`
 Firebase Cloud Function so its Admin SDK can apply Firestore transactions
 without granting direct client write access to wallet balances or delivery
-assignments. Configure the `PAYSTACK_SECRET_KEY` Firebase Functions secret
-before deploying:
+assignments. Homecare role registration, quote responses, and coordinator
+assignments use authenticated TanStack Start server functions with matching
+Firestore Rules for role eligibility, request ownership, and allowed status
+transitions. Deploy the updated rules before rolling out those app changes.
+Configure the `PAYSTACK_SECRET_KEY` Firebase Functions secret before deploying:
 
 ```sh
 firebase functions:secrets:set PAYSTACK_SECRET_KEY --project healthreachcare-prod

@@ -138,7 +138,7 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const medIds = Array.from(new Set(data.items.map((i) => i.medicationId)));
-    const { data: medications, error: medicationsError } = await firestoreAdmin
+    const { data: publicMedications, error: medicationsError } = await firestoreAdmin
       .from("medications_public")
       .select("*")
       .in("id", medIds)
@@ -147,6 +147,19 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
       .gt("stock_quantity", 0);
     if (medicationsError) throw medicationsError;
 
+    const publicMedicationIds = new Set((publicMedications ?? []).map((medication) => medication.id));
+    const missingMedicationIds = medIds.filter((id) => !publicMedicationIds.has(id));
+    const { data: legacyMedications, error: legacyMedicationsError } = missingMedicationIds.length > 0
+      ? await firestoreAdmin
+        .from("medications")
+        .select("*")
+        .in("id", missingMedicationIds)
+        .eq("is_active", true)
+        .eq("is_demo", false)
+        .gt("stock_quantity", 0)
+      : { data: [], error: null };
+    if (legacyMedicationsError) throw legacyMedicationsError;
+    const medications = [...(publicMedications ?? []), ...(legacyMedications ?? [])];
     const medicationById = new Map((medications ?? []).map((medication) => [medication.id, medication]));
     const pharmacyIds = new Set<string>();
     for (const item of data.items) {
@@ -192,8 +205,8 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
       firestoreAdmin.from("pharmacy_branches")
         .select("id, latitude, longitude")
         .eq("pharmacy_id", chosenPharmacyId)
-        .eq("is_primary", true)
         .eq("is_active", true)
+        .order("is_primary", { ascending: false })
         .limit(1)
         .maybeSingle(),
     ]);
@@ -202,14 +215,16 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
     if (pharmacyError) throw pharmacyError;
     if (roleError) throw roleError;
     if (branchError) throw branchError;
-    if (!profile || !pharmacy || !role || !branch) {
+    if (!profile || !pharmacy || !role) {
       throw new Error("This pharmacy is not currently approved and accepting marketplace orders.");
     }
 
     const isScheduled = !!data.scheduledFor;
     const now = new Date().toISOString();
-    const chosenKm = branch.latitude != null && branch.longitude != null
-      ? Number(haversineKm(data.delivery.lat, data.delivery.lng, branch.latitude, branch.longitude).toFixed(2))
+    const pickupLat = branch?.latitude ?? profile.latitude ?? null;
+    const pickupLng = branch?.longitude ?? profile.longitude ?? null;
+    const chosenKm = pickupLat != null && pickupLng != null
+      ? Number(haversineKm(data.delivery.lat, data.delivery.lng, pickupLat, pickupLng).toFixed(2))
       : 5;
     const subtotalSum = Math.round(data.items.reduce((total, item) => {
       const medication = medicationById.get(item.medicationId)!;
@@ -228,8 +243,8 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
         delivery_address: data.delivery.address,
         delivery_lat: data.delivery.lat,
         delivery_lng: data.delivery.lng,
-        pickup_lat: branch.latitude ?? null,
-        pickup_lng: branch.longitude ?? null,
+        pickup_lat: pickupLat,
+        pickup_lng: pickupLng,
         delivery_km: chosenKm,
         priority: !!data.priority,
         scheduled_for: data.scheduledFor ?? null,
@@ -303,8 +318,8 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
           delivery_address: data.delivery.address,
           delivery_lat: data.delivery.lat,
           delivery_lng: data.delivery.lng,
-          pickup_lat: branch.latitude ?? null,
-          pickup_lng: branch.longitude ?? null,
+          pickup_lat: pickupLat,
+          pickup_lng: pickupLng,
           assignment_radius_km: 10,
           notes: data.notes ?? "",
           is_demo: false,

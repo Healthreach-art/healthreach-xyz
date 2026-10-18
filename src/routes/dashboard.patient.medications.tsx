@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Plus, Search, Stethoscope } from "lucide-react";
+import { ArrowLeft, MapPin, Plus, Search, Stethoscope } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,6 +13,8 @@ import { listPatientMarketplace } from "@/lib/patient-marketplace.functions";
 import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 import medGeneric from "@/assets/med-generic.jpg";
+import { useAuth } from "@/hooks/useAuth";
+import { PATIENT_ADDRESS_CHANGED, readPatientAddress } from "@/lib/patient-address";
 
 interface Med {
   id: string;
@@ -24,11 +26,23 @@ interface Med {
   image_url?: string | null;
   description?: string | null;
   category?: string | null;
+  pharmacy_address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 interface Pharmacy {
   user_id: string;
   organization_name: string | null;
   full_name: string;
+}
+
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const toRad = (degrees: number) => degrees * Math.PI / 180;
+  const deltaLat = toRad(lat2 - lat1);
+  const deltaLng = toRad(lng2 - lng1);
+  const a = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(deltaLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(a));
 }
 
 const CATEGORIES = ["All", "Pain Relief", "Chronic", "Antibiotics", "Vitamins & Supplements", "Cold & Flu", "Baby & Child", "First Aid"];
@@ -59,6 +73,7 @@ function matchesCategory(medication: Med, category: string) {
 function MedicationMarketplace() {
   const searchParams = Route.useSearch();
   const cart = useCart();
+  const { user } = useAuth();
   const loadMarketplace = useServerFn(listPatientMarketplace);
   const [medications, setMedications] = useState<Med[]>([]);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
@@ -68,6 +83,20 @@ function MedicationMarketplace() {
   const [query, setQuery] = useState(searchParams.q);
   const [category, setCategory] = useState("All");
   const [rxFor, setRxFor] = useState<Med | null>(null);
+  const [patientCoords, setPatientCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (!user) { setPatientCoords(null); return; }
+    const updatePatientLocation = () => {
+      const address = readPatientAddress(user.id);
+      setPatientCoords(address?.lat != null && address.lng != null
+        ? { lat: address.lat, lng: address.lng }
+        : null);
+    };
+    updatePatientLocation();
+    window.addEventListener(PATIENT_ADDRESS_CHANGED, updatePatientLocation);
+    return () => window.removeEventListener(PATIENT_ADDRESS_CHANGED, updatePatientLocation);
+  }, [user]);
 
   useEffect(() => { setQuery(searchParams.q); }, [searchParams.q]);
 
@@ -152,6 +181,11 @@ function MedicationMarketplace() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((medication) => {
               const pharmacy = pharmacies.find((entry) => entry.user_id === medication.pharmacy_id);
+              const distance = patientCoords
+                && medication.latitude != null
+                && medication.longitude != null
+                ? distanceKm(patientCoords.lat, patientCoords.lng, medication.latitude, medication.longitude)
+                : null;
               return (
                 <article key={medication.id} className="flex min-w-0 overflow-hidden border border-border bg-card">
                   <div className="relative h-28 w-24 shrink-0 bg-muted sm:h-32 sm:w-28">
@@ -165,6 +199,13 @@ function MedicationMarketplace() {
                       {medication.category && <p className="mt-1 text-[11px] text-muted-foreground">{medication.category}</p>}
                       {medication.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{medication.description}</p>}
                       <Link to="/pharmacy/$id" params={{ id: medication.pharmacy_id }} className="mt-1 block truncate text-xs text-primary hover:underline">{pharmacy?.organization_name || pharmacy?.full_name || "Dispensing pharmacy"}</Link>
+                      <p className="mt-1 flex items-start gap-1 text-[11px] text-muted-foreground">
+                        <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>
+                          {medication.pharmacy_address || "Dispensing location not provided"}
+                          {distance !== null && ` · about ${distance.toFixed(1)} km from your selected address`}
+                        </span>
+                      </p>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <div><p className="text-sm font-bold">R{customerPrice(Number(medication.price)).toFixed(2)}</p><p className="text-[10px] text-healthcare-green">{medication.stock_quantity} available</p></div>

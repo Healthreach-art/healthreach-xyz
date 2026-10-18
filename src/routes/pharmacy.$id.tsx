@@ -109,13 +109,14 @@ function Storefront() {
 
   useEffect(() => {
     (async () => {
-      const [profileResult, approvalResult, branchResult, medicinesResult] = await Promise.all([
+      const [profileResult, approvalResult, roleResult, branchResult, medicinesResult] = await Promise.all([
         firestoreClient.from("profiles").select("user_id, organization_name, full_name, address, appointments_enabled, walkins_enabled, opening_hours, services, phone").eq("user_id", id).eq("approval_status", "approved").maybeSingle(),
         firestoreClient.from("pharmacies").select("user_id").eq("user_id", id).eq("status", "approved").maybeSingle(),
-        firestoreClient.from("pharmacy_branches").select("id").eq("pharmacy_id", id).eq("is_primary", true).eq("is_active", true).limit(1).maybeSingle(),
+        firestoreClient.from("user_roles").select("user_id").eq("user_id", id).eq("role", "pharmacy").maybeSingle(),
+        firestoreClient.from("pharmacy_branches").select("id").eq("pharmacy_id", id).eq("is_active", true).limit(1).maybeSingle(),
         firestoreClient.from("medications_public").select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, description, expiry_date, is_active, is_demo").eq("pharmacy_id", id).gt("stock_quantity", 0).order("name"),
       ]);
-      const queryError = [profileResult.error, approvalResult.error, branchResult.error, medicinesResult.error]
+      const queryError = [profileResult.error, approvalResult.error, roleResult.error, branchResult.error, medicinesResult.error]
         .find((error) => error !== null);
       if (queryError) {
         toast.error(`Could not load pharmacy catalogue: ${queryError.message}`);
@@ -124,11 +125,32 @@ function Storefront() {
         setLoading(false);
         return;
       }
-      setPharmacy(profileResult.data && approvalResult.data ? profileResult.data as Pharmacy : null);
-      setIsAcceptingOrders(!!branchResult.data);
-      setMeds((medicinesResult.data ?? []).filter((med) =>
+      setPharmacy(profileResult.data && approvalResult.data && roleResult.data ? profileResult.data as Pharmacy : null);
+      setIsAcceptingOrders(Boolean(branchResult.data || profileResult.data?.address));
+      let medsList = (medicinesResult.data ?? []).filter((med) =>
         med.is_active === true && med.is_demo === false && !isMedicineExpired(med.expiry_date),
-      ) as Med[]);
+      ) as Med[];
+      if (medsList.length === 0) {
+        const fallbackMeds = await firestoreClient
+          .from("medications")
+          .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, description, expiry_date, is_active, is_demo")
+          .eq("pharmacy_id", id)
+          .eq("is_active", true)
+          .eq("is_demo", false)
+          .gt("stock_quantity", 0)
+          .order("name");
+        if (fallbackMeds.error) {
+          toast.error(`Could not load pharmacy catalogue: ${fallbackMeds.error.message}`);
+          setPharmacy(null);
+          setMeds([]);
+          setLoading(false);
+          return;
+        }
+        medsList = (fallbackMeds.data ?? []).filter((med) =>
+          !isMedicineExpired(med.expiry_date),
+        ) as Med[];
+      }
+      setMeds(medsList);
       setLoading(false);
     })();
   }, [id]);

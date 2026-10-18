@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Lock, CheckCircle2, ShoppingCart, Loader2, Trash2 } from "lucide-react";
+import { Lock, CheckCircle2, ShoppingCart, Loader2, MapPin, Trash2 } from "lucide-react";
 import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 import { customerPrice, deliveryFeeForKm, etaMinutesForKm } from "@/lib/pricing";
@@ -91,6 +91,7 @@ function CheckoutPage() {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<string>("");
   const [pharmacyCoords, setPharmacyCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pharmacyAddress, setPharmacyAddress] = useState<string | null>(null);
   const [forSomeoneElse, setForSomeoneElse] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<Array<{ id: string; full_name: string; relationship: string }>>([]);
   const [recipientFamilyId, setRecipientFamilyId] = useState<string>("");
@@ -137,10 +138,18 @@ function CheckoutPage() {
   useEffect(() => {
     const pid = items[0]?.pharmacyId;
     if (!pid) { setPharmacyCoords(null); return; }
-    firestoreClient.from("profiles").select("latitude, longitude").eq("user_id", pid).maybeSingle()
-      .then(({ data }) => {
-        if (data?.latitude && data?.longitude) setPharmacyCoords({ lat: data.latitude, lng: data.longitude });
-        else setPharmacyCoords(null);
+    Promise.all([
+      firestoreClient.from("profiles").select("latitude, longitude, address").eq("user_id", pid).maybeSingle(),
+      firestoreClient.from("pharmacy_branches").select("latitude, longitude, address").eq("pharmacy_id", pid)
+        .eq("is_active", true).order("is_primary", { ascending: false }).limit(1).maybeSingle(),
+    ]).then(([profileResult, branchResult]) => {
+        const location = branchResult.data ?? profileResult.data;
+        if (location?.latitude != null && location.longitude != null) {
+          setPharmacyCoords({ lat: location.latitude, lng: location.longitude });
+        } else {
+          setPharmacyCoords(null);
+        }
+        setPharmacyAddress(branchResult.data?.address || profileResult.data?.address || null);
       });
   }, [items]);
 
@@ -153,7 +162,7 @@ function CheckoutPage() {
     return 2 * R * Math.asin(Math.sqrt(a));
   }
 
-  const km = pharmacyCoords && delivery?.lat && delivery?.lng
+  const km = pharmacyCoords && delivery?.lat != null && delivery.lng != null
     ? haversineKm(pharmacyCoords.lat, pharmacyCoords.lng, delivery.lat, delivery.lng)
     : null;
 
@@ -292,7 +301,16 @@ function CheckoutPage() {
         (async () => {
           try {
             const v = await verifyPaystack({ data: { reference: resp.reference } });
-            if (!(v as { verified: boolean }).verified) { toast.error("Payment could not be verified."); setProcessing(false); return; }
+            if (!(v as { verified: boolean; reason?: string }).verified) {
+              const reason = (v as { reason?: string }).reason;
+              toast.error(reason === "payment_verification_not_configured"
+                ? "Paystack verification is not configured. No order was placed."
+                : reason === "payment_verification_credentials_rejected"
+                  ? "Paystack rejected the configured credentials. No order was placed."
+                  : "Payment could not be verified. No order was placed.");
+              setProcessing(false);
+              return;
+            }
             await finalizeOrder();
           } catch (err) {
             toast.error((err as Error)?.message || "Payment verification failed.");
@@ -544,6 +562,12 @@ function CheckoutPage() {
                 </li>
               ))}
             </ul>
+            {pharmacyAddress && (
+              <p className="mb-4 flex items-start gap-1.5 border-t border-border pt-3 text-xs text-muted-foreground">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>Dispensing from {pharmacyAddress}</span>
+              </p>
+            )}
             <div className="border-t border-border pt-4 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">R{subtotal.toFixed(2)}</span></div>
               <div className="flex justify-between">

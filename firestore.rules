@@ -32,6 +32,111 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_' + role))
         && get(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_' + role)).data.role == role;
     }
+    function isHomecareCoordinator() {
+      return isAdmin() || hasRole('homecare_operations');
+    }
+    function hasOtherRole(uid, role) {
+      return (role == 'patient' || !exists(/databases/$(database)/documents/user_roles/$(uid + '_patient')))
+        && (role == 'pharmacy' || !exists(/databases/$(database)/documents/user_roles/$(uid + '_pharmacy')))
+        && (role == 'hospital' || !exists(/databases/$(database)/documents/user_roles/$(uid + '_hospital')))
+        && (role == 'driver' || !exists(/databases/$(database)/documents/user_roles/$(uid + '_driver')))
+        && (role == 'doctor' || !exists(/databases/$(database)/documents/user_roles/$(uid + '_doctor')))
+        && (role == 'homecare_company' || !exists(/databases/$(database)/documents/user_roles/$(uid + '_homecare_company')))
+        && (role == 'homecare_staff' || !exists(/databases/$(database)/documents/user_roles/$(uid + '_homecare_staff')))
+        && (role == 'homecare_operations' || !exists(/databases/$(database)/documents/user_roles/$(uid + '_homecare_operations')))
+        && (role == 'admin' || !exists(/databases/$(database)/documents/user_roles/$(uid + '_admin')));
+    }
+    function validProviderRegistration(role, uid) {
+      let profilePath = /databases/$(database)/documents/profiles/$(uid);
+      return exists(profilePath)
+        && get(profilePath).data.user_id == uid
+        && get(profilePath).data.approval_status in ['pending', 'under_review']
+        && (
+          role == 'pharmacy'
+            && exists(/databases/$(database)/documents/pharmacies/$(uid))
+            && get(/databases/$(database)/documents/pharmacies/$(uid)).data.user_id == uid
+            && get(/databases/$(database)/documents/pharmacies/$(uid)).data.status == 'pending_review'
+          || role == 'driver'
+            && exists(/databases/$(database)/documents/drivers/$(uid))
+            && get(/databases/$(database)/documents/drivers/$(uid)).data.user_id == uid
+            && get(/databases/$(database)/documents/drivers/$(uid)).data.status == 'pending_review'
+          || role == 'doctor'
+            && exists(/databases/$(database)/documents/doctors/$(uid))
+            && get(/databases/$(database)/documents/doctors/$(uid)).data.user_id == uid
+            && get(/databases/$(database)/documents/doctors/$(uid)).data.status == 'pending_review'
+          || role == 'homecare_company'
+            && exists(/databases/$(database)/documents/homecare_providers/$(uid))
+            && get(/databases/$(database)/documents/homecare_providers/$(uid)).data.user_id == uid
+            && get(/databases/$(database)/documents/homecare_providers/$(uid)).data.status == 'pending_review'
+          || role == 'hospital' && get(profilePath).data.organization_name is string
+        );
+    }
+    function canRegisterRole(uid, id) {
+      let role = request.resource.data.role;
+      return signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.user_id == uid
+        && request.resource.data.role is string
+        && request.resource.data.keys().hasAll(['user_id', 'role', 'created_at'])
+        && request.resource.data.keys().hasOnly(['user_id', 'role', 'created_at'])
+        && id == uid + '_' + role
+        && (
+          role == 'homecare_operations'
+            && request.auth.token.email == 'support@healthreachcare.co.za'
+            && request.auth.token.email_verified == true
+          || role == 'admin'
+            && request.auth.token.email == 'admin@healthreachcare.co.za'
+            && request.auth.token.email_verified == true
+          || role in ['patient', 'pharmacy', 'hospital', 'driver', 'doctor', 'homecare_company']
+            && hasOtherRole(uid, role)
+            && (role == 'patient' || validProviderRegistration(role, uid))
+        );
+    }
+    function homecareQuoteUpdate() {
+      return hasRole('homecare_operations')
+        && resource.data.status == 'pending_review'
+        && request.resource.data.status == 'quote_pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'quote_amount', 'quote_currency', 'quote_details', 'quote_issued_at', 'updated_at',
+        ])
+        && request.resource.data.quote_amount is number
+        && request.resource.data.quote_amount >= 0
+        && request.resource.data.quote_amount <= 1000000
+        && request.resource.data.quote_currency == 'ZAR'
+        && request.resource.data.quote_details is string
+        && request.resource.data.quote_details.size() >= 3
+        && request.resource.data.quote_details.size() <= 2000
+        && request.resource.data.quote_issued_at is string
+        && request.resource.data.updated_at is string;
+    }
+    function patientHomecareQuoteResponse() {
+      return owns('patient_id')
+        && resource.data.status == 'quote_pending'
+        && request.resource.data.status in ['quote_accepted', 'quote_declined']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'quote_responded_at', 'updated_at',
+        ])
+        && request.resource.data.quote_responded_at is string
+        && request.resource.data.updated_at is string;
+    }
+    function homecareAssignmentConfirmation() {
+      return hasRole('homecare_operations')
+        && resource.data.status == 'quote_accepted'
+        && request.resource.data.status == 'confirmed'
+        && request.resource.data.provider_id is string
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'provider_id', 'status', 'updated_at',
+        ])
+        && exists(/databases/$(database)/documents/homecare_providers/$(request.resource.data.provider_id))
+        && get(/databases/$(database)/documents/homecare_providers/$(request.resource.data.provider_id)).data.approval_status == 'approved'
+        && get(/databases/$(database)/documents/homecare_providers/$(request.resource.data.provider_id)).data.is_active == true;
+    }
+    function ownsHomecareAssignmentPatient() {
+      return signedIn()
+        && resource.data.request_id is string
+        && exists(/databases/$(database)/documents/homecare_requests/$(resource.data.request_id))
+        && get(/databases/$(database)/documents/homecare_requests/$(resource.data.request_id)).data.patient_id == request.auth.uid;
+    }
     function isApprovedPharmacy(pharmacyId) {
       return pharmacyId is string
         && exists(/databases/$(database)/documents/user_roles/$(pharmacyId + '_pharmacy'))
@@ -140,7 +245,7 @@ service cloud.firestore {
 
     // Profiles: owner read/write; approved profiles support provider discovery.
     match /profiles/{uid} {
-      allow read: if isOwner(uid) || owns('user_id') || isAdmin()
+      allow read: if isOwner(uid) || owns('user_id') || isAdmin() || hasRole('homecare_operations')
         || signedIn() && resource.data.approval_status == 'approved';
       allow create: if isOwner(uid)
         && request.resource.data.user_id == request.auth.uid
@@ -156,12 +261,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Roles: readable by owner and admin; writable by admin only.
-    // Users can never grant themselves roles.
+    // Role self-registration is constrained to verified, eligible accounts.
     match /user_roles/{id} {
       allow read: if isAdmin() || owns('user_id')
         || signedIn() && resource.data.role == 'pharmacy';
-      allow write: if isAdmin();
+      allow create: if isAdmin() || canRegisterRole(request.auth.uid, id);
+      allow update, delete: if isAdmin();
     }
 
     // Provider profiles (doctors, pharmacies, drivers, homecare):
@@ -250,16 +355,32 @@ service cloud.firestore {
     // Home care requests & assignments: customer owns request; admin assigns;
     // assigned provider reads/updates their assignment only.
     match /homecare_requests/{id} {
-      allow read: if isAdmin() || owns('patient_id') || owns('user_id');
+      allow read: if isHomecareCoordinator() || owns('patient_id') || owns('user_id');
       allow create: if ownsNew('patient_id') || ownsNew('user_id');
-      allow update: if isAdmin() || owns('patient_id') || owns('user_id');
+      allow update: if isAdmin()
+        || homecareQuoteUpdate()
+        || patientHomecareQuoteResponse()
+        || homecareAssignmentConfirmation();
       allow delete: if isAdmin();
     }
     match /homecare_assignments/{id} {
-      allow read: if isAdmin() || owns('patient_id') || owns('provider_id');
-      allow create: if isAdmin();
+      allow read: if isHomecareCoordinator() || ownsHomecareAssignmentPatient() || owns('provider_id');
+      allow create: if isAdmin()
+        || hasRole('homecare_operations')
+          && id == request.resource.data.request_id
+          && request.resource.data.assigned_by == request.auth.uid
+          && request.resource.data.status == 'scheduled'
+          && exists(/databases/$(database)/documents/homecare_requests/$(request.resource.data.request_id))
+          && get(/databases/$(database)/documents/homecare_requests/$(request.resource.data.request_id)).data.status == 'quote_accepted'
+          && exists(/databases/$(database)/documents/homecare_providers/$(request.resource.data.provider_id))
+          && get(/databases/$(database)/documents/homecare_providers/$(request.resource.data.provider_id)).data.approval_status == 'approved'
+          && get(/databases/$(database)/documents/homecare_providers/$(request.resource.data.provider_id)).data.is_active == true;
       allow update: if isAdmin() || owns('provider_id');
-      allow delete: if isAdmin();
+      allow delete: if isAdmin()
+        || hasRole('homecare_operations')
+          && resource.data.request_id == id
+          && exists(/databases/$(database)/documents/homecare_requests/$(resource.data.request_id))
+          && get(/databases/$(database)/documents/homecare_requests/$(resource.data.request_id)).data.status == 'quote_accepted';
     }
 
     // Notifications: owner reads; owner marks read; system/admin creates.

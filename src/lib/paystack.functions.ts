@@ -5,9 +5,9 @@ import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 
-function paystackKey(): string {
-  const key = (process.env.PAYSTACK_SECRET_KEY || process.env.STRIPE_TEST_API_KEY);
-  if (!key) throw new Error("PAYSTACK_SECRET_KEY not configured");
+function paystackKey(): string | null {
+  const key = process.env.PAYSTACK_SECRET_KEY?.trim();
+  if (!key || /^(your-paystack-secret-key-here|changeme|replace-me)$/i.test(key)) return null;
   return key;
 }
 
@@ -33,6 +33,17 @@ export const verifyPaystackTransaction = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((d) => z.object({ reference: z.string().min(4).max(128) }).parse(d))
   .handler(async ({ data, context }) => {
+    const key = paystackKey();
+    if (!key) {
+      return {
+        verified: false,
+        reference: data.reference,
+        amount: 0,
+        currency: "ZAR",
+        metadata: {},
+        reason: "payment_verification_not_configured",
+      };
+    }
     const res = await fetch(
       `${PAYSTACK_BASE}/transaction/verify/${encodeURIComponent(data.reference)}`,
       { headers: { Authorization: `Bearer ${paystackKey()}` } },
@@ -50,6 +61,16 @@ export const verifyPaystackTransaction = createServerFn({ method: "POST" })
         metadata?: Record<string, unknown>;
       };
     };
+    if (res.status === 401 || res.status === 403) {
+      return {
+        verified: false,
+        reference: data.reference,
+        amount: 0,
+        currency: "ZAR",
+        metadata: {},
+        reason: "payment_verification_credentials_rejected",
+      };
+    }
     if (!res.ok || !json.status) {
       throw new Error(json.message || `Paystack verify failed (${res.status})`);
     }
@@ -108,6 +129,7 @@ export const chargeSavedCard = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    if (!paystackKey()) throw new Error("Paystack payments are not configured. Add a valid PAYSTACK_SECRET_KEY.");
     const userId = context.userId;
     const { data: card, error } = await firestoreAdmin
       .from("saved_payment_methods")
@@ -155,6 +177,7 @@ export const deleteSavedCard = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((d) => z.object({ cardId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    const key = paystackKey();
     const userId = context.userId;
     const { data: card } = await firestoreAdmin
       .from("saved_payment_methods")
@@ -163,7 +186,7 @@ export const deleteSavedCard = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (card?.authorization_code) {
+    if (card?.authorization_code && key) {
       // Best-effort — ignore network errors so the user can still remove the row.
       try {
         await fetch(`${PAYSTACK_BASE}/customer/deactivate_authorization`, {

@@ -1302,6 +1302,8 @@ export type FirestoreSchema = {
           quote_details: string | null
           quote_issued_at: string | null
           quote_responded_at: string | null
+          reference_number: string | null
+          coordinator_email: string | null
           service_type: string
           status: string
           updated_at: string
@@ -1324,6 +1326,8 @@ export type FirestoreSchema = {
           quote_details?: string | null
           quote_issued_at?: string | null
           quote_responded_at?: string | null
+          reference_number?: string | null
+          coordinator_email?: string | null
           service_type: string
           status?: string
           updated_at?: string
@@ -1346,6 +1350,8 @@ export type FirestoreSchema = {
           quote_details?: string | null
           quote_issued_at?: string | null
           quote_responded_at?: string | null
+          reference_number?: string | null
+          coordinator_email?: string | null
           service_type?: string
           status?: string
           updated_at?: string

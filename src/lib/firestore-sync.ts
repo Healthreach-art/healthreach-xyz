@@ -200,6 +200,12 @@ export async function firebaseGoogleSignIn(defaultRole: RegisteredRole): Promise
   if (!user.emailVerified) return "/auth/verify-email";
 
   const email = (user.email ?? "").toLowerCase();
+  if (email === "support@healthreachcare.co.za") {
+    await registerSelfServiceRole({ data: { role: "homecare_operations" } });
+    const { dashboardPathForRole } = await import("./auth-session");
+    return dashboardPathForRole("homecare_operations");
+  }
+
   let roles: string[] = await getUserRoles(user.uid).then((r) => (r as unknown as string[]) ?? []).catch((): string[] => []);
   if (!Array.isArray(roles)) roles = [];
   if (roles.length === 0) {
