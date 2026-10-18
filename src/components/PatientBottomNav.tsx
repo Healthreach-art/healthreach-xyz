@@ -1,9 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+
 import { Activity, Bell, Home, MessageSquare, UserRound } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { firestoreClient } from "@/lib/firestore-client";
-import { toast } from "sonner";
 
 const ITEMS = [
   { to: "/dashboard/patient", label: "Home", icon: Home, exact: true },
@@ -14,7 +11,6 @@ const ITEMS = [
 ] as const;
 
 export function PatientBottomNav() {
-  const { user } = useAuth();
   const [unreadChats, setUnreadChats] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const path = useRouterState({ select: (r) => r.location.pathname }).replace(/\/$/, "");
