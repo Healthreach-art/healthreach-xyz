@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress } from "@/lib/patient-address";
 import { toast } from "sonner";
+import { PatientNotificationBell } from "@/components/PatientNotificationBell";
+import logoUrl from "@/assets/healthreach-logo.png";
 
 interface Doctor {
   id: string; full_name: string; specialty: string; city: string; hospital_id: string | null;
