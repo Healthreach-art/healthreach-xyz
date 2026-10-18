@@ -58,7 +58,7 @@ export function PatientBottomNav() {
       setUnreadNotifications((notificationResult.data?.length ?? 0) + unreadMessageCount);
     };
 
-    void loadUnreadMessages();
+    void loadUnread();
     const channel = firestoreClient.channel(`patient-nav-messages-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointment_messages", filter: `patient_id=eq.${user.id}` }, loadUnread)
       .on("postgres_changes", { event: "*", schema: "public", table: "order_messages" }, loadUnread)
@@ -72,7 +72,7 @@ export function PatientBottomNav() {
 
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-      <ul className="mx-auto grid max-w-3xl grid-cols-4">
+      <ul className="mx-auto grid max-w-3xl grid-cols-5">
         {ITEMS.map((it) => {
           const active = it.exact ? path === it.to : path.startsWith(it.to);
           return (
@@ -84,12 +84,12 @@ export function PatientBottomNav() {
               >
                 <span className="relative">
                   <it.icon className={`h-6 w-6 ${active ? "stroke-[2.5]" : ""}`} />
-                  {it.label === "Messages" && unreadMessages > 0 && (
+                  {it.label === "Messages" && unreadChats > 0 && (
                     <span
-                      aria-label={`${unreadMessages} unread messages`}
+                      aria-label={`${unreadChats} unread messages`}
                       className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white"
                     >
-                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                      {unreadChats > 9 ? "9+" : unreadChats}
                     </span>
                   )}
                   {it.label === "Notifications" && unreadNotifications > 0 && (
