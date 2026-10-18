@@ -28,15 +28,10 @@ export function PatientBottomNav() {
 
     let cancelled = false;
     const loadUnread = async () => {
-      const [appointmentResult, orderResult, notificationResult] = await Promise.all([
+      const [appointmentResult, notificationResult] = await Promise.all([
         firestoreClient.from("appointment_messages")
           .select("appointment_id")
           .eq("patient_id", user.id)
-          .neq("sender_id", user.id)
-          .is("read_at", null)
-          .limit(100),
-        firestoreClient.from("order_messages")
-          .select("order_id")
           .neq("sender_id", user.id)
           .is("read_at", null)
           .limit(100),
@@ -48,12 +43,10 @@ export function PatientBottomNav() {
       ]);
       if (cancelled) return;
       if (appointmentResult.error) toast.error(`Could not load unread appointment messages: ${appointmentResult.error.message}`);
-      if (orderResult.error) toast.error(`Could not load unread order messages: ${orderResult.error.message}`);
       if (notificationResult.error) toast.error(`Could not load unread notifications: ${notificationResult.error.message}`);
-      const unreadMessageCount = new Set([
-        ...(appointmentResult.data ?? []).map((message) => `appointment:${message.appointment_id}`),
-        ...(orderResult.data ?? []).map((message) => `order:${message.order_id}`),
-      ]).size;
+      const unreadMessageCount = new Set(
+        (appointmentResult.data ?? []).map((message) => `appointment:${message.appointment_id}`),
+      ).size;
       setUnreadChats(unreadMessageCount);
       setUnreadNotifications((notificationResult.data?.length ?? 0) + unreadMessageCount);
     };
@@ -61,7 +54,6 @@ export function PatientBottomNav() {
     void loadUnread();
     const channel = firestoreClient.channel(`patient-nav-messages-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointment_messages", filter: `patient_id=eq.${user.id}` }, loadUnread)
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_messages" }, loadUnread)
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, loadUnread)
       .subscribe();
     return () => {
