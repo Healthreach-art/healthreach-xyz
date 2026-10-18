@@ -67,3 +67,82 @@ export const REQUEST_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
   rejected: "Declined",
 };
+
+export function isHomecareServiceActive(service: { is_active?: boolean | null; archived_at?: string | null; deleted_at?: string | null } | null | undefined) {
+  if (!service) return false;
+  return service.is_active !== false && !service.archived_at && !service.deleted_at;
+}
+
+export function isHomecareServicePriceValid(price: unknown) {
+  return typeof price === "number" && Number.isFinite(price) && price >= 0;
+}
+
+export function canAccessHomecareRequest(userId: string | null | undefined, requestPatientId: string | null | undefined, role: string | null | undefined) {
+  if (!userId || !requestPatientId) return false;
+  if (role === "admin" || role === "homecare_operations") return true;
+  return role === "patient" && userId === requestPatientId;
+}
+
+export function canAccessHomecareConversation(userId: string | null | undefined, requestPatientId: string | null | undefined, role: string | null | undefined) {
+  return canAccessHomecareRequest(userId, requestPatientId, role);
+}
+
+export function canConfirmHomecareBooking(payload: {
+  status?: string | null;
+  payment_status?: string | null;
+  payment_verified_at?: string | null;
+  payment_verified?: boolean | null;
+}) {
+  const status = payload.status ?? "";
+  if (status === "confirmed") return true;
+  const paymentStatus = payload.payment_status ?? "pending";
+  const paymentVerified = payload.payment_verified ?? Boolean(payload.payment_verified_at);
+  return paymentStatus === "paid" && paymentVerified;
+}
+
+export type HomecareBookingFilter =
+  | "incoming"
+  | "pending_review"
+  | "awaiting_payment"
+  | "confirmed"
+  | "active"
+  | "completed"
+  | "cancelled"
+  | "past";
+
+export function filterHomecareRequestsForCoordinator<T extends { status: string }>(
+  requests: T[],
+  filter: HomecareBookingFilter,
+): T[] {
+  switch (filter) {
+    case "incoming":
+      return requests.filter((request) => request.status === "pending_review");
+    case "pending_review":
+      return requests.filter((request) => request.status === "pending_review");
+    case "awaiting_payment":
+      return requests.filter((request) => ["quote_pending", "quote_accepted"].includes(request.status));
+    case "confirmed":
+      return requests.filter((request) => ["confirmed", "assigned", "accepted", "scheduled", "in_progress"].includes(request.status));
+    case "active":
+      return requests.filter((request) => ["assigned", "accepted", "scheduled", "in_progress"].includes(request.status));
+    case "completed":
+      return requests.filter((request) => request.status === "completed");
+    case "cancelled":
+      return requests.filter((request) => ["cancelled", "declined", "rejected"].includes(request.status));
+    case "past":
+      return requests.filter((request) => ["completed", "confirmed", "cancelled", "declined", "rejected"].includes(request.status));
+    default:
+      return requests;
+  }
+}
+
+export function getHomecareStatusSummary<T extends { status: string }>(requests: T[]) {
+  return {
+    incoming: requests.filter((request) => request.status === "pending_review").length,
+    awaitingPayment: requests.filter((request) => ["quote_pending", "quote_accepted"].includes(request.status)).length,
+    confirmed: requests.filter((request) => ["quote_accepted", "assigned", "accepted", "scheduled", "in_progress", "confirmed"].includes(request.status)).length,
+    active: requests.filter((request) => ["assigned", "accepted", "scheduled", "in_progress"].includes(request.status)).length,
+    completed: requests.filter((request) => request.status === "completed").length,
+    cancelled: requests.filter((request) => ["cancelled", "declined", "rejected"].includes(request.status)).length,
+  };
+}

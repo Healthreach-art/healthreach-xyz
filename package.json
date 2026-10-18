@@ -10,7 +10,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test src/lib/patient-prescription-policy.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/patient-prescription-policy.test.ts src/lib/auth-session-policy.test.ts src/lib/homecare-policy.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
