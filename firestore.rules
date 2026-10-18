@@ -200,7 +200,7 @@ service cloud.firestore {
 
     // Profiles: owner read/write; approved profiles support provider discovery.
     match /profiles/{uid} {
-      allow read: if isOwner(uid) || owns('user_id') || isAdmin()
+      allow read: if isOwner(uid) || owns('user_id') || isAdmin() || hasRole('homecare_operations')
         || signedIn() && resource.data.approval_status == 'approved';
       allow create: if isOwner(uid)
         && request.resource.data.user_id == request.auth.uid
@@ -216,12 +216,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Roles: readable by owner and admin; writable by admin only.
-    // Users can never grant themselves roles.
+    // Role self-registration is constrained to verified, eligible accounts.
     match /user_roles/{id} {
       allow read: if isAdmin() || owns('user_id')
         || signedIn() && resource.data.role == 'pharmacy';
-      allow write: if isAdmin();
+      allow create: if isAdmin() || canRegisterRole(request.auth.uid, id);
+      allow update, delete: if isAdmin();
     }
 
     // Identity documents and ID numbers are private to the patient and admins.
@@ -736,11 +736,32 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /doctor_documents/{id} {
-      allow read: if isAdmin() || owns('doctor_id');
-      allow create: if isAdmin() || ownsNew('doctor_id');
-      allow update: if isAdmin() || owns('doctor_id')
-        && request.resource.data.doctor_id == resource.data.doctor_id;
+      allow read: if isAdmin() || owns('doctor_id') || owns('doctor_user_id');
+      allow create: if isAdmin() || ownsNew('doctor_id') || ownsNew('doctor_user_id');
+      allow update: if isAdmin()
+        || owns('doctor_id') && request.resource.data.doctor_id == resource.data.doctor_id
+        || owns('doctor_user_id') && request.resource.data.doctor_user_id == resource.data.doctor_user_id;
       allow delete: if isAdmin();
+    }
+    match /doctor_availability/{id} {
+      allow read: if signedIn();
+      allow create: if isAdmin() || ownsNew('doctor_id') || ownsNew('doctor_user_id')
+        || signedIn() && exists(/databases/$(database)/documents/doctors/$(request.resource.data.doctor_id))
+          && get(/databases/$(database)/documents/doctors/$(request.resource.data.doctor_id)).data.user_id == request.auth.uid;
+      allow update, delete: if isAdmin() || owns('doctor_id') || owns('doctor_user_id')
+        || signedIn() && exists(/databases/$(database)/documents/doctors/$(resource.data.doctor_id))
+          && get(/databases/$(database)/documents/doctors/$(resource.data.doctor_id)).data.user_id == request.auth.uid;
+    }
+    match /doctor_reviews/{id} {
+      allow read: if signedIn();
+      allow create: if ownsNew('patient_id');
+      allow update: if isAdmin() || owns('patient_id');
+      allow delete: if isAdmin();
+    }
+    match /complaints/{id} {
+      allow read: if isAdmin() || owns('user_id') || owns('patient_id');
+      allow create: if ownsNew('user_id') || ownsNew('patient_id');
+      allow update, delete: if isAdmin();
     }
     match /homecare_documents/{id} {
       allow read: if isAdmin() || owns('provider_id') || owns('user_id');

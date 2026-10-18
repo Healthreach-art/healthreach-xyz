@@ -95,6 +95,29 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  // After a new deploy, open tabs may request old file names. Reload once to get the new version.
+  useEffect(() => {
+    const reloadOnce = (event: Event) => {
+      const key = "hr-chunk-reload";
+      const last = Number(sessionStorage.getItem(key) || 0);
+      if (Date.now() - last < 30_000) return;
+      sessionStorage.setItem(key, String(Date.now()));
+      event.preventDefault();
+      window.location.reload();
+    };
+    const onRejection = (event: PromiseRejectionEvent) => {
+      const message = String(event.reason?.message ?? event.reason ?? "");
+      if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message)) {
+        reloadOnce(event);
+      }
+    };
+    window.addEventListener("vite:preloadError", reloadOnce);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("vite:preloadError", reloadOnce);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
   return (
     <AuthProvider>
       <CartProvider>
@@ -134,12 +157,6 @@ function AppShell() {
   if (user && pathname.startsWith("/dashboard/patient")) {
     return (
       <div className="flex min-h-screen w-full flex-col overflow-x-hidden">
-        <header className="sticky top-0 z-40 h-16 border-b border-border bg-background/95 backdrop-blur px-4 flex items-center">
-          <Link to="/dashboard/patient" className="flex min-w-0 items-center gap-2" aria-label="HealthReachCare home">
-            <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-9 w-auto shrink-0 sm:h-11" />
-            <span className="truncate text-base font-bold tracking-tight text-foreground sm:text-xl">HealthReachCare</span>
-          </Link>
-        </header>
         <main className="flex-1 pb-24">
           <Outlet />
         </main>

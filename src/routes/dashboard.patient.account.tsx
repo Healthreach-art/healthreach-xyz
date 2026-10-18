@@ -2,9 +2,16 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
-import { useEffect, useState } from "react";
-import { isVerificationComplete } from "@/lib/patient-verification";
+import { useEffect, useState, type FormEvent } from "react";
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import { getFirebase } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { fetchVerification } from "@/lib/patient-verification-data";
+import { isVerificationComplete } from "@/lib/patient-verification";
 import {
   Users, MapPin, LifeBuoy, Wallet, CreditCard, ChevronRight, LogOut, RefreshCw,
   ShieldCheck, Lock, FileText, ClipboardList, Bell, KeyRound, MessageCircle, type LucideIcon,
@@ -24,7 +31,7 @@ export const Route = createFileRoute("/dashboard/patient/account")({
   component: () => <RoleGuard allow="patient"><AccountPage /></RoleGuard>,
 });
 
-type Item = { to: string; label: string; icon: LucideIcon };
+type Item = { to: string; label: string; icon: LucideIcon; action?: boolean };
 const SECTIONS: { title: string; items: Item[] }[] = [
   {
     title: "Wallet & Payments",
@@ -53,7 +60,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     title: "Security & Privacy",
     items: [
       { to: "/privacy", label: "Privacy & POPIA Preferences", icon: Lock },
-      { to: "/forgot-password", label: "Change or reset password", icon: KeyRound },
+      { to: "", label: "Change Password", icon: KeyRound, action: true },
     ],
   },
   {
@@ -68,11 +75,47 @@ function AccountPage() {
   const { profile, user, signOut } = useAuth();
   const navigate = useNavigate();
   const [verified, setVerified] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
   useEffect(() => {
     if (!user?.id) return;
     fetchVerification(user.id).then((value) => setVerified(value?.status === "approved" && isVerificationComplete(value)));
   }, [user?.id]);
   const name = profile?.full_name || "Patient";
+
+  const changePassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New password and confirmation do not match.");
+      return;
+    }
+    setUpdatingPassword(true);
+    try {
+      const { auth } = await getFirebase();
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser?.email) throw new Error("No authenticated user found.");
+      const credential = EmailAuthProvider.credential(firebaseUser.email, currentPassword);
+      await reauthenticateWithCredential(firebaseUser, credential);
+      await updatePassword(firebaseUser, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordDialogOpen(false);
+      toast.success("Password updated successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update your password.");
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
       <div>
@@ -108,16 +151,55 @@ function AccountPage() {
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
             {s.items.map((it) => (
               <li key={it.to + it.label}>
-                <Link to={it.to} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent">
-                  <it.icon className="h-5 w-5 text-primary" />
-                  <span className="flex-1 text-foreground">{it.label}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </Link>
+                {it.action ? (
+                  <button type="button" onClick={() => setPasswordDialogOpen(true)} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-accent">
+                    <it.icon className="h-5 w-5 text-primary" />
+                    <span className="flex-1 text-foreground">{it.label}</span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ) : (
+                  <Link to={it.to} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent">
+                    <it.icon className="h-5 w-5 text-primary" />
+                    <span className="flex-1 text-foreground">{it.label}</span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
         </section>
       ))}
+
+      <Dialog open={passwordDialogOpen} onOpenChange={(open) => {
+        setPasswordDialogOpen(open);
+        if (!open) {
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader>
+          <form onSubmit={(event) => void changePassword(event)} className="space-y-4">
+            <p className="text-sm text-muted-foreground">Confirm your current password, then choose a new one. Your email address will not be changed.</p>
+            <div className="space-y-2">
+              <Label htmlFor="current-password">Current Password</Label>
+              <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input id="new-password" type="password" autoComplete="new-password" minLength={6} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+              <Input id="confirm-new-password" type="password" autoComplete="new-password" minLength={6} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
+            </div>
+            <Button type="submit" className="w-full" disabled={updatingPassword}>
+              {updatingPassword ? "Updating…" : "Update Password"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <a href="https://wa.me/27797285078?text=Hi%20HealthReachCare%2C%20I%20need%20support." target="_blank" rel="noreferrer" className="flex items-center gap-3 border border-border px-4 py-3 text-sm hover:bg-accent">
         <MessageCircle className="h-5 w-5 text-primary" /><span className="flex-1">Chat with support on WhatsApp</span><ChevronRight className="h-4 w-4 text-muted-foreground" />

@@ -52,6 +52,10 @@ import { HomecareServiceChat } from "@/components/HomecareServiceChat";
 interface RequestRow {
   id: string;
   patient_id: string;
+  patient_name: string | null;
+  patient_phone: string | null;
+  patient_email: string | null;
+  reference_number: string | null;
   service_type: string;
   description: string | null;
   address: string;
@@ -660,6 +664,14 @@ function HomecareOperationsPage() {
       </nav>
     </div>
   );
+}
+
+function whatsappNumber(phone: string | null) {
+  if (!phone) return null;
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  else if (digits.startsWith("0")) digits = `27${digits.slice(1)}`;
+  return digits.length >= 8 && digits.length <= 15 ? digits : null;
 }
 
 function RequestSection({ title, requests, providers, onChanged }: {

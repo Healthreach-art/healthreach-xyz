@@ -13,6 +13,9 @@ export interface PatientMarketplaceMedication {
   image_url: string | null;
   description: string | null;
   category: string | null;
+  pharmacy_address: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface PatientMarketplacePharmacy {
@@ -29,9 +32,9 @@ export interface PatientMarketplaceBranch {
   id: string;
   pharmacy_id: string;
   name: string;
-  address: string;
-  latitude: number;
-  longitude: number;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   is_primary: boolean;
 }
 
@@ -43,13 +46,27 @@ const chunksOf = <T,>(values: T[], size: number) =>
 export const listPatientMarketplace = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async () => {
-    const { data, error } = await firestoreAdmin
+    const { data: publicData, error: publicError } = await firestoreAdmin
       .from("medications_public")
       .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category, expiry_date, pharmacy_name, pharmacy_address, pharmacy_phone, latitude, longitude, branch_id, is_active, is_demo")
       .gt("stock_quantity", 0);
-    if (error) throw new Error(`Could not load the medicine catalogue: ${error.message}`);
+    if (publicError) throw new Error(`Could not load the medicine catalogue: ${publicError.message}`);
 
-    const meds = (data ?? [])
+    const { data: legacyData, error: legacyError } = await firestoreAdmin
+      .from("medications")
+      .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category, expiry_date, is_active, is_demo")
+      .eq("is_active", true)
+      .eq("is_demo", false)
+      .gt("stock_quantity", 0);
+    if (legacyError) throw new Error(`Could not backfill the medicine catalogue: ${legacyError.message}`);
+
+    const publicMeds = publicData ?? [];
+    const publicIds = new Set(publicMeds.map((medication) => medication.id).filter(Boolean));
+    const allData = [
+      ...publicMeds,
+      ...(legacyData ?? []).filter((medication) => !publicIds.has(medication.id)),
+    ];
+    const meds = allData
       .filter((medication) =>
         medication.is_active === true
         && medication.is_demo === false
@@ -63,11 +80,11 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
         String(first.name ?? "").localeCompare(String(second.name ?? "")),
       ) as Array<PatientMarketplaceMedication & {
       pharmacy_name: string;
-      pharmacy_address: string;
+      pharmacy_address: string | null;
       pharmacy_phone: string;
       latitude: number | null;
       longitude: number | null;
-      branch_id: string;
+      branch_id: string | null;
     }>;
 
     const pharmacyIds = Array.from(new Set(meds.map((medication) => medication.pharmacy_id).filter(Boolean)));
@@ -136,29 +153,38 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
           id: branch.id,
           pharmacy_id: branch.pharmacy_id,
           name: branch.name,
-          address: branch.address,
-          latitude: Number(branch.latitude),
-          longitude: Number(branch.longitude),
+          address: branch.address || null,
+          latitude: branch.latitude == null ? null : Number(branch.latitude),
+          longitude: branch.longitude == null ? null : Number(branch.longitude),
           is_primary: Boolean(branch.is_primary),
         });
       }
     }
     // Fall back to the pharmacy's own saved address/location when no branch exists.
     for (const pharmacy of pharmacyMap.values()) {
-      if (branchMap.has(pharmacy.user_id) || pharmacy.latitude == null || pharmacy.longitude == null) continue;
+      if (branchMap.has(pharmacy.user_id)) continue;
       branchMap.set(pharmacy.user_id, {
         id: `${pharmacy.user_id}_profile`,
         pharmacy_id: pharmacy.user_id,
         name: pharmacy.organization_name || pharmacy.full_name,
-        address: pharmacy.address ?? "",
-        latitude: Number(pharmacy.latitude),
-        longitude: Number(pharmacy.longitude),
+        address: pharmacy.address,
+        latitude: pharmacy.latitude == null ? null : Number(pharmacy.latitude),
+        longitude: pharmacy.longitude == null ? null : Number(pharmacy.longitude),
         is_primary: true,
       });
     }
 
     return {
-      meds: visibleMeds as PatientMarketplaceMedication[],
+      meds: visibleMeds.map((medication) => {
+        const pharmacy = pharmacyMap.get(medication.pharmacy_id);
+        const branch = branchMap.get(medication.pharmacy_id);
+        return {
+          ...medication,
+          pharmacy_address: branch?.address || pharmacy?.address || null,
+          latitude: branch?.latitude ?? pharmacy?.latitude ?? null,
+          longitude: branch?.longitude ?? pharmacy?.longitude ?? null,
+        };
+      }) as PatientMarketplaceMedication[],
       pharmacies: Array.from(pharmacyMap.values()),
       branches: Array.from(branchMap.values()),
     };

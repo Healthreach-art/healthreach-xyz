@@ -285,7 +285,10 @@ function VerifyEmailPage() {
       }
       setVerifiedEmail(user.email ?? "");
       const account = continuation ?? await loadContinuationInfo(user);
-      const role = account.role ?? await resolveUserRole(user, { fallbackRole: "patient" });
+      const isHomecareOperations = user.email?.trim().toLowerCase() === "support@healthreachcare.co.za";
+      const role = isHomecareOperations
+        ? await resolveUserRole(user)
+        : account.role ?? await resolveUserRole(user, { fallbackRole: "patient" });
       let storedRedirect: string | null = null;
       try {
         storedRedirect = sessionStorage.getItem("hr_post_verification_redirect");
@@ -294,7 +297,7 @@ function VerifyEmailPage() {
         // Continue to the user's dashboard if browser storage is unavailable.
       }
       const redirect = isSafeRedirect(search.redirect) ? search.redirect : storedRedirect ?? undefined;
-      if (isSafeRedirect(redirect)) {
+      if (!isHomecareOperations && isSafeRedirect(redirect)) {
         window.location.assign(redirect);
         return;
       }

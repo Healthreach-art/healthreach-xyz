@@ -1,52 +1,68 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Home, ClipboardList, MessageSquare, UserRound } from "lucide-react";
+import { Activity, Bell, Home, MessageSquare, UserRound } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { firestoreClient } from "@/lib/firestore-client";
 import { toast } from "sonner";
 
 const ITEMS = [
   { to: "/dashboard/patient", label: "Home", icon: Home, exact: true },
-  { to: "/dashboard/patient/activity", label: "Activity", icon: ClipboardList, exact: false },
+  { to: "/dashboard/patient/activity", label: "Activity", icon: Activity, exact: false },
+  { to: "/dashboard/patient/notifications", label: "Notifications", icon: Bell, exact: false },
   { to: "/dashboard/patient/consultations", label: "Messages", icon: MessageSquare, exact: false },
   { to: "/dashboard/patient/account", label: "Account", icon: UserRound, exact: false },
 ] as const;
 
 export function PatientBottomNav() {
   const { user } = useAuth();
-  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [unreadChats, setUnreadChats] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const path = useRouterState({ select: (r) => r.location.pathname }).replace(/\/$/, "");
 
   useEffect(() => {
     if (!user?.id) {
-      setUnreadMessages(0);
+      setUnreadChats(0);
+      setUnreadNotifications(0);
       return;
     }
 
     let cancelled = false;
-    const loadUnreadMessages = async () => {
-      const { data, error } = await firestoreClient.from("appointment_messages")
-        .select("id, sender_id, read_at")
-        .eq("patient_id", user.id);
+    const loadUnread = async () => {
+      const [appointmentResult, orderResult, notificationResult] = await Promise.all([
+        firestoreClient.from("appointment_messages")
+          .select("appointment_id")
+          .eq("patient_id", user.id)
+          .neq("sender_id", user.id)
+          .is("read_at", null)
+          .limit(100),
+        firestoreClient.from("order_messages")
+          .select("order_id")
+          .neq("sender_id", user.id)
+          .is("read_at", null)
+          .limit(100),
+        firestoreClient.from("notifications")
+          .select("id")
+          .eq("user_id", user.id)
+          .is("read_at", null)
+          .limit(100),
+      ]);
       if (cancelled) return;
-      if (error) {
-        console.error("[patient-nav] Could not load unread messages.", error);
-        toast.error("Could not refresh your unread message count.");
-        return;
-      }
-      setUnreadMessages((data ?? []).filter((message) =>
-        message.sender_id !== user.id && message.read_at == null,
-      ).length);
+      if (appointmentResult.error) toast.error(`Could not load unread appointment messages: ${appointmentResult.error.message}`);
+      if (orderResult.error) toast.error(`Could not load unread order messages: ${orderResult.error.message}`);
+      if (notificationResult.error) toast.error(`Could not load unread notifications: ${notificationResult.error.message}`);
+      const unreadMessageCount = new Set([
+        ...(appointmentResult.data ?? []).map((message) => `appointment:${message.appointment_id}`),
+        ...(orderResult.data ?? []).map((message) => `order:${message.order_id}`),
+      ]).size;
+      setUnreadChats(unreadMessageCount);
+      setUnreadNotifications((notificationResult.data?.length ?? 0) + unreadMessageCount);
     };
 
-    void loadUnreadMessages();
+    void loadUnread();
     const channel = firestoreClient.channel(`patient-nav-messages-${user.id}`)
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "appointment_messages",
-        filter: `patient_id=eq.${user.id}`,
-      }, loadUnreadMessages)
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointment_messages", filter: `patient_id=eq.${user.id}` }, loadUnread)
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_messages" }, loadUnread)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, loadUnread)
       .subscribe();
     return () => {
       cancelled = true;
@@ -56,7 +72,7 @@ export function PatientBottomNav() {
 
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-      <ul className="mx-auto grid max-w-3xl grid-cols-4">
+      <ul className="mx-auto grid max-w-3xl grid-cols-5">
         {ITEMS.map((it) => {
           const active = it.exact ? path === it.to : path.startsWith(it.to);
           return (
@@ -68,12 +84,17 @@ export function PatientBottomNav() {
               >
                 <span className="relative">
                   <it.icon className={`h-6 w-6 ${active ? "stroke-[2.5]" : ""}`} />
-                  {it.label === "Messages" && unreadMessages > 0 && (
+                  {it.label === "Messages" && unreadChats > 0 && (
                     <span
-                      aria-label={`${unreadMessages} unread messages`}
+                      aria-label={`${unreadChats} unread messages`}
                       className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white"
                     >
-                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                      {unreadChats > 9 ? "9+" : unreadChats}
+                    </span>
+                  )}
+                  {it.label === "Notifications" && unreadNotifications > 0 && (
+                    <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white" aria-label={`${unreadNotifications} unread notifications`}>
+                      {unreadNotifications > 9 ? "9+" : unreadNotifications}
                     </span>
                   )}
                 </span>

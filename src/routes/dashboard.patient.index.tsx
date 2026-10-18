@@ -9,7 +9,6 @@ import { OrderTimeline } from "@/components/OrderTimeline";
 import { OrderGroupTimeline } from "@/components/OrderGroupTimeline";
 import { DeliveryMap } from "@/components/DeliveryMap";
 import { PatientAddressHeader } from "@/components/PatientAddressHeader";
-import { PatientNotificationBell } from "@/components/PatientNotificationBell";
 import { customerPrice } from "@/lib/pricing";
 import {
   ArrowRight, Star, Pill, MessageSquare, Siren, PhoneCall, Search,
@@ -64,6 +63,7 @@ function PatientDashboard() {
   const [pickupCode, setPickupCode] = useState<string | null>(null);
   const [deliveryCode, setDeliveryCode] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -155,33 +155,22 @@ function PatientDashboard() {
     <div className="bg-background min-h-screen overflow-x-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="space-y-6">
-            <header className="flex items-center justify-end">
-              <div className="flex items-center gap-3">
-                <PatientNotificationBell />
-                <Link to="/dashboard/patient/account" aria-label="Your profile" className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-emerald-100 font-semibold text-emerald-900">
-                  {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : firstName.charAt(0).toUpperCase() || "P"}
-                </Link>
-              </div>
-            </header>
-
-            <section className="relative grid overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 p-5 shadow-sm sm:grid-cols-[1fr_220px] sm:p-8">
-              <div className="relative z-10 flex flex-col items-start gap-5">
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            <section className="rounded-3xl bg-healthcare-green p-5 text-white shadow-sm sm:p-8">
+              <div className="flex flex-col items-start gap-5">
+                <div className="w-full">
+                  <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                     Welcome, {firstName || "Patient"} <span aria-hidden="true">👋</span>
                   </h1>
-                  <p className="mt-2 max-w-lg text-sm text-slate-700">Your health is our priority. Let's take care of it today.</p>
+                  <p className="mt-2 max-w-lg text-sm text-white/90">Your health is our priority. Let's take care of it today.</p>
                 </div>
                 <PatientAddressHeader embedded />
+                <form onSubmit={submitSearch} className="relative w-full">
+                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                  <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} aria-label="Search medicines, doctors, or services" placeholder="Search medicines, doctors, or services..." className="h-14 w-full rounded-2xl border border-white/40 bg-white pl-12 pr-24 text-sm text-foreground shadow-sm outline-none transition focus:border-white focus:ring-2 focus:ring-white/30" />
+                  <button type="submit" className="absolute right-2 top-2 h-10 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950">Search</button>
+                </form>
               </div>
-              <img src={tileAppt} alt="" className="absolute -bottom-8 right-0 h-36 w-36 object-contain opacity-70 sm:relative sm:bottom-auto sm:h-48 sm:w-48 sm:justify-self-end sm:opacity-100" />
             </section>
-
-            <form onSubmit={submitSearch} className="relative">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} aria-label="Search medicines, doctors, or services" placeholder="Search medicines, doctors, or services..." className="h-14 w-full rounded-2xl border border-border bg-card pl-12 pr-24 text-sm shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />
-              <button type="submit" className="absolute right-2 top-2 h-10 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800">Search</button>
-            </form>
 
             {/* Action cards */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4">

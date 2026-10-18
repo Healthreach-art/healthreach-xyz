@@ -1,18 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Activity, Baby, Bandage, Heart, HeartHandshake, HeartPulse, HomeIcon, Loader2, ShieldPlus, Stethoscope, UsersRound } from "lucide-react";
-import { REQUEST_LABEL } from "@/lib/homecare";
-import { HOMECARE_SERVICES } from "@/lib/homecare";
+import {
+  ArrowLeft, BadgeCheck, CalendarDays, Check, CheckCircle2, ChevronRight,
+  Clock3, Copy, HeartHandshake, HeartPulse, Loader2, Mail, MapPin, MessageCircle,
+  ShieldCheck, Stethoscope, UsersRound,
+} from "lucide-react";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from "@/lib/patient-address";
 import { useServerFn } from "@tanstack/react-start";
 import { reorderCompletedHomecare, respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
@@ -20,6 +21,7 @@ import { HomecareServiceChat } from "@/components/HomecareServiceChat";
 
 interface HomecareRequest {
   id: string;
+  reference_number: string | null;
   service_type: string;
   description: string | null;
   address: string;
@@ -41,19 +43,64 @@ interface HomecareRequest {
   homecare_providers: { business_name: string | null; full_name: string | null } | null;
 }
 
+const SERVICES = [
+  { title: "Personal Care", description: "Assistance with daily living activities and personal hygiene", icon: HeartHandshake },
+  { title: "Nursing Care", description: "Professional nursing support at home", icon: Stethoscope },
+  { title: "Companionship", description: "Emotional support and companionship for a better quality of life", icon: UsersRound },
+  { title: "Specialised Care", description: "Care for chronic conditions, post-surgery recovery and more", icon: HeartPulse },
+] as const;
+
+const TIME_SLOTS = [
+  { value: "08:00", label: "08:00 AM" },
+  { value: "09:00", label: "09:00 AM" },
+  { value: "10:00", label: "10:00 AM" },
+  { value: "11:00", label: "11:00 AM" },
+  { value: "12:00", label: "12:00 PM" },
+  { value: "14:00", label: "02:00 PM" },
+  { value: "16:00", label: "04:00 PM" },
+  { value: "18:00", label: "06:00 PM" },
+] as const;
+
+const REQUEST_TABS = ["All", "Active", "Completed", "Cancelled"] as const;
+type RequestTab = typeof REQUEST_TABS[number];
+
 export const Route = createFileRoute("/dashboard/patient/homecare")({
   head: () => ({
     meta: [
       { title: "Home Care Requests — HealthReachCare" },
-      { name: "description", content: "Request a home care visit and follow its progress from review to completion." },
-      { property: "og:title", content: "Home Care Requests — HealthReachCare" },
-      { property: "og:description", content: "Request a home care visit and follow its progress." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "description", content: "Request trusted homecare services and track quotations from HealthReachCare." },
     ],
   }),
   component: () => <RoleGuard allow="patient"><PatientHomecarePage /></RoleGuard>,
 });
+
+function localDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function referenceFor(request: HomecareRequest) {
+  return request.reference_number || `Request ${request.id.slice(0, 8).toUpperCase()}`;
+}
+
+function statusLabel(status: string) {
+  if (status === "pending_review" || status === "quote_pending") return "Pending Quotes";
+  if (status === "quote_accepted" || status === "assigned" || status === "accepted" || status === "scheduled" || status === "in_progress") return "Accepted";
+  if (status === "completed" || status === "confirmed") return "Completed";
+  if (status === "cancelled" || status === "rejected" || status === "quote_declined") return "Cancelled";
+  return status.replaceAll("_", " ");
+}
+
+function statusColor(status: string) {
+  if (status === "pending_review" || status === "quote_pending") return "bg-amber-100 text-amber-800";
+  if (["quote_accepted", "assigned", "accepted", "scheduled", "in_progress"].includes(status)) return "bg-emerald-100 text-emerald-800";
+  if (status === "completed" || status === "confirmed") return "bg-sky-100 text-sky-800";
+  return "bg-slate-100 text-slate-700";
+}
 
 function PatientHomecarePage() {
   const { user, profile } = useAuth();
@@ -63,12 +110,13 @@ function PatientHomecarePage() {
   const [requests, setRequests] = useState<HomecareRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [serviceType, setServiceType] = useState("");
-  const [description, setDescription] = useState("");
-  const [preferredAt, setPreferredAt] = useState("");
-  const [hours, setHours] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [dateKey, setDateKey] = useState("");
+  const [time, setTime] = useState("");
+  const [locationMode, setLocationMode] = useState<"home" | "different">("home");
   const [address, setAddress] = useState<PickedAddress | null>(null);
   const [savedAddress, setSavedAddress] = useState("");
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [reordering, setReordering] = useState<string | null>(null);
@@ -80,7 +128,7 @@ function PatientHomecarePage() {
       .select("*, homecare_assignments(id, created_at, status, scheduled_at), homecare_providers(business_name, full_name)")
       .eq("patient_id", user.id).order("created_at", { ascending: false });
     if (error) {
-      toast.error(`Could not load your home care requests: ${error.message}`);
+      toast.error(`Could not load your homecare requests: ${error.message}`);
       setLoading(false);
       return;
     }
@@ -93,10 +141,12 @@ function PatientHomecarePage() {
   useEffect(() => {
     if (!user?.id) return;
     const applyAddress = (value: PatientAddress | null) => {
-      setSavedAddress(value?.address ?? "");
-      setAddress(value?.address && value.lat != null && value.lng != null
-        ? { address: value.address, lat: value.lat, lng: value.lng }
-        : null);
+      setSavedAddress(value?.address ?? profile?.address ?? "");
+      if (value?.address) {
+        setAddress(value.lat != null && value.lng != null
+          ? { address: value.address, lat: value.lat, lng: value.lng }
+          : null);
+      }
     };
     applyAddress(readPatientAddress(user.id) ?? (profile?.address ? { address: profile.address, lat: null, lng: null } : null));
     const onChange = (event: Event) => applyAddress((event as CustomEvent<PatientAddress>).detail);
@@ -106,40 +156,41 @@ function PatientHomecarePage() {
 
   useEffect(() => {
     if (!user?.id) return;
-    const ch = firestoreClient.channel(`hc-patient-${user.id}`)
+    const channel = firestoreClient.channel(`hc-patient-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "homecare_requests", filter: `patient_id=eq.${user.id}` }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "homecare_assignments" }, () => void load())
       .subscribe();
-    return () => { firestoreClient.removeChannel(ch); };
+    return () => { void firestoreClient.removeChannel(channel); };
   }, [user?.id, load]);
 
   const submit = async () => {
-    if (!user) { toast.error("Please sign in to request home care."); return; }
-    if (!serviceType.trim()) { toast.error("Describe the type of care you need."); return; }
-    const visitAddress = address?.address || savedAddress.trim() || profile?.address?.trim();
-    if (!visitAddress) { toast.error("Please give the address for the visit"); return; }
+    if (!user) return toast.error("Please sign in to request homecare.");
+    if (!serviceType) return toast.error("Choose the service you need.");
+    if (!visitAddress.trim()) return toast.error("Choose or add a service address.");
+    if (!dateKey || !time) return toast.error("Choose a preferred date and time.");
+    const preferredAt = new Date(`${dateKey}T${time}:00+02:00`);
+    if (!Number.isFinite(preferredAt.getTime()) || preferredAt.getTime() <= Date.now()) {
+      return toast.error("Choose a date and time in the future.");
+    }
+
     setSaving(true);
     try {
-      await createRequest({
+      const result = await createRequest({
         data: {
-          serviceType: serviceType.trim(),
-          description: description.trim(),
-          address: visitAddress,
-          latitude: address?.lat ?? null,
-          longitude: address?.lng ?? null,
-          preferredAt: preferredAt ? new Date(preferredAt).toISOString() : null,
-          durationHours: hours ? Number(hours) : null,
+          serviceType,
+          description: instructions.trim(),
+          address: visitAddress.trim(),
+          latitude: locationMode === "different" ? address?.lat ?? null : address?.address === homeAddress ? address.lat : null,
+          longitude: locationMode === "different" ? address?.lng ?? null : address?.address === homeAddress ? address.lng : null,
+          preferredAt: preferredAt.toISOString(),
+          durationHours: null,
         },
       });
-      setServiceType("");
-      setDescription("");
-      setPreferredAt("");
-      setHours("");
-      setStep(1);
-      toast.success("Request sent to the HealthReachCare home care coordinator.");
-      await load();
+      setReferenceNumber(result.referenceNumber);
+      setStep(4);
+      void load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not send your request.");
+      toast.error(error instanceof Error ? error.message : "Could not send your homecare request.");
     } finally {
       setSaving(false);
     }
@@ -149,8 +200,11 @@ function PatientHomecarePage() {
     setRespondingTo(requestId);
     try {
       await respondToQuote({ data: { requestId, response } });
-      toast.success(response === "accept" ? "Quote accepted. The coordinator will confirm next steps." : "Quote declined.");
+      toast.success(response === "accept" ? "Quotation accepted. The care coordinator will confirm next steps." : "Quotation declined.");
       await load();
+      setSelectedRequest((current) => current?.id === requestId
+        ? { ...current, status: response === "accept" ? "quote_accepted" : "quote_declined" }
+        : current);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not submit your response.");
     } finally {
@@ -206,94 +260,35 @@ function PatientHomecarePage() {
     return true;
   };
 
-  const nextStep = () => {
-    if (validateStep(step)) setStep((current) => Math.min(current + 1, 4));
+  const copyReference = async () => {
+    try {
+      await navigator.clipboard.writeText(referenceNumber);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error("Could not copy the request reference.");
+    }
   };
 
+  const visibleRequests = requests.filter((request) => {
+    if (tab === "All") return true;
+    if (tab === "Completed") return ["completed", "confirmed"].includes(request.status);
+    if (tab === "Cancelled") return ["cancelled", "rejected", "quote_declined"].includes(request.status);
+    return !["completed", "confirmed", "cancelled", "rejected", "quote_declined"].includes(request.status);
+  });
+
   return (
-    <>
-    <main className="container-narrow space-y-7 px-4 py-7 sm:px-6 sm:py-8">
-      <header className="flex justify-end border-b border-border/60 pb-5">
-        <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Dashboard</Link>
+    <main className="container-narrow space-y-8 px-4 py-6 pb-28 sm:px-6 sm:py-8">
+      <header className="flex items-center justify-between border-b border-border/60 pb-4">
+        <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back</Link>
       </header>
-      <section>
-        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Personalized support at home</p>
-        <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight text-slate-900"><HomeIcon className="h-7 w-7 text-emerald-600" /> Request Homecare</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">Tell us what support you need. A HealthReachCare coordinator will review your request and prepare a personalized quotation before any service is agreed.</p>
-      </section>
 
-      <section className="overflow-hidden rounded-2xl border border-border/60 bg-white shadow-sm">
-        <div className="border-b border-border/60 px-5 py-4 sm:px-6">
-          <ol className="grid grid-cols-4 gap-2">
-            {["Care service", "Requirements", "Location", "Review"].map((label, index) => {
-              const number = index + 1;
-              return <li key={label}><button type="button" onClick={() => number < step && setStep(number)} aria-current={step === number ? "step" : undefined}
-                className={`flex w-full items-center gap-2 text-left text-xs font-medium ${step === number ? "text-emerald-700" : number < step ? "text-emerald-700" : "text-muted-foreground"}`}>
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs ${number <= step ? "border-emerald-600 bg-emerald-600 text-white" : "border-border bg-white"}`}>{number}</span>
-                <span className="hidden sm:inline">{label}</span>
-              </button></li>;
-            })}
-          </ol>
-        </div>
-        <div className="space-y-5 p-5 sm:p-6">
-          {step === 1 && <>
-            <div><h2 className="text-lg font-semibold text-slate-900">What kind of care do you need?</h2><p className="mt-1 text-sm text-muted-foreground">Select a service to get started.</p></div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {HOMECARE_SERVICES.map((service, index) => {
-                const icons = [UsersRound, HeartPulse, Bandage, Activity, ShieldPlus, Heart, Baby, HeartHandshake, Stethoscope, Heart];
-                const Icon = icons[index] ?? HomeIcon;
-                const selected = serviceType === service;
-                return <button key={service} type="button" aria-pressed={selected} onClick={() => setServiceType(service)}
-                  className={`flex min-h-24 items-start gap-3 rounded-xl border p-4 text-left transition ${selected ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600" : "border-border/70 hover:border-emerald-300 hover:bg-slate-50/50"}`}>
-                  <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${selected ? "text-emerald-700" : "text-slate-500"}`} />
-                  <span className="text-sm font-semibold text-slate-900">{service}</span>
-                </button>;
-              })}
-            </div>
-            <div className="space-y-2"><Label htmlFor="other-service">Something else?</Label><Input id="other-service" value={HOMECARE_SERVICES.includes(serviceType as typeof HOMECARE_SERVICES[number]) ? "" : serviceType} onChange={(event) => setServiceType(event.target.value)} maxLength={120} placeholder="Describe another type of care" /></div>
-          </>}
-
-          {step === 2 && <>
-            <div><h2 className="text-lg font-semibold text-slate-900">Care requirements & schedule</h2><p className="mt-1 text-sm text-muted-foreground">The more you share, the better the coordinator can match your needs.</p></div>
-            <div className="space-y-2"><Label htmlFor="desc">Describe the care needed</Label><Textarea id="desc" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={5000} rows={5} placeholder="Include the type of support, mobility needs, medication assistance, or anything the care team should know." /></div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2"><Label htmlFor="preferred">Preferred date & time <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="preferred" type="datetime-local" min={new Date().toISOString().slice(0, 16)} value={preferredAt} onChange={(event) => setPreferredAt(event.target.value)} /></div>
-              <div className="space-y-2"><Label htmlFor="hours">Estimated duration in hours <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="hours" type="number" min="1" max="24" step="1" value={hours} onChange={(event) => setHours(event.target.value)} placeholder="e.g. 2" /></div>
-            </div>
-          </>}
-
-          {step === 3 && <>
-            <div><h2 className="text-lg font-semibold text-slate-900">Where is care needed?</h2><p className="mt-1 text-sm text-muted-foreground">Choose or enter the verified address for the visit.</p></div>
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
-              <p className="mb-2 text-sm font-semibold text-slate-900">Visit address</p>
-              <AddressPicker value={address} onChange={(picked) => { setAddress(picked); setSavedAddress(picked.address); }} placeholder={savedAddress || profile?.address || "Search an address or use current location"} />
-              {(address?.address || savedAddress || profile?.address) && <p className="mt-2 text-xs text-emerald-800">Selected: {address?.address || savedAddress || profile?.address}</p>}
-            </div>
-            <p className="text-xs text-muted-foreground">Your location is only shared with the coordinator and assigned provider as needed to arrange care.</p>
-          </>}
-
-          {step === 4 && <>
-            <div><h2 className="text-lg font-semibold text-slate-900">Review your request</h2><p className="mt-1 text-sm text-muted-foreground">Check your details before sending them to our care coordinator.</p></div>
-            <div className="space-y-3 rounded-xl border border-border/70 bg-slate-50/50 p-4 text-sm">
-              <div><p className="text-xs text-muted-foreground">Care service</p><p className="font-semibold text-slate-900">{serviceType}</p></div>
-              <div><p className="text-xs text-muted-foreground">Care requirements</p><p className="whitespace-pre-wrap text-slate-800">{description}</p></div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div><p className="text-xs text-muted-foreground">Preferred schedule</p><p>{preferredAt ? new Date(preferredAt).toLocaleString() : "Flexible — to be discussed"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Estimated duration</p><p>{hours ? `${hours} hour(s)` : "To be discussed"}</p></div>
-              </div>
-              <div><p className="text-xs text-muted-foreground">Visit address</p><p className="font-medium">{address?.address || savedAddress || profile?.address}</p></div>
-            </div>
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="font-semibold text-emerald-950">No upfront unverified charge</p>
-              <p className="mt-1 text-sm text-emerald-900/80">HealthReachCare coordinators will review your needs and prepare a personalized quotation. You can review and accept or decline the quotation before any service is arranged. No payment is taken with this request.</p>
-            </div>
-          </>}
-
-          <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-4">
-            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep((current) => Math.max(current - 1, 1))} disabled={step === 1 || saving}>Back</Button>
-            {step < 4
-              ? <Button type="button" className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" onClick={nextStep}>Continue</Button>
-              : <Button className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" onClick={submit} disabled={saving}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</> : "Send care request"}</Button>}
+      {step === 4 ? (
+        <section className="mx-auto max-w-2xl space-y-6 rounded-3xl border border-emerald-100 bg-white p-6 text-center shadow-sm sm:p-10">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100"><CheckCircle2 className="h-11 w-11 text-emerald-700" /></div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Request Submitted!</h1>
+            <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">Your homecare request has been sent to our verified providers. You&apos;ll be notified once you receive a quotation.</p>
           </div>
         </div>
       </section>
@@ -398,6 +393,90 @@ function PatientHomecarePage() {
         })}
       </section>
     </main>
-    </>
   );
+}
+
+function ReviewRow({ title, value, onChange }: { title: string; value: string; onChange: () => void }) {
+  return <div className="flex items-start justify-between gap-4 p-4">
+    <div className="min-w-0"><p className="text-xs font-medium text-muted-foreground">{title}</p><p className="mt-1 whitespace-pre-wrap text-sm font-medium text-slate-900">{value}</p></div>
+    <button type="button" onClick={onChange} className="shrink-0 text-sm font-semibold text-emerald-700 hover:underline">Change</button>
+  </div>;
+}
+
+function RequestCard({ request, onDetails }: { request: HomecareRequest; onDetails: () => void }) {
+  const assignment = request.homecare_assignments?.slice().sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  return <article className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0"><h3 className="font-semibold text-slate-900">{request.service_type}</h3><p className="mt-1 font-mono text-xs text-muted-foreground">{referenceFor(request)}</p></div>
+      <Badge className={statusColor(request.status)}>{statusLabel(request.status)}</Badge>
+    </div>
+    <div className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+      <p className="flex items-center gap-2"><Clock3 className="h-4 w-4 shrink-0" />{request.preferred_at ? new Date(request.preferred_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Johannesburg" }) : "Schedule to be confirmed"}</p>
+      <p className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0" /><span className="truncate">{request.address}</span></p>
+      {assignment?.scheduled_at && <p className="flex items-center gap-2 sm:col-span-2"><CalendarDays className="h-4 w-4 shrink-0" />Confirmed visit: {new Date(assignment.scheduled_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Johannesburg" })}</p>}
+    </div>
+    <div className="mt-4 flex justify-end border-t border-border pt-3">
+      <Button type="button" variant="outline" size="sm" onClick={onDetails}>View Details <ChevronRight className="ml-1 h-4 w-4" /></Button>
+    </div>
+  </article>;
+}
+
+function RequestDetails({ request, busy, onQuoteResponse }: {
+  request: HomecareRequest;
+  busy: boolean;
+  onQuoteResponse: (response: "accept" | "decline") => void;
+}) {
+  const requestRef = referenceFor(request);
+  const providerName = request.homecare_providers?.business_name || request.homecare_providers?.full_name;
+  const canRespond = request.status === "quote_pending" && request.quote_amount != null;
+  return <div className="space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div><p className="font-semibold text-slate-900">{request.service_type}</p><p className="font-mono text-xs text-muted-foreground">{requestRef}</p></div>
+      <Badge className={statusColor(request.status)}>{statusLabel(request.status)}</Badge>
+    </div>
+    <div className="space-y-2 rounded-xl border border-border p-4 text-sm">
+      <p><strong>Location:</strong> {request.address}</p>
+      <p><strong>Preferred visit:</strong> {request.preferred_at ? new Date(request.preferred_at).toLocaleString("en-ZA", { dateStyle: "full", timeStyle: "short", timeZone: "Africa/Johannesburg" }) : "To be confirmed"}</p>
+      {request.description && <p className="whitespace-pre-wrap"><strong>Special instructions:</strong> {request.description}</p>}
+    </div>
+    <div className="flex flex-wrap gap-2">
+      <Button asChild variant="outline"><a
+        href={`https://wa.me/27797285078?text=${encodeURIComponent(`Hi HealthReachCare, I would like to discuss homecare request ${requestRef}.`)}`}
+        target="_blank"
+        rel="noreferrer"
+      ><MessageCircle className="mr-2 h-4 w-4" />WhatsApp support</a></Button>
+      <Button asChild variant="outline"><a
+        href={`mailto:support@healthreachcare.co.za?subject=${encodeURIComponent(`Homecare request ${requestRef}`)}`}
+      ><Mail className="mr-2 h-4 w-4" />Email support</a></Button>
+    </div>
+
+    {request.quote_amount != null ? (
+      <>
+        <section className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800"><HeartHandshake className="h-6 w-6" /></div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-slate-900">{providerName || "HealthReachCare Verified Caregiver"}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{providerName ? "Assigned homecare provider" : "Care coordination via support@healthreachcare.co.za"}</p>
+              <div className="mt-2 flex flex-wrap gap-2"><Badge className="bg-emerald-100 text-emerald-800"><BadgeCheck className="mr-1 h-3 w-3" />Verified coordination</Badge></div>
+            </div>
+          </div>
+          <div className="rounded-xl bg-white p-4">
+            <p className="text-xs text-muted-foreground">Visit quotation</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{request.quote_currency === "ZAR" || !request.quote_currency ? "R" : `${request.quote_currency} `}{Number(request.quote_amount).toFixed(2)} <span className="text-sm font-medium text-muted-foreground">per visit</span></p>
+            {request.quote_details && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{request.quote_details}</p>}
+            {request.quote_issued_at && <p className="mt-2 text-xs text-muted-foreground">Quotation issued {new Date(request.quote_issued_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</p>}
+          </div>
+        </section>
+        {canRespond && <div>
+          <Button type="button" disabled={busy} onClick={() => onQuoteResponse("accept")} className="bg-emerald-700 text-white hover:bg-emerald-800">{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Accept Quotation</Button>
+        </div>}
+        {request.status === "quote_accepted" && <p className="text-sm text-emerald-800">Quotation accepted. The care coordinator will confirm the next steps with you.</p>}
+      </>
+    ) : (
+      <div className="rounded-xl border border-dashed border-border bg-slate-50 p-4 text-sm text-muted-foreground">
+        Your request is with the HealthReachCare homecare coordination team. The verified team will share the visit quotation here when it is ready.
+      </div>
+    )}
+  </div>;
 }

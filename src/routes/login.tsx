@@ -96,6 +96,10 @@ function LoginPage() {
         setError("This account is not an admin account.");
         return;
       }
+      if (role === "homecare_operations") {
+        await navigateOnce("/dashboard/homecare_operations");
+        return;
+      }
 
       // Mirror the account into Firebase (Firestore profiles + roles) in the
       // background. Never blocks or fails the sign-in.
@@ -104,7 +108,7 @@ function LoginPage() {
         uid: firebaseUser.uid,
         email: email.trim(),
         fullName: firebaseUser.displayName ?? undefined,
-        role: role === "homecare_operations" ? "homecare_staff" : role,
+        role,
       }).catch((error: unknown) => {
         console.error("[auth] Could not sync the signed-in user's Firestore profile.", error);
       });
