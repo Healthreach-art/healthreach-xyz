@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { fetchVerification, isVerificationComplete } from "@/components/PatientVerificationCard";
+import { fetchVerification } from "@/lib/patient-verification-data";
+import { isVerificationComplete } from "@/lib/patient-verification";
 import {
   Users, MapPin, LifeBuoy, Wallet, CreditCard, ChevronRight, LogOut, RefreshCw,
   ShieldCheck, Lock, FileText, ClipboardList, Bell, KeyRound, MessageCircle, type LucideIcon,
