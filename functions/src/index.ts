@@ -835,10 +835,10 @@ async function registerSelfServiceRole(identity: Identity, args: ActionArgs) {
       transaction.get(roleRef),
       transactionQuery(transaction, userRoles),
     ]);
-    if (roleSnapshot.exists) return { ok: true, role };
-    if (!existingRoles.empty) {
+    if (existingRoles.docs.some((document) => document.get("role") !== role)) {
       throw new ActionError("This account already has a different role.", 409);
     }
+    if (roleSnapshot.exists) return { ok: true, role };
     if (role !== "patient" && role !== "admin") {
       const profileSnapshot = await transaction.get(db.collection("profiles").doc(identity.uid));
       const profile = profileSnapshot.data() ?? {};
@@ -874,6 +874,263 @@ async function registerSelfServiceRole(identity: Identity, args: ActionArgs) {
   });
 }
 
+async function requireHomecareOperations(identity: Identity) {
+  if (!(await isAdmin(identity)) && !(await hasRole(identity.uid, "homecare_operations"))) {
+    throw new ActionError("Home care operations role required.", 403);
+  }
+}
+
+async function issueHomecareQuote(identity: Identity, args: ActionArgs) {
+  await requireHomecareOperations(identity);
+  const requestId = stringArg(args, "_request_id");
+  const amount = args._amount;
+  const details = stringArg(args, "_details").trim();
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || amount > 1_000_000) {
+    throw new ActionError("A valid quote amount is required.");
+  }
+  if (details.length < 3 || details.length > 2_000) {
+    throw new ActionError("Quote details must be between 3 and 2000 characters.");
+  }
+
+  const requestRef = db.collection("homecare_requests").doc(requestId);
+  const now = new Date().toISOString();
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(requestRef);
+    if (!snapshot.exists) throw new ActionError("Home care request not found.", 404);
+    const request = snapshot.data() ?? {};
+    if (request.status !== "pending_review") {
+      throw new ActionError("This request is no longer waiting for a quote.", 409);
+    }
+    transaction.update(requestRef, {
+      quote_amount: amount,
+      quote_currency: "ZAR",
+      quote_details: details,
+      quote_issued_at: now,
+      quote_issued_by: identity.uid,
+      status: "quote_pending",
+      updated_at: now,
+    });
+    if (typeof request.patient_id === "string") {
+      transaction.create(db.collection("notifications").doc(), {
+        user_id: request.patient_id,
+        category: "homecare",
+        title: "Your home care quote is ready",
+        body: "Review the quote for your home care request.",
+        link: "/dashboard/patient/homecare",
+        created_at: now,
+        read: false,
+      });
+    }
+    return { ok: true };
+  });
+}
+
+async function respondToHomecareQuote(identity: Identity, args: ActionArgs) {
+  await requireRole(identity, "patient");
+  const requestId = stringArg(args, "_request_id");
+  const response = stringArg(args, "_response");
+  if (response !== "accept" && response !== "decline") {
+    throw new ActionError("Choose whether to accept or decline the quote.");
+  }
+  const requestRef = db.collection("homecare_requests").doc(requestId);
+  const now = new Date().toISOString();
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(requestRef);
+    if (!snapshot.exists) throw new ActionError("Home care request not found.", 404);
+    const request = snapshot.data() ?? {};
+    if (request.patient_id !== identity.uid) {
+      throw new ActionError("You cannot respond to another patient's quote.", 403);
+    }
+    if (request.status !== "quote_pending") {
+      throw new ActionError("This quote is no longer awaiting your response.", 409);
+    }
+    const status = response === "accept" ? "quote_accepted" : "quote_declined";
+    transaction.update(requestRef, { status, updated_at: now });
+    return { status };
+  });
+}
+
+async function coordinateHomecareRequest(identity: Identity, args: ActionArgs) {
+  await requireHomecareOperations(identity);
+  const requestId = stringArg(args, "_request_id");
+  const providerId = stringArg(args, "_provider_id");
+  const requestedSchedule = args._scheduled_at;
+  if (
+    requestedSchedule !== undefined
+    && (typeof requestedSchedule !== "string" || !Number.isFinite(Date.parse(requestedSchedule)))
+  ) {
+    throw new ActionError("A valid scheduled date is required.");
+  }
+
+  const requestRef = db.collection("homecare_requests").doc(requestId);
+  const providerRef = db.collection("homecare_providers").doc(providerId);
+  const assignmentRef = db.collection("homecare_assignments").doc();
+  const now = new Date().toISOString();
+  return db.runTransaction(async (transaction) => {
+    const [requestSnapshot, providerSnapshot, assignmentsSnapshot] = await Promise.all([
+      transaction.get(requestRef),
+      transaction.get(providerRef),
+      transactionQuery(transaction, db.collection("homecare_assignments").where("request_id", "==", requestId)),
+    ]);
+    if (!requestSnapshot.exists) throw new ActionError("Home care request not found.", 404);
+    if (!providerSnapshot.exists) throw new ActionError("Home care provider not found.", 404);
+    const request = requestSnapshot.data() ?? {};
+    const provider = providerSnapshot.data() ?? {};
+    const providerRoleSnapshot = typeof provider.user_id === "string"
+      ? await transaction.get(db.collection("user_roles").doc(`${provider.user_id}_homecare_company`))
+      : null;
+
+    const existingAssignment = assignmentsSnapshot.docs.find((document) =>
+      document.get("status") !== "declined",
+    );
+    const canReassignDeclined = assignmentsSnapshot.size > 0
+      && assignmentsSnapshot.docs.every((document) => document.get("status") === "declined");
+    if (existingAssignment) {
+      if (request.provider_id === providerId && request.status === "assigned") {
+        return { ok: true, assignmentId: existingAssignment.id };
+      }
+      throw new ActionError("This request already has an active provider assignment.", 409);
+    }
+    if (request.status !== "quote_accepted" && !(request.status === "assigned" && canReassignDeclined)) {
+      throw new ActionError("The patient's quote acceptance is required before assigning a provider.", 409);
+    }
+    if (
+      typeof provider.user_id !== "string"
+      || provider.approval_status !== "approved"
+      || provider.is_active !== true
+      || providerRoleSnapshot?.get("role") !== "homecare_company"
+    ) {
+      throw new ActionError("Choose an approved, active home care provider account.", 409);
+    }
+
+    const scheduledAt = typeof requestedSchedule === "string" ? requestedSchedule : null;
+    transaction.create(assignmentRef, {
+      id: assignmentRef.id,
+      request_id: requestId,
+      patient_id: request.patient_id,
+      provider_id: providerId,
+      staff_id: null,
+      assigned_by: identity.uid,
+      status: "offered",
+      amount: request.quote_amount ?? null,
+      scheduled_at: scheduledAt,
+      created_at: now,
+      updated_at: now,
+    });
+    transaction.update(requestRef, {
+      provider_id: providerId,
+      status: "assigned",
+      updated_at: now,
+    });
+    if (typeof provider.user_id === "string") {
+      transaction.create(db.collection("notifications").doc(), {
+        user_id: provider.user_id,
+        category: "homecare",
+        title: "New home care visit offer",
+        body: "A coordinator assigned a home care request to your provider account.",
+        link: "/dashboard/homecare_company",
+        created_at: now,
+        read: false,
+      });
+    }
+    return { ok: true, assignmentId: assignmentRef.id };
+  });
+}
+
+async function provisionHomecareProviderAccount(identity: Identity, args: ActionArgs) {
+  if (!(await isAdmin(identity))) throw new ActionError("Admin role required.", 403);
+  const userId = stringArg(args, "_user_id");
+  let target;
+  try {
+    target = await getAuth(app).getUser(userId);
+  } catch (error) {
+    if (
+      error
+      && typeof error === "object"
+      && "code" in error
+      && error.code === "auth/user-not-found"
+    ) {
+      throw new ActionError("The target Firebase Auth user could not be found.", 404);
+    }
+    throw error;
+  }
+  if (
+    target.email?.toLowerCase() !== "support@healthreachcare.co.za"
+    || !target.emailVerified
+  ) {
+    throw new ActionError("The verified support@healthreachcare.co.za account is required.", 403);
+  }
+
+  const providerMatches = await db.collection("homecare_providers").where("user_id", "==", userId).get();
+  if (providerMatches.size > 1) {
+    throw new ActionError("More than one home care provider profile is linked to this user; resolve the duplicate profiles first.", 409);
+  }
+  const roles = await db.collection("user_roles").where("user_id", "==", userId).get();
+  if (roles.docs.some((document) => document.get("role") === "admin")) {
+    throw new ActionError("An administrator account cannot be converted to a provider account.", 409);
+  }
+  const profileRef = db.collection("profiles").doc(userId);
+  const profileSnapshot = await profileRef.get();
+  const profile = profileSnapshot.data() ?? {};
+  const providerRef = providerMatches.docs[0]?.ref ?? db.collection("homecare_providers").doc(userId);
+  const existingProvider = providerMatches.docs[0]?.data() ?? {};
+  const providerId = providerMatches.docs[0]?.id ?? userId;
+  const now = new Date().toISOString();
+  const roleRef = db.collection("user_roles").doc(`${userId}_homecare_company`);
+  const batch = db.batch();
+  for (const role of roles.docs) {
+    if (role.id !== roleRef.id) batch.delete(role.ref);
+  }
+  batch.set(profileRef, {
+    ...profile,
+    user_id: userId,
+    email: target.email,
+    homecare_type: "company",
+    approval_status: existingProvider.approval_status ?? "pending",
+    updated_at: now,
+  }, { merge: true });
+  batch.set(providerRef, {
+    ...existingProvider,
+    id: providerId,
+    user_id: userId,
+    email: target.email,
+    full_name: existingProvider.full_name ?? profile.full_name ?? target.displayName ?? null,
+    phone: existingProvider.phone ?? profile.phone ?? null,
+    address: existingProvider.address ?? profile.address ?? null,
+    latitude: existingProvider.latitude ?? profile.latitude ?? null,
+    longitude: existingProvider.longitude ?? profile.longitude ?? null,
+    organization_name: existingProvider.organization_name ?? profile.organization_name ?? null,
+    provider_type: existingProvider.provider_type ?? "company",
+    homecare_type: "company",
+    status: existingProvider.status ?? "pending_review",
+    approval_status: existingProvider.approval_status ?? "pending",
+    is_active: existingProvider.approval_status === "approved" && existingProvider.is_active === true,
+    services: existingProvider.services ?? [],
+    service_areas: existingProvider.service_areas ?? [],
+    certifications: existingProvider.certifications ?? [],
+    requested_documents: existingProvider.requested_documents ?? [],
+    service_radius_km: existingProvider.service_radius_km ?? 25,
+    created_at: existingProvider.created_at ?? now,
+    updated_at: now,
+  }, { merge: true });
+  batch.set(roleRef, {
+    id: roleRef.id,
+    user_id: userId,
+    role: "homecare_company",
+    created_at: now,
+  });
+  batch.create(db.collection("admin_audit_log").doc(), {
+    admin_id: identity.uid,
+    action: "homecare.provider_account.provision",
+    target_type: "user",
+    target_id: userId,
+    payload: { email: target.email },
+    created_at: now,
+  });
+  await batch.commit();
+  return { ok: true };
+}
+
 async function claimAdminWithInvite(identity: Identity, args: ActionArgs) {
   const expected = adminInviteCode.value().trim();
   if (!expected) throw new ActionError("Admin invite code is not configured.", 503);
@@ -904,6 +1161,14 @@ async function runAction(identity: Identity, name: string, args: ActionArgs) {
   switch (name) {
     case "register_self_service_role":
       return registerSelfServiceRole(identity, args);
+    case "issue_homecare_quote":
+      return issueHomecareQuote(identity, args);
+    case "respond_homecare_quote":
+      return respondToHomecareQuote(identity, args);
+    case "coordinate_homecare_request":
+      return coordinateHomecareRequest(identity, args);
+    case "provision_homecare_provider_account":
+      return provisionHomecareProviderAccount(identity, args);
     case "claim_admin_with_code":
       return claimAdminWithInvite(identity, args);
     case "wallet_credit":
@@ -937,6 +1202,24 @@ async function runAction(identity: Identity, name: string, args: ActionArgs) {
       throw new ActionError(`Unknown privileged Firebase action "${name}".`, 404);
   }
 }
+
+export const archiveCompletedHomecareConversation = onDocumentWritten(
+  "homecare_assignments/{assignmentId}",
+  async (event) => {
+    const after = event.data?.after.data();
+    if (!after || !["completed", "confirmed"].includes(String(after.status))) return;
+    const conversationRef = db.collection("homecare_conversations").doc(event.params.assignmentId);
+    await db.runTransaction(async (transaction) => {
+      const conversationSnapshot = await transaction.get(conversationRef);
+      if (!conversationSnapshot.exists || conversationSnapshot.get("status") !== "active") return;
+      transaction.update(conversationRef, {
+        status: "archived",
+        archived_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    });
+  },
+);
 
 export const privilegedFirestoreAction = onRequest(
   { region: "us-central1", timeoutSeconds: 120, memory: "512MiB", secrets: [paystackSecret, adminInviteCode] },

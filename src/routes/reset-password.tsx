@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect, type FormEvent } from "react";
-import { firestoreClient } from "@/lib/firestore-client";
 import { Lock, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
@@ -21,31 +20,64 @@ function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [actionCode, setActionCode] = useState<string | null>(null);
+  const [canChangeSignedInPassword, setCanChangeSignedInPassword] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     const checkRecoverySession = async () => {
-      const { data } = await firestoreClient.auth.getSession();
-      if (!mounted) return;
-      if (!data.session) {
-        setError("Open the reset link from your email first, then enter your new password here.");
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("oobCode");
+      if (url.searchParams.get("mode") === "resetPassword") {
+        if (!code) {
+          if (mounted) {
+            setError("This password reset link is incomplete. Request a new link and try again.");
+            setReady(true);
+          }
+          return;
+        }
+        try {
+          const { firebaseVerifyPasswordResetCode } = await import("@/lib/firebase-auth");
+          await firebaseVerifyPasswordResetCode(code);
+          if (!mounted) return;
+          setActionCode(code);
+          setError("");
+          window.history.replaceState({}, "", "/reset-password");
+        } catch (error) {
+          if (!mounted) return;
+          setError(error instanceof Error ? error.message : "This password reset link is invalid or has expired.");
+        }
+        if (mounted) setReady(true);
+        return;
       }
-      setReady(true);
+      try {
+        const { getFirebaseCurrentUser } = await import("@/lib/firebase-auth");
+        const user = await getFirebaseCurrentUser();
+        if (!mounted) return;
+        if (!user) {
+          setError("Open the reset link from your email first, then enter your new password here.");
+        } else {
+          setCanChangeSignedInPassword(true);
+        }
+      } catch (sessionError) {
+        if (!mounted) return;
+        setError(sessionError instanceof Error ? sessionError.message : "Could not check your Firebase sign-in.");
+      }
+      if (mounted) setReady(true);
     };
     void checkRecoverySession();
 
-    const { data: { subscription } } = firestoreClient.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setError("");
-        setReady(true);
-      }
-    });
-    return () => { mounted = false; subscription.unsubscribe(); };
+    return () => { mounted = false; };
   }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!actionCode && !canChangeSignedInPassword) {
+      setError("Open a valid reset link from your email before choosing a new password.");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -58,17 +90,21 @@ function ResetPasswordPage() {
     }
 
     setLoading(true);
-    const { error: updateError } = await firestoreClient.auth.updateUser({ password });
-
-    if (updateError) {
-      setError(updateError.message);
+    try {
+      if (actionCode) {
+        const { firebaseConfirmPasswordReset } = await import("@/lib/firebase-auth");
+        await firebaseConfirmPasswordReset(actionCode, password);
+      } else {
+        const { firebaseUpdateCurrentPassword, firebaseSignOut } = await import("@/lib/firebase-auth");
+        await firebaseUpdateCurrentPassword(password);
+        await firebaseSignOut();
+      }
+      setSuccess(true);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Could not update the password.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    await firestoreClient.auth.signOut({ scope: "local" });
-    setSuccess(true);
-    setLoading(false);
   };
 
   if (success) {
@@ -127,7 +163,7 @@ function ResetPasswordPage() {
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" autoComplete="new-password" required minLength={6} />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || (!actionCode && !canChangeSignedInPassword)}>
               {loading ? "Updating..." : "Update Password"}
             </Button>
           </form>

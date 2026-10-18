@@ -8,7 +8,6 @@ import {
   linkWithPopup,
   onAuthStateChanged,
   reauthenticateWithCredential,
-  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -642,10 +641,10 @@ export const firestoreClient = {
         return { data: { user: null }, error: asError(error) };
       }
     },
-    resetPasswordForEmail: async (email: string, _options?: { redirectTo?: string }) => {
+    resetPasswordForEmail: async (email: string, options?: { redirectTo?: string }) => {
       try {
-        const { auth } = await getFirebase();
-        await sendPasswordResetEmail(auth, email);
+        const { firebaseSendPasswordReset } = await import("./firebase-auth");
+        await firebaseSendPasswordReset(email, options?.redirectTo);
         return { data: {}, error: null };
       } catch (error) {
         return { data: {}, error: asError(error) };

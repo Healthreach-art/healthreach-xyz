@@ -14,8 +14,11 @@ import {
   sendEmailVerification,
   applyActionCode,
   checkActionCode,
+  confirmPasswordReset,
   reload,
   updateProfile,
+  updatePassword,
+  verifyPasswordResetCode,
   type ActionCodeInfo,
   type User as FirebaseUser,
   type Unsubscribe,
@@ -38,6 +41,14 @@ function toAuthUser(user: FirebaseUser): FirebaseAuthUser {
     photoURL: user.photoURL,
     emailVerified: user.emailVerified,
   };
+}
+
+function authContinuationUrl(path: string): string {
+  const url = new URL(path, window.location.origin);
+  if (url.hostname === "www.healthreachcare.co.za") {
+    url.hostname = "healthreachcare.co.za";
+  }
+  return url.toString();
 }
 
 /** Listen to sign-in state. Returns an unsubscribe function. */
@@ -79,7 +90,7 @@ export async function firebaseSendEmailVerification(): Promise<boolean> {
   await reload(user);
   if (user.emailVerified) return false;
 
-  const continueUrl = new URL("/auth/verify-email", window.location.origin);
+  const continueUrl = new URL(authContinuationUrl("/auth/verify-email"));
   continueUrl.searchParams.set("continue", "1");
   await sendEmailVerification(user, { url: continueUrl.toString() });
   try {
@@ -127,9 +138,31 @@ export async function firebaseSignInWithGoogle(): Promise<FirebaseAuthUser> {
 }
 
 /** Send a password-reset email. */
-export async function firebaseSendPasswordReset(email: string): Promise<void> {
+export async function firebaseSendPasswordReset(email: string, continueUrl?: string): Promise<void> {
   const { auth } = await getFirebase();
-  await sendPasswordResetEmail(auth, email);
+  await sendPasswordResetEmail(auth, email, {
+    url: continueUrl ?? authContinuationUrl("/reset-password"),
+    handleCodeInApp: true,
+  });
+}
+
+/** Validate and complete a Firebase password-reset action code. */
+export async function firebaseVerifyPasswordResetCode(actionCode: string): Promise<string> {
+  const { auth } = await getFirebase();
+  return verifyPasswordResetCode(auth, actionCode);
+}
+
+export async function firebaseConfirmPasswordReset(actionCode: string, password: string): Promise<void> {
+  const { auth } = await getFirebase();
+  await confirmPasswordReset(auth, actionCode, password);
+}
+
+/** Update the password for the currently signed-in Firebase user. */
+export async function firebaseUpdateCurrentPassword(password: string): Promise<void> {
+  const { auth } = await getFirebase();
+  await auth.authStateReady();
+  if (!auth.currentUser) throw new Error("Sign in before changing your password.");
+  await updatePassword(auth.currentUser, password);
 }
 
 /** Sign out. */

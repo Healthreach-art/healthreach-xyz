@@ -2,6 +2,7 @@
 import { firebaseSignIn, firebaseSignUp } from "./firebase-auth";
 import { fsSet, fsGet, fsList, where } from "./firestore";
 import { registerSelfServiceRole, type RegisteredRole } from "./role.functions";
+import { roleFromRows, type AppRole } from "./auth-session-policy";
 
 /**
  * Make sure the user also has a Firebase Auth session, creating the
@@ -200,14 +201,17 @@ export async function firebaseGoogleSignIn(defaultRole: RegisteredRole): Promise
   if (!user.emailVerified) return "/auth/verify-email";
 
   const email = (user.email ?? "").toLowerCase();
-  let roles: string[] = await getUserRoles(user.uid).then((r) => (r as unknown as string[]) ?? []).catch((): string[] => []);
-  if (!Array.isArray(roles)) roles = [];
-  if (roles.length === 0) {
-    const role = email === "admin@healthreachcare.co.za" ? "admin" : defaultRole;
-    await syncProfileToFirestore({ uid: user.uid, email, fullName: user.displayName ?? undefined, role });
-    roles = [role];
+  const roles = await getUserRoles(user.uid);
+  let role: AppRole | null = roleFromRows(roles);
+  if (!role && roles.length > 0) {
+    throw new Error("Your account role could not be resolved. Please try signing in again.");
   }
-  if (roles.includes("admin") || email === "admin@healthreachcare.co.za") return "/firebase-admin";
+  if (!role) {
+    const newRole = email === "admin@healthreachcare.co.za" ? "admin" : defaultRole;
+    await syncProfileToFirestore({ uid: user.uid, email, fullName: user.displayName ?? undefined, role: newRole });
+    role = newRole;
+  }
+  if (role === "admin" || email === "admin@healthreachcare.co.za") return "/firebase-admin";
   const { dashboardPathForRole } = await import("./auth-session");
-  return dashboardPathForRole(roles[0] as Parameters<typeof dashboardPathForRole>[0]);
+  return dashboardPathForRole(role);
 }

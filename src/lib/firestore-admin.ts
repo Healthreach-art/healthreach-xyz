@@ -335,14 +335,26 @@ export const firestoreAdmin = {
         headers: { "Content-Type": "application/json", Authorization: authorization },
         body: JSON.stringify({ name, args }),
       });
-      const body = await response.json().catch(() => null) as {
+      const responseText = await response.text();
+      type PrivilegedActionResponse = {
         data?: unknown;
         error?: { message?: string };
-      } | null;
+      };
+      let body: PrivilegedActionResponse | null = null;
+      try {
+        body = JSON.parse(responseText) as PrivilegedActionResponse;
+      } catch {
+        body = null;
+      }
       if (!response.ok) {
+        const functionName = name.startsWith("mcp_") ? "mcpData" : "privilegedFirestoreAction";
+        const message = body?.error?.message
+          ?? (response.status === 404
+            ? `The configured Firebase function endpoint "${functionName}" was not found (HTTP 404). Verify the function URL and deploy the function before retrying.`
+            : `Firebase privileged action failed (${response.status}).`);
         return {
           data: null,
-          error: new Error(body?.error?.message ?? `Firebase privileged action failed (${response.status}).`),
+          error: new Error(message),
         };
       }
       if (!body || !("data" in body)) {

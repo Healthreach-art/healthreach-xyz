@@ -15,7 +15,8 @@ import { REQUEST_LABEL } from "@/lib/homecare";
 import { HOMECARE_SERVICES } from "@/lib/homecare";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from "@/lib/patient-address";
 import { useServerFn } from "@tanstack/react-start";
-import { respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
+import { reorderCompletedHomecare, respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
+import { HomecareServiceChat } from "@/components/HomecareServiceChat";
 
 interface HomecareRequest {
   id: string;
@@ -28,7 +29,15 @@ interface HomecareRequest {
   quote_currency: string | null;
   quote_details: string | null;
   quote_issued_at: string | null;
-  homecare_assignments: Array<{ id: string; created_at: string; status: string; scheduled_at: string | null }>;
+  homecare_assignments: Array<{
+    id: string;
+    request_id?: string;
+    provider_id?: string;
+    created_at: string;
+    status: string;
+    scheduled_at: string | null;
+    completed_at?: string | null;
+  }>;
   homecare_providers: { business_name: string | null; full_name: string | null } | null;
 }
 
@@ -50,6 +59,7 @@ function PatientHomecarePage() {
   const { user, profile } = useAuth();
   const createRequest = useServerFn(submitHomecareRequest);
   const respondToQuote = useServerFn(respondToHomecareQuote);
+  const reorderRequest = useServerFn(reorderCompletedHomecare);
   const [requests, setRequests] = useState<HomecareRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [serviceType, setServiceType] = useState("");
@@ -61,6 +71,7 @@ function PatientHomecarePage() {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
+  const [reordering, setReordering] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -146,6 +157,28 @@ function PatientHomecarePage() {
       setRespondingTo(null);
     }
   };
+
+  const reorder = async (request: HomecareRequest, assignmentId: string) => {
+    setReordering(request.id);
+    try {
+      await reorderRequest({ data: { requestId: request.id, assignmentId } });
+      toast.success("A new request was created from your completed service.");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not reorder this service.");
+    } finally {
+      setReordering(null);
+    }
+  };
+
+  const latestAssignment = (request: HomecareRequest) => (request.homecare_assignments ?? [])
+    .slice()
+    .sort((first, second) => second.created_at.localeCompare(first.created_at))[0];
+  const completedRequests = requests.filter((request) => {
+    const status = latestAssignment(request)?.status ?? request.status;
+    return status === "completed" || status === "confirmed";
+  });
+  const activeRequests = requests.filter((request) => !completedRequests.includes(request));
 
   const validateStep = (current: number) => {
     if (current === 1 && !serviceType.trim()) {
@@ -269,10 +302,9 @@ function PatientHomecarePage() {
         <div><h2 className="text-lg font-semibold text-slate-900">My active requests</h2><p className="text-sm text-muted-foreground">Track quotations and care coordination updates here.</p></div>
         {loading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
         {!loading && requests.length === 0 && <div className="rounded-2xl border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground">You have no homecare requests yet. Use the guided form above to tell us what support you need.</div>}
-        {requests.map((r) => {
-          const latestAssignment = (r.homecare_assignments ?? [])
-            .slice()
-            .sort((first, second) => second.created_at.localeCompare(first.created_at))[0];
+        {!loading && requests.length > 0 && activeRequests.length === 0 && <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">There are no active requests right now.</p>}
+        {activeRequests.map((r) => {
+          const assignment = latestAssignment(r);
           return (
             <div key={r.id} className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -310,15 +342,61 @@ function PatientHomecarePage() {
                   {r.homecare_providers && (
                     <p>Provider: {r.homecare_providers.business_name || r.homecare_providers.full_name || "Approved home care provider"}</p>
                   )}
-                  {latestAssignment?.scheduled_at && <p>Agreed visit: {new Date(latestAssignment.scheduled_at).toLocaleString()}</p>}
-                  {latestAssignment && <p className="text-xs text-muted-foreground">Visit status: {latestAssignment.status}</p>}
+                  {assignment?.scheduled_at && <p>Agreed visit: {new Date(assignment.scheduled_at).toLocaleString()}</p>}
+                  {assignment && <p className="text-xs text-muted-foreground">Visit status: {assignment.status}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">Payment is not collected through this quote workflow.</p>
                 </div>
+              )}
+              {assignment && ["accepted", "scheduled", "in_progress"].includes(assignment.status) && (
+                <HomecareServiceChat
+                  assignmentId={assignment.id}
+                  assignmentStatus={assignment.status}
+                  counterpart={r.homecare_providers?.business_name || r.homecare_providers?.full_name || "your home care provider"}
+                />
               )}
             </div>
           );
         })}
       </div>
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Completed services</h2>
+          <p className="text-sm text-muted-foreground">Your completed home care history stays available here.</p>
+        </div>
+        {!loading && completedRequests.length === 0 && <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">Completed services will appear here.</p>}
+        {completedRequests.map((request) => {
+          const assignment = latestAssignment(request);
+          return (
+            <article key={request.id} className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{request.service_type}</p>
+                  <p className="text-xs text-muted-foreground">{request.address}</p>
+                  {assignment?.completed_at && <p className="text-xs text-muted-foreground">Completed: {new Date(assignment.completed_at).toLocaleString()}</p>}
+                </div>
+                <Badge variant="default">Completed</Badge>
+              </div>
+              {assignment && (
+                <HomecareServiceChat
+                  assignmentId={assignment.id}
+                  assignmentStatus={assignment.status}
+                  counterpart={request.homecare_providers?.business_name || request.homecare_providers?.full_name || "your home care provider"}
+                />
+              )}
+              {assignment && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={reordering === request.id}
+                  onClick={() => void reorder(request, assignment.id)}
+                >
+                  {reordering === request.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Reordering…</> : "Request this care again"}
+                </Button>
+              )}
+            </article>
+          );
+        })}
+      </section>
     </main>
     </>
   );

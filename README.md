@@ -139,6 +139,15 @@ The app calls the function in `us-central1` by default. Set
 function to a different endpoint. Set `FIREBASE_PAYMENT_WEBHOOK_URL` only if
 the public webhook function is deployed at a different endpoint.
 
+Home care quote/coordination actions and explicit support-provider provisioning
+also run through `privilegedFirestoreAction`. The
+`archiveCompletedHomecareConversation` trigger closes a service chat after its
+assignment is completed without deleting messages. Publish the updated
+`firestore.rules` and deploy the functions before enabling this workflow. The
+admin provisioning action requires an explicit Firebase UID and verifies the
+matching support Auth account; it creates a pending provider profile and does
+not approve the provider or make them eligible for assignments.
+
 ## Pharmacy medicine catalogue and order security
 
 Pharmacy-entered products are stored in the pharmacy-owned `medications`

@@ -67,6 +67,56 @@ export const submitHomecareRequest = createServerFn({ method: "POST" })
     return { id: created.id };
   });
 
+export const reorderCompletedHomecare = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .inputValidator((d) => z.object({
+    requestId: uuid,
+    assignmentId: z.string().trim().min(1).max(128),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const { data: patientRole, error: roleError } = await firestoreAdmin
+      .from("user_roles").select("role").eq("user_id", context.userId).eq("role", "patient").maybeSingle();
+    if (roleError) throw new Error(roleError.message);
+    if (!patientRole) throw new Error("A patient account is required to reorder home care.");
+
+    const [{ data: request, error: requestError }, { data: assignment, error: assignmentError }] = await Promise.all([
+      firestoreAdmin.from("homecare_requests").select("*").eq("id", data.requestId).maybeSingle(),
+      firestoreAdmin.from("homecare_assignments").select("*").eq("id", data.assignmentId).maybeSingle(),
+    ]);
+    if (requestError) throw new Error(requestError.message);
+    if (assignmentError) throw new Error(assignmentError.message);
+    if (!request || request.patient_id !== context.userId) {
+      throw new Error("That home care request is not available to your account.");
+    }
+    if (
+      !assignment
+      || assignment.request_id !== request.id
+      || !["completed", "confirmed"].includes(String(assignment.status))
+    ) {
+      throw new Error("Only a completed home care service can be reordered.");
+    }
+
+    const now = new Date().toISOString();
+    const { data: created, error } = await firestoreAdmin.from("homecare_requests").insert({
+      patient_id: context.userId,
+      service_type: request.service_type,
+      description: request.description ?? "",
+      address: request.address,
+      latitude: request.latitude ?? null,
+      longitude: request.longitude ?? null,
+      preferred_at: null,
+      duration_hours: request.duration_hours ?? null,
+      provider_id: null,
+      status: "pending_review",
+      created_at: now,
+      updated_at: now,
+    }).select("id").single();
+    if (error) throw new Error(error.message);
+    if (!created?.id) throw new Error("A new home care request could not be created.");
+    return { id: created.id };
+  });
+
 export const listHomecareOperationsRequests = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
@@ -158,6 +208,19 @@ export const grantHomecareOperationsRole = createServerFn({ method: "POST" })
     });
     if (auditError) throw new Error(auditError.message);
     return { ok: true, alreadyAssigned: false };
+  });
+
+/** Admin-only, explicit conversion of the verified support account to a provider-only role. */
+export const provisionHomecareProviderAccount = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .inputValidator((d) => z.object({ userId: z.string().trim().min(1).max(128) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const firestoreAdmin = await assertAdmin(context.userId);
+    const { error } = await firestoreAdmin.rpc("provision_homecare_provider_account", {
+      _user_id: data.userId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /** Admin: full home care provider list with documents + approval history. */

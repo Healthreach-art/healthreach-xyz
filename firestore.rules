@@ -19,18 +19,69 @@ service cloud.firestore {
       return signedIn() && request.resource.data[field] == request.auth.uid;
     }
     function isBootstrapAdmin() {
-      return signedIn() && request.auth.token.email == 'admin@healthreachcare.co.za';
+      return signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'admin@healthreachcare.co.za'
+        && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin'))
+        && get(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin')).data.role == 'admin';
     }
     function isAdmin() {
-      return isBootstrapAdmin()
-        || signedIn()
-          && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin'))
-          && get(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_admin')).data.role == 'admin';
+      return isBootstrapAdmin() || hasRole('admin');
     }
     function hasRole(role) {
       return signedIn()
         && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_' + role))
         && get(/databases/$(database)/documents/user_roles/$(request.auth.uid + '_' + role)).data.role == role;
+    }
+    function userHasRole(userId, role) {
+      return userId is string
+        && exists(/databases/$(database)/documents/user_roles/$(userId + '_' + role))
+        && get(/databases/$(database)/documents/user_roles/$(userId + '_' + role)).data.role == role;
+    }
+    function isHomecareProviderOwner(providerId) {
+      return providerId is string
+        && hasRole('homecare_company')
+        && exists(/databases/$(database)/documents/homecare_providers/$(providerId))
+        && get(/databases/$(database)/documents/homecare_providers/$(providerId)).data.user_id == request.auth.uid;
+    }
+    function isApprovedHomecareProviderOwner(providerId) {
+      return isHomecareProviderOwner(providerId)
+        && get(/databases/$(database)/documents/homecare_providers/$(providerId)).data.approval_status == 'approved'
+        && get(/databases/$(database)/documents/homecare_providers/$(providerId)).data.is_active == true;
+    }
+    function isApprovedHomecareProvider(providerId) {
+      return providerId is string
+        && exists(/databases/$(database)/documents/homecare_providers/$(providerId))
+        && get(/databases/$(database)/documents/homecare_providers/$(providerId)).data.approval_status == 'approved'
+        && get(/databases/$(database)/documents/homecare_providers/$(providerId)).data.is_active == true
+        && userHasRole(
+          get(/databases/$(database)/documents/homecare_providers/$(providerId)).data.user_id,
+          'homecare_company'
+        );
+    }
+    function canReadHomecareAssignment(assignmentId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/homecare_assignments/$(assignmentId))
+        && get(/databases/$(database)/documents/homecare_assignments/$(assignmentId)).data.request_id is string
+        && exists(/databases/$(database)/documents/homecare_requests/$(get(/databases/$(database)/documents/homecare_assignments/$(assignmentId)).data.request_id))
+        && (
+          hasRole('patient')
+            && get(/databases/$(database)/documents/homecare_requests/$(get(/databases/$(database)/documents/homecare_assignments/$(assignmentId)).data.request_id)).data.patient_id == request.auth.uid
+          || isHomecareProviderOwner(get(/databases/$(database)/documents/homecare_assignments/$(assignmentId)).data.provider_id)
+        );
+    }
+    function canSendHomecareMessage(assignmentId) {
+      return canReadHomecareAssignment(assignmentId)
+        && get(/databases/$(database)/documents/homecare_assignments/$(assignmentId)).data.status in ['accepted', 'scheduled', 'in_progress']
+        && isApprovedHomecareProvider(get(/databases/$(database)/documents/homecare_assignments/$(assignmentId)).data.provider_id);
+    }
+    function homecareConversationMatches(assignmentId, conversation) {
+      return conversation.assignment_id == assignmentId
+        && exists(/databases/$(database)/documents/homecare_assignments/$(assignmentId))
+        && conversation.request_id == get(/databases/$(database)/documents/homecare_assignments/$(assignmentId)).data.request_id
+        && conversation.provider_id == get(/databases/$(database)/documents/homecare_assignments/$(assignmentId)).data.provider_id
+        && exists(/databases/$(database)/documents/homecare_requests/$(conversation.request_id))
+        && conversation.patient_id == get(/databases/$(database)/documents/homecare_requests/$(conversation.request_id)).data.patient_id;
     }
     function isApprovedPharmacy(pharmacyId) {
       return pharmacyId is string
@@ -232,13 +283,35 @@ service cloud.firestore {
     }
     match /homecare_providers/{id} {
       allow read: if isAdmin() || isOwner(id) || owns('user_id') || (signedIn() && (resource.data.approval_status == 'approved' || resource.data.status == 'approved'));
-      allow create: if ownsNew('user_id') && request.resource.data.status == 'pending_review';
-      allow update: if isAdmin() || (owns('user_id') && request.resource.data.status == resource.data.status);
+      allow create: if ownsNew('user_id')
+        && request.resource.data.status == 'pending_review'
+        && request.resource.data.approval_status in ['pending', 'pending_review']
+        && (!('is_active' in request.resource.data) || request.resource.data.is_active == false);
+      allow update: if isAdmin()
+        || owns('user_id')
+          && hasRole('homecare_company')
+          && request.resource.data.user_id == resource.data.user_id
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.approval_status == resource.data.approval_status
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'business_name', 'full_name', 'registration_number', 'contact_person',
+            'phone', 'email', 'operating_hours', 'availability', 'pricing_notes',
+            'hourly_rate', 'service_radius_km', 'qualifications', 'service_areas',
+            'certifications', 'services', 'address', 'latitude', 'longitude',
+            'is_active', 'updated_at',
+          ])
+          && (
+            request.resource.data.get('is_active', false) == resource.data.get('is_active', false)
+            || resource.data.approval_status == 'approved'
+          );
       allow delete: if isAdmin();
     }
     match /homecare_staff/{id} {
-      allow read, update, delete: if isAdmin() || owns('company_id');
-      allow create: if isAdmin() || ownsNew('company_id');
+      allow read: if isAdmin()
+        || isHomecareProviderOwner(resource.data.company_id)
+        || hasRole('homecare_staff') && owns('user_id');
+      allow update, delete: if isAdmin() || isHomecareProviderOwner(resource.data.company_id);
+      allow create: if isAdmin() || isHomecareProviderOwner(request.resource.data.company_id);
     }
 
     // Orders & bookings: customer owns; assigned provider reads; admin all.
@@ -295,22 +368,109 @@ service cloud.firestore {
     // Home care requests & assignments: customer owns request; admin assigns;
     // assigned provider reads/updates their assignment only.
     match /homecare_requests/{id} {
-      allow read: if isAdmin() || owns('patient_id') || owns('user_id');
-      allow create: if ownsNew('patient_id') || ownsNew('user_id');
-      allow update: if isAdmin() || owns('patient_id') || owns('user_id');
+      allow read: if isAdmin()
+        || hasRole('homecare_operations')
+        || hasRole('patient') && owns('patient_id')
+        || resource.data.provider_id is string && isApprovedHomecareProviderOwner(resource.data.provider_id);
+      allow create: if hasRole('patient')
+        && ownsNew('patient_id')
+        && request.resource.data.keys().hasOnly([
+          'patient_id', 'service_type', 'description', 'address', 'latitude',
+          'longitude', 'preferred_at', 'duration_hours', 'provider_id', 'status',
+          'created_at', 'updated_at',
+        ])
+        && request.resource.data.status == 'pending_review'
+        && request.resource.data.provider_id == null
+        && request.resource.data.service_type is string
+        && request.resource.data.service_type.size() >= 2
+        && request.resource.data.service_type.size() <= 120
+        && request.resource.data.address is string
+        && request.resource.data.address.size() >= 5
+        && request.resource.data.address.size() <= 500;
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
     match /homecare_assignments/{id} {
-      allow read: if isAdmin() || owns('patient_id') || owns('provider_id');
+      allow read: if isAdmin() || canReadHomecareAssignment(id);
       allow create: if isAdmin();
-      allow update: if isAdmin() || owns('provider_id');
+      allow update: if isAdmin()
+        || isApprovedHomecareProviderOwner(resource.data.provider_id)
+          && request.resource.data.request_id == resource.data.request_id
+          && request.resource.data.provider_id == resource.data.provider_id
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'accepted_at', 'declined_reason', 'completed_at', 'updated_at',
+          ])
+          && (
+            resource.data.status == 'offered'
+              && request.resource.data.status in ['accepted', 'declined']
+            || resource.data.status == 'accepted' && request.resource.data.status == 'scheduled'
+            || resource.data.status == 'scheduled' && request.resource.data.status == 'in_progress'
+            || resource.data.status == 'in_progress' && request.resource.data.status == 'completed'
+          )
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['accepted_at'])
+            || request.resource.data.status == 'accepted')
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['declined_reason'])
+            || request.resource.data.status == 'declined')
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completed_at'])
+            || request.resource.data.status == 'completed')
+          && (request.resource.data.status != 'completed' || request.resource.data.completed_at is string);
       allow delete: if isAdmin();
     }
+    match /homecare_conversations/{assignmentId} {
+      allow read: if canReadHomecareAssignment(assignmentId)
+        && (
+          !exists(/databases/$(database)/documents/homecare_conversations/$(assignmentId))
+          || homecareConversationMatches(assignmentId, resource.data)
+        );
+      allow create: if canSendHomecareMessage(assignmentId)
+        && request.resource.data.keys().hasOnly([
+          'assignment_id', 'request_id', 'patient_id', 'provider_id', 'status',
+          'created_at', 'updated_at',
+        ])
+        && request.resource.data.keys().hasAll([
+          'assignment_id', 'request_id', 'patient_id', 'provider_id', 'status',
+        ])
+        && request.resource.data.status == 'active'
+        && homecareConversationMatches(assignmentId, request.resource.data);
+      allow update, delete: if false;
 
-    // Notifications: owner reads; owner marks read; system/admin creates.
+      match /messages/{messageId} {
+        allow read: if canReadHomecareAssignment(assignmentId)
+          && exists(/databases/$(database)/documents/homecare_conversations/$(assignmentId))
+          && homecareConversationMatches(
+            assignmentId,
+            get(/databases/$(database)/documents/homecare_conversations/$(assignmentId)).data
+          );
+        allow create: if canSendHomecareMessage(assignmentId)
+          && request.resource.data.keys().hasOnly(['sender_id', 'body', 'created_at'])
+          && request.resource.data.keys().hasAll(['sender_id', 'body', 'created_at'])
+          && request.resource.data.sender_id == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 4000
+          && request.resource.data.created_at is string
+          && exists(/databases/$(database)/documents/homecare_conversations/$(assignmentId))
+          && homecareConversationMatches(
+            assignmentId,
+            getAfter(/databases/$(database)/documents/homecare_conversations/$(assignmentId)).data
+          )
+          && getAfter(/databases/$(database)/documents/homecare_conversations/$(assignmentId)).data.status == 'active';
+        allow update, delete: if false;
+      }
+    }
+
+    // Notifications: owner reads; owner marks read; admin/system may create
+    // delivery-failure alerts for admins without permitting arbitrary user spam.
     match /notifications/{id} {
       allow read: if isAdmin() || owns('user_id');
-      allow create: if isAdmin() || ownsNew('user_id');
+      allow create: if isAdmin()
+        || ownsNew('user_id')
+        || signedIn()
+          && request.resource.data.category == 'delivery'
+          && request.resource.data.title == 'Delivery failed'
+          && request.resource.data.user_id is string
+          && exists(/databases/$(database)/documents/user_roles/$(request.resource.data.user_id + '_admin'))
+          && get(/databases/$(database)/documents/user_roles/$(request.resource.data.user_id + '_admin')).data.role == 'admin';
       allow update: if isAdmin() || owns('user_id');
       allow delete: if isAdmin();
     }
@@ -463,15 +623,56 @@ service cloud.firestore {
     }
     match /appointment_messages/{id} {
       allow read: if isAdmin() || owns('patient_id') || owns('provider_id');
-      allow create: if signedIn() && request.resource.data.sender_id == request.auth.uid
-        && (request.resource.data.patient_id == request.auth.uid || request.resource.data.provider_id == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.sender_id == request.auth.uid
+        && request.resource.data.sender_role in ['patient', 'doctor', 'pharmacy']
+        && request.resource.data.appointment_id is string
+        && request.resource.data.appointment_type in ['doctor', 'pharmacy']
+        && request.resource.data.patient_id is string
+        && request.resource.data.provider_id is string
+        && request.resource.data.body is string
+        && request.resource.data.body.size() > 0
+        && request.resource.data.body.size() <= 2000
+        && request.resource.data.created_at is string
+        && (
+          request.resource.data.appointment_type == 'doctor'
+            && exists(/databases/$(database)/documents/doctor_appointments/$(request.resource.data.appointment_id))
+            && get(/databases/$(database)/documents/doctor_appointments/$(request.resource.data.appointment_id)).data.patient_id == request.resource.data.patient_id
+            && get(/databases/$(database)/documents/doctor_appointments/$(request.resource.data.appointment_id)).data.doctor_id == request.resource.data.provider_id
+            && (
+              get(/databases/$(database)/documents/doctor_appointments/$(request.resource.data.appointment_id)).data.patient_id == request.auth.uid
+              || get(/databases/$(database)/documents/doctor_appointments/$(request.resource.data.appointment_id)).data.doctor_id == request.auth.uid
+              || get(/databases/$(database)/documents/doctor_appointments/$(request.resource.data.appointment_id)).data.hospital_id == request.auth.uid
+            )
+          || request.resource.data.appointment_type == 'pharmacy'
+            && exists(/databases/$(database)/documents/pharmacy_appointments/$(request.resource.data.appointment_id))
+            && get(/databases/$(database)/documents/pharmacy_appointments/$(request.resource.data.appointment_id)).data.patient_id == request.resource.data.patient_id
+            && get(/databases/$(database)/documents/pharmacy_appointments/$(request.resource.data.appointment_id)).data.pharmacy_id == request.resource.data.provider_id
+            && (
+              get(/databases/$(database)/documents/pharmacy_appointments/$(request.resource.data.appointment_id)).data.patient_id == request.auth.uid
+              || get(/databases/$(database)/documents/pharmacy_appointments/$(request.resource.data.appointment_id)).data.pharmacy_id == request.auth.uid
+            )
+        );
       allow update: if isAdmin() || owns('patient_id') || owns('provider_id');
       allow delete: if isAdmin();
     }
     match /order_messages/{id} {
-      allow read: if isAdmin() || owns('sender_id') || owns('recipient_id');
-      allow create: if signedIn() && request.resource.data.sender_id == request.auth.uid;
-      allow update: if isAdmin() || owns('recipient_id');
+      allow read: if isAdmin()
+        || signedIn()
+          && exists(/databases/$(database)/documents/orders/$(resource.data.order_id))
+          && canReadOrder(get(/databases/$(database)/documents/orders/$(resource.data.order_id)).data);
+      allow create: if signedIn()
+        && request.resource.data.sender_id == request.auth.uid
+        && request.resource.data.order_id is string
+        && request.resource.data.sender_role in ['patient', 'pharmacy', 'driver', 'admin']
+        && request.resource.data.body is string
+        && request.resource.data.body.size() > 0
+        && request.resource.data.body.size() <= 2000
+        && request.resource.data.created_at is string
+        && exists(/databases/$(database)/documents/orders/$(request.resource.data.order_id))
+        && canReadOrder(get(/databases/$(database)/documents/orders/$(request.resource.data.order_id)).data)
+        && request.resource.data.keys().hasOnly(['order_id', 'sender_id', 'sender_role', 'body', 'created_at']);
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
     match /prescriptions/{id} {

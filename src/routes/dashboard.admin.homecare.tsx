@@ -15,6 +15,7 @@ import { HomeIcon, Loader2, ShieldCheck, ClipboardList, History } from "lucide-r
 import {
   adminListHomecare, adminReviewHomecare, adminAssignHomecare,
   adminReviewHomecareDocument, getHomecareDocumentUrl, grantHomecareOperationsRole,
+  provisionHomecareProviderAccount,
 } from "@/lib/homecare.functions";
 import { APPROVAL_LABEL, ASSIGNMENT_LABEL, REQUEST_LABEL, docsFor } from "@/lib/homecare";
 
@@ -34,9 +35,12 @@ export const Route = createFileRoute("/dashboard/admin/homecare")({
 
 function AdminHomecarePage() {
   const grantOperationsRole = useServerFn(grantHomecareOperationsRole);
+  const provisionProviderAccount = useServerFn(provisionHomecareProviderAccount);
   const [loading, setLoading] = useState(true);
   const [operationsUserId, setOperationsUserId] = useState("");
+  const [providerUserId, setProviderUserId] = useState("");
   const [grantBusy, setGrantBusy] = useState(false);
+  const [provisionBusy, setProvisionBusy] = useState(false);
   const [providers, setProviders] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -110,6 +114,44 @@ function AdminHomecarePage() {
             }}
           >
             {grantBusy ? "Granting…" : "Grant role"}
+          </Button>
+        </div>
+      </section>
+
+      <section className="healthcare-card p-4 space-y-3">
+        <div>
+          <h2 className="font-semibold">Provision the dedicated Homecare Provider account</h2>
+          <p className="text-xs text-muted-foreground">
+            Enter the Firebase UID explicitly. The backend verifies the Auth account is the verified
+            support@healthreachcare.co.za user, creates a pending provider application, and replaces
+            non-admin roles with the provider role. It does not approve the provider or enable assignments.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            value={providerUserId}
+            onChange={(event) => setProviderUserId(event.target.value)}
+            placeholder="Firebase user UID"
+            aria-label="Support account Firebase user UID"
+            className="max-w-md"
+          />
+          <Button
+            disabled={provisionBusy || !providerUserId.trim()}
+            onClick={async () => {
+              setProvisionBusy(true);
+              try {
+                await provisionProviderAccount({ data: { userId: providerUserId.trim() } });
+                toast.success("Provider-only account provisioned. The user must sign in again and complete provider verification.");
+                setProviderUserId("");
+                await load();
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Could not provision the provider account.");
+              } finally {
+                setProvisionBusy(false);
+              }
+            }}
+          >
+            {provisionBusy ? "Provisioning…" : "Provision provider account"}
           </Button>
         </div>
       </section>

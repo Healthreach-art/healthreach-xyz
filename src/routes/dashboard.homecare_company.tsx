@@ -19,6 +19,7 @@ import { docsFor, APPROVAL_LABEL, ASSIGNMENT_LABEL, HOMECARE_SERVICES } from "@/
 import { getHomecareDocumentUrl, getMyHomecareBanking, saveMyHomecareBanking } from "@/lib/homecare.functions";
 import { PLATFORM_RULES } from "@/lib/platform-rules";
 import { HomecareBottomNav, type HomecareTerminalTab } from "@/components/HomecareBottomNav";
+import { HomecareServiceChat } from "@/components/HomecareServiceChat";
 import logo from "@/assets/healthreach-logo.png";
 
 export const Route = createFileRoute("/dashboard/homecare_company")({
@@ -44,6 +45,7 @@ function HomecareProviderPage() {
   const [docs, setDocs] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [assignmentsError, setAssignmentsError] = useState("");
   const [activeTab, setActiveTab] = useState<HomecareTerminalTab>("overview");
   const [statusBusy, setStatusBusy] = useState(false);
 
@@ -74,12 +76,19 @@ function HomecareProviderPage() {
     }
     setProvider(p);
     if (p) {
-      const [{ data: d }, { data: s }, { data: a }] = await Promise.all([
+      const [{ data: d }, { data: s }, { data: a, error: assignmentLoadError }] = await Promise.all([
         firestoreClient.from("homecare_documents").select("*").eq("provider_id", p.id).order("created_at", { ascending: false }),
         firestoreClient.from("homecare_staff").select("*").eq("company_id", p.id).order("created_at", { ascending: false }),
         firestoreClient.from("homecare_assignments").select("*, homecare_requests(*)").eq("provider_id", p.id).order("created_at", { ascending: false }),
       ]);
-      setDocs(d ?? []); setStaff(s ?? []); setAssignments(a ?? []);
+      setDocs(d ?? []); setStaff(s ?? []);
+      if (assignmentLoadError) {
+        setAssignmentsError(assignmentLoadError.message);
+        setAssignments([]);
+      } else {
+        setAssignmentsError("");
+        setAssignments(a ?? []);
+      }
     }
     setLoading(false);
   }, [user]);
@@ -204,7 +213,11 @@ function HomecareProviderPage() {
             </section>
             <section className="rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
               <h2 className="mb-3 font-semibold">Latest visits</h2>
-              {assignments.length ? <AssignmentsPanel assignments={assignments.slice(0, 3)} provider={provider} onChanged={load} /> : <p className="text-sm text-muted-foreground">No visit assignments yet.</p>}
+              {assignmentsError
+                ? <AssignmentsPanel assignments={[]} provider={provider} onChanged={load} error={assignmentsError} />
+                : assignments.length
+                  ? <AssignmentsPanel assignments={assignments.slice(0, 3)} provider={provider} onChanged={load} />
+                  : <p className="text-sm text-muted-foreground">No visit assignments yet.</p>}
             </section>
           </TabsContent>
           <TabsContent value="assignments" className="mt-0">
@@ -212,7 +225,7 @@ function HomecareProviderPage() {
               <div><h2 className="text-lg font-semibold">Visit assignments</h2><p className="text-sm text-muted-foreground">Review requests, confirm visits, and update visit progress.</p></div>
               <Button size="sm" variant="outline" onClick={() => void load()}>Refresh</Button>
             </section>
-            <AssignmentsPanel assignments={assignments} provider={provider} onChanged={load} />
+            <AssignmentsPanel assignments={assignments} provider={provider} onChanged={load} error={assignmentsError} />
           </TabsContent>
           <TabsContent value="documents" className="mt-0">
             <DocumentsPanel provider={provider} docs={docs} onChanged={load} requested={requested} />
@@ -611,12 +624,19 @@ function suburbOf(address?: string | null) {
   return parts.length > 1 ? parts.slice(1).join(", ") : parts[0];
 }
 
-function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: any[]; provider: any; onChanged: () => void }) {
+function AssignmentsPanel({ assignments, provider, onChanged, error }: { assignments: any[]; provider: any; onChanged: () => void; error?: string }) {
   const update = async (row: any, patch: Record<string, unknown>) => {
     const { error } = await firestoreClient.from("homecare_assignments").update(patch as never).eq("id", row.id);
     if (error) { toast.error(error.message); return; }
     onChanged();
   };
+
+  if (error) {
+    return <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+      <p role="alert" className="text-sm text-destructive">Could not load your assigned visits: {error}</p>
+      <Button className="mt-3" size="sm" variant="outline" onClick={onChanged}>Retry</Button>
+    </div>;
+  }
 
   if (assignments.length === 0) {
     return <div className="rounded-2xl border border-dashed border-border/70 bg-white p-8 text-center shadow-sm">
@@ -682,6 +702,13 @@ function AssignmentsPanel({ assignments, provider, onChanged }: { assignments: a
               )}
               {a.status === "in_progress" && (
                 <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => update(a, { status: "completed", completed_at: new Date().toISOString() })}>Complete Visit</Button>
+              )}
+              {["accepted", "scheduled", "in_progress", "completed", "confirmed"].includes(a.status) && (
+                <HomecareServiceChat
+                  assignmentId={a.id}
+                  assignmentStatus={a.status}
+                  counterpart="the patient"
+                />
               )}
             </div>
           </div>

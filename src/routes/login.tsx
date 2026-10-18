@@ -7,6 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { LogIn, AlertCircle, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { dashboardPathForRole, resolveUserRole } from "@/lib/auth-session";
+import { googleAuthErrorMessage } from "@/lib/auth-session-policy";
 
 type LoginSearch = { mode?: "admin"; denied?: "admin"; redirect?: string };
 
@@ -252,8 +253,7 @@ function LoginPage() {
                     const dest = await firebaseGoogleSignIn("patient");
                     window.location.assign(safeRedirect ?? dest);
                   } catch (err) {
-                    const code = (err as { code?: string })?.code ?? "";
-                    setError(code === "auth/popup-closed-by-user" ? "Google sign-in was cancelled." : code === "auth/unauthorized-domain" ? "This website address isn't allowed for Google sign-in yet. Add it in Firebase → Authentication → Settings → Authorized domains." : "Google sign-in couldn't complete. Please allow pop-ups and try again.");
+                    setError(googleAuthErrorMessage(err, "sign-in"));
                   }
                 }}
               >

@@ -10,6 +10,7 @@ import { UserPlus, AlertCircle, ArrowLeft } from "lucide-react";
 type SignupRole = "patient" | "pharmacy" | "driver" | "doctor" | "hospital" | "homecare_company" | "homecare_individual";
 type SignupSearch = { role?: SignupRole };
 import { Checkbox } from "@/components/ui/checkbox";
+import { googleAuthErrorMessage } from "@/lib/auth-session-policy";
 
 const SIGNUP_ROLES: SignupRole[] = ["patient", "pharmacy", "driver", "doctor", "hospital", "homecare_company", "homecare_individual"];
 
@@ -222,8 +223,7 @@ function SignupPage() {
                 const dest = await firebaseGoogleSignIn(isHomecare ? "homecare_company" : role);
                 window.location.assign(dest);
               } catch (err) {
-                const code = (err as { code?: string })?.code ?? "";
-                setError(code === "auth/popup-closed-by-user" ? "Google sign-up was cancelled." : code === "auth/unauthorized-domain" ? "This website address isn't allowed for Google sign-in yet. Add it in Firebase → Authentication → Settings → Authorized domains." : "Google sign-up couldn't complete. Please allow pop-ups and try again.");
+                setError(googleAuthErrorMessage(err, "sign-up"));
               }
             }}
 
