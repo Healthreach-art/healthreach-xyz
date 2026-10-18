@@ -42,48 +42,21 @@ export const submitHomecareRequest = createServerFn({ method: "POST" })
       throw new Error("Choose a preferred visit time in the future.");
     }
     const { firestoreAdmin } = await import("@/lib/firestore-admin");
-    const { data: patientRole, error: roleError } = await firestoreAdmin
-      .from("user_roles").select("role").eq("user_id", context.userId).eq("role", "patient").maybeSingle();
-    if (roleError) throw new Error(roleError.message);
-    if (!patientRole) throw new Error("A patient account is required to request home care.");
-
-    const now = new Date().toISOString();
-    const year = new Date().getFullYear();
-    let referenceNumber = "";
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const random = new Uint32Array(1);
-      globalThis.crypto.getRandomValues(random);
-      const suffix = String(random[0] % 10_000).padStart(4, "0");
-      const candidate = `HR-HC-${year}-${suffix}`;
-      const { data: duplicate, error: referenceError } = await firestoreAdmin
-        .from("homecare_requests").select("id").eq("reference_number", candidate).maybeSingle();
-      if (referenceError) throw new Error(referenceError.message);
-      if (!duplicate) {
-        referenceNumber = candidate;
-        break;
-      }
-    }
-    if (!referenceNumber) throw new Error("Could not generate a unique homecare request reference. Please try again.");
-
-    const { data: created, error } = await firestoreAdmin.from("homecare_requests").insert({
-      patient_id: context.userId,
-      reference_number: referenceNumber,
-      coordinator_email: "support@healthreachcare.co.za",
-      service_type: data.serviceType,
-      description: data.description,
-      address: data.address,
-      latitude: data.latitude ?? null,
-      longitude: data.longitude ?? null,
-      preferred_at: data.preferredAt ?? null,
-      duration_hours: data.durationHours ?? null,
-      provider_id: null,
-      status: "pending_review",
-      created_at: now,
-      updated_at: now,
-    }).select("id").single();
+    const { data: created, error } = await firestoreAdmin.rpc("create_homecare_request", {
+      _service_type: data.serviceType,
+      _description: data.description,
+      _address: data.address,
+      _latitude: data.latitude ?? null,
+      _longitude: data.longitude ?? null,
+      _preferred_at: data.preferredAt ?? null,
+      _duration_hours: data.durationHours ?? null,
+    });
     if (error) throw new Error(error.message);
-    if (!created?.id) throw new Error("Your home care request could not be created.");
-    return { id: created.id, referenceNumber };
+    const request = created as { id?: unknown; referenceNumber?: unknown } | null;
+    if (typeof request?.id !== "string" || typeof request.referenceNumber !== "string") {
+      throw new Error("The home care request service returned an invalid response.");
+    }
+    return { id: request.id, referenceNumber: request.referenceNumber };
   });
 
 export const reorderCompletedHomecare = createServerFn({ method: "POST" })
@@ -116,24 +89,19 @@ export const reorderCompletedHomecare = createServerFn({ method: "POST" })
       throw new Error("Only a completed home care service can be reordered.");
     }
 
-    const now = new Date().toISOString();
-    const { data: created, error } = await firestoreAdmin.from("homecare_requests").insert({
-      patient_id: context.userId,
-      service_type: request.service_type,
-      description: request.description ?? "",
-      address: request.address,
-      latitude: request.latitude ?? null,
-      longitude: request.longitude ?? null,
-      preferred_at: null,
-      duration_hours: request.duration_hours ?? null,
-      provider_id: null,
-      status: "pending_review",
-      created_at: now,
-      updated_at: now,
-    }).select("id").single();
+    const { data: created, error } = await firestoreAdmin.rpc("create_homecare_request", {
+      _service_type: request.service_type,
+      _description: request.description ?? "",
+      _address: request.address,
+      _latitude: request.latitude ?? null,
+      _longitude: request.longitude ?? null,
+      _preferred_at: null,
+      _duration_hours: request.duration_hours ?? null,
+    });
     if (error) throw new Error(error.message);
-    if (!created?.id) throw new Error("A new home care request could not be created.");
-    return { id: created.id };
+    const result = created as { id?: unknown } | null;
+    if (typeof result?.id !== "string") throw new Error("A new home care request could not be created.");
+    return { id: result.id };
   });
 
 export const listHomecareOperationsRequests = createServerFn({ method: "GET" })
@@ -191,36 +159,17 @@ export const issueHomecareQuote = createServerFn({ method: "POST" })
     amount: z.number().finite().nonnegative().max(1_000_000),
     details: z.string().trim().min(3).max(2000),
   }).parse(d))
-  .handler(async ({ data, context }) => {
-    const firestoreAdmin = await assertHomecareOperations(context.userId);
-    const { data: request, error: requestError } = await firestoreAdmin
-      .from("homecare_requests")
-      .select("id, status")
-      .eq("id", data.requestId)
-      .maybeSingle();
-    if (requestError) throw new Error(requestError.message);
-    if (!request) throw new Error("Homecare request not found.");
-    if (request.status !== "pending_review") {
-      throw new Error("A quote can only be issued for a request awaiting review.");
-    }
-
-    const now = new Date().toISOString();
-    const { data: updated, error } = await firestoreAdmin
-      .from("homecare_requests")
-      .update({
-        status: "quote_pending",
-        quote_amount: data.amount,
-        quote_currency: "ZAR",
-        quote_details: data.details,
-        quote_issued_at: now,
-        updated_at: now,
-      })
-      .eq("id", data.requestId)
-      .eq("status", "pending_review")
-      .select("id")
-      .single();
+  .handler(async ({ data }) => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const { data: result, error } = await firestoreAdmin.rpc("issue_homecare_quote", {
+      _request_id: data.requestId,
+      _amount: data.amount,
+      _details: data.details,
+    });
     if (error) throw new Error(`Could not issue quote: ${error.message}`);
-    if (!updated) throw new Error("The request changed before the quote could be issued.");
+    if (!result || typeof result !== "object" || !("ok" in result) || result.ok !== true) {
+      throw new Error("The home care quote service returned an invalid response.");
+    }
     return { ok: true };
   });
 
@@ -230,31 +179,18 @@ export const respondToHomecareQuote = createServerFn({ method: "POST" })
     requestId: uuid,
     response: z.enum(["accept", "decline"]),
   }).parse(d))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data }) => {
     const { firestoreAdmin } = await import("@/lib/firestore-admin");
-    const { data: request, error: requestError } = await firestoreAdmin
-      .from("homecare_requests")
-      .select("id, status, patient_id")
-      .eq("id", data.requestId)
-      .eq("patient_id", context.userId)
-      .maybeSingle();
-    if (requestError) throw new Error(requestError.message);
-    if (!request) throw new Error("Homecare request not found.");
-    if (request.status !== "quote_pending") throw new Error("There is no quote awaiting your response.");
-
-    const status = data.response === "accept" ? "quote_accepted" : "quote_declined";
-    const now = new Date().toISOString();
-    const { data: updated, error } = await firestoreAdmin
-      .from("homecare_requests")
-      .update({ status, quote_responded_at: now, updated_at: now })
-      .eq("id", data.requestId)
-      .eq("patient_id", context.userId)
-      .eq("status", "quote_pending")
-      .select("id")
-      .single();
+    const { data: result, error } = await firestoreAdmin.rpc("respond_homecare_quote", {
+      _request_id: data.requestId,
+      _response: data.response,
+    });
     if (error) throw new Error(`Could not record quote response: ${error.message}`);
-    if (!updated) throw new Error("The quote changed before your response could be recorded.");
-    return { status };
+    const response = result as { status?: unknown } | null;
+    if (response?.status !== "quote_accepted" && response?.status !== "quote_declined") {
+      throw new Error("The home care quote service returned an invalid response.");
+    }
+    return { status: response.status };
   });
 
 export const grantHomecareOperationsRole = createServerFn({ method: "POST" })
@@ -525,90 +461,19 @@ export const adminAssignHomecare = createServerFn({ method: "POST" })
       scheduledAt: z.string().datetime({ offset: true }).optional(),
     }).parse(d),
   )
-  .handler(async ({ data, context }) => {
-    const firestoreAdmin = await assertHomecareOperations(context.userId);
-    const { data: request, error: requestError } = await firestoreAdmin
-      .from("homecare_requests")
-      .select("id, status, quote_amount")
-      .eq("id", data.requestId)
-      .maybeSingle();
-    if (requestError) throw new Error(requestError.message);
-    if (!request) throw new Error("Homecare request not found.");
-    if (request.status !== "quote_accepted") {
-      throw new Error("A provider can only be assigned after the patient accepts the quote.");
+  .handler(async ({ data }) => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const { data: result, error } = await firestoreAdmin.rpc("coordinate_homecare_request", {
+      _request_id: data.requestId,
+      _provider_id: data.providerId,
+      _scheduled_at: data.scheduledAt ?? null,
+    });
+    if (error) throw new Error(`Could not coordinate the visit: ${error.message}`);
+    const assignment = result as { assignmentId?: unknown } | null;
+    if (typeof assignment?.assignmentId !== "string") {
+      throw new Error("The home care coordination service returned an invalid response.");
     }
-
-    const { data: provider, error: providerError } = await firestoreAdmin
-      .from("homecare_providers")
-      .select("id, approval_status, is_active")
-      .eq("id", data.providerId)
-      .maybeSingle();
-    if (providerError) throw new Error(providerError.message);
-    if (!provider || provider.approval_status !== "approved" || provider.is_active !== true) {
-      throw new Error("Choose an approved, active homecare provider.");
-    }
-
-    const { data: existingAssignment, error: assignmentLookupError } = await firestoreAdmin
-      .from("homecare_assignments")
-      .select("id")
-      .eq("request_id", data.requestId)
-      .maybeSingle();
-    if (assignmentLookupError) throw new Error(assignmentLookupError.message);
-    if (existingAssignment) throw new Error("A provider has already been assigned to this request.");
-
-    const now = new Date().toISOString();
-    const { data: assignment, error: assignError } = await firestoreAdmin
-      .from("homecare_assignments")
-      .insert({
-        id: data.requestId,
-        request_id: data.requestId,
-        provider_id: data.providerId,
-        assigned_by: context.userId,
-        amount: request.quote_amount ?? null,
-        scheduled_at: data.scheduledAt ?? null,
-        status: "scheduled",
-        created_at: now,
-        updated_at: now,
-      })
-      .select("id")
-      .single();
-    if (assignError) throw new Error(`Could not record provider assignment: ${assignError.message}`);
-    if (!assignment) throw new Error("The provider assignment could not be recorded.");
-
-    const { data: updated, error: updateError } = await firestoreAdmin
-      .from("homecare_requests")
-      .update({ provider_id: data.providerId, status: "confirmed", updated_at: now })
-      .eq("id", data.requestId)
-      .eq("status", "quote_accepted")
-      .select("id")
-      .single();
-    if (updateError || !updated) {
-      const { data: currentRequest, error: verifyError } = await firestoreAdmin
-        .from("homecare_requests")
-        .select("status, provider_id")
-        .eq("id", data.requestId)
-        .maybeSingle();
-      if (verifyError) {
-        throw new Error(`Could not confirm the request or verify its current state: ${verifyError.message}`);
-      }
-      if (currentRequest?.status === "confirmed" && currentRequest.provider_id === data.providerId) {
-        return { ok: true, assignmentId: assignment.id };
-      }
-
-      const { error: cleanupError } = await firestoreAdmin
-        .from("homecare_assignments")
-        .delete()
-        .eq("id", assignment.id);
-      if (cleanupError) {
-        throw new Error(
-          `Could not confirm the request (${updateError?.message ?? "request changed"}); `
-          + `assignment cleanup also failed: ${cleanupError.message}`,
-        );
-      }
-      throw new Error(`Could not confirm the request: ${updateError?.message ?? "the request changed"}.`);
-    }
-
-    return { ok: true, assignmentId: assignment.id };
+    return { ok: true, assignmentId: assignment.assignmentId };
   });
 
 /**

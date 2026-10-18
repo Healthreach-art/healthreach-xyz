@@ -138,7 +138,10 @@ function RootComponent() {
 function AppShell() {
   const { user, role, loading } = useAuth();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const showSidebar = !!user && !loading && !NO_SIDEBAR_ROUTES.has(pathname);
+  const showSidebar = !!user
+    && !loading
+    && !NO_SIDEBAR_ROUTES.has(pathname)
+    && !(role === "homecare_operations" && pathname === "/dashboard/homecare_operations");
 
   if (user && (
     (role === "pharmacy" && pathname.startsWith("/dashboard/pharmacy")) ||

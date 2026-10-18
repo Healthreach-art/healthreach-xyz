@@ -15,7 +15,6 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock3,
-  CreditCard,
   HomeIcon,
   Loader2,
   LogOut,
@@ -40,13 +39,11 @@ import {
 import {
   HOMECARE_SERVICES,
   REQUEST_LABEL,
-  canConfirmHomecareBooking,
   filterHomecareRequestsForCoordinator,
   getHomecareStatusSummary,
   isHomecareServiceActive,
   isHomecareServicePriceValid,
 } from "@/lib/homecare";
-import logo from "@/assets/healthreach-logo.png";
 import { HomecareServiceChat } from "@/components/HomecareServiceChat";
 
 interface RequestRow {
@@ -65,7 +62,7 @@ interface RequestRow {
   quote_amount: number | null;
   quote_currency: string | null;
   quote_details: string | null;
-  created_at: string;
+  created_at: string | null;
 }
 
 interface ProviderRow {
@@ -98,8 +95,8 @@ interface ServiceCatalogEntry {
 type CoordinatorView = "home" | "bookings" | "messages" | "account";
 type BookingFilter =
   | "incoming"
-  | "pending_review"
-  | "awaiting_payment"
+  | "awaiting_patient"
+  | "awaiting_coordinator"
   | "confirmed"
   | "active"
   | "completed"
@@ -118,8 +115,8 @@ const DEFAULT_CATALOG: ServiceCatalogEntry[] = HOMECARE_SERVICES.map((service, i
 
 const BOOKING_FILTERS: Array<{ id: BookingFilter; label: string }> = [
   { id: "incoming", label: "Incoming" },
-  { id: "pending_review", label: "Pending review" },
-  { id: "awaiting_payment", label: "Awaiting payment" },
+  { id: "awaiting_patient", label: "Awaiting patient" },
+  { id: "awaiting_coordinator", label: "Awaiting coordinator" },
   { id: "confirmed", label: "Confirmed" },
   { id: "active", label: "Active" },
   { id: "completed", label: "Completed" },
@@ -159,7 +156,11 @@ function HomecareOperationsPage() {
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [providerError, setProviderError] = useState<string | null>(null);
+  const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<CoordinatorView>("home");
   const [bookingFilter, setBookingFilter] = useState<BookingFilter>("incoming");
   const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalogEntry[]>(() => readServiceCatalog());
@@ -170,19 +171,32 @@ function HomecareOperationsPage() {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoadError(null);
+    setProviderError(null);
+    setLoading(true);
     try {
       const result = await listRequests();
       setRequests(result.requests as RequestRow[]);
-      const providerResult = await listProviders();
-      setProviders(providerResult.providers as ProviderRow[]);
+      try {
+        const providerResult = await listProviders();
+        setProviders(providerResult.providers as ProviderRow[]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Could not load approved homecare providers.";
+        setProviderError(message);
+        toast.error(message);
+      }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not load home care requests.");
+      const message = error instanceof Error ? error.message : "Could not load home care requests.";
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   }, [listProviders, listRequests]);
 
   const loadAssignments = useCallback(async () => {
+    setAssignmentsError(null);
+    setAssignmentsLoading(true);
     try {
       const { data, error } = await firestoreClient
         .from("homecare_assignments")
@@ -191,7 +205,10 @@ function HomecareOperationsPage() {
       if (error) throw new Error(error.message);
       setAssignments((data ?? []) as AssignmentRow[]);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not load home care conversations.");
+      const message = error instanceof Error ? error.message : "Could not load home care conversations.";
+      setAssignmentsError(message);
+    } finally {
+      setAssignmentsLoading(false);
     }
   }, []);
 
@@ -264,6 +281,7 @@ function HomecareOperationsPage() {
       "accepted",
       "scheduled",
       "in_progress",
+      "confirmed",
     ].includes(request.status));
     if (hasBookingHistory) {
       const nextCatalog = serviceCatalog.map((entry) => entry.id === serviceId ? { ...entry, active: false } : entry);
@@ -291,9 +309,6 @@ function HomecareOperationsPage() {
 
   const activeStats = useMemo(() => getHomecareStatusSummary(requests), [requests]);
   const filteredRequests = useMemo(() => filterHomecareRequestsForCoordinator(requests, bookingFilter), [bookingFilter, requests]);
-  const pendingQuotes = requests.filter((request) => request.status === "quote_pending");
-  const awaitingPayment = requests.filter((request) => request.status === "quote_pending");
-  const confirmedRequests = requests.filter((request) => ["quote_accepted", "confirmed", "assigned", "accepted", "scheduled", "in_progress"].includes(request.status));
   const todayMessageThreads = assignments
     .map((assignment) => ({
       assignment,
@@ -303,47 +318,29 @@ function HomecareOperationsPage() {
     .slice(0, 6);
 
   const dashboardStats = useMemo(() => [
-    { label: "New incoming", value: String(activeStats.incoming), tone: "text-blue-600", icon: Sparkles },
-    { label: "Pending quotes", value: String(pendingQuotes.length), tone: "text-amber-600", icon: CreditCard },
-    { label: "Awaiting payment", value: String(awaitingPayment.length), tone: "text-orange-600", icon: Bell },
-    { label: "Confirmed", value: String(confirmedRequests.length), tone: "text-emerald-600", icon: CheckCircle2 },
-  ], [activeStats.incoming, awaitingPayment.length, confirmedRequests.length, pendingQuotes.length]);
+    { label: "New incoming", value: String(activeStats.incoming), tone: "text-emerald-700", icon: Sparkles },
+    { label: "Awaiting patient", value: String(activeStats.awaitingPatient), tone: "text-amber-600", icon: Clock3 },
+    { label: "Awaiting coordinator", value: String(activeStats.awaitingCoordinator), tone: "text-emerald-700", icon: Bell },
+    { label: "Coordinated", value: String(activeStats.confirmed), tone: "text-emerald-700", icon: CheckCircle2 },
+  ], [activeStats]);
 
-  const topMessages = useMemo(() => requests.slice(0, 4).map((request) => ({
-    id: request.id,
-    patientId: request.patient_id,
-    title: request.service_type,
-    detail: request.address,
-    time: request.preferred_at ? new Date(request.preferred_at).toLocaleString() : "Pending scheduling",
-    status: REQUEST_LABEL[request.status] ?? request.status,
-  })), [requests]);
-
-  if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (loading) return <div className="flex justify-center py-16" role="status" aria-label="Loading homecare requests"><Loader2 className="h-6 w-6 animate-spin text-emerald-700" /></div>;
+  if (loadError) {
+    return (
+      <div className="min-h-[65vh] bg-emerald-50/30 px-4 py-10 sm:px-6">
+        <section className="mx-auto max-w-2xl rounded-2xl border border-red-200 bg-white p-6 shadow-sm" role="alert">
+          <h1 className="text-lg font-semibold text-slate-900">Homecare requests could not be loaded</h1>
+          <p className="mt-2 text-sm text-slate-600">{loadError}</p>
+          <Button variant="outline" className="mt-4" onClick={() => void load()}>Try again</Button>
+        </section>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-28">
-      <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <img src={logo} alt="HealthReachCare" className="h-10 w-auto shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-700">Homecare coordinator</p>
-                <h1 className="truncate text-xl font-bold text-slate-900 sm:text-2xl">HealthReachCare operations</h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2">
-                <Bell className="h-4 w-4" />
-                <span>{activeStats.incoming} needs review</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-emerald-50/30">
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        <div className="mb-4 grid gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:grid-cols-4 md:hidden">
+        <nav aria-label="Coordinator dashboard" className="mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-emerald-100 bg-white p-2 shadow-sm sm:grid-cols-4">
           {[
             { id: "home", label: "Home", icon: HomeIcon },
             { id: "bookings", label: "Bookings", icon: CalendarClock },
@@ -354,34 +351,14 @@ function HomecareOperationsPage() {
               key={id}
               type="button"
               onClick={() => setActiveView(id as CoordinatorView)}
-              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${activeView === id ? "bg-sky-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
+              aria-current={activeView === id ? "page" : undefined}
+              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${activeView === id ? "bg-emerald-700 text-white shadow-sm" : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-900"}`}
             >
               <Icon className="h-4 w-4" />
               {label}
             </button>
-          ))}
-        </div>
-
-        <div className="hidden md:block">
-          <div className="mb-4 grid gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:grid-cols-4">
-            {[
-              { id: "home", label: "Home", icon: HomeIcon },
-              { id: "bookings", label: "Bookings", icon: CalendarClock },
-              { id: "messages", label: "Messages", icon: MessageSquareText },
-              { id: "account", label: "Account", icon: Settings2 },
-            ].map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setActiveView(id as CoordinatorView)}
-                className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${activeView === id ? "bg-sky-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </button>
             ))}
-          </div>
-        </div>
+        </nav>
 
         {activeView === "home" && (
           <div className="space-y-6">
@@ -397,7 +374,7 @@ function HomecareOperationsPage() {
               ))}
             </section>
 
-            <section className="grid gap-6 xl:grid-cols-[1.8fr_1fr]">
+            <section>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h2 className="text-lg font-semibold text-slate-900">Incoming queue</h2>
@@ -412,7 +389,7 @@ function HomecareOperationsPage() {
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <p className="font-medium text-slate-900">{request.service_type}</p>
-                            <p className="text-xs text-slate-500">Patient {request.patient_id}</p>
+                            <p className="text-xs text-slate-500">{request.patient_name || `Patient ${request.patient_id}`} · {request.reference_number || `Request ${request.id.slice(0, 8).toUpperCase()}`}</p>
                           </div>
                           <Badge variant="outline">{REQUEST_LABEL[request.status] ?? request.status}</Badge>
                         </div>
@@ -431,45 +408,26 @@ function HomecareOperationsPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-900">Recent updates</h2>
-                <div className="mt-4 space-y-3">
-                  {topMessages.map((item) => (
-                    <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="font-medium text-slate-900">{item.title}</p>
-                        <Badge variant="secondary" className="text-[10px]">{item.status}</Badge>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-500">Patient {item.patientId}</p>
-                      <p className="mt-2 text-sm text-slate-600">{item.detail}</p>
-                      <p className="mt-2 text-[11px] text-slate-400">{item.time}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </section>
-
-            <RequestSection title="Needs review and quote" requests={requests.filter((request) => request.status === "pending_review")} providers={providers} onChanged={load} />
-            <RequestSection title="Awaiting payment" requests={requests.filter((request) => request.status === "quote_pending")} providers={providers} onChanged={load} />
-            <RequestSection title="Accepted and scheduled" requests={requests.filter((request) => ["quote_accepted", "assigned", "accepted", "scheduled", "in_progress"].includes(request.status))} providers={providers} onChanged={load} />
-            {requests.some((request) => !["pending_review", "quote_pending", "quote_accepted", "assigned", "accepted", "scheduled", "in_progress"].includes(request.status)) && (
-              <RequestSection title="Other request states" requests={requests.filter((request) => !["pending_review", "quote_pending", "quote_accepted", "assigned", "accepted", "scheduled", "in_progress"].includes(request.status))} providers={providers} onChanged={load} />
-            )}
           </div>
         )}
 
         {activeView === "bookings" && (
           <div className="space-y-6">
+            {providerError && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+                <p>Approved providers could not be loaded: {providerError}</p>
+                <Button variant="outline" size="sm" onClick={() => void load()}>Retry</Button>
+              </div>
+            )}
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {[
-                ["Incoming requests", requests.filter((request) => request.status === "pending_review")],
-                ["Awaiting payment", requests.filter((request) => request.status === "quote_pending")],
-                ["Confirmed", requests.filter((request) => ["quote_accepted", "assigned", "accepted", "scheduled", "in_progress", "confirmed"].includes(request.status))],
-                ["Active", requests.filter((request) => ["assigned", "accepted", "scheduled", "in_progress"].includes(request.status))],
-              ].map(([label, items]) => (
+              {dashboardStats.map(({ label, value, tone, icon: Icon }) => (
                 <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-sm text-slate-500">{String(label)}</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{(items as RequestRow[]).length}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-500">{label}</p>
+                    <Icon className={`h-5 w-5 ${tone}`} />
+                  </div>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
                 </div>
               ))}
             </section>
@@ -481,7 +439,7 @@ function HomecareOperationsPage() {
                     key={filter.id}
                     type="button"
                     onClick={() => setBookingFilter(filter.id)}
-                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${bookingFilter === filter.id ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${bookingFilter === filter.id ? "bg-emerald-700 text-white" : "bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-900"}`}
                   >
                     {filter.label}
                   </button>
@@ -497,10 +455,18 @@ function HomecareOperationsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-slate-900">Patient conversations</h2>
-              <Badge variant="outline">{todayMessageThreads.length} active threads</Badge>
+              <Badge variant="outline">{assignmentsError ? "Unavailable" : `${todayMessageThreads.length} active threads`}</Badge>
             </div>
+            {assignmentsError && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+                <p>{assignmentsError}</p>
+                <Button variant="outline" size="sm" onClick={() => void loadAssignments()}>Retry</Button>
+              </div>
+            )}
             <div className="space-y-3">
-              {todayMessageThreads.length === 0 ? (
+              {assignmentsLoading ? (
+                <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading conversations…</p>
+              ) : assignmentsError ? null : todayMessageThreads.length === 0 ? (
                 <p className="text-sm text-slate-500">No live service conversations are currently active. Once a request is assigned and accepted, messages will appear here.</p>
               ) : (
                 todayMessageThreads.map(({ assignment, request }) => (
@@ -531,7 +497,7 @@ function HomecareOperationsPage() {
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-sky-100 p-2 text-sky-700"><UserCircle2 className="h-5 w-5" /></div>
+                  <div className="rounded-full bg-emerald-100 p-2 text-emerald-800"><UserCircle2 className="h-5 w-5" /></div>
                   <div>
                     <p className="text-sm text-slate-500">Coordinator account</p>
                     <h2 className="text-lg font-semibold text-slate-900">{profile?.full_name || user?.user_metadata?.full_name || "Operations access"}</h2>
@@ -586,7 +552,7 @@ function HomecareOperationsPage() {
                   <Textarea value={serviceDescription} onChange={(event) => setServiceDescription(event.target.value)} placeholder="Service overview, availability and coverage notes" />
                 </div>
                 <div className="md:col-span-2 xl:col-span-3 flex justify-end">
-                  <Button onClick={saveService}>
+                  <Button onClick={saveService} className="bg-emerald-700 text-white hover:bg-emerald-800">
                     {editingServiceId ? "Save service" : "Add service"}
                   </Button>
                 </div>
@@ -602,6 +568,7 @@ function HomecareOperationsPage() {
                     "accepted",
                     "scheduled",
                     "in_progress",
+                    "confirmed",
                   ].includes(request.status));
                   const validPrice = isHomecareServicePriceValid(service.price);
                   return (
@@ -633,35 +600,15 @@ function HomecareOperationsPage() {
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-semibold text-slate-900">Organisation details</h2>
               <div className="mt-4 space-y-3 text-sm text-slate-600">
-                <div className="flex items-center gap-2"><Building2 className="h-4 w-4 text-sky-600" /> Coordinated service desk</div>
-                <div className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-sky-600" /> Mon–Sun with after-hours triage</div>
-                <div className="flex items-center gap-2"><Bell className="h-4 w-4 text-sky-600" /> Automated request and quote alerts</div>
+                <div className="flex items-center gap-2"><Building2 className="h-4 w-4 text-emerald-700" /> Coordinated service desk</div>
+                <div className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-emerald-700" /> Mon–Sun with after-hours triage</div>
+                <div className="flex items-center gap-2"><Bell className="h-4 w-4 text-emerald-700" /> Automated request and quote alerts</div>
               </div>
             </section>
           </div>
         )}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80 md:hidden">
-        <div className="mx-auto grid max-w-4xl grid-cols-4 gap-1 px-2 py-2">
-          {[
-            { id: "home", label: "Home", icon: HomeIcon },
-            { id: "bookings", label: "Bookings", icon: CalendarClock },
-            { id: "messages", label: "Messages", icon: MessageSquareText },
-            { id: "account", label: "Account", icon: Settings2 },
-          ].map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveView(id as CoordinatorView)}
-              className={`flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-medium ${activeView === id ? "bg-sky-600 text-white" : "text-slate-600"}`}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
     </div>
   );
 }
@@ -672,6 +619,16 @@ function whatsappNumber(phone: string | null) {
   if (digits.startsWith("00")) digits = digits.slice(2);
   else if (digits.startsWith("0")) digits = `27${digits.slice(1)}`;
   return digits.length >= 8 && digits.length <= 15 ? digits : null;
+}
+
+function requestStatusClass(status: string) {
+  if (["quote_accepted", "assigned", "accepted", "scheduled", "in_progress", "confirmed"].includes(status)) {
+    return "bg-emerald-100 text-emerald-900";
+  }
+  if (["pending_review", "quote_pending"].includes(status)) {
+    return "bg-amber-100 text-amber-900";
+  }
+  return "bg-slate-100 text-slate-700";
 }
 
 function RequestSection({ title, requests, providers, onChanged }: {
@@ -744,24 +701,19 @@ function RequestCard({ request, providers, onChanged }: {
   };
 
   const selectedProvider = providers.find((provider) => provider.id === providerId);
-  const paymentConfirmed = canConfirmHomecareBooking({
-    status: request.status,
-    payment_status: request.status === "quote_pending" ? "pending" : "paid",
-    payment_verified_at: request.created_at,
-    payment_verified: false,
-  });
-
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-lg font-semibold text-slate-900">{request.service_type}</p>
-          <p className="text-xs text-slate-500">Request {request.id} · Patient {request.patient_id}</p>
+          <p className="text-xs text-slate-500">{request.patient_name || `Patient ${request.patient_id}`} · {request.reference_number || `Request ${request.id.slice(0, 8).toUpperCase()}`}</p>
           <p className="mt-1 text-sm text-slate-600">{request.address}</p>
+          {request.created_at && <p className="mt-1 text-xs text-slate-500">Submitted: {new Date(request.created_at).toLocaleString()}</p>}
+          {request.patient_phone && <p className="mt-1 text-xs text-slate-500">Patient phone: {request.patient_phone}</p>}
           {request.preferred_at && <p className="mt-1 text-xs text-slate-500">Preferred: {new Date(request.preferred_at).toLocaleString()}</p>}
           {request.duration_hours != null && <p className="text-xs text-slate-500">Requested duration: {request.duration_hours} hours</p>}
         </div>
-        <Badge variant="secondary">{REQUEST_LABEL[request.status] ?? request.status}</Badge>
+        <Badge variant="secondary" className={requestStatusClass(request.status)}>{REQUEST_LABEL[request.status] ?? request.status}</Badge>
       </div>
       {request.description && <p className="mt-3 whitespace-pre-wrap text-sm text-slate-600">{request.description}</p>}
 
@@ -780,17 +732,17 @@ function RequestCard({ request, providers, onChanged }: {
               <Textarea id={`details-${request.id}`} maxLength={2000} value={details} onChange={(event) => setDetails(event.target.value)} />
             </div>
           </div>
-          <Button onClick={submitQuote} disabled={saving || details.trim().length < 3}>
+          <Button onClick={submitQuote} disabled={saving || details.trim().length < 3} className="bg-emerald-700 text-white hover:bg-emerald-800">
             {saving ? "Sending…" : "Send quote for patient approval"}
           </Button>
         </div>
       )}
 
       {request.quote_amount != null && request.status !== "pending_review" && (
-        <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-700">
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-slate-700">
           <p className="font-semibold">Quote: {request.quote_currency ?? "ZAR"} {Number(request.quote_amount).toFixed(2)}</p>
           {request.quote_details && <p className="mt-1 whitespace-pre-wrap">{request.quote_details}</p>}
-          <p className="mt-2 text-xs text-slate-500">{paymentConfirmed ? "Payment verification is complete before confirmed booking status is allowed." : "Waiting for secure backend payment confirmation before this booking can be marked confirmed."}</p>
+          <p className="mt-2 text-xs text-slate-500">This quote is not a payment. Patient acceptance and provider coordination are recorded separately; this workflow does not collect or verify payment.</p>
         </div>
       )}
 
@@ -815,7 +767,7 @@ function RequestCard({ request, providers, onChanged }: {
               <Label>Agreed visit time (optional)</Label>
               <Input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
             </div>
-            <Button onClick={coordinateVisit} disabled={saving || providers.length === 0}>
+            <Button onClick={coordinateVisit} disabled={saving || providers.length === 0} className="bg-emerald-700 text-white hover:bg-emerald-800">
               {saving ? "Saving…" : "Record coordination"}
             </Button>
           </div>

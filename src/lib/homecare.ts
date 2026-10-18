@@ -55,7 +55,7 @@ export const ASSIGNMENT_LABEL: Record<string, string> = {
 
 export const REQUEST_LABEL: Record<string, string> = {
   pending_review: "Request received — awaiting coordinator review",
-  quote_pending: "Quote ready — awaiting your response",
+  quote_pending: "Quote ready — awaiting patient response",
   quote_accepted: "Quote accepted — coordinator confirming next steps",
   quote_declined: "Quote declined",
   assigned: "Provider assigned",
@@ -63,7 +63,7 @@ export const REQUEST_LABEL: Record<string, string> = {
   scheduled: "Scheduled",
   in_progress: "Visit in progress",
   completed: "Completed — please confirm",
-  confirmed: "Customer confirmed",
+  confirmed: "Provider coordination confirmed",
   cancelled: "Cancelled",
   rejected: "Declined",
 };
@@ -93,17 +93,15 @@ export function canConfirmHomecareBooking(payload: {
   payment_verified_at?: string | null;
   payment_verified?: boolean | null;
 }) {
-  const status = payload.status ?? "";
-  if (status === "confirmed") return true;
-  const paymentStatus = payload.payment_status ?? "pending";
+  const paymentStatus = payload.payment_status ?? "";
   const paymentVerified = payload.payment_verified ?? Boolean(payload.payment_verified_at);
   return paymentStatus === "paid" && paymentVerified;
 }
 
 export type HomecareBookingFilter =
   | "incoming"
-  | "pending_review"
-  | "awaiting_payment"
+  | "awaiting_patient"
+  | "awaiting_coordinator"
   | "confirmed"
   | "active"
   | "completed"
@@ -117,10 +115,10 @@ export function filterHomecareRequestsForCoordinator<T extends { status: string 
   switch (filter) {
     case "incoming":
       return requests.filter((request) => request.status === "pending_review");
-    case "pending_review":
-      return requests.filter((request) => request.status === "pending_review");
-    case "awaiting_payment":
-      return requests.filter((request) => ["quote_pending", "quote_accepted"].includes(request.status));
+    case "awaiting_patient":
+      return requests.filter((request) => request.status === "quote_pending");
+    case "awaiting_coordinator":
+      return requests.filter((request) => request.status === "quote_accepted");
     case "confirmed":
       return requests.filter((request) => ["confirmed", "assigned", "accepted", "scheduled", "in_progress"].includes(request.status));
     case "active":
@@ -139,8 +137,9 @@ export function filterHomecareRequestsForCoordinator<T extends { status: string 
 export function getHomecareStatusSummary<T extends { status: string }>(requests: T[]) {
   return {
     incoming: requests.filter((request) => request.status === "pending_review").length,
-    awaitingPayment: requests.filter((request) => ["quote_pending", "quote_accepted"].includes(request.status)).length,
-    confirmed: requests.filter((request) => ["quote_accepted", "assigned", "accepted", "scheduled", "in_progress", "confirmed"].includes(request.status)).length,
+    awaitingPatient: requests.filter((request) => request.status === "quote_pending").length,
+    awaitingCoordinator: requests.filter((request) => request.status === "quote_accepted").length,
+    confirmed: requests.filter((request) => ["confirmed", "assigned", "accepted", "scheduled", "in_progress"].includes(request.status)).length,
     active: requests.filter((request) => ["assigned", "accepted", "scheduled", "in_progress"].includes(request.status)).length,
     completed: requests.filter((request) => request.status === "completed").length,
     cancelled: requests.filter((request) => ["cancelled", "declined", "rejected"].includes(request.status)).length,

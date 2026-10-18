@@ -283,15 +283,15 @@ function PatientHomecarePage() {
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back</Link>
       </header>
 
-      {step === 4 ? (
+      {step === 4 && (
         <section className="mx-auto max-w-2xl space-y-6 rounded-3xl border border-emerald-100 bg-white p-6 text-center shadow-sm sm:p-10">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100"><CheckCircle2 className="h-11 w-11 text-emerald-700" /></div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Request Submitted!</h1>
             <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">Your homecare request has been sent to our verified providers. You&apos;ll be notified once you receive a quotation.</p>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <div className="space-y-3">
         <div><h2 className="text-lg font-semibold text-slate-900">My active requests</h2><p className="text-sm text-muted-foreground">Track quotations and care coordination updates here.</p></div>

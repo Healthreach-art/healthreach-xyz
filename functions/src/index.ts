@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { getAuth } from "firebase-admin/auth";
 import { getApps, initializeApp } from "firebase-admin/app";
 import {
@@ -41,7 +40,7 @@ class ActionError extends Error {
   }
 }
 
-type Identity = { uid: string; email: string | null };
+type Identity = { uid: string; email: string | null; emailVerified: boolean };
 type ActionArgs = Record<string, unknown>;
 
 function stringArg(args: ActionArgs, key: string) {
@@ -880,6 +879,91 @@ async function requireHomecareOperations(identity: Identity) {
   }
 }
 
+async function createHomecareRequest(identity: Identity, args: ActionArgs) {
+  await requireRole(identity, "patient");
+  if (!identity.emailVerified) {
+    throw new ActionError("Verify your email before requesting home care.", 403);
+  }
+
+  const serviceType = stringArg(args, "_service_type").trim();
+  const address = stringArg(args, "_address").trim();
+  if (typeof args._description !== "string") {
+    throw new ActionError("Home care instructions must be text.");
+  }
+  const description = args._description.trim();
+  const latitude = args._latitude;
+  const longitude = args._longitude;
+  const preferredAt = args._preferred_at;
+  const durationHours = args._duration_hours;
+
+  if (serviceType.length < 2 || serviceType.length > 120) {
+    throw new ActionError("Choose a valid home care service.");
+  }
+  if (address.length < 5 || address.length > 500) {
+    throw new ActionError("Choose a valid service address.");
+  }
+  if (description.length > 5_000) {
+    throw new ActionError("Home care instructions must be 5000 characters or fewer.");
+  }
+  if (
+    latitude !== null
+    && (typeof latitude !== "number" || !Number.isFinite(latitude) || latitude < -90 || latitude > 90)
+  ) {
+    throw new ActionError("Choose a valid latitude for the service address.");
+  }
+  if (
+    longitude !== null
+    && (typeof longitude !== "number" || !Number.isFinite(longitude) || longitude < -180 || longitude > 180)
+  ) {
+    throw new ActionError("Choose a valid longitude for the service address.");
+  }
+  if (
+    preferredAt !== null
+    && (typeof preferredAt !== "string" || !Number.isFinite(Date.parse(preferredAt)) || Date.parse(preferredAt) <= Date.now())
+  ) {
+    throw new ActionError("Choose a preferred visit time in the future.");
+  }
+  if (
+    durationHours !== null
+    && (typeof durationHours !== "number" || !Number.isInteger(durationHours) || durationHours < 1 || durationHours > 24)
+  ) {
+    throw new ActionError("Requested duration must be between 1 and 24 hours.");
+  }
+
+  const year = new Date().getFullYear();
+  const requestRef = db.collection("homecare_requests").doc(randomUUID());
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const referenceNumber = `HR-HC-${year}-${String(randomInt(0, 10_000)).padStart(4, "0")}`;
+    const created = await db.runTransaction(async (transaction) => {
+      const duplicate = await transactionQuery(
+        transaction,
+        db.collection("homecare_requests").where("reference_number", "==", referenceNumber).limit(1),
+      );
+      if (!duplicate.empty) return false;
+      const now = new Date().toISOString();
+      transaction.create(requestRef, {
+        patient_id: identity.uid,
+        reference_number: referenceNumber,
+        service_type: serviceType,
+        description,
+        address,
+        latitude,
+        longitude,
+        preferred_at: preferredAt,
+        duration_hours: durationHours,
+        provider_id: null,
+        status: "pending_review",
+        created_at: now,
+        updated_at: now,
+      });
+      return true;
+    });
+    if (created) return { id: requestRef.id, referenceNumber };
+  }
+
+  throw new ActionError("Could not generate a unique homecare request reference. Please try again.", 503);
+}
+
 async function issueHomecareQuote(identity: Identity, args: ActionArgs) {
   await requireHomecareOperations(identity);
   const requestId = stringArg(args, "_request_id");
@@ -1161,6 +1245,8 @@ async function runAction(identity: Identity, name: string, args: ActionArgs) {
   switch (name) {
     case "register_self_service_role":
       return registerSelfServiceRole(identity, args);
+    case "create_homecare_request":
+      return createHomecareRequest(identity, args);
     case "issue_homecare_quote":
       return issueHomecareQuote(identity, args);
     case "respond_homecare_quote":
@@ -1242,7 +1328,11 @@ export const privilegedFirestoreAction = onRequest(
       const args = body.args && typeof body.args === "object" && !Array.isArray(body.args)
         ? body.args as ActionArgs
         : {};
-      const data = await runAction({ uid: decoded.uid, email: decoded.email ?? null }, body.name, args);
+      const data = await runAction({
+        uid: decoded.uid,
+        email: decoded.email ?? null,
+        emailVerified: decoded.email_verified === true,
+      }, body.name, args);
       response.status(200).json({ data });
     } catch (error) {
       if (error instanceof ActionError) {
