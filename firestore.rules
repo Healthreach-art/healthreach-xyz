@@ -656,11 +656,32 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /doctor_documents/{id} {
-      allow read: if isAdmin() || owns('doctor_id');
-      allow create: if isAdmin() || ownsNew('doctor_id');
-      allow update: if isAdmin() || owns('doctor_id')
-        && request.resource.data.doctor_id == resource.data.doctor_id;
+      allow read: if isAdmin() || owns('doctor_id') || owns('doctor_user_id');
+      allow create: if isAdmin() || ownsNew('doctor_id') || ownsNew('doctor_user_id');
+      allow update: if isAdmin()
+        || owns('doctor_id') && request.resource.data.doctor_id == resource.data.doctor_id
+        || owns('doctor_user_id') && request.resource.data.doctor_user_id == resource.data.doctor_user_id;
       allow delete: if isAdmin();
+    }
+    match /doctor_availability/{id} {
+      allow read: if signedIn();
+      allow create: if isAdmin() || ownsNew('doctor_id') || ownsNew('doctor_user_id')
+        || signedIn() && exists(/databases/$(database)/documents/doctors/$(request.resource.data.doctor_id))
+          && get(/databases/$(database)/documents/doctors/$(request.resource.data.doctor_id)).data.user_id == request.auth.uid;
+      allow update, delete: if isAdmin() || owns('doctor_id') || owns('doctor_user_id')
+        || signedIn() && exists(/databases/$(database)/documents/doctors/$(resource.data.doctor_id))
+          && get(/databases/$(database)/documents/doctors/$(resource.data.doctor_id)).data.user_id == request.auth.uid;
+    }
+    match /doctor_reviews/{id} {
+      allow read: if signedIn();
+      allow create: if ownsNew('patient_id');
+      allow update: if isAdmin() || owns('patient_id');
+      allow delete: if isAdmin();
+    }
+    match /complaints/{id} {
+      allow read: if isAdmin() || owns('user_id') || owns('patient_id');
+      allow create: if ownsNew('user_id') || ownsNew('patient_id');
+      allow update, delete: if isAdmin();
     }
     match /homecare_documents/{id} {
       allow read: if isAdmin() || owns('provider_id') || owns('user_id');
