@@ -1,12 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 
-import { Activity, Bell, Home, MessageSquare, UserRound } from "lucide-react";
+import { Activity, Home, UserRound } from "lucide-react";
 
 const ITEMS = [
   { to: "/dashboard/patient", label: "Home", icon: Home, exact: true },
-  { to: "/dashboard/patient/activity", label: "Activity", icon: Activity, exact: false },
-  { to: "/dashboard/patient/notifications", label: "Notifications", icon: Bell, exact: false },
-  { to: "/dashboard/patient/consultations", label: "Messages", icon: MessageSquare, exact: false },
+  { to: "/dashboard/patient/activity", label: "Activities", icon: Activity, exact: false },
   { to: "/dashboard/patient/account", label: "Account", icon: UserRound, exact: false },
 ] as const;
 
@@ -53,6 +51,50 @@ export function PatientBottomNav() {
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, loadUnread)
       .subscribe();
     return () => {
+      cancelled = true;
+      void firestoreClient.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  return (
+    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+      <ul className="mx-auto grid max-w-xl grid-cols-3">
+        {ITEMS.map((it) => {
+          const active = it.exact ? path === it.to : path.startsWith(it.to);
+          return (
+            <li key={it.to}>
+              <Link
+                to={it.to}
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <span className="relative">
+                  <it.icon className={`h-6 w-6 ${active ? "stroke-[2.5]" : ""}`} />
+                  {it.label === "Messages" && unreadChats > 0 && (
+                    <span
+                      aria-label={`${unreadChats} unread messages`}
+                      className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white"
+                    >
+                      {unreadChats > 9 ? "9+" : unreadChats}
+                    </span>
+                  )}
+                  {it.label === "Notifications" && unreadNotifications > 0 && (
+                    <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white" aria-label={`${unreadNotifications} unread notifications`}>
+                      {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                    </span>
+                  )}
+                </span>
+                <span>{it.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}  const path = useRouterState({ select: (r) => r.location.pathname }).replace(/\/$/, "");
+
+  return () => {
       cancelled = true;
       void firestoreClient.removeChannel(channel);
     };
