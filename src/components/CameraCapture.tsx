@@ -8,12 +8,13 @@ interface Props {
   open: boolean;
   onClose: () => void;
   /** Called with a JPEG File once the user accepts the shot. */
-  onCapture: (file: File) => void | Promise<void>;
+  onCapture: (file: File) => void | boolean | Promise<void | boolean>;
   title?: string;
   hint?: string;
   /** "user" = selfie / front cam, "environment" = back cam. */
   facing?: "user" | "environment";
   filenamePrefix?: string;
+  allowFileFallback?: boolean;
 }
 
 /**
@@ -23,6 +24,7 @@ interface Props {
 export function CameraCapture({
   open, onClose, onCapture, title = "Take photo",
   hint, facing = "user", filenamePrefix = "capture",
+  allowFileFallback = true,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -39,16 +41,25 @@ export function CameraCapture({
   }
 
   function cameraErrorMessage(e: unknown) {
+    const fallback = allowFileFallback ? " Allow camera access in Safari/Chrome settings, or use Upload instead." : " Allow camera access in your browser settings and try again.";
     const name = e instanceof DOMException ? e.name : "";
-    if (name === "NotAllowedError" || name === "SecurityError") return "Camera permission is blocked. Allow camera access in Safari/Chrome settings, or use Upload instead.";
-    if (name === "NotFoundError" || name === "OverconstrainedError") return "Requested device not found. Try Start camera again, switch browser permissions, or use Upload instead.";
-    if (name === "NotReadableError") return "Camera is being used by another app. Close it and try again, or use Upload instead.";
-    return e instanceof Error ? e.message : "Camera unavailable. You can upload a photo instead.";
+    if (name === "NotAllowedError" || name === "SecurityError") return `Camera permission is blocked.${fallback}`;
+    if (name === "NotFoundError" || name === "OverconstrainedError") return allowFileFallback
+      ? "Requested device not found. Try Start camera again, switch browser permissions, or use Upload instead."
+      : "Requested camera not found. Try Start camera again or check browser permissions.";
+    if (name === "NotReadableError") return allowFileFallback
+      ? "Camera is being used by another app. Close it and try again, or use Upload instead."
+      : "Camera is being used by another app. Close it and try again.";
+    return e instanceof Error ? e.message : allowFileFallback
+      ? "Camera unavailable. You can upload a photo instead."
+      : "Camera unavailable. Please enable camera access and try again.";
   }
 
   async function startCamera() {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setError("Camera capture is not available in this browser. Use Upload instead.");
+      setError(allowFileFallback
+        ? "Camera capture is not available in this browser. Use Upload instead."
+        : "Camera capture is not available in this browser.");
       return;
     }
     setBusy(true);
@@ -110,8 +121,8 @@ export function CameraCapture({
     try {
       const blob = await (await fetch(snapshot)).blob();
       const file = new File([blob], `${filenamePrefix}-${Date.now()}.jpg`, { type: "image/jpeg" });
-      await onCapture(file);
-      onClose();
+      const saved = await onCapture(file);
+      if (saved !== false) onClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not save photo. Please try again.";
       toast.error(msg);
@@ -140,7 +151,7 @@ export function CameraCapture({
               {!cameraStarted && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-5 text-center text-xs text-white bg-black/80">
                   <Camera className="h-8 w-8" />
-                  <span>Start the live camera from this button for reliable iPhone permission handling.</span>
+                  <span>Start the live camera from this button to capture your photo.</span>
                 </div>
               )}
             </>
@@ -155,12 +166,20 @@ export function CameraCapture({
         <input
           ref={fileInputRef} type="file" accept="image/*" capture={facing}
           className="hidden"
+          disabled={!allowFileFallback}
           onChange={async (e) => {
             const f = e.target.files?.[0];
             e.currentTarget.value = "";
             if (!f) return;
             setBusy(true);
-            try { await onCapture(f); onClose(); } finally { setBusy(false); }
+            try {
+              const saved = await onCapture(f);
+              if (saved !== false) onClose();
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Could not save photo. Please try again.");
+            } finally {
+              setBusy(false);
+            }
           }}
         />
 
@@ -176,7 +195,7 @@ export function CameraCapture({
             </>
           ) : (
             <>
-              {error && (
+              {error && allowFileFallback && (
                 <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={busy}>
                   Upload instead
                 </Button>

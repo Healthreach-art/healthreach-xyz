@@ -13,7 +13,6 @@ import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import logo from "@/assets/healthreach-logo.png";
 import { readPatientAddress } from "@/lib/patient-address";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
@@ -324,11 +323,7 @@ function Page() {
 
   return (
     <main className="container-narrow space-y-6 px-4 py-6 sm:px-6 sm:py-8">
-      <header className="flex items-center justify-between border-b border-border/60 pb-4">
-        <Link to="/dashboard/patient/find" search={{ q: "" }} className="flex items-center gap-3" aria-label="HealthReachCare doctor directory">
-          <img src={logo} alt="HealthReachCare" className="h-10 w-auto" />
-          <span className="hidden text-sm font-semibold text-slate-900 sm:inline">HealthReachCare</span>
-        </Link>
+      <header className="flex justify-end border-b border-border/60 pb-4">
         <Link to="/dashboard/patient/find" search={{ q: "" }} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back to doctors</Link>
       </header>
       <section className="flex flex-col gap-5 rounded-3xl border border-border/60 bg-white p-5 shadow-sm sm:flex-row sm:p-7">

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,7 +17,6 @@ type DataRow = Record<string, unknown> & { id: string };
 interface ActivityItem {
   id: string;
   kind: ActivityKind;
-  to: string;
   title: string;
   detail: string;
   occurredAt: Date | null;
@@ -29,7 +28,16 @@ const FILTERS: ActivityFilter[] = ["All", "Appointments", "Orders", "Prescriptio
 function asDate(value: unknown): Date | null {
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
   if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    try { return value.toDate(); } catch { return null; }
+    try {
+      const date = value.toDate();
+      return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
+    } catch {
+      return null;
+    }
+  }
+  if (value && typeof value === "object" && "seconds" in value && typeof value.seconds === "number") {
+    const date = new Date(value.seconds * 1000);
+    return Number.isNaN(date.getTime()) ? null : date;
   }
   if (typeof value !== "string" && typeof value !== "number") return null;
   const date = new Date(value);
@@ -40,10 +48,10 @@ function formatDate(value: Date | null) {
   if (!value) return "Date unavailable";
   const date = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(value);
   const time = new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).format(value);
-  return `${date} • ${time}`;
+  return `${date} · ${time}`;
 }
 
-function statusLabel(value: unknown, fallback: string) {
+function statusLabel(value: unknown, fallback = "Status unavailable") {
   const status = typeof value === "string" ? value.toLowerCase().replace(/_/g, " ") : "";
   if (!status) return fallback;
   if (["delivered", "completed", "successful", "success"].includes(status)) return status === "completed" ? "Completed" : status === "successful" || status === "success" ? "Successful" : "Delivered";
@@ -59,15 +67,8 @@ function statusClass(status: string) {
   if (["Delivered", "Completed", "Successful"].includes(status)) return "bg-emerald-100 text-emerald-800";
   if (status === "Scheduled") return "bg-violet-100 text-violet-800";
   if (status === "Processed") return "bg-sky-100 text-sky-800";
-  if (status === "Processing") return "bg-amber-100 text-amber-800";
+  if (status === "Processing") return "bg-blue-100 text-blue-800";
   return "bg-muted text-muted-foreground";
-}
-
-function iconClass(kind: ActivityKind) {
-  if (kind === "appointment") return "bg-teal-100 text-teal-800";
-  if (kind === "order") return "bg-green-100 text-green-800";
-  if (kind === "prescription") return "bg-blue-100 text-blue-800";
-  return "bg-emerald-100 text-emerald-800";
 }
 
 function iconFor(kind: ActivityKind) {
@@ -90,19 +91,29 @@ function Page() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [filter, setFilter] = useState<ActivityFilter>("All");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const requestId = useRef(0);
 
-  useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    let active = true;
-    (async () => {
-      setLoading(true);
+  const loadActivities = useCallback(async () => {
+    const currentRequest = ++requestId.current;
+    if (!user) {
+      setActivities([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setLoadError(false);
+    try {
       const [ordersResult, prescriptionsResult, bookingsResult, homecareResult] = await Promise.all([
         firestoreClient.from("orders").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
         firestoreClient.from("prescriptions").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
         firestoreClient.from("bookings").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
         firestoreClient.from("homecare_requests").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
       ]);
-      if (!active) return;
+      if (currentRequest !== requestId.current) return;
+      const failedResult = [ordersResult, prescriptionsResult, bookingsResult, homecareResult].find((result) => result.error);
+      if (failedResult?.error) throw failedResult.error;
+
       const orders = (ordersResult.data ?? []) as DataRow[];
       const prescriptions = (prescriptionsResult.data ?? []) as DataRow[];
       const bookings = (bookingsResult.data ?? []) as DataRow[];
@@ -111,20 +122,18 @@ function Page() {
         ...orders.map((row) => ({
           id: `order-${row.id}`,
           kind: "order" as const,
-          to: "/dashboard/patient/orders",
           title: row.delivery_id ? "Delivery" : "Medicine Order",
           detail: [row.medication_name, row.quantity ? `Qty ${row.quantity}` : null, row.pharmacy_name].filter(Boolean).join(" · ") || "Medicine order",
           occurredAt: asDate(row.created_at ?? row.createdAt),
-          status: statusLabel(row.status, "Pending"),
+          status: statusLabel(row.status),
         })),
         ...prescriptions.map((row) => ({
           id: `prescription-${row.id}`,
           kind: "prescription" as const,
-          to: "/dashboard/patient/prescriptions",
           title: "Prescription Uploaded",
           detail: [row.medication_name, row.doctor_name ? `Dr ${row.doctor_name}` : null, row.dosage].filter(Boolean).join(" · ") || "Prescription added to your records",
           occurredAt: asDate(row.created_at ?? row.createdAt),
-          status: statusLabel(row.status ?? (row.is_active ? "processed" : "reviewing"), "Reviewing"),
+          status: statusLabel(row.status ?? (row.is_active ? "processed" : null)),
         })),
         ...bookings.map((row) => {
           const source = String(row.source ?? "").toLowerCase();
@@ -132,52 +141,61 @@ function Page() {
           const isHomecare = service.includes("home") || service.includes("care");
           const isWhatsApp = source.includes("whatsapp");
           return {
-            id: `booking-${row.id}`,
+            id: `${isHomecare ? "homecare" : "appointment"}-${row.id}`,
             kind: isHomecare ? "homecare" as const : "appointment" as const,
-            to: isHomecare ? "/dashboard/patient/homecare" : isWhatsApp ? "/dashboard/patient/activity" : "/dashboard/patient/consultations",
             title: isWhatsApp ? "WhatsApp Booking" : isHomecare ? "Home Care Request" : "Doctor Consultation",
-            detail: String(row.summary ?? row.details ?? row.doctor_name ?? row.specialty ?? row.service ?? "Booking request"),
-            occurredAt: asDate(row.created_at ?? row.createdAt ?? row.scheduled_at ?? row.scheduledAt),
-            status: statusLabel(row.status, "Pending"),
+            detail: String(row.summary ?? row.details ?? row.specialty ?? row.service ?? "Booking request"),
+            occurredAt: asDate(row.scheduled_at ?? row.scheduledAt ?? row.created_at ?? row.createdAt),
+            status: statusLabel(row.status),
           };
         }),
         ...homecareRequests.map((row) => ({
           id: `homecare-${row.id}`,
           kind: "homecare" as const,
-          to: "/dashboard/patient/homecare",
           title: "Home Care Request",
           detail: [row.service_type, row.description].filter(Boolean).join(" · ") || "Home care visit",
           occurredAt: asDate(row.created_at ?? row.createdAt ?? row.preferred_at),
-          status: statusLabel(row.status, row.preferred_at ? "Scheduled" : "Pending"),
+          status: statusLabel(row.status),
         })),
       ];
-      setActivities(items.sort((a, b) => (b.occurredAt?.getTime() ?? 0) - (a.occurredAt?.getTime() ?? 0)));
-      setLoading(false);
-    })();
-    return () => { active = false; };
+      const uniqueActivities = new Map(items.map((item) => [item.id, item]));
+      setActivities(Array.from(uniqueActivities.values())
+        .sort((a, b) => (b.occurredAt?.getTime() ?? 0) - (a.occurredAt?.getTime() ?? 0)));
+    } catch (error) {
+      if (currentRequest !== requestId.current) return;
+      console.error("[patient-activity] Could not load patient activity.", error);
+      setLoadError(true);
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false);
+    }
   }, [user]);
 
+  useEffect(() => {
+    void loadActivities();
+    return () => { requestId.current += 1; };
+  }, [loadActivities]);
+
   const visibleActivities = useMemo(() => activities.filter((item) => matchesFilter(item.kind, filter)), [activities, filter]);
-  const emptyLinks: Record<ActivityFilter, { to: string; label: string }> = {
+  const emptyLinks = {
     All: { to: "/dashboard/patient/find", label: "Find a doctor" },
     Appointments: { to: "/dashboard/patient/find", label: "Book an appointment" },
     Orders: { to: "/dashboard/patient/search", label: "Search medicines" },
     Prescriptions: { to: "/dashboard/patient/prescriptions", label: "View prescriptions" },
     "Home Care": { to: "/dashboard/patient/homecare", label: "Request home care" },
-  };
+  } satisfies Record<ActivityFilter, { to: string; label: string }>;
 
   return (
     <div className="container-narrow space-y-6 px-4 py-8 pb-24 sm:px-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground sm:text-3xl"><ClipboardList className="h-6 w-6 text-primary" /> Activities</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Your complete health journey in one place.</p>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground"><ClipboardList className="h-6 w-6 text-primary" /> Activities</h1>
+        <p className="text-sm text-muted-foreground">Your complete health journey in one place.</p>
       </div>
 
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div className="flex w-max gap-2" role="group" aria-label="Filter activities">
           {FILTERS.map((item) => (
             <button key={item} type="button" aria-pressed={filter === item} onClick={() => setFilter(item)}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${filter === item ? "bg-emerald-800 text-white" : "border border-border bg-muted/60 text-muted-foreground hover:bg-muted"}`}>
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${filter === item ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"}`}>
               {item}
             </button>
           ))}
@@ -186,23 +204,31 @@ function Page() {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : loadError ? (
+        <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 px-6 py-10 text-center">
+          <h2 className="font-semibold text-foreground">We couldn’t load your activities.</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Your health records are still safe. Please try again.</p>
+          <button type="button" onClick={() => void loadActivities()} className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Try again
+          </button>
+        </div>
       ) : visibleActivities.length ? (
         <div className="space-y-3">
           {visibleActivities.map((item) => {
             const Icon = iconFor(item.kind);
             return (
-              <Link key={item.id} to={item.to as any} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:gap-4">
-                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${iconClass(item.kind)}`}><Icon className="h-5 w-5" /></div>
+              <article key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-semibold text-foreground">{item.title}</h2>
-                  <p className="truncate text-sm text-muted-foreground">{item.detail}</p>
+                  <h2 className="max-w-full truncate text-sm font-semibold text-foreground">{item.title}</h2>
+                  <p className="max-w-full truncate text-sm text-muted-foreground">{item.detail}</p>
                   <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{formatDate(item.occurredAt)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass(item.status)}`}>{item.status}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <span className={`max-w-28 truncate rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass(item.status)}`}>{item.status}</span>
+                  <ChevronRight className="hidden h-4 w-4 text-muted-foreground sm:block" />
                 </div>
-              </Link>
+              </article>
             );
           })}
         </div>
@@ -211,7 +237,7 @@ function Page() {
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary"><ClipboardList className="h-6 w-6" /></div>
           <h2 className="font-semibold text-foreground">No {filter === "All" ? "activities" : filter.toLowerCase()} yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">Your care updates will appear here as you use HealthReachCare.</p>
-          <Link to={emptyLinks[filter].to as any} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+          <Link to={emptyLinks[filter].to} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
             {emptyLinks[filter].label}<ChevronRight className="h-4 w-4" />
           </Link>
         </div>

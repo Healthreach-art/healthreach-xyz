@@ -238,6 +238,15 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/orders/$(resource.data.order_id)).data.patient_id == resource.data.patient_id
         && get(/databases/$(database)/documents/orders/$(resource.data.order_id)).data.pharmacy_id == request.auth.uid;
     }
+    function validPatientIdentityNumber(data) {
+      return !('id_number' in data)
+        || data.id_number == null
+        || data.id_number is string
+          && (
+            data.id_number.matches('^[0-9]{13}$')
+            || data.id_number.matches('^[A-Za-z0-9]*[A-Za-z][A-Za-z0-9]{5,19}$')
+          );
+    }
     // Provider approval gate: only approved providers may operate.
     function isApproved(col, id) {
       return get(/databases/$(database)/documents/$(col)/$(id)).data.status == 'approved';
@@ -267,6 +276,42 @@ service cloud.firestore {
         || signedIn() && resource.data.role == 'pharmacy';
       allow create: if isAdmin() || canRegisterRole(request.auth.uid, id);
       allow update, delete: if isAdmin();
+    }
+
+    // Identity documents and ID numbers are private to the patient and admins.
+    // Patients may submit or replace data, but only admins may approve/reject it.
+    match /patient_verifications/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid)
+        && request.resource.data.user_id == uid
+        && request.resource.data.status == 'pending'
+        && validPatientIdentityNumber(request.resource.data)
+        && request.resource.data.keys().hasOnly([
+          'user_id', 'id_document_path', 'selfie_path', 'selfie_with_id_path',
+          'id_number', 'status', 'updated_at',
+        ]);
+      allow update: if isAdmin()
+          && (
+            request.resource.data.status != 'approved'
+            || request.resource.data.id_document_path is string
+              && request.resource.data.selfie_path is string
+              && request.resource.data.selfie_with_id_path is string
+              && request.resource.data.id_number is string
+              && (
+                request.resource.data.id_number.matches('^[0-9]{13}$')
+                || request.resource.data.id_number.matches('^[A-Za-z0-9]*[A-Za-z][A-Za-z0-9]{5,19}$')
+              )
+          )
+        || isOwner(uid)
+          && resource.data.user_id == uid
+          && request.resource.data.user_id == uid
+          && request.resource.data.status == 'pending'
+          && validPatientIdentityNumber(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'id_document_path', 'selfie_path', 'selfie_with_id_path',
+            'id_number', 'status', 'updated_at',
+          ]);
+      allow delete: if isAdmin();
     }
 
     // Provider profiles (doctors, pharmacies, drivers, homecare):

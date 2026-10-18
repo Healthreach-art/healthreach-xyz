@@ -1,38 +1,43 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { verifyPrescription, type VerifyResult } from "@/utils/ai.functions";
-import { getPrescriptionFileUrl, type PrescriptionUpload } from "@/components/PrescriptionVerification";
+import type { PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldCheck, ShieldAlert, ShieldX, Sparkles, Loader2, Check, X, User, Stethoscope, Pill, FileWarning } from "lucide-react";
 import { toast } from "sonner";
 
-export function PrescriptionScanButton({ row }: { row: PrescriptionUpload }) {
+export function PrescriptionScanButton({ row, onProcessed }: { row: PrescriptionUpload; onProcessed?: () => void }) {
   const verify = useServerFn(verifyPrescription);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<VerifyResult | null>(null);
 
   async function run() {
     if (row.mime_type === "application/pdf") {
-      toast.error("PDF verification not supported yet", { description: "Upload a JPG or PNG instead." });
+      toast.info("Automatic image extraction is not available for PDF files.", { description: "This prescription remains pending pharmacy review." });
       return;
     }
     setBusy(true); setResult(null);
-    const tId = toast.loading("Running AI verification engine…", { description: "Analyzing doctor info, signature, layout, and tampering signals." });
+    const tId = toast.loading("Extracting prescription details…", { description: "AI output is advisory; a pharmacy must still review the prescription." });
     try {
-      const fileUrl = await getPrescriptionFileUrl(row.file_path);
-      const r = await verify({ data: { uploadId: row.id, fileUrl, mimeType: row.mime_type } });
+      const r = await verify({ data: { uploadId: row.id } });
       if (r.error) {
-        toast.error("AI verification failed", { id: tId, description: r.error });
+        toast.warning("AI extraction failed", { id: tId, description: r.error });
       } else {
         const lvl = r.risk_level;
-        const fn = lvl === "low" ? toast.success : lvl === "high" ? toast.error : toast.warning;
-        fn(`Trust ${r.trust_score}/100 · ${lvl} risk`, { id: tId, description: r.summary || `${r.medications.length} medication(s) detected.` });
+        toast.success(`AI extraction complete · ${lvl} risk`, {
+          id: tId,
+          description: `${r.medications.length} medication(s) detected. Pharmacy approval is still required.`,
+        });
       }
       setResult(r);
-    } catch (e: any) {
-      toast.error("Verification failed", { id: tId, description: e?.message || "Please try again." });
+      if (!r.error) onProcessed?.();
+    } catch (error) {
+      toast.error("AI extraction failed", {
+        id: tId,
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
     } finally {
       setBusy(false);
     }
@@ -60,26 +65,28 @@ export function PrescriptionScanButton({ row }: { row: PrescriptionUpload }) {
 
 function VerificationReport({ r }: { r: VerifyResult }) {
   const trustMeta = r.risk_level === "low"
-    ? { Icon: ShieldCheck, cls: "text-healthcare-green border-healthcare-green/30 bg-healthcare-green/10", label: "Low risk — appears authentic" }
+    ? { Icon: ShieldCheck, cls: "text-healthcare-green border-healthcare-green/30 bg-healthcare-green/10", label: "Low AI risk — pharmacy review required" }
     : r.risk_level === "high"
-    ? { Icon: ShieldX, cls: "text-destructive border-destructive/40 bg-destructive/10", label: "High risk — likely invalid" }
-    : { Icon: ShieldAlert, cls: "text-amber-700 dark:text-amber-400 border-amber-500/30 bg-amber-500/10", label: "Medium risk — pharmacist review" };
+    ? { Icon: ShieldX, cls: "text-destructive border-destructive/40 bg-destructive/10", label: "High AI risk — pharmacy review required" }
+    : { Icon: ShieldAlert, cls: "text-amber-700 dark:text-amber-400 border-amber-500/30 bg-amber-500/10", label: "AI review — pharmacy review required" };
   const TIcon = trustMeta.Icon;
 
   return (
     <div className="rounded-lg border border-border bg-background p-3 text-xs space-y-3">
-      {/* Trust score header */}
       <div className={`rounded-md border px-3 py-2 ${trustMeta.cls}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 font-semibold">
             <TIcon className="h-4 w-4" />
-            AI trust score {r.trust_score}/100
+            AI confidence {r.trust_score}/100
           </div>
           <span className="text-[11px] font-medium">{trustMeta.label}</span>
         </div>
         <Progress value={r.trust_score} className="mt-2 h-1.5" />
         {r.summary && <p className="mt-1.5 text-[11px] opacity-90 leading-snug">{r.summary}</p>}
       </div>
+      <p className="rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
+        AI extraction is advisory only. It does not verify identity, approve a prescription, or authorize medicine.
+      </p>
 
       {/* Doctor info */}
       <Section icon={Stethoscope} title="Doctor">
@@ -98,7 +105,6 @@ function VerificationReport({ r }: { r: VerifyResult }) {
       {/* Patient info */}
       <Section icon={User} title="Patient">
         <Field k="Name" v={r.patient.name} />
-        {r.patient.id_number && <Field k="ID #" v={r.patient.id_number} />}
         {r.patient.date_of_birth && <Field k="DOB" v={r.patient.date_of_birth} />}
         {r.patient.gender && <Field k="Gender" v={r.patient.gender} />}
       </Section>

@@ -3,7 +3,9 @@ import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { PrescriptionUploader, PrescriptionStatusBadge, type PrescriptionUpload } from "@/components/PrescriptionVerification";
-import { PatientVerificationCard, fetchVerification, isVerificationComplete, type PatientVerification } from "@/components/PatientVerificationCard";
+import { PatientVerificationCard } from "@/components/PatientVerificationCard";
+import { isVerificationComplete, type PatientVerification } from "@/lib/patient-verification";
+import { fetchVerification } from "@/lib/patient-verification-data";
 import { FileCheck2, Plus, Loader2, AlertCircle, ChevronLeft, ShieldCheck, ShieldAlert } from "lucide-react";
 
 

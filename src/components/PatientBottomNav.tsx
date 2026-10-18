@@ -25,6 +25,7 @@ export function PatientBottomNav() {
       setUnreadNotifications(0);
       return;
     }
+
     let cancelled = false;
     const loadUnread = async () => {
       const [appointmentResult, orderResult, notificationResult] = await Promise.all([
@@ -56,7 +57,8 @@ export function PatientBottomNav() {
       setUnreadChats(unreadMessageCount);
       setUnreadNotifications((notificationResult.data?.length ?? 0) + unreadMessageCount);
     };
-    void loadUnread();
+
+    void loadUnreadMessages();
     const channel = firestoreClient.channel(`patient-nav-messages-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointment_messages", filter: `patient_id=eq.${user.id}` }, loadUnread)
       .on("postgres_changes", { event: "*", schema: "public", table: "order_messages" }, loadUnread)
@@ -70,7 +72,7 @@ export function PatientBottomNav() {
 
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-      <ul className="mx-auto grid max-w-3xl grid-cols-5">
+      <ul className="mx-auto grid max-w-3xl grid-cols-4">
         {ITEMS.map((it) => {
           const active = it.exact ? path === it.to : path.startsWith(it.to);
           return (
@@ -82,9 +84,12 @@ export function PatientBottomNav() {
               >
                 <span className="relative">
                   <it.icon className={`h-6 w-6 ${active ? "stroke-[2.5]" : ""}`} />
-                  {it.label === "Messages" && unreadChats > 0 && (
-                    <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white" aria-label={`${unreadChats} unread chats`}>
-                      {unreadChats > 9 ? "9+" : unreadChats}
+                  {it.label === "Messages" && unreadMessages > 0 && (
+                    <span
+                      aria-label={`${unreadMessages} unread messages`}
+                      className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white"
+                    >
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
                     </span>
                   )}
                   {it.label === "Notifications" && unreadNotifications > 0 && (

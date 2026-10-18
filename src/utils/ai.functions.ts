@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { firestoreAdmin } from "@/lib/firestore-admin";
+import { readAuthorizedPrivateFile } from "@/lib/r2-storage.server";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -223,8 +224,6 @@ export const checkDrugInteractions = createServerFn({ method: "POST" })
 
 const verifyInput = z.object({
   uploadId: z.string().uuid(),
-  fileUrl: z.string().url(),
-  mimeType: z.string().min(3).max(100),
 });
 
 export interface VerifyResult {
@@ -281,19 +280,40 @@ export const verifyPrescription = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<VerifyResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) return { ...EMPTY_RESULT, error: "AI not configured" };
-    if (data.mimeType === "application/pdf") {
+    const { data: upload, error: uploadError } = await firestoreAdmin
+      .from("prescription_uploads")
+      .select("id, patient_id, file_path, mime_type")
+      .eq("id", data.uploadId)
+      .maybeSingle();
+    if (uploadError) throw uploadError;
+    if (!upload || upload.patient_id !== context.userId) {
+      throw new Response("Prescription was not found.", { status: 404 });
+    }
+    if (upload.mime_type === "application/pdf") {
       return { ...EMPTY_RESULT, error: "PDF verification not supported yet — upload JPG/PNG." };
     }
+    if (upload.mime_type !== "image/jpeg" && upload.mime_type !== "image/png") {
+      return { ...EMPTY_RESULT, error: "AI extraction supports JPEG and PNG files only." };
+    }
 
-    // Download & base64 encode
+    // Resolve the exact stored file only after checking its authenticated owner.
     let imageDataUrl: string;
     try {
-      assertFirebaseStorageUrl(data.fileUrl);
-      const r = await fetch(data.fileUrl);
-      if (!r.ok) return { ...EMPTY_RESULT, error: `Could not fetch file (${r.status})` };
-      const buf = new Uint8Array(await r.arrayBuffer());
+      const file = await readAuthorizedPrivateFile({
+        userId: context.userId,
+        email: typeof context.claims.email === "string" ? context.claims.email : null,
+        authorization: `Bearer ${context.idToken}`,
+      }, "prescriptions", upload.file_path);
+      const responseType = file.contentType?.split(";")[0];
+      if (responseType !== upload.mime_type) {
+        return { ...EMPTY_RESULT, error: "Stored prescription file type does not match its record." };
+      }
+      const buf = new Uint8Array(file.body);
+      if (buf.length > 8 * 1024 * 1024) {
+        return { ...EMPTY_RESULT, error: "Prescription file is larger than the supported size." };
+      }
       let bin = ""; for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-      imageDataUrl = `data:${data.mimeType};base64,${btoa(bin)}`;
+      imageDataUrl = `data:${upload.mime_type};base64,${btoa(bin)}`;
     } catch (e: any) {
       return { ...EMPTY_RESULT, error: e?.message || "Could not download prescription file" };
     }
@@ -302,11 +322,11 @@ export const verifyPrescription = createServerFn({ method: "POST" })
       type: "function",
       function: {
         name: "verify_prescription",
-        description: "Deeply verify a South African doctor's prescription. Analyze structure, doctor info, patient info, medications, validity, and tampering risk.",
+        description: "Extract visible information from a South African prescription and report uncertain fields or review signals. This output is advisory and is not an approval.",
         parameters: {
           type: "object",
           properties: {
-            trust_score: { type: "number", description: "0-100 confidence that prescription is authentic, complete, and valid" },
+            trust_score: { type: "number", description: "0-100 confidence in the extraction and visible document features, not proof of authenticity or validity" },
             risk_level: { type: "string", enum: ["low", "medium", "high"] },
             summary: { type: "string", description: "One-paragraph pharmacist-style assessment" },
             doctor: {
@@ -386,12 +406,11 @@ export const verifyPrescription = createServerFn({ method: "POST" })
       },
     };
 
-    const system = `You are an expert South African pharmacy verification assistant.
+    const system = `You are an assistive document-extraction tool for South African pharmacy staff, not a verifier or prescriber.
 You understand how legitimate medical prescriptions are structured: doctor header (name, HPCSA number, practice number, address, contact), patient block, medication list (name, strength, quantity, sig, route, repeats), date, signature, and stamp.
-Analyze the image like a pharmacist checking for authenticity, completeness, and safety.
-Flag tampering: edited PDFs, font inconsistencies, photoshop artifacts, missing signature/stamp, suspiciously perfect AI-generated look, screenshot artifacts, cropped/blurry uploads, invalid HPCSA format (should look like MP followed by 6+ digits), impossible repeat counts, antibiotic repeats (suspicious), expired dates, unrecognized medicine names.
-Be conservative — when uncertain leave fields empty rather than fabricating.
-Score 71-100 = low risk (clearly authentic), 31-70 = medium (needs pharmacist review), 0-30 = high risk (likely fake/invalid).`;
+Report only visible features and extraction confidence. Do not claim that a prescription is authentic, valid, safe, approved, or suitable for dispensing; a licensed pharmacist must independently review it.
+Flag visible issues for pharmacist attention, such as illegible/cropped content or apparently missing signature/stamp. Do not infer tampering, invalidity, or medicine risk without clear evidence. Leave uncertain fields empty rather than fabricating.
+The risk level is a triage hint only: low = fewer visible extraction concerns, medium = review recommended, high = prominent visible concerns; none of these levels establish authenticity or replace pharmacy review.`;
 
     const body = {
       model: MODEL,
@@ -429,7 +448,7 @@ Score 71-100 = low risk (clearly authentic), 31-70 = medium (needs pharmacist re
       risk_level: parsed.risk_level ?? "unknown",
       summary: parsed.summary || "",
       doctor: { ...EMPTY_RESULT.doctor, ...(parsed.doctor || {}) },
-      patient: { ...EMPTY_RESULT.patient, ...(parsed.patient || {}) },
+      patient: { ...EMPTY_RESULT.patient, ...(parsed.patient || {}), id_number: null },
       prescription: { ...EMPTY_RESULT.prescription, ...(parsed.prescription || {}) },
       medications: Array.isArray(parsed.medications) ? parsed.medications : [],
       validation: Array.isArray(parsed.validation) ? parsed.validation : [],
@@ -437,32 +456,53 @@ Score 71-100 = low risk (clearly authentic), 31-70 = medium (needs pharmacist re
       missing_fields: Array.isArray(parsed.missing_fields) ? parsed.missing_fields : [],
     };
 
-    // Persist AI signals onto upload row (merge with heuristic score; take the higher fraud risk).
-    try {
-      const { userId } = context;
-      const aiFraud = 100 - result.trust_score;
-      const { data: existing } = await firestoreAdmin
-        .from("prescription_uploads")
-        .select("fraud_score, fraud_signals")
-        .eq("id", data.uploadId)
-        .maybeSingle();
-      const prevScore = Number(existing?.fraud_score ?? 0);
-      const prevSignals = Array.isArray(existing?.fraud_signals) ? existing!.fraud_signals as any[] : [];
-      const aiSignals = result.fraud_signals.map(s => ({ label: `ai_${s.label}`.toLowerCase().replace(/\s+/g, "_"), detail: s.detail }));
-      const merged = [...prevSignals.filter((s: any) => !String(s.label).startsWith("ai_")), ...aiSignals];
-      await firestoreAdmin
-        .from("prescription_uploads")
-        .update({ fraud_score: Math.max(prevScore, aiFraud), fraud_signals: merged })
-        .eq("id", data.uploadId);
-      await firestoreAdmin.from("prescription_audit_log").insert({
-        prescription_upload_id: data.uploadId,
-        actor_id: userId,
-        action: "ai_verification",
-        notes: `trust ${result.trust_score}/100 · ${result.risk_level} risk · ${result.fraud_signals.length} flag(s)`,
-      });
-    } catch (e) {
-      console.error("verifyPrescription persist failed", e);
+    // Persist extraction as assistive metadata only; pharmacy status is untouched.
+    const aiFraud = 100 - result.trust_score;
+    const { data: existing, error: existingError } = await firestoreAdmin
+      .from("prescription_uploads")
+      .select("patient_id, fraud_score, fraud_signals")
+      .eq("id", data.uploadId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing || existing.patient_id !== context.userId) {
+      throw new Response("Prescription was not found.", { status: 404 });
     }
+    const prevScore = Number(existing.fraud_score ?? 0);
+    const prevSignals = Array.isArray(existing.fraud_signals) ? existing.fraud_signals as Array<{ label: string }> : [];
+    const aiSignals = result.fraud_signals.map((signal) => ({
+      label: `ai_${signal.label}`.toLowerCase().replace(/\s+/g, "_"),
+      detail: signal.detail,
+    }));
+    const mergedSignals = [...prevSignals.filter((signal) => !String(signal.label).startsWith("ai_")), ...aiSignals];
+    const { error: persistError } = await firestoreAdmin
+      .from("prescription_uploads")
+      .update({
+        fraud_score: Math.max(prevScore, aiFraud),
+        fraud_signals: mergedSignals,
+        ai_trust_score: result.trust_score,
+        ai_risk_level: result.risk_level,
+        ai_summary: result.summary,
+        ai_processed_at: new Date().toISOString(),
+        ai_extraction: {
+          doctor_name: result.doctor.name,
+          practice_name: result.doctor.practice_name,
+          hpcsa_number: result.doctor.hpcsa_number,
+          issue_date: result.prescription.issue_date,
+          expiry_estimate: result.prescription.expiry_estimate,
+          repeats: result.prescription.repeats,
+          signature_present: result.doctor.signature_present,
+          medications: result.medications,
+        },
+      })
+      .eq("id", data.uploadId);
+    if (persistError) throw new Error("Could not save prescription extraction results.");
+    const { error: auditError } = await firestoreAdmin.from("prescription_audit_log").insert({
+      prescription_upload_id: data.uploadId,
+      actor_id: context.userId,
+      action: "ai_verification",
+      notes: `AI trust ${result.trust_score}/100 · ${result.risk_level} risk · ${result.fraud_signals.length} flags`,
+    });
+    if (auditError) throw new Error("Could not record prescription extraction audit event.");
 
     return result;
   });
