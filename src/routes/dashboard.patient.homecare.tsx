@@ -12,12 +12,14 @@ import { toast } from "sonner";
 import {
   ArrowLeft, BadgeCheck, CalendarDays, Check, CheckCircle2, ChevronRight,
   Clock3, Copy, HeartHandshake, HeartPulse, Loader2, Mail, MapPin, MessageCircle,
-  ShieldCheck, Stethoscope, UsersRound,
+  ShieldCheck, Stethoscope, UsersRound, Bell,
 } from "lucide-react";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from "@/lib/patient-address";
 import { useServerFn } from "@tanstack/react-start";
 import { reorderCompletedHomecare, respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
 import { HomecareServiceChat } from "@/components/HomecareServiceChat";
+import { PatientNotificationBell } from "@/components/PatientNotificationBell";
+import logoUrl from "@/assets/healthreach-logo.png";
 
 interface HomecareRequest {
   id: string;
@@ -116,6 +118,11 @@ function PatientHomecarePage() {
   const [locationMode, setLocationMode] = useState<"home" | "different">("home");
   const [address, setAddress] = useState<PickedAddress | null>(null);
   const [savedAddress, setSavedAddress] = useState("");
+  const [visitAddress, setVisitAddress] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
+  const [selectedRequest, setSelectedRequest] = useState<HomecareRequest | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState<RequestTab>("All");
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
@@ -142,6 +149,7 @@ function PatientHomecarePage() {
     if (!user?.id) return;
     const applyAddress = (value: PatientAddress | null) => {
       setSavedAddress(value?.address ?? profile?.address ?? "");
+      setVisitAddress((current) => current || value?.address || profile?.address || "");
       if (value?.address) {
         setAddress(value.lat != null && value.lng != null
           ? { address: value.address, lat: value.lat, lng: value.lng }
@@ -234,7 +242,7 @@ function PatientHomecarePage() {
   });
   const activeRequests = requests.filter((request) => !completedRequests.includes(request));
 
-  const validateStep = (current: number) => {
+  const homeAddress = savedAddress || profile?.address || "";\n  const description = instructions;\n  const preferredAt = dateKey && time ? `${dateKey}T${time}:00+02:00` : "";\n  const hours = "";\n\n  const validateStep = (current: number) => {
     if (current === 1 && !serviceType.trim()) {
       toast.error("Choose the type of care you need.");
       return false;
