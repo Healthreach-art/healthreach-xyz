@@ -92,6 +92,7 @@ function Page() {
   const [filter, setFilter] = useState<ActivityFilter>("All");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(null);
   const requestId = useRef(0);
 
   const loadActivities = useCallback(async () => {
@@ -245,7 +246,7 @@ function Page() {
           {visibleActivities.map((item) => {
             const Icon = iconFor(item.kind);
             return (
-              <article key={item.id} className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/30 sm:gap-4 sm:p-5">
+              <button key={item.id} type="button" onClick={() => setSelectedActivity(item)} aria-label={`View details for ${item.title}`} className="group flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-4 sm:p-5">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
                   <h2 className="max-w-full truncate text-sm font-semibold text-foreground">{item.title}</h2>
@@ -256,7 +257,7 @@ function Page() {
                   <span className={`max-w-28 truncate rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass(item.status)}`}>{item.status}</span>
                   <ChevronRight className="hidden h-4 w-4 text-muted-foreground sm:block" />
                 </div>
-              </article>
+              </button>
             );
           })}
         </div>
@@ -268,6 +269,28 @@ function Page() {
           <Link to={emptyLinks[filter].to} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
             {emptyLinks[filter].label}<ChevronRight className="h-4 w-4" />
           </Link>
+        </div>
+      )}
+      {selectedActivity && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedActivity(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="activity-detail-title" className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-border bg-background p-5 shadow-xl sm:rounded-3xl sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">{selectedActivity.kind === "homecare" ? "Home Care" : selectedActivity.kind}</p>
+                <h2 id="activity-detail-title" className="mt-1 text-xl font-bold text-foreground">{selectedActivity.title}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">{selectedActivity.detail}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedActivity(null)} className="rounded-full border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent">Close</button>
+            </div>
+            <div className="mt-5 rounded-2xl border border-border bg-card p-4">
+              <p className="text-xs font-medium text-muted-foreground">Current status</p>
+              <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${statusClass(selectedActivity.status)}`}>{selectedActivity.status}</span>
+              <p className="mt-4 text-xs font-medium text-muted-foreground">Date and time</p>
+              <p className="mt-1 text-sm text-foreground">{formatDate(selectedActivity.occurredAt)}</p>
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">This view reflects the latest activity record available to your account. Further actions will appear here when supported by the current service workflow.</p>
+            <button type="button" onClick={() => setSelectedActivity(null)} className="mt-5 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Back to Activities</button>
+          </section>
         </div>
       )}
     </div>
