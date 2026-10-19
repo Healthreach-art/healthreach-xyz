@@ -62,7 +62,6 @@ function PatientDashboard() {
   const [mapDropoff, setMapDropoff] = useState<string | null>(null);
   const [pickupCode, setPickupCode] = useState<string | null>(null);
   const [deliveryCode, setDeliveryCode] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!userId) return;
@@ -140,16 +139,6 @@ function PatientDashboard() {
   const latestActive = orders.find((o) => !["delivered", "cancelled"].includes(o.status));
   const activeStepIdx = latestActive ? (STATUS_STEP[latestActive.status] ?? 0) : -1;
 
-  function submitSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const q = searchQuery.trim();
-    if (!q) return;
-    if (/\b(medicines?|medications?|pharmacies?|pills?|drugs?|prescriptions?)\b/i.test(q)) {
-      void navigate({ to: "/dashboard/patient/medications", search: { q } });
-    } else {
-      void navigate({ to: "/dashboard/patient/find", search: { q } });
-    }
-  }
 
   return (
     <div className="bg-background min-h-screen overflow-x-hidden">
