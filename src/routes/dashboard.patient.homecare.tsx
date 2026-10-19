@@ -21,6 +21,7 @@ import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from
 import { useServerFn } from "@tanstack/react-start";
 import { reorderCompletedHomecare, respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
 import { HomecareServiceChat } from "@/components/HomecareServiceChat";
+import { MarketplacePayment } from "@/components/MarketplacePayment";
 import { REQUEST_LABEL } from "@/lib/homecare";
 
 interface HomecareRequest {
@@ -35,6 +36,8 @@ interface HomecareRequest {
   quote_currency: string | null;
   quote_details: string | null;
   quote_issued_at: string | null;
+  payment_status?: string;
+  payment_reference?: string;
   homecare_assignments: Array<{
     id: string;
     request_id?: string;
@@ -402,13 +405,14 @@ function PatientHomecarePage() {
               )}
               {r.status === "quote_pending" && (
                 <div className="space-y-2">
-                  <Button className="h-12 w-full rounded-xl bg-emerald-700 text-white hover:bg-emerald-800" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "accept")}>Accept Quotation</Button>
-                  <Button variant="outline" className="h-12 w-full rounded-xl border-emerald-600 text-emerald-700" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "decline")}>Decline</Button>
+                  <MarketplacePayment kind="homecare" targetId={r.id} reference={r.payment_reference} paid={r.payment_status === "paid"} onPaid={() => { setSelectedRequest(null); void load(); }} />
+                  <Button variant="outline" className="h-12 w-full rounded-xl border-emerald-600 text-emerald-700" disabled={respondingTo === r.id || !!r.payment_reference} onClick={() => answerQuote(r.id, "decline")}>Decline</Button>
                 </div>
               )}
               {["quote_accepted", "assigned"].includes(r.status) && <ServiceProgress status={assignment?.status ?? r.status} />}
+              {r.payment_status === "paid" && <MarketplacePayment kind="homecare" targetId={r.id} reference={r.payment_reference} paid onPaid={() => void load()} />}
               {r.status === "quote_accepted" && (
-                <p className="text-xs text-muted-foreground">Your quote is accepted. The coordinator will confirm availability and scheduling separately. No payment has been taken.</p>
+                <p className="text-xs text-muted-foreground">Your quotation payment is confirmed. The coordinator will confirm provider availability and the visit schedule separately.</p>
               )}
               {r.status === "quote_declined" && <p className="text-xs text-muted-foreground">You declined this quote. Contact the coordinator if you would like to discuss another option.</p>}
               {r.status === "assigned" && (
@@ -419,7 +423,7 @@ function PatientHomecarePage() {
                   )}
                   {assignment?.scheduled_at && <p>Agreed visit: {new Date(assignment.scheduled_at).toLocaleString()}</p>}
                   {assignment && <p className="text-xs text-muted-foreground">Visit status: {assignment.status}</p>}
-                  <p className="mt-1 text-xs text-muted-foreground">Payment is not collected through this quote workflow.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Payment status: {r.payment_status === "paid" ? "Confirmed" : "Not verified"}</p>
                 </div>
               )}
               {assignment?.provider_id && ["assigned", "completed", "confirmed"].includes(r.status) && (
@@ -567,10 +571,8 @@ function RequestDetails({ request, busy, onQuoteResponse }: {
             {request.quote_issued_at && <p className="mt-2 text-xs text-muted-foreground">Quotation issued {new Date(request.quote_issued_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</p>}
           </div>
         </section>
-        {canRespond && <div>
-          <Button type="button" disabled={busy} onClick={() => onQuoteResponse("accept")} className="bg-emerald-700 text-white hover:bg-emerald-800">{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Accept Quotation</Button>
-        </div>}
-        {request.status === "quote_accepted" && <p className="text-sm text-emerald-800">Quotation accepted. The care coordinator will confirm the next steps with you.</p>}
+        {canRespond && <MarketplacePayment kind="homecare" targetId={request.id} reference={request.payment_reference} onPaid={() => window.location.reload()} />}
+        {request.status === "quote_accepted" && <p className="text-sm text-emerald-800">Quotation accepted after payment verification. The coordinator will confirm the visit.</p>}
       </>
     ) : (
       <div className="rounded-xl border border-dashed border-border bg-slate-50 p-4 text-sm text-muted-foreground">
