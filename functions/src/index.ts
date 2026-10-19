@@ -877,7 +877,6 @@ async function registerSelfServiceRole(identity: Identity, args: ActionArgs) {
       if (providerCollection) {
         const providerSnapshot = await transaction.get(db.collection(providerCollection).doc(identity.uid));
         const provider = providerSnapshot.data() ?? {};
-    if (request.payment_status !== "paid") throw new ActionError("Verified quotation payment is required before provider assignment.", 409);
         if (
           !providerSnapshot.exists
           || provider.user_id !== identity.uid
@@ -1354,7 +1353,7 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
   if (!key.startsWith("sk_test_")) throw new ActionError("Paystack test payments must be configured; live charges are not enabled.", 503);
   const snapshot = await ref.get();
   if (!snapshot.exists || snapshot.get("patient_id") !== identity.uid) throw new ActionError("Payment request not found.", 404);
-  if (snapshot.get("payment_status") === "paid") return { paid: true, reference: snapshot.get("payment_reference") };
+  if (snapshot.get("payment_status") === "paid" && snapshot.get("payment_verified_at")) return { paid: true, reference: snapshot.get("payment_reference") };
   if (verify) {
     const reference = stringArg(args, "_reference");
     const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, { headers: { Authorization: `Bearer ${key}` } });
@@ -1378,6 +1377,7 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
       return { paid: true, reference };
     });
   }
+  if (typeof snapshot.get("payment_url") === "string") return { paid: false, reference: snapshot.get("payment_reference"), amount: snapshot.get("payment_amount_cents"), url: snapshot.get("payment_url") };
   const pending = await db.runTransaction(async transaction => {
     const current = await transaction.get(ref);
     if (current.get("patient_id") !== identity.uid) throw new ActionError("Payment request not found.", 404);
@@ -1386,7 +1386,14 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
     if (kind === "homecare") {
       if (current.get("status") !== "quote_pending" || current.get("quote_currency") !== "ZAR") throw new ActionError("This quote is not awaiting payment.", 409);
       const providers = await transaction.get(db.collection("homecare_providers").where("approval_status", "==", "approved").where("is_active", "==", true));
-      if (providers.empty) throw new ActionError("No approved active care provider is available. Contact support before paying.", 409);
+      let eligible = false;
+      for (const provider of providers.docs) {
+        const uid = provider.get("user_id");
+        if (typeof uid !== "string" || provider.get("is_demo") === true) continue;
+        const role = await transaction.get(db.collection("user_roles").doc(`${uid}_homecare_company`));
+        if (role.get("role") === "homecare_company") eligible = true;
+      }
+      if (!eligible) throw new ActionError("No approved active care provider is available. Contact support before paying.", 409);
       amount = Math.round(Number(current.get("quote_amount")) * 100);
     } else {
       if (!["pending", "scheduled", "accepted", "preparing", "ready"].includes(String(current.get("status")))) throw new ActionError("This order is no longer payable.", 409);
@@ -1404,6 +1411,7 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
       if (![lat, lng, pickupLat, pickupLng].every(value => typeof value === "number" && Number.isFinite(value))) throw new ActionError("Save the real pharmacy and delivery locations before paying.");
       const km = Number(haversineKm(lat, lng, pickupLat, pickupLng).toFixed(2));
       amount = subtotal + Math.round((26 + 10 * km) * 100);
+      if (Math.round(Number(current.get("total_amount")) * 100) !== amount) throw new ActionError("The current medicine price differs from your order. Contact the pharmacy before paying.", 409);
     }
     if (!Number.isSafeInteger(amount) || amount <= 0) throw new ActionError("A valid price is required before payment.");
     const reference = typeof current.get("payment_reference") === "string" ? String(current.get("payment_reference")) : `HR-${randomUUID()}`;
@@ -1416,6 +1424,7 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
   if (!response.ok || initialized.status !== true || !initialized.data?.authorization_url) throw new ActionError("Could not open Paystack payment. Retry verification if you already paid.");
   const url = new URL(initialized.data.authorization_url);
   if (url.protocol !== "https:" || !url.hostname.endsWith(".paystack.co")) throw new ActionError("Invalid payment address.");
+  await ref.update({ payment_url: url.href });
   return { paid: false, reference: pending.reference, amount: pending.amount, url: url.href };
 }
 

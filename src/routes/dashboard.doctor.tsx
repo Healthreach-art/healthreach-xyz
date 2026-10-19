@@ -19,7 +19,7 @@ import { normalizeServices } from "@/lib/normalize-services.functions";
 import { Sparkles, X } from "lucide-react";
 import { DoctorBottomNav, type DoctorTab } from "@/components/DoctorBottomNav";
 import { DoctorFinance } from "@/components/DoctorFinance";
-import logo from "@/assets/healthreach-logo.png";
+import { Brand } from "@/components/Brand";
 import { validDoctorPrice } from "@/lib/doctor-price-policy";
 
 export const Route = createFileRoute("/dashboard/doctor")({
@@ -384,7 +384,7 @@ function DoctorDashboard() {
     <div className="container mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-4 sm:py-8 sm:pb-24">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex min-w-0 items-center gap-4">
-          <img src={logo} alt="HealthReachCare" className="h-10 w-auto shrink-0" />
+          <Brand />
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Doctor workspace</p>
             <h1 className="truncate text-xl font-bold text-slate-900 sm:text-2xl">{profile?.full_name ? `Welcome, Dr. ${profile.full_name}` : "Welcome to your workspace"}</h1>

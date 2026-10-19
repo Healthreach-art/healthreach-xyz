@@ -12,7 +12,7 @@ import {
   IdCard, Image, Loader2, LogOut, MapPin, ShieldCheck, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import logo from "@/assets/healthreach-logo.png";
+import { Brand } from "@/components/Brand";
 
 export const Route = createFileRoute("/pharmacy/onboarding")({
   head: () => ({ meta: [{ title: "Pharmacy Verification — HealthReachCare" }] }),
@@ -262,7 +262,7 @@ function Onboarding() {
       <div className="mx-auto max-w-3xl space-y-6">
         <header className="flex items-center justify-between border-b border-border/60 bg-white pb-4">
           <Link to="/dashboard/pharmacy" className="flex items-center gap-3" aria-label="HealthReachCare pharmacy dashboard">
-            <img src={logo} alt="HealthReachCare" className="h-10 w-auto" />
+            <Brand />
             <span className="hidden text-sm font-semibold text-slate-900 sm:inline">Pharmacy onboarding</span>
           </Link>
           {step !== 3 && <Link to="/dashboard/pharmacy" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-slate-900"><ArrowLeft className="h-4 w-4" /> Dashboard</Link>}

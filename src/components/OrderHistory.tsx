@@ -23,6 +23,7 @@ interface OrderRow {
   medication_name: string;
   status: string;
   total_amount: number;
+  payment_status?: string;
   quantity: number;
   pharmacy_id: string;
   medication_id: string | null;
@@ -70,7 +71,7 @@ export function OrderHistory() {
     const load = async () => {
       const { data: ords } = await firestoreClient
         .from("orders")
-        .select("id, order_group_id, medication_name, status, total_amount, quantity, pharmacy_id, medication_id, created_at, prescription_upload_id")
+        .select("id, order_group_id, medication_name, status, total_amount, payment_status, quantity, pharmacy_id, medication_id, created_at, prescription_upload_id")
         .eq("patient_id", user.id)
         .is("hidden_for_patient_at", null)
         .order("created_at", { ascending: false });
@@ -273,6 +274,7 @@ export function OrderHistory() {
                     <span className="font-semibold text-foreground">R {g.total.toFixed(2)}</span>
                   </div>
                   <div className="flex gap-1 flex-wrap">
+                    {active && g.group?.id && <Button size="sm" variant="outline" className="h-7 text-xs" asChild><Link to="/payment" search={{ orderGroupId: g.group.id }}>Payment</Link></Button>}
                     {active && (
                       <Button size="sm" variant="default" className="h-7 text-xs gap-1" asChild>
                         <Link to="/track">Track</Link>

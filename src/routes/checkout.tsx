@@ -18,7 +18,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { checkDrugInteractions } from "@/utils/ai.functions";
 import { validateCartPrescriptions } from "@/lib/prescription.functions";
 import { placeOrderWithRouting } from "@/lib/dispatch.functions";
-import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { PrescriptionPicker } from "@/components/PrescriptionPicker";
 import { PrescriptionBadge } from "@/components/PrescriptionBadge";
@@ -27,48 +27,6 @@ import { Users } from "lucide-react";
 import { readPatientAddress } from "@/lib/patient-address";
 import { hasDeliveryCoordinates } from "@/lib/delivery-policy";
 
-
-const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
-
-// Saved-card / wallet UI removed — checkout pays via Paystack popup every time.
-
-declare global {
-  interface Window {
-    PaystackPop?: {
-      setup: (opts: {
-        key: string;
-        email: string;
-        amount: number;
-        currency?: string;
-        ref?: string;
-        channels?: Array<"card" | "bank" | "ussd" | "bank_transfer">;
-        metadata?: Record<string, string>;
-        callback: (resp: { reference: string }) => void;
-        onClose: () => void;
-      }) => { openIframe: () => void };
-    };
-  }
-}
-
-function loadPaystackScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") return resolve();
-    if (window.PaystackPop) return resolve();
-    const existing = document.querySelector<HTMLScriptElement>('script[data-paystack="1"]');
-    if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("Failed to load Paystack")), { once: true });
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = "https://js.paystack.co/v1/inline.js";
-    s.async = true;
-    s.dataset.paystack = "1";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Failed to load Paystack"));
-    document.head.appendChild(s);
-  });
-}
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Medication Checkout — HealthReachCare" }, { name: "description", content: "Review medication, prescriptions and your delivery address before payment." }, { property: "og:title", content: "Medication Checkout — HealthReachCare" }, { property: "og:description", content: "Medication order payment and delivery details." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -81,7 +39,7 @@ function CheckoutPage() {
   const { items, clear, setQty, remove, update } = useCart();
   const validateRx = useServerFn(validateCartPrescriptions);
   const placeOrder = useServerFn(placeOrderWithRouting);
-  const verifyPaystack = useServerFn(verifyPaystackTransaction);
+
 
   const [delivery, setDelivery] = useState<PickedAddress | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -105,7 +63,7 @@ function CheckoutPage() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactLoaded, setContactLoaded] = useState(false);
 
-  useEffect(() => { loadPaystackScript().catch(() => {}); }, []);
+
 
 
   useEffect(() => {
@@ -192,25 +150,19 @@ function CheckoutPage() {
           prescriptionUploadId: i.prescriptionUploadId ?? null,
         })),
         delivery: { address: delivery.address, lat: delivery.lat, lng: delivery.lng },
-        notes: "Paid via Paystack",
+        notes: "Awaiting verified Paystack payment",
         priority,
         scheduledFor: scheduleEnabled && scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
         recipient,
       },
     });
     if (!res.matched || res.orders.filter((o) => o.matched).length === 0) {
-      toast.error("Payment received, but no pharmacies are available within 60 km. Support will contact you.");
+      throw new Error("The order could not be created. No payment has been taken.");
       return;
     }
+    if (!res.group?.id) throw new Error("The order package could not be created.");
     clear();
-    setSuccess(true);
-    const code = res.group?.deliveryCode;
-    toast.success(
-      scheduleEnabled && scheduledFor
-        ? `Order scheduled for ${new Date(scheduledFor).toLocaleString()}${code ? ` — code ${code}` : ""}.`
-        : `Order placed — one package on its way${code ? `. Delivery code: ${code}` : ""}.`
-    );
-    setTimeout(() => navigate({ to: "/track" }), 1500);
+    await navigate({ to: "/payment", search: { orderGroupId: res.group.id } });
   }
 
   const handlePay = async (e: FormEvent) => {
@@ -273,59 +225,11 @@ function CheckoutPage() {
     }
 
 
-    const totalCents = Math.round(total * 100);
-
-    // Always pay via Paystack popup — no wallet, no saved cards.
-
-
-    // ---- Branch 3: New card via Paystack popup (auto-saves authorization) --
     try {
-      await loadPaystackScript();
-    } catch {
-      toast.error("Could not load Paystack. Check your connection.");
-      setProcessing(false);
-      return;
-    }
-    if (!window.PaystackPop) {
-      toast.error("Paystack not available.");
-      setProcessing(false);
-      return;
-    }
-
-    const handler = window.PaystackPop.setup({
-      key: PAYSTACK_PUBLIC_KEY,
-      email: user.email,
-      amount: totalCents,
-      currency: "ZAR",
-      ref: `HR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      callback: (resp) => {
-        (async () => {
-          try {
-            const v = await verifyPaystack({ data: { reference: resp.reference } });
-            if (!(v as { verified: boolean; reason?: string }).verified) {
-              const reason = (v as { reason?: string }).reason;
-              toast.error(reason === "payment_verification_not_configured"
-                ? "Paystack verification is not configured. No order was placed."
-                : reason === "payment_verification_credentials_rejected"
-                  ? "Paystack rejected the configured credentials. No order was placed."
-                  : "Payment could not be verified. No order was placed.");
-              setProcessing(false);
-              return;
-            }
-            await finalizeOrder();
-          } catch (err) {
-            toast.error((err as Error)?.message || "Payment verification failed.");
-          } finally {
-            setProcessing(false);
-          }
-        })();
-      },
-      onClose: () => {
-        toast.info("Payment cancelled.");
-        setProcessing(false);
-      },
-    });
-    handler.openIframe();
+      await finalizeOrder();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not create your order.");
+    } finally { setProcessing(false); }
   };
 
   if (items.length === 0 && !success) {
