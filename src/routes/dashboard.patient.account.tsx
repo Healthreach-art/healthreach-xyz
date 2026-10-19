@@ -14,7 +14,7 @@ import { fetchVerification } from "@/lib/patient-verification-data";
 import { isVerificationComplete } from "@/lib/patient-verification";
 import {
   Users, MapPin, LifeBuoy, Wallet, CreditCard, ChevronRight, LogOut, RefreshCw,
-  ShieldCheck, Lock, FileText, ClipboardList, Bell, KeyRound, MessageCircle, type LucideIcon,
+  ShieldCheck, Lock, FileText, ClipboardList, Bell, KeyRound, MessageCircle, Stethoscope, HeartPulse, Receipt, Star, type LucideIcon,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/account")({
@@ -44,9 +44,13 @@ const SECTIONS: { title: string; items: Item[] }[] = [
   {
     title: "Orders & Care",
     items: [
-      { to: "/dashboard/patient/orders", label: "Medication Orders", icon: ClipboardList },
+      { to: "/dashboard/patient/orders", label: "Medication Orders & Payments", icon: ClipboardList },
+      { to: "/dashboard/patient/consultations", label: "Doctor Appointments", icon: Stethoscope },
+      { to: "/dashboard/patient/homecare", label: "Home Care Requests & Quotes", icon: HeartPulse },
+      { to: "/dashboard/patient/transactions", label: "Payment History", icon: Receipt },
       { to: "/dashboard/patient/prescriptions", label: "Prescriptions & Documents", icon: FileText },
       { to: "/dashboard/patient/reminders", label: "Medication Reminders", icon: Bell },
+      { to: "/dashboard/patient/ratings", label: "My Ratings", icon: Star },
     ],
   },
   {
