@@ -80,7 +80,7 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
         .in("order_id", orderIds),
       firestoreAdmin
         .from("orders")
-        .select("id, delivery_address, pickup_lat, pickup_lng, delivery_lat, delivery_lng, delivery_fee")
+        .select("id, delivery_address, pickup_lat, pickup_lng, delivery_lat, delivery_lng, delivery_fee, status, payment_status, payment_reference")
         .in("id", orderIds),
     ]);
 
@@ -90,10 +90,13 @@ export const getNearbyOffersForDriver = createServerFn({ method: "POST" })
 
     const enriched: NearbyOffer[] = [];
     for (const o of visible) {
-      const ord = ordMap.get(o.order_id);
+      const ord = ordMap.get(o.order_id) as (Record<string, unknown> & { pickup_lat?: number | null; pickup_lng?: number | null; delivery_fee?: number | null; delivery_address?: string | null }) | undefined;
+      // Drivers only see medication orders the patient has paid for (verified Paystack reference).
+      if (!ord || ord.payment_status !== "paid" || typeof ord.payment_reference !== "string" || !ord.payment_reference) continue;
       const phar = profMap.get(o.pharmacy_id);
-      const pickupLat = ord?.pickup_lat ?? phar?.latitude ?? -33.9249;
-      const pickupLng = ord?.pickup_lng ?? phar?.longitude ?? 18.4241;
+      const pickupLat = ord?.pickup_lat ?? phar?.latitude;
+      const pickupLng = ord?.pickup_lng ?? phar?.longitude;
+      if (typeof pickupLat !== "number" || typeof pickupLng !== "number") continue;
       const distance_km = Number(o.distance_km ?? haversineKm(driverLat, driverLng, pickupLat, pickupLng));
       if (distance_km > data.maxKm) continue;
       const del = delMap.get(o.order_id);
