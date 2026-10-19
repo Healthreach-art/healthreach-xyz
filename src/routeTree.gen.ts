@@ -20,6 +20,7 @@ import { Route as ForDriversRouteImport } from './routes/for-drivers'
 import { Route as ForPatientsRouteImport } from './routes/for-patients'
 import { Route as ForPharmaciesRouteImport } from './routes/for-pharmacies'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as HowBookingWorksRouteImport } from './routes/how-booking-works'
 import { Route as LinkAccountRouteImport } from './routes/link-account'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
@@ -147,6 +148,11 @@ const ForPharmaciesRoute = ForPharmaciesRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowBookingWorksRoute = HowBookingWorksRouteImport.update({
+  id: '/how-booking-works',
+  path: '/how-booking-works',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LinkAccountRoute = LinkAccountRouteImport.update({
@@ -552,6 +558,7 @@ export interface FileRoutesByFullPath {
   '/for-patients': typeof ForPatientsRoute
   '/for-pharmacies': typeof ForPharmaciesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/how-booking-works': typeof HowBookingWorksRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -638,6 +645,7 @@ export interface FileRoutesByTo {
   '/for-patients': typeof ForPatientsRoute
   '/for-pharmacies': typeof ForPharmaciesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/how-booking-works': typeof HowBookingWorksRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -724,6 +732,7 @@ export interface FileRoutesById {
   '/for-patients': typeof ForPatientsRoute
   '/for-pharmacies': typeof ForPharmaciesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/how-booking-works': typeof HowBookingWorksRoute
   '/link-account': typeof LinkAccountRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -812,6 +821,7 @@ export interface FileRouteTypes {
     | '/for-patients'
     | '/for-pharmacies'
     | '/forgot-password'
+    | '/how-booking-works'
     | '/link-account'
     | '/login'
     | '/mcp'
@@ -898,6 +908,7 @@ export interface FileRouteTypes {
     | '/for-patients'
     | '/for-pharmacies'
     | '/forgot-password'
+    | '/how-booking-works'
     | '/link-account'
     | '/login'
     | '/mcp'
@@ -983,6 +994,7 @@ export interface FileRouteTypes {
     | '/for-patients'
     | '/for-pharmacies'
     | '/forgot-password'
+    | '/how-booking-works'
     | '/link-account'
     | '/login'
     | '/mcp'
@@ -1070,6 +1082,7 @@ export interface RootRouteChildren {
   ForPatientsRoute: typeof ForPatientsRoute
   ForPharmaciesRoute: typeof ForPharmaciesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  HowBookingWorksRoute: typeof HowBookingWorksRoute
   LinkAccountRoute: typeof LinkAccountRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
@@ -1210,6 +1223,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-booking-works': {
+      id: '/how-booking-works'
+      path: '/how-booking-works'
+      fullPath: '/how-booking-works'
+      preLoaderRoute: typeof HowBookingWorksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/link-account': {
@@ -1790,6 +1810,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForPatientsRoute: ForPatientsRoute,
   ForPharmaciesRoute: ForPharmaciesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  HowBookingWorksRoute: HowBookingWorksRoute,
   LinkAccountRoute: LinkAccountRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
