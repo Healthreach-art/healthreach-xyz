@@ -321,7 +321,7 @@ function PatientHomecarePage() {
                 {SERVICES.map((service) => {
                   const Icon = service.icon;
                   const selected = serviceType === service.title;
-                  return <button key={service.title} type="button" onClick={() => setServiceType(service.title)} aria-pressed={selected} className={`rounded-2xl border p-4 text-left transition hover:border-emerald-400 hover:bg-emerald-50 ${selected ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100y-100" : "border-slate-200 bg-white"}`}>
+                  return <button key={service.title} type="button" onClick={() => setServiceType(service.title)} aria-pressed={selected} className={`rounded-2xl border p-4 text-left transition hover:border-emerald-400 hover:bg-emerald-50 ${selected ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-200 bg-white"}`}>
                     <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><Icon className="h-5 w-5" /></span>
                     <span className="block font-semibold text-slate-900">{service.title}</span>
                     <span className="mt-1 block text-xs leading-5 text-slate-600">{service.description}</span>
