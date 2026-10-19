@@ -471,6 +471,12 @@ function PatientHomecarePage() {
           );
         })}
       </section>
+      <Dialog open={!!selectedRequest} onOpenChange={(open) => { if (!open) setSelectedRequest(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader><DialogTitle>Request details</DialogTitle></DialogHeader>
+          {selectedRequest && <RequestDetails request={selectedRequest} busy={respondingTo === selectedRequest.id} onQuoteResponse={(response) => void answerQuote(selectedRequest.id, response)} />}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
