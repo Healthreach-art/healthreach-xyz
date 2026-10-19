@@ -213,11 +213,11 @@ function Journey({ icon: I, title, sub, steps, to, cta }: { icon: typeof Home; t
   );
 }
 
-export function BookingJourney() {
+export function BookingJourney({ only }: { only?: "doctor" | "homecare" } = {}) {
   return (
     <div className="space-y-10">
-      <Journey icon={Stethoscope} title="Doctor Booking Process" sub="Find the right doctor, book with confidence, and receive quality care." steps={doctorSteps} to="/doctors" cta="Book a Doctor" />
-      <Journey icon={Home} title="Home Care Booking Process" sub="Get trusted home care services, tailored to your needs, with compassionate professionals." steps={homecareSteps} to="/dashboard/patient/homecare" cta="Book Home Care" />
+      {only !== "homecare" && <Journey icon={Stethoscope} title="Doctor Booking Process" sub="Find the right doctor, book with confidence, and receive quality care." steps={doctorSteps} to="/doctors" cta="Book a Doctor" />}
+      {only !== "doctor" && <Journey icon={Home} title="Home Care Booking Process" sub="Get trusted home care services, tailored to your needs, with compassionate professionals." steps={homecareSteps} to="/dashboard/patient/homecare" cta="Book Home Care" />}
     </div>
   );
 }

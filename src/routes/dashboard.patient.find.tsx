@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress } from "@/lib/patient-address";
 import { toast } from "sonner";
+import { BookingJourney } from "@/components/BookingJourney";
 
 interface Doctor {
   id: string; full_name: string; specialty: string; city: string; hospital_id: string | null;
@@ -185,6 +186,7 @@ function FindCarePage() {
       <header className="flex justify-end border-b border-border/60 pb-5">
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Dashboard</Link>
       </header>
+      <BookingJourney only="doctor" />
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Care that fits your needs</p>

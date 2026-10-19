@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { BookingJourney } from "@/components/BookingJourney";
 import {
   ArrowLeft, BadgeCheck, CalendarDays, Check, CheckCircle2, ChevronRight,
   Clock3, Copy, HeartHandshake, HeartPulse, Loader2, Mail, MapPin, MessageCircle,
@@ -294,6 +295,7 @@ function PatientHomecarePage() {
       <header className="flex items-center justify-between border-b border-border/60 pb-4">
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back</Link>
       </header>
+      <BookingJourney only="homecare" />
 
 
       {step < 4 && (
