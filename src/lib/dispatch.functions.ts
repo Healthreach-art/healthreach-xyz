@@ -8,8 +8,7 @@ import { isMedicineExpired } from "@/lib/medicine-catalog";
 const TIERS = [10, 20, 30, 45, 60] as const;
 const MAX_RADIUS_KM = 60;
 
-const UUID_LOOSE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-const uuidLoose = z.string().regex(UUID_LOOSE, "Invalid UUID");
+const uuidLoose = z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/, "Invalid record identifier");
 
 const placeOrderSchema = z.object({
   items: z.array(z.object({
@@ -21,8 +20,8 @@ const placeOrderSchema = z.object({
   })).min(1).max(20),
   delivery: z.object({
     address: z.string().min(3).max(500),
-    lat: z.number(),
-    lng: z.number(),
+    lat: z.number().finite().min(-90).max(90),
+    lng: z.number().finite().min(-180).max(180),
   }),
   notes: z.string().max(500).optional(),
   priority: z.boolean().optional(),

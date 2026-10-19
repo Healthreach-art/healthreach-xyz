@@ -25,6 +25,7 @@ import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 import { RecipientDocumentsBlock } from "@/components/RecipientDocumentsBlock";
 import { Users } from "lucide-react";
 import { readPatientAddress } from "@/lib/patient-address";
+import { hasDeliveryCoordinates } from "@/lib/delivery-policy";
 
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
@@ -70,7 +71,7 @@ function loadPaystackScript(): Promise<void> {
 }
 
 export const Route = createFileRoute("/checkout")({
-  head: () => ({ meta: [{ title: "Checkout — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Medication Checkout — HealthReachCare" }, { name: "description", content: "Review medication, prescriptions and your delivery address before payment." }, { property: "og:title", content: "Medication Checkout — HealthReachCare" }, { property: "og:description", content: "Medication order payment and delivery details." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: () => <RoleGuard allow="patient"><CheckoutPage /></RoleGuard>,
 });
 
@@ -130,7 +131,7 @@ function CheckoutPage() {
     firestoreClient.from("user_addresses").select("street, lat, lng, is_default").eq("user_id", user.id).order("is_default", { ascending: false }).limit(1)
       .then(({ data }) => {
         const a = data?.[0];
-        if (a?.lat && a?.lng) setDelivery({ address: a.street, lat: a.lat, lng: a.lng });
+        if (hasDeliveryCoordinates(a)) setDelivery({ address: a.street, lat: a.lat, lng: a.lng });
       });
   }, [user]);
 
@@ -172,6 +173,7 @@ function CheckoutPage() {
   const eta = km !== null ? etaMinutesForKm(km) : null;
 
   async function finalizeOrder() {
+    if (!delivery || !hasDeliveryCoordinates(delivery)) throw new Error("Pick a valid delivery address.");
     const fam = familyMembers.find((f) => f.id === recipientFamilyId);
     const recipient = forSomeoneElse
       ? {
@@ -189,7 +191,7 @@ function CheckoutPage() {
           pharmacyIdHint: i.pharmacyId,
           prescriptionUploadId: i.prescriptionUploadId ?? null,
         })),
-        delivery: { address: delivery!.address, lat: delivery!.lat!, lng: delivery!.lng! },
+        delivery: { address: delivery.address, lat: delivery.lat, lng: delivery.lng },
         notes: "Paid via Paystack",
         priority,
         scheduledFor: scheduleEnabled && scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
@@ -220,14 +222,13 @@ function CheckoutPage() {
       toast.error("Your cart contains medicines from multiple pharmacies. Place separate orders for each pharmacy.");
       return;
     }
-    const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    const bad = items.find((i) => !i.pharmacyId || !UUID_RE.test(i.pharmacyId));
+    const bad = items.find((i) => !i.pharmacyId || !/^[A-Za-z0-9_-]{1,128}$/.test(i.pharmacyId));
     if (bad) {
       toast.error(`"${bad.name}" is missing pharmacy info — removed. Please re-add it from the marketplace.`);
       remove(bad.medId);
       return;
     }
-    if (!delivery || !delivery.lat || !delivery.lng) { toast.error("Pick a delivery address."); return; }
+    if (!hasDeliveryCoordinates(delivery)) { toast.error("Pick a delivery address."); return; }
     if (!user.email) { toast.error("Your account has no email — required for payment."); return; }
     if (!contactName.trim() || !contactPhone.trim()) {
       toast.error("Please fill in your name and phone in Your details.");

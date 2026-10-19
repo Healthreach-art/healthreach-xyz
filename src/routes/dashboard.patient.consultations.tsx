@@ -9,9 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
 import { toast } from "sonner";
+import { downloadAppointmentCalendar } from "@/lib/appointment-calendar";
+import { CalendarPlus } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/consultations")({
-  head: () => ({ meta: [{ title: "My Consultations — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "My Appointments — HealthReachCare" }, { name: "description", content: "View your booked appointments, payment status and appointment calendar." }, { property: "og:title", content: "My Appointments — HealthReachCare" }, { property: "og:description", content: "Your doctor and pharmacy appointment details." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  validateSearch: (search: Record<string, unknown>): { appointment?: string } => ({ appointment: typeof search.appointment === "string" ? search.appointment : undefined }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 
@@ -20,6 +23,7 @@ interface Appt {
   mode: string; status: string; payment_status: string;
   consultation_fee: number; platform_fee: number; total_paid: number;
   reason: string; doctor_notes: string;
+  duration_minutes?: number;
 }
 interface DocRow { id: string; user_id: string; full_name: string; specialty: string; photo_url: string; address: string; city: string }
 interface Rx { id: string; appointment_id: string; kind: string; title: string; body: string;
@@ -27,6 +31,7 @@ interface Rx { id: string; appointment_id: string; kind: string; title: string; 
   valid_until: string | null; created_at: string }
 
 function Page() {
+  const { appointment: selectedAppointment } = Route.useSearch();
   const { user } = useAuth();
   const [appts, setAppts] = useState<Appt[]>([]);
   const [docs, setDocs] = useState<Record<string, DocRow>>({});
@@ -50,6 +55,7 @@ function Page() {
     }
     const list = (data ?? []) as Appt[];
     setAppts(list);
+    if (selectedAppointment) setDetailsFor(list.find(appointment => appointment.id === selectedAppointment) ?? null);
     const docIds = Array.from(new Set(list.map((a) => a.doctor_id)));
     if (docIds.length) {
       const { data: ds, error: doctorError } = await firestoreClient.from("doctors").select("id, user_id, full_name, specialty, photo_url, address, city").in("id", docIds);
@@ -80,7 +86,7 @@ function Page() {
         .forEach((pharmacy) => { m[pharmacy.user_id] = { name: pharmacy.organization_name || pharmacy.full_name || "Pharmacy" }; });
       setPharms(m);
     }
-  }, [userId]);
+  }, [userId, selectedAppointment]);
   useEffect(() => {
     void load();
     if (!userId) return;
@@ -285,6 +291,8 @@ function Page() {
               {(docs[detailsFor.doctor_id]?.address || docs[detailsFor.doctor_id]?.city) && <p><strong>Clinic:</strong> {docs[detailsFor.doctor_id]?.address || docs[detailsFor.doctor_id]?.city}</p>}
               <p><strong>Status:</strong> {detailsFor.status}</p>
               {detailsFor.reason && <p><strong>Reason:</strong> {detailsFor.reason}</p>}
+              <p><strong>Payment:</strong> {detailsFor.payment_status}</p>
+              {detailsFor.status === "confirmed" && detailsFor.payment_status === "paid" && <Button variant="outline" onClick={() => downloadAppointmentCalendar({ id: detailsFor.id, scheduledAt: detailsFor.scheduled_at, durationMinutes: detailsFor.duration_minutes ?? 30, doctor: docs[detailsFor.doctor_id]?.full_name ?? "Doctor", location: docs[detailsFor.doctor_id]?.address ?? "" })}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
             </div>
           )}
         </DialogContent>

@@ -106,11 +106,13 @@ export async function fsSubscribe<T = DocumentData>(
   col: string,
   constraints: QueryConstraint[],
   callback: (rows: (T & { id: string })[]) => void,
+  onError?: (error: Error) => void,
 ): Promise<Unsubscribe> {
   const q = query(collection(await db(), col), ...constraints);
-  return onSnapshot(q, (snap) =>
-    callback(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T & { id: string })),
-  );
+  return onSnapshot(q, {
+    next: (snap) => callback(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T & { id: string })),
+    error: (error) => onError?.(error),
+  });
 }
 
 // ---------- Query constraint re-exports (so screens import from one place) ----------
