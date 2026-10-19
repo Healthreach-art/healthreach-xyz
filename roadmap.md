@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Restore legacy medicine publication and align patient catalogue/checkout reads; verify local tests.
+- [ ] Deploy updated Firebase publication action and verify a real pharmacy-to-patient order (blocked until deployment authorization and authenticated accounts are available).
+
 - [ ] Stabilize shared layouts for small phones and wide screens without redesigning workflows.
 
 - [ ] Finish HealthReachCare brand/domain/support-email updates and landing role card.
