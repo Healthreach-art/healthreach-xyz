@@ -290,25 +290,25 @@ function PatientHomecarePage() {
   });
 
   return (
-    <main className="container-narrow space-y-8 px-4 py-6 pb-28 sm:px-6 sm:py-8">
+    <main className="mx-auto max-w-5xl space-y-5 bg-sky-50/30 px-4 py-5 pb-28 sm:px-6 sm:py-7">
       <header className="flex items-center justify-between border-b border-border/60 pb-4">
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back</Link>
       </header>
 
 
       {step < 4 && (
-        <section className="mx-auto max-w-4xl space-y-6 rounded-3xl border border-sky-100 bg-white p-5 shadow-sm sm:p-8">
+        <section className="mx-auto max-w-4xl space-y-5 rounded-2xl border border-sky-100 bg-white p-4 shadow-sm sm:p-7">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700"><HeartHandshake className="h-6 w-6" /></div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-emerald-700"><HeartHandshake className="h-6 w-6" /></div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Care that fits your needs</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Care that fits your needs</p>
               <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">Request Homecare Services</h1>
               <p className="mt-2 text-sm text-slate-600">Tell us what care you need. Our coordination team will help arrange the right support for you or your loved one.</p>
             </div>
           </div>
           <ol aria-label="Request progress" className="grid grid-cols-3 gap-2">
             {["Choose service", "Your needs", "When & where"].map((label, index) => (
-              <li key={label} className={`rounded-xl border px-2 py-3 text-center text-xs font-semibold sm:text-sm ${step === index + 1 ? "border-sky-500 bg-sky-50 text-sky-800" : step > index + 1 ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-500"}`}>
+              <li key={label} className={`rounded-xl border px-2 py-3 text-center text-xs font-semibold sm:text-sm ${step === index + 1 ? "border-emerald-500 bg-emerald-50 text-emerald-800" : step > index + 1 ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-500"}`}>
                 <span className="mr-1">{index + 1}.</span>{label}
               </li>
             ))}
@@ -321,7 +321,7 @@ function PatientHomecarePage() {
                 {SERVICES.map((service) => {
                   const Icon = service.icon;
                   const selected = serviceType === service.title;
-                  return <button key={service.title} type="button" onClick={() => setServiceType(service.title)} aria-pressed={selected} className={`rounded-2xl border p-4 text-left transition hover:border-sky-400 hover:bg-sky-50 ${selected ? "border-sky-500 bg-sky-50 ring-2 ring-sky-100" : "border-slate-200 bg-white"}`}>
+                  return <button key={service.title} type="button" onClick={() => setServiceType(service.title)} aria-pressed={selected} className={`rounded-2xl border p-4 text-left transition hover:border-emerald-400 hover:bg-emerald-50 ${selected ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-200 bg-white"}`}>
                     <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><Icon className="h-5 w-5" /></span>
                     <span className="block font-semibold text-slate-900">{service.title}</span>
                     <span className="mt-1 block text-xs leading-5 text-slate-600">{service.description}</span>

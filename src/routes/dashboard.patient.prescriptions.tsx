@@ -204,12 +204,12 @@ function Page() {
   }
 
   return (
-    <main className="container-narrow max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto min-h-screen max-w-6xl bg-sky-50/40 px-4 py-5 pb-28 sm:px-6 sm:py-7">
       <Link to="/dashboard/patient" className="mb-5 inline-flex items-center rounded text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <ArrowLeft className="mr-1 h-4 w-4" /> Back to Dashboard
       </Link>
 
-      <section className="mb-7 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/[0.07] via-background to-healthcare-green/[0.08] p-5 shadow-sm sm:p-8" aria-labelledby="prescription-library-title">
+      <section className="mb-5 overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-5 shadow-sm sm:p-8" aria-labelledby="prescription-library-title">
         <div className="flex items-center justify-between gap-6">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/80 px-3 py-1 text-xs font-medium text-primary">
@@ -240,7 +240,7 @@ function Page() {
       <div className="space-y-6">
         <PatientVerificationCard />
 
-        <section id="add-to-library" className="healthcare-card scroll-mt-20 p-5 sm:p-7" aria-labelledby="add-to-library-title">
+        <section id="add-to-library" className="healthcare-card scroll-mt-20 rounded-2xl border border-sky-100 bg-white p-5 shadow-sm sm:p-7" aria-labelledby="add-to-library-title">
           <h2 id="add-to-library-title" className="mb-2 flex items-center gap-2 text-lg font-semibold text-foreground">
             <UploadIcon className="h-5 w-5 text-primary" /> Add to my library
           </h2>
@@ -258,7 +258,7 @@ function Page() {
           }} />
         </section>
 
-        <section className="healthcare-card p-5 sm:p-7" aria-labelledby="library-list-title">
+        <section className="healthcare-card rounded-2xl border border-sky-100 bg-white p-5 shadow-sm sm:p-7" aria-labelledby="library-list-title">
           <h2 id="library-list-title" className="mb-4 flex flex-wrap items-center gap-2 text-lg font-semibold text-foreground">
             <FileText className="h-5 w-5 text-primary" /> My Prescription Library
             <span className="ml-auto text-xs font-normal text-muted-foreground">{alerts.refillable.length} eligible for refill</span>
@@ -294,7 +294,7 @@ function Page() {
             </div>
           )}
           {!loading && !loadError && pxUploads.length === 0 && prescriptions.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-5 py-10 text-center">
+            <div className="rounded-2xl border border-dashed border-emerald-200 bg-gradient-to-b from-emerald-50/50 to-white px-5 py-10 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <FileText className="h-7 w-7" />
               </div>
