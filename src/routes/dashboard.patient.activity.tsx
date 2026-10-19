@@ -106,10 +106,10 @@ function Page() {
     setLoadError(false);
     try {
       const [ordersResult, prescriptionsResult, bookingsResult, homecareResult] = await Promise.all([
-        firestoreClient.from("orders").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
-        firestoreClient.from("prescriptions").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
-        firestoreClient.from("bookings").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
-        firestoreClient.from("homecare_requests").select("*").eq("patient_id", user.id).order("created_at", { ascending: false }).limit(50),
+        firestoreClient.from("orders").select("*").eq("patient_id", user.id).limit(50),
+        firestoreClient.from("prescriptions").select("*").eq("patient_id", user.id).limit(50),
+        firestoreClient.from("bookings").select("*").eq("patient_id", user.id).limit(50),
+        firestoreClient.from("homecare_requests").select("*").eq("patient_id", user.id).limit(50),
       ]);
       if (currentRequest !== requestId.current) return;
       const failedResult = [ordersResult, prescriptionsResult, bookingsResult, homecareResult].find((result) => result.error);
