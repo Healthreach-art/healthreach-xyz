@@ -16,6 +16,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { canPublishForPharmacy, expiryMillis, isPublishableMedication, prepareMedicationPublication, type MedicationRecord } from "./catalogue-policy.js";
 import { availableDoctorSlots, type Availability, type ExistingAppointment } from "./doctor-slots.js";
+import { matchesDoctorPayment } from "./doctor-payment-policy.js";
 
 export { mcpData, mcpOAuth } from "./mcp-oauth.js";
 
@@ -1328,7 +1329,7 @@ async function confirmDoctorPayment(identity: Identity, args: ActionArgs) {
     const appointment = await transaction.get(ref);
     if (!appointment.exists || appointment.get("patient_id") !== identity.uid) throw new ActionError("Appointment not found.", 404);
     const total = Number(appointment.get("consultation_fee")) + Number(appointment.get("platform_fee"));
-    if (!Number.isFinite(total) || total <= 0 || payment.amount !== Math.round(total * 100)) throw new ActionError("Payment amount does not match the appointment fee.");
+    if (!matchesDoctorPayment(payment, reference, id, Math.round(total * 100))) throw new ActionError("Payment amount does not match the appointment fee.");
     if (appointment.get("payment_status") === "paid" && appointment.get("payment_reference") === reference) return { ok: true };
     if (appointment.get("payment_status") !== "pending" || appointment.get("status") !== "pending") throw new ActionError("Appointment is no longer awaiting payment.", 409);
     transaction.update(ref, { status: "confirmed", payment_status: "paid", payment_reference: reference, total_paid: total, updated_at: new Date().toISOString() });
