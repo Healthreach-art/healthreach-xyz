@@ -46,11 +46,29 @@ interface HomecareRequest {
 }
 
 const SERVICES = [
-  { title: "Personal Care", description: "Assistance with daily living activities and personal hygiene", icon: HeartHandshake },
-  { title: "Nursing Care", description: "Professional nursing support at home", icon: Stethoscope },
-  { title: "Companionship", description: "Emotional support and companionship for a better quality of life", icon: UsersRound },
-  { title: "Specialised Care", description: "Care for chronic conditions, post-surgery recovery and more", icon: HeartPulse },
+  { title: "Personal Care", description: "Bathing, dressing, grooming and daily living support", icon: HeartHandshake },
+  { title: "Elderly Care", description: "Companionship and everyday support for older loved ones", icon: UsersRound },
+  { title: "Post-Surgery Care", description: "Recovery support, wound care checks and rest at home", icon: Stethoscope },
+  { title: "Mobility Assistance", description: "Help moving safely, transfers and walking support", icon: Accessibility },
+  { title: "Medication Support", description: "Reminders and help taking prescribed medicine on time", icon: Pill },
+  { title: "Specialised Care", description: "Chronic conditions, dementia and complex care needs", icon: HeartPulse },
 ] as const;
+
+const INCLUDES: Record<string, string[]> = {
+  "Personal Care": ["Bathing & hygiene", "Dressing & grooming", "Meal assistance"],
+  "Elderly Care": ["Companionship", "Light housekeeping", "Daily check-ins"],
+  "Post-Surgery Care": ["Recovery monitoring", "Mobility help", "Comfort care"],
+  "Mobility Assistance": ["Safe transfers", "Walking support", "Fall prevention"],
+  "Medication Support": ["Medicine reminders", "Schedule tracking", "Refill reminders"],
+  "Specialised Care": ["Condition-specific care", "Care plan follow-up", "Family updates"],
+};
+
+function nextDays(count: number) {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() + i);
+    return { key: localDateKey(d), day: d.toLocaleDateString("en-ZA", { weekday: "short", timeZone: "Africa/Johannesburg" }), num: d.toLocaleDateString("en-ZA", { day: "numeric", timeZone: "Africa/Johannesburg" }), month: d.toLocaleDateString("en-ZA", { month: "short", timeZone: "Africa/Johannesburg" }) };
+  });
+}
 
 const TIME_SLOTS = [
   { value: "08:00", label: "08:00 AM" },
