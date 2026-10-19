@@ -181,11 +181,11 @@ function FindCarePage() {
 
   return (
     <>
-      <main className="container-narrow space-y-7 px-4 py-8 sm:px-6">
-      <header className="flex justify-end border-b border-border/60 pb-5">
+      <main className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 pb-28 sm:px-6 sm:py-7">
+      <header className="flex items-center justify-between border-b border-emerald-100 pb-3">
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Dashboard</Link>
       </header>
-      <section className="flex flex-wrap items-end justify-between gap-4">
+      <section className="flex flex-wrap items-end justify-between gap-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-white to-cyan-50 p-4 sm:p-5">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Care that fits your needs</p>
           <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight text-slate-900"><Stethoscope className="h-7 w-7 text-emerald-600" /> Find the Right Doctor</h1>
@@ -194,7 +194,7 @@ function FindCarePage() {
       </section>
       {locationLabel && <p className="text-xs text-muted-foreground">Distance from {locationLabel}</p>}
 
-      <section className="grid gap-3 rounded-2xl border border-border/60 bg-white p-4 shadow-sm sm:grid-cols-[1fr_auto_auto]">
+      <section className="grid gap-3 rounded-2xl border border-sky-100 bg-white p-3 shadow-sm sm:grid-cols-[1fr_auto_auto]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, specialty, or condition..." className="h-11 rounded-xl pl-9" />
@@ -216,7 +216,7 @@ function FindCarePage() {
         </div>
       </div>
 
-      <section className="rounded-2xl border border-border/60 bg-white p-4 shadow-sm sm:p-5">
+      <section className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="grid gap-4">
         <div className="space-y-2">
           <p className="text-xs font-semibold text-slate-700">Consultation modes <span className="font-normal text-muted-foreground">— select any that work for you</span></p>
@@ -278,11 +278,11 @@ function DoctorGrid({ doctors, clinicsById }: { doctors: WithDist[]; clinicsById
     <p className="mt-1 text-sm text-muted-foreground">Try another specialty or consultation mode, or check back later.</p>
   </div>;
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
       {doctors.map((d) => (
-        <article key={d.id} className="group flex flex-col rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-lg">
+        <article key={d.id} className="group flex flex-col rounded-2xl border border-sky-100 bg-white p-4 shadow-sm transition hover:border-emerald-300 hover:shadow-md">
           <div className="flex gap-4">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-emerald-50 ring-1 ring-emerald-100">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-emerald-50 ring-2 ring-emerald-100">
               {d.photo_url ? <img src={d.photo_url} alt={d.full_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-emerald-700"><Stethoscope className="h-7 w-7" /></div>}
             </div>
             <div className="min-w-0 flex-1">
@@ -304,7 +304,7 @@ function DoctorGrid({ doctors, clinicsById }: { doctors: WithDist[]; clinicsById
           {d.rating_avg != null && d.rating_count != null && d.rating_count > 0 && <p className="mt-3 flex items-center gap-1 text-xs text-slate-600"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />{d.rating_avg.toFixed(1)} ({d.rating_count} reviews)</p>}
           <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-4">
             <div><p className="text-[11px] text-muted-foreground">Consultation fee</p><p className="font-bold text-slate-900">{d.consultation_fee == null ? "Not listed" : `R${Number(d.consultation_fee).toFixed(2)}`}</p></div>
-            <Link to="/dashboard/patient/doctors/$id" params={{ id: d.id }} className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700">View Profile <span className="ml-1" aria-hidden="true">→</span></Link>
+            <Link to="/dashboard/patient/doctors/$id" params={{ id: d.id }} className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white transition hover:bg-emerald-700">View Profile <span className="ml-1" aria-hidden="true">→</span></Link>
           </div>
         </article>
       ))}
