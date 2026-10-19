@@ -155,7 +155,7 @@ function PatientDashboard() {
     <div className="bg-background min-h-screen overflow-x-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="space-y-6">
-            <section className="rounded-3xl bg-healthcare-green p-5 text-white shadow-sm sm:p-8">
+            <section className="rounded-3xl bg-emerald-800 p-5 text-white shadow-sm sm:p-8">
               <div className="flex flex-col items-start gap-5">
                 <div className="w-full">
                   <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
@@ -164,11 +164,6 @@ function PatientDashboard() {
                   <p className="mt-2 max-w-lg text-sm text-white/90">Your health is our priority. Let's take care of it today.</p>
                 </div>
                 <PatientAddressHeader embedded />
-                <form onSubmit={submitSearch} className="relative w-full">
-                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                  <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} aria-label="Search medicines, doctors, or services" placeholder="Search medicines, doctors, or services..." className="h-14 w-full rounded-2xl border border-white/40 bg-white pl-12 pr-24 text-sm text-foreground shadow-sm outline-none transition focus:border-white focus:ring-2 focus:ring-white/30" />
-                  <button type="submit" className="absolute right-2 top-2 h-10 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950">Search</button>
-                </form>
               </div>
             </section>
 

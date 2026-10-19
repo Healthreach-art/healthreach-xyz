@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress, setPatientAddress, type PatientAddress } from "@/lib/patient-address";
 import { toast } from "sonner";
+import { reverseGeocodeOne } from "@/lib/places.functions";
 
 interface SavedAddress extends Omit<PatientAddress, "address"> {
   id: string;
@@ -24,9 +25,29 @@ export function PatientAddressHeader({ embedded = false }: { embedded?: boolean 
   const [label, setLabel] = useState("Home");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const displayAddress = active?.address && !/^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(active.address.trim())
-    ? active.address
-    : "";
+  const [placeName, setPlaceName] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const isCoords = (value?: string | null) => !!value && /^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(value.trim());
+  const displayAddress = active?.address && !isCoords(active.address) ? active.address : placeName;
+
+  // Turn saved coordinates into a real place name.
+  useEffect(() => {
+    setPlaceName("");
+    if (!active || (active.address && !isCoords(active.address))) return;
+    let lat = active.lat ?? null;
+    let lng = active.lng ?? null;
+    if ((lat == null || lng == null) && isCoords(active.address)) {
+      const [a, b] = active.address.split(",").map((part) => Number(part.trim()));
+      lat = a; lng = b;
+    }
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    let cancelled = false;
+    reverseGeocodeOne({ data: { lat, lng } })
+      .then(({ address }) => { if (!cancelled && address && !isCoords(address)) setPlaceName(address); })
+      .catch(() => { /* keep "Choose a delivery address" */ });
+    return () => { cancelled = true; };
+  }, [active?.address, active?.lat, active?.lng]);
+
 
   useEffect(() => {
     if (!user?.id) return;
@@ -91,11 +112,17 @@ export function PatientAddressHeader({ embedded = false }: { embedded?: boolean 
   return (
     <>
       {embedded ? (
-        <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/50 bg-white/75 px-3 py-2 text-sm shadow-sm">
+        <div className={`flex w-full min-w-0 max-w-full items-center gap-2 border border-white/50 bg-white/90 px-3 py-2 text-sm shadow-sm ${expanded ? "rounded-2xl" : "rounded-full"}`}>
           <MapPin className="h-4 w-4 shrink-0 text-emerald-700" />
-          <span className="min-w-0 truncate text-slate-700">
+          <button
+            type="button"
+            onClick={() => displayAddress ? setExpanded((v) => !v) : setOpen(true)}
+            aria-expanded={expanded}
+            title={displayAddress || undefined}
+            className={`min-w-0 flex-1 text-left text-slate-700 ${expanded ? "whitespace-normal break-words" : "truncate"}`}
+          >
             {displayAddress ? `Delivering to ${displayAddress}` : "Choose a delivery address"}
-          </span>
+          </button>
           <Button variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-emerald-800" onClick={() => setOpen(true)}>
             Change
           </Button>
