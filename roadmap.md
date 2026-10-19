@@ -1,5 +1,11 @@
 # Roadmap
 
+- [ ] Use consistent logo/name across booking screens and all shared page endings.
+- [ ] Preserve doctor-set prices, remove invented consultation defaults, and validate saved charges.
+- [ ] Add verified Paystack payment and confirmation for homecare quotations, with duplicate protection.
+- [ ] Add real payment requests/status to pharmacy orders and block unpaid driver dispatch.
+- [ ] Exercise patient order → pharmacy approval → driver acceptance (requires real Firebase role sessions and authorized function deployment).
+
 - [ ] Verify patient doctor booking, Paystack, appointment viewing and calendar download (blocked on real patient sign-in, authorized Firebase deployment and approved platform fee configuration).
 - [x] Preserve classic admin approval controls and add canonical doctor/pharmacy appointments, patient details and request visibility; signed-in approval checks await real admin access.
 - [ ] Verify patient medication order → pharmacy acceptance → driver pickup/delivery (local address/package/dispatch fixes completed; blocked on Firebase deployment and real role accounts; medication payment idempotency and code verification need further hardening).
