@@ -111,6 +111,13 @@ function PatientHomecarePage() {
   const [loading, setLoading] = useState(true);
   const [serviceType, setServiceType] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [careFor, setCareFor] = useState("Myself");
+  const [specialRequirements, setSpecialRequirements] = useState("");
+  const [hours, setHours] = useState("2");
+  const [referenceNumber, setReferenceNumber] = useState("");
+  const [tab, setTab] = useState<RequestTab>("All");
+  const [copied, setCopied] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<HomecareRequest | null>(null);
   const [dateKey, setDateKey] = useState("");
   const [time, setTime] = useState("");
   const [locationMode, setLocationMode] = useState<"home" | "different">("home");
@@ -120,6 +127,10 @@ function PatientHomecarePage() {
   const [saving, setSaving] = useState(false);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [reordering, setReordering] = useState<string | null>(null);
+  const homeAddress = savedAddress || profile?.address || "";
+  const visitAddress = locationMode === "home" ? homeAddress : (address?.address || "");
+  const description = [instructions.trim(), specialRequirements.trim() ? `Special requirements: ${specialRequirements.trim()}` : "", `Care for: ${careFor}`].filter(Boolean).join("\n");
+  const preferredAt = dateKey && time ? `${dateKey}T${time}:00+02:00` : "";
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -183,7 +194,7 @@ function PatientHomecarePage() {
           latitude: locationMode === "different" ? address?.lat ?? null : address?.address === homeAddress ? address.lat : null,
           longitude: locationMode === "different" ? address?.lng ?? null : address?.address === homeAddress ? address.lng : null,
           preferredAt: preferredAt.toISOString(),
-          durationHours: null,
+          durationHours: Number(hours) || null,
         },
       });
       setReferenceNumber(result.referenceNumber);
@@ -283,12 +294,104 @@ function PatientHomecarePage() {
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back</Link>
       </header>
 
+
+      {step < 4 && (
+        <section className="mx-auto max-w-4xl space-y-6 rounded-3xl border border-sky-100 bg-white p-5 shadow-sm sm:p-8">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700"><HeartHandshake className="h-6 w-6" /></div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Care that fits your needs</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">Request Homecare Services</h1>
+              <p className="mt-2 text-sm text-slate-600">Tell us what care you need. Our coordination team will help arrange the right support for you or your loved one.</p>
+            </div>
+          </div>
+          <ol aria-label="Request progress" className="grid grid-cols-3 gap-2">
+            {["Choose service", "Your needs", "When & where"].map((label, index) => (
+              <li key={label} className={`rounded-xl border px-2 py-3 text-center text-xs font-semibold sm:text-sm ${step === index + 1 ? "border-sky-500 bg-sky-50 text-sky-800" : step > index + 1 ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-500"}`}>
+                <span className="mr-1">{index + 1}.</span>{label}
+              </li>
+            ))}
+          </ol>
+          {step === 0 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">Choose the care you need</h2>
+              <p className="text-sm text-slate-600">Select a service to get started.</p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {SERVICES.map((service) => {
+                  const Icon = service.icon;
+                  const selected = serviceType === service.title;
+                  return <button key={service.title} type="button" onClick={() => setServiceType(service.title)} aria-pressed={selected} className={`rounded-2xl border p-4 text-left transition hover:border-sky-400 hover:bg-sky-50 ${selected ? "border-sky-500 bg-sky-50 ring-2 ring-sky-100" : "border-slate-200 bg-white"}`}>
+                    <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><Icon className="h-5 w-5" /></span>
+                    <span className="block font-semibold text-slate-900">{service.title}</span>
+                    <span className="mt-1 block text-xs leading-5 text-slate-600">{service.description}</span>
+                  </button>;
+                })}
+              </div>
+              <div className="flex justify-end"><Button type="button" className="rounded-xl bg-sky-600 hover:bg-sky-700" onClick={() => { if (!serviceType) { toast.error("Choose the type of care you need."); return; } setStep(1); }}>Continue <ChevronRight className="ml-1 h-4 w-4" /></Button></div>
+            </div>
+          )}
+          {step === 1 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">Tell us about your needs</h2>
+              <label className="block space-y-2 text-sm font-medium text-slate-800">Who is the care for?
+                <select value={careFor} onChange={(e) => setCareFor(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3">
+                  <option>Myself</option><option>My child</option><option>My parent</option><option>My partner</option><option>Another loved one</option>
+                </select>
+              </label>
+              <label className="block space-y-2 text-sm font-medium text-slate-800">Describe the help needed
+                <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={5000} rows={4} placeholder="For example: help with bathing, dressing, meal preparation or companionship." />
+              </label>
+              <label className="block space-y-2 text-sm font-medium text-slate-800">Any special requirements? <span className="font-normal text-slate-500">(optional)</span>
+                <Textarea value={specialRequirements} onChange={(e) => setSpecialRequirements(e.target.value)} maxLength={1500} rows={3} placeholder="Mobility needs, language preference or other details the coordinator should know." />
+              </label>
+              <div className="flex justify-between gap-3"><Button type="button" variant="outline" onClick={() => setStep(0)}><ArrowLeft className="mr-1 h-4 w-4" /> Back</Button><Button type="button" className="rounded-xl bg-sky-600 hover:bg-sky-700" onClick={() => { if (!instructions.trim()) { toast.error("Please describe the care you need."); return; } setStep(2); }}>Continue <ChevronRight className="ml-1 h-4 w-4" /></Button></div>
+            </div>
+          )}
+          {step === 2 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">Choose when and where</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block space-y-2 text-sm font-medium text-slate-800 sm:col-span-2">Service address
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant={locationMode === "home" ? "default" : "outline"} onClick={() => setLocationMode("home")}>Use saved address</Button>
+                    <Button type="button" size="sm" variant={locationMode === "different" ? "default" : "outline"} onClick={() => setLocationMode("different")}>Use another address</Button>
+                  </div>
+                  {locationMode === "home" ? <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{homeAddress || "No saved address yet. Choose another address and enter the service location."}</div> : <input value={address?.address ?? ""} onChange={(e) => setAddress({ address: e.target.value, lat: null, lng: null })} placeholder="Street, suburb, city and postal code" className="h-11 w-full rounded-xl border border-slate-200 px-3" />}
+                </label>
+                <label className="block space-y-2 text-sm font-medium text-slate-800">Preferred date
+                  <input type="date" min={localDateKey(new Date())} value={dateKey} onChange={(e) => setDateKey(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3" />
+                </label>
+                <label className="block space-y-2 text-sm font-medium text-slate-800">Preferred time
+                  <select value={time} onChange={(e) => setTime(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3"><option value="">Select time</option>{TIME_SLOTS.map((slot) => <option key={slot.value} value={slot.value}>{slot.label}</option>)}</select>
+                </label>
+                <label className="block space-y-2 text-sm font-medium text-slate-800 sm:col-span-2">Expected duration
+                  <select value={hours} onChange={(e) => setHours(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3">{[1,2,3,4,6,8,12,24].map((n) => <option key={n} value={n}>{n} {n === 1 ? "hour" : "hours"}</option>)}</select>
+                </label>
+              </div>
+              <div className="flex justify-between gap-3"><Button type="button" variant="outline" onClick={() => setStep(1)}><ArrowLeft className="mr-1 h-4 w-4" /> Back</Button><Button type="button" className="rounded-xl bg-sky-600 hover:bg-sky-700" onClick={() => { if (!visitAddress.trim()) { toast.error("Choose or enter the service address."); return; } if (!dateKey || !time || !preferredAt || new Date(preferredAt).getTime() <= Date.now()) { toast.error("Choose a date and time in the future."); return; } setStep(3); }}>Review request <ChevronRight className="ml-1 h-4 w-4" /></Button></div>
+            </div>
+          )}
+          {step === 3 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">Review your request</h2>
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                {[["Service", serviceType],["Care for", careFor],["Needs", instructions],["Address", visitAddress],["Date & time", preferredAt ? new Date(preferredAt).toLocaleString("en-ZA") : ""],["Duration", `${hours} ${hours === "1" ? "hour" : "hours"}`]].map(([label, value]) => <div key={label} className="grid gap-1 border-b border-slate-200 pb-2 last:border-0"><span className="text-xs font-medium text-slate-500">{label}</span><span className="font-medium text-slate-900">{value}</span></div>)}
+              </div>
+              <p className="text-sm text-slate-600">Your request will be reviewed by our coordination team. A quote and care arrangements must be agreed before the booking is confirmed.</p>
+              <div className="flex justify-between gap-3"><Button type="button" variant="outline" onClick={() => setStep(2)}><ArrowLeft className="mr-1 h-4 w-4" /> Back</Button><Button type="button" disabled={saving} className="rounded-xl bg-sky-600 hover:bg-sky-700" onClick={() => void submit()}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</> : "Submit Request"}</Button></div>
+            </div>
+          )}
+        </section>
+      )}
+
       {step === 4 && (
         <section className="mx-auto max-w-2xl space-y-6 rounded-3xl border border-emerald-100 bg-white p-6 text-center shadow-sm sm:p-10">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100"><CheckCircle2 className="h-11 w-11 text-emerald-700" /></div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Request Submitted!</h1>
-            <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">Your homecare request has been sent to our verified providers. You&apos;ll be notified once you receive a quotation.</p>
+            <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">Your request has been received by the HealthReachCare coordination team. We will review your needs and share available options and a quote before anything is confirmed.</p>
+            {referenceNumber && <div className="mx-auto mt-4 max-w-sm rounded-xl border border-sky-100 bg-sky-50 p-4 text-left"><p className="text-xs text-slate-500">Reference number</p><p className="font-bold text-slate-900">{referenceNumber}</p><Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void copyReference()}><Copy className="mr-1 h-4 w-4" />{copied ? "Copied" : "Copy reference"}</Button></div>}
+            <Button type="button" className="mt-4 bg-sky-600 hover:bg-sky-700" onClick={() => { setStep(0); setServiceType(""); setInstructions(""); setSpecialRequirements(""); setDateKey(""); setTime(""); }}>Make another request</Button>
           </div>
         </section>
       )}
@@ -298,7 +401,7 @@ function PatientHomecarePage() {
         {loading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
         {!loading && requests.length === 0 && <div className="rounded-2xl border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground">You have no homecare requests yet. Use the guided form above to tell us what support you need.</div>}
         {!loading && requests.length > 0 && activeRequests.length === 0 && <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">There are no active requests right now.</p>}
-        {activeRequests.map((r) => {
+        {visibleRequests.filter((r) => !completedRequests.includes(r)).map((r) => {
           const assignment = latestAssignment(r);
           return (
             <div key={r.id} className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
@@ -359,7 +462,7 @@ function PatientHomecarePage() {
           <p className="text-sm text-muted-foreground">Your completed home care history stays available here.</p>
         </div>
         {!loading && completedRequests.length === 0 && <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">Completed services will appear here.</p>}
-        {completedRequests.map((request) => {
+        {visibleRequests.filter((r) => completedRequests.includes(r)).map((request) => {
           const assignment = latestAssignment(request);
           return (
             <article key={request.id} className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
