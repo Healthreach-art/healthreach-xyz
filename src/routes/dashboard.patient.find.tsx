@@ -3,7 +3,8 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
-import { Search, Loader2, Stethoscope, MapPin, Navigation, ArrowLeft, Video, Phone, BadgeCheck, SlidersHorizontal, Star, Building2, Baby, HeartPulse, Brain, Sparkles, Eye, Bone, Activity } from "lucide-react";
+import { Search, Loader2, Stethoscope, MapPin, Navigation, ArrowLeft, Video, Phone, BadgeCheck, SlidersHorizontal, Star, Building2, Baby, HeartPulse, Brain, Microscope, UserRound, ChevronRight } from "lucide-react";
+import { BookingScreen, ScreenTitle, ServiceRow, StepLabel } from "@/components/BookingScreen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress } from "@/lib/patient-address";
@@ -36,22 +37,20 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 }
 
 const MAX_RADIUS_KM = 100;
-const NEEDS = [
-  { label: "General Check-up", specialty: "General Practitioner", icon: Stethoscope },
-  { label: "Child Health", specialty: "Paediatrician", icon: Baby },
-  { label: "Heart", specialty: "Cardiologist", icon: HeartPulse },
-  { label: "Mental Health", specialty: "Psychologist", icon: Brain },
-  { label: "Skin", specialty: "Dermatologist", icon: Sparkles },
-  { label: "Eyes", specialty: "Ophthalmologist", icon: Eye },
-  { label: "Bones & Joints", specialty: "Orthopaedic Surgeon", icon: Bone },
-  { label: "Physio", specialty: "Physiotherapist", icon: Activity },
-  { label: "Women's Health", specialty: "Gynaecologist", icon: HeartPulse },
-];
+
 const SPECIALTIES = [
   "General Practitioner", "Paediatrician", "Cardiologist", "Dermatologist", "Gynaecologist", "Psychiatrist",
   "Psychologist", "ENT Specialist", "Ophthalmologist", "Orthopaedic Surgeon", "Neurologist", "Endocrinologist",
   "Urologist", "Dentist", "Physiotherapist",
 ];
+const NEEDS = [
+  { id: "general", label: "General Consultation", sub: "Common health concerns", icon: Stethoscope, specialties: ["General Practitioner"] },
+  { id: "women", label: "Women's Health", sub: "Female health and wellness", icon: UserRound, specialties: ["Gynaecologist"] },
+  { id: "child", label: "Child Health", sub: "Paediatric care", icon: Baby, specialties: ["Paediatrician"] },
+  { id: "chronic", label: "Chronic Condition Review", sub: "Diabetes, hypertension, etc.", icon: HeartPulse, specialties: ["General Practitioner", "Endocrinologist", "Cardiologist"] },
+  { id: "mental", label: "Mental Health", sub: "Counselling and support", icon: Brain, specialties: ["Psychologist", "Psychiatrist"] },
+  { id: "specialist", label: "Specialist Consultation", sub: "E.g. Cardiology, Dermatology", icon: Microscope, specialties: SPECIALTIES.filter((x) => x !== "General Practitioner") },
+] as const;
 function withDistance(rows: Doctor[], userLoc: { lat: number; lng: number } | null) {
   if (!userLoc) return rows.map((row) => ({ ...row, distance_km: null as number | null }));
   return rows.map((row) => ({
@@ -69,6 +68,8 @@ function FindCarePage() {
   const { user } = useAuth();
   const [q, setQ] = useState(searchParams.q);
   const [specialty, setSpecialty] = useState<string>("any");
+  const [need, setNeed] = useState<string | null>(null);
+  const [showList, setShowList] = useState(!!searchParams.q);
   const [consultationModes, setConsultationModes] = useState<string[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [clinicsById, setClinicsById] = useState<Record<string, string>>({});
@@ -167,6 +168,7 @@ function FindCarePage() {
   const filteredDoctors = useMemo(() => {
     const needle = q.toLowerCase();
     const matched = doctors.filter((d) => {
+      if (need && !(NEEDS.find((n) => n.id === need)?.specialties as readonly string[] | undefined)?.includes(d.specialty)) return false;
       if (specialty !== "any" && d.specialty !== specialty) return false;
       if (consultationModes.length > 0 && !(
         (consultationModes.includes("in_person") && d.in_person_available)
@@ -184,150 +186,87 @@ function FindCarePage() {
         : sortBy === "fee"
           ? (a.consultation_fee ?? Number.MAX_SAFE_INTEGER) - (b.consultation_fee ?? Number.MAX_SAFE_INTEGER)
           : (a.distance_km ?? 9e9) - (b.distance_km ?? 9e9));
-  }, [doctors, q, specialty, consultationModes, userLoc, radius, sortBy]);
+  }, [doctors, q, need, specialty, consultationModes, userLoc, radius, sortBy]);
 
   const toggleMode = (mode: string) => setConsultationModes((selected) =>
     selected.includes(mode) ? selected.filter((item) => item !== mode) : [...selected, mode],
   );
 
+  const needLabel = NEEDS.find((n) => n.id === need)?.label ?? (q ? `Results for “${q}”` : "All doctors");
+  const chip = (active: boolean) => `shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold ${active ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-800"}`;
+
   return (
-    <>
-      <main className="container-narrow space-y-7 px-4 py-8 sm:px-6">
-      <header className="flex justify-end border-b border-border/60 pb-5">
-        <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Dashboard</Link>
-      </header>
-      <section className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Care that fits your needs</p>
-          <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight text-slate-900"><Stethoscope className="h-7 w-7 text-emerald-600" /> Find & Compare Doctors</h1>
-          <p className="mt-2 max-w-xl text-sm text-slate-600">Search verified healthcare professionals by specialty, location, or the way you prefer to consult.</p>
-        </div>
-      </section>
-      <section className="space-y-3 rounded-[2rem] bg-gradient-to-br from-emerald-500 to-emerald-700 p-5 text-white shadow-lg">
-        <div><p className="text-xs font-semibold uppercase tracking-wider text-white/80">Step 1 · Choose your need</p><h2 className="mt-1 text-xl font-bold">What do you need help with?</h2></div>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-          {NEEDS.map(({ label, specialty: value, icon: Icon }) => (
-            <button key={label} type="button" aria-pressed={specialty === value} onClick={() => setSpecialty(specialty === value ? "any" : value)} className={`flex flex-col items-center gap-1.5 rounded-2xl p-3 text-center text-xs font-semibold transition ${specialty === value ? "bg-white text-emerald-800" : "bg-white/15 text-white hover:bg-white/25"}`}>
-              <Icon className="h-6 w-6" />{label}
-            </button>
-          ))}
-        </div>
-      </section>
-      {locationLabel && <p className="text-xs text-muted-foreground">Distance from {locationLabel}</p>}
-
-      <section className="grid gap-3 rounded-2xl border border-border/60 bg-white p-4 shadow-sm sm:grid-cols-[1fr_auto_auto]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, specialty, or condition..." className="h-11 rounded-xl pl-9" />
-        </div>
-        <select aria-label="Search radius" value={radius} onChange={(event) => setRadius(Number(event.target.value))} className="h-11 rounded-xl border border-border bg-background px-3 text-sm">
-          {[25, 50, 75, 100].map((km) => <option key={km} value={km}>Within {km} km</option>)}
-        </select>
-        <Button variant="outline" onClick={useMyLocation} disabled={locating} className="h-11 rounded-xl">
-          {locating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Navigation className="mr-2 h-4 w-4" />}
-          Use current location
-        </Button>
-      </section>
-
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Browse specialties</h2>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <Button size="sm" variant={specialty === "any" ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setSpecialty("any")}>All specialties</Button>
-          {SPECIALTIES.map((item) => <Button key={item} size="sm" variant={specialty === item ? "default" : "outline"} className="shrink-0 rounded-full" onClick={() => setSpecialty(item)}>{item}</Button>)}
-        </div>
-      </div>
-
-      <section className="rounded-2xl border border-border/60 bg-white p-4 shadow-sm sm:p-5">
-      <div className="grid gap-4">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-700">Consultation modes <span className="font-normal text-muted-foreground">— select any that work for you</span></p>
-          <div className="flex flex-wrap gap-2">
-            {[{ id: "in_person", label: "In-Person", icon: MapPin }, { id: "video", label: "Video", icon: Video }, { id: "phone", label: "Phone", icon: Phone }].map(({ id, label, icon: Icon }) => (
-              <Button key={id} size="sm" type="button" variant={consultationModes.includes(id) ? "default" : "outline"} aria-pressed={consultationModes.includes(id)} className="rounded-full" onClick={() => toggleMode(id)}>
-                <Icon className="mr-1.5 h-3.5 w-3.5" />{label}
-              </Button>
-            ))}
-          </div>
-        </div>
-        <Button size="sm" variant="outline" className="w-fit rounded-full" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
-          <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" /> Filters
-        </Button>
-      </div>
-      </section>
-      {filtersOpen && <section aria-label="Doctor filters" className="flex flex-wrap items-center gap-4 rounded-xl border border-border/60 bg-white p-4">
-        <label className="flex items-center gap-2 text-sm">Maximum distance
-          <select value={radius} onChange={(event) => setRadius(Number(event.target.value))} className="h-9 rounded-lg border border-border bg-background px-2">
-            {[25, 50, 75, 100].map((km) => <option key={km} value={km}>{km} km</option>)}
-          </select>
-        </label>
-        <div className="flex flex-wrap gap-3 text-sm">
-          {[{ id: "in_person", label: "In-Person" }, { id: "video", label: "Video" }, { id: "phone", label: "Phone" }].map(({ id, label }) => <label key={id} className="flex items-center gap-2"><input type="checkbox" checked={consultationModes.includes(id)} onChange={() => toggleMode(id)} />{label}</label>)}
-        </div>
-      </section>}
-
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      ) : loadError ? (
-        <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm">
-          <p className="text-destructive">{loadError}</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={() => void loadDoctors()}>Try again</Button>
-        </div>
+    <main className="min-h-screen bg-emerald-50/60 px-4 py-6 pb-28">
+      {!showList ? (
+        <>
+          <StepLabel n={1} label="Choose Your Need" />
+          <BookingScreen backTo="/dashboard/patient">
+            <ScreenTitle title="Book a Doctor" sub="Get professional medical care from trusted doctors." />
+            <form onSubmit={(e) => { e.preventDefault(); setNeed(null); setShowList(true); }} className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="What do you need help with?" className="h-11 rounded-xl border-0 bg-slate-100 pl-9" />
+            </form>
+            {NEEDS.map((n) => <ServiceRow key={n.id} icon={n.icon} title={n.label} sub={n.sub} onClick={() => { setNeed(n.id); setShowList(true); }} />)}
+          </BookingScreen>
+        </>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-slate-900">Showing {filteredDoctors.length} verified doctors</h2>
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">Sort by
-              <select aria-label="Sort doctors" value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} className="h-9 rounded-lg border border-border bg-white px-2 text-slate-900">
-                <option value="distance">Distance</option><option value="rating">Rating</option><option value="fee">Consultation fee</option>
-              </select>
-            </label>
-          </div>
-          <DoctorGrid doctors={filteredDoctors} clinicsById={clinicsById} />
+          <StepLabel n={2} label="Find & Compare Doctors" />
+          <BookingScreen onBack={() => setShowList(false)}>
+            <ScreenTitle title="Available Doctors" sub={needLabel} />
+            <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1">
+              <button type="button" onClick={useMyLocation} disabled={locating} className={chip(locationLabel === "Current location")}>{locating ? <Loader2 className="inline h-3 w-3 animate-spin" /> : "Near me"}</button>
+              <button type="button" onClick={() => toggleMode("in_person")} className={chip(consultationModes.includes("in_person"))}>In-person</button>
+              <button type="button" onClick={() => toggleMode("video")} className={chip(consultationModes.includes("video"))}>Online</button>
+              <button type="button" aria-label="Filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((o) => !o)} className="ml-auto shrink-0 rounded-full p-1.5 text-emerald-700 hover:bg-emerald-50"><SlidersHorizontal className="h-4 w-4" /></button>
+            </div>
+            {filtersOpen && <div className="mb-3 grid gap-2 rounded-2xl bg-emerald-50 p-3 text-sm">
+              <label className="flex items-center justify-between gap-2">Distance<select value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="h-9 rounded-lg border border-emerald-100 bg-white px-2">{[25, 50, 75, 100].map((km) => <option key={km} value={km}>Within {km} km</option>)}</select></label>
+              <label className="flex items-center justify-between gap-2">Specialty<select value={specialty} onChange={(e) => setSpecialty(e.target.value)} className="h-9 max-w-[60%] rounded-lg border border-emerald-100 bg-white px-2"><option value="any">Any</option>{SPECIALTIES.map((x) => <option key={x}>{x}</option>)}</select></label>
+              <label className="flex items-center justify-between gap-2">Sort by<select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="h-9 rounded-lg border border-emerald-100 bg-white px-2"><option value="distance">Distance</option><option value="rating">Rating</option><option value="fee">Fee</option></select></label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={consultationModes.includes("phone")} onChange={() => toggleMode("phone")} />Phone consultations</label>
+            </div>}
+            {loading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-emerald-600" /></div>
+              : loadError ? <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{loadError}<Button variant="outline" size="sm" className="mt-3 block" onClick={() => void loadDoctors()}>Try again</Button></div>
+              : <DoctorGrid doctors={filteredDoctors} clinicsById={clinicsById} />}
+          </BookingScreen>
         </>
       )}
-      </main>
-    </>
+    </main>
   );
 }
 
 type WithDist = Doctor & { distance_km: number | null };
 
 function DoctorGrid({ doctors, clinicsById }: { doctors: WithDist[]; clinicsById: Record<string, string> }) {
-  if (doctors.length === 0) return <div className="rounded-2xl border border-dashed border-border/70 bg-slate-50/50 py-12 text-center">
+  if (doctors.length === 0) return <div className="py-10 text-center">
     <Stethoscope className="mx-auto h-9 w-9 text-emerald-600/70" />
-    <p className="mt-3 font-semibold text-slate-900">No verified doctors are listed for these filters</p>
-    <p className="mt-1 text-sm text-muted-foreground">Try another specialty or consultation mode, or check back later.</p>
+    <p className="mt-3 font-semibold text-emerald-950">No approved doctors match yet</p>
+    <p className="mt-1 text-sm text-slate-500">Try another need or filter, or check back soon.</p>
   </div>;
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div>
       {doctors.map((d) => (
-        <article key={d.id} className="group flex flex-col rounded-2xl border border-border/60 bg-white p-5 shadow-sm transition hover:shadow-md">
-          <div className="flex gap-4">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-emerald-50">
-              {d.photo_url ? <img src={d.photo_url} alt={d.full_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-emerald-700"><Stethoscope className="h-7 w-7" /></div>}
+        <Link key={d.id} to="/dashboard/patient/doctors/$id" params={{ id: d.id }} className="flex gap-3 border-b border-slate-100 py-3 last:border-0">
+          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-emerald-50">
+            {d.photo_url ? <img src={d.photo_url} alt={d.full_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-emerald-700"><Stethoscope className="h-7 w-7" /></div>}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1 truncate text-sm font-bold text-emerald-950">{d.full_name.toLowerCase().startsWith("dr") ? d.full_name : `Dr. ${d.full_name}`}<BadgeCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" /></p>
+            <p className="truncate text-xs text-slate-500">{d.specialty}{d.distance_km != null ? ` · ${d.distance_km} km` : ""}</p>
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-600">
+              {d.rating_avg != null && (d.rating_count ?? 0) > 0 ? <><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{d.rating_avg.toFixed(1)} ({d.rating_count} reviews)</> : <span className="text-slate-400">No reviews yet</span>}
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {d.in_person_available && <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">In-person</span>}
+              {d.online_available && <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">Online</span>}
+              {d.phone_available && <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">Phone</span>}
+              <span className="ml-auto text-xs font-bold text-emerald-900">{d.consultation_fee == null ? "" : `R${Number(d.consultation_fee).toFixed(0)}`}</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-slate-900">{d.full_name.toLowerCase().startsWith("dr.") ? d.full_name : `Dr. ${d.full_name}`}</p>
-              <p className="mt-0.5 text-sm font-medium text-emerald-700">{d.specialty}</p>
-              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" /> Verified provider
-              </p>
-            </div>
+            {(d.hospital_id && clinicsById[d.hospital_id]) && <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-slate-500"><Building2 className="h-3 w-3" />{clinicsById[d.hospital_id!]}</p>}
           </div>
-          {d.qualifications && <p className="mt-3 text-xs text-muted-foreground">{d.qualifications} · {d.specialty}</p>}
-          <div className="mt-4 flex min-h-8 flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1 text-xs text-muted-foreground"><Building2 className="h-3 w-3" />{(d.hospital_id && clinicsById[d.hospital_id]) || d.address || d.city}</span>
-              {d.distance_km != null && <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800"><MapPin className="mr-1 inline h-3 w-3" />{d.distance_km} km</span>}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-              {d.in_person_available && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />In-Person</span>}{d.online_available && <span className="inline-flex items-center gap-1"><Video className="h-3 w-3" /> Video</span>}{d.phone_available && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />Phone</span>}
-          </div>
-          {d.rating_avg != null && d.rating_count != null && d.rating_count > 0 && <p className="mt-3 flex items-center gap-1 text-xs text-slate-600"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />{d.rating_avg.toFixed(1)} ({d.rating_count} reviews)</p>}
-          <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-4">
-            <div><p className="text-[11px] text-muted-foreground">Consultation fee</p><p className="font-bold text-slate-900">{d.consultation_fee == null ? "Not listed" : `R${Number(d.consultation_fee).toFixed(2)}`}</p></div>
-            <Link to="/dashboard/patient/doctors/$id" params={{ id: d.id }} className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700">Book Now <span className="ml-1" aria-hidden="true">→</span></Link>
-          </div>
-        </article>
+          <ChevronRight className="h-4 w-4 shrink-0 self-center text-slate-400" />
+        </Link>
       ))}
     </div>
   );
