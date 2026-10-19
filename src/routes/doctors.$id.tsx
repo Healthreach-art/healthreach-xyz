@@ -198,8 +198,7 @@ function PublicDoctorPage() {
         </div>
         <div className="text-right shrink-0">
           <p className="text-xs text-muted-foreground">Consultation</p>
-          <p className="text-2xl font-bold text-primary">R{Number(doc.consultation_fee).toFixed(0)}</p>
-          <p className="text-[10px] text-muted-foreground">+ R15 booking fee</p>
+          <p className="text-2xl font-bold text-primary">{doc.consultation_fee == null ? "Fee not listed" : `R${Number(doc.consultation_fee).toFixed(2)}`}</p>
         </div>
       </header>
 

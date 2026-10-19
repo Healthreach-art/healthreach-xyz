@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { MessageCircle, Phone } from "lucide-react";
-import logo from "@/assets/healthreach-logo.png";
+import { Brand } from "@/components/Brand";
 
 const WA_NUMBER = "27797285078";
 const WA_LINK = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hi HealthReachCare, I'd like to ask a quick question.")}`;
@@ -25,10 +25,7 @@ export function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <img src={logo} alt="HealthReachCare" className="h-9 w-auto" />
-              <span className="text-lg font-bold tracking-tight text-foreground">
-                HealthReach<span className="text-primary">Care</span>
-              </span>
+              <Brand />
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Your central hub for integrated healthcare management. Connecting patients, pharmacies, hospitals, and delivery services.

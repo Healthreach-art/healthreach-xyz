@@ -15,7 +15,7 @@ import { PatientNotificationBell } from "@/components/PatientNotificationBell";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 
-import logoUrl from "@/assets/healthreach-logo.png";
+import { Brand } from "@/components/Brand";
 import appCss from "../styles.css?url";
 
 const NO_SIDEBAR_ROUTES = new Set(["/", "/login", "/signup", "/about", "/contact", "/reset-password"]);
@@ -154,6 +154,7 @@ function AppShell() {
         <main className="flex-1">
           <Outlet />
         </main>
+        <Footer />
       </div>
     );
   }
@@ -163,14 +164,14 @@ function AppShell() {
       <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50">
         <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-sky-100 bg-white/95 px-4 backdrop-blur sm:px-6">
           <Link to="/dashboard/patient" className="flex min-w-0 items-center gap-2" aria-label="HealthReachCare patient home">
-            <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-9 w-auto shrink-0 sm:h-11" />
-            <span className="hidden text-base font-bold tracking-tight text-sky-900 sm:inline sm:text-xl">HealthReachCare</span>
+            <Brand />
           </Link>
           <div className="flex items-center gap-3"><PatientNotificationBell /><span className="hidden text-right sm:block"><span className="block text-sm font-semibold text-slate-900">{profile?.full_name || "Patient"}</span><span className="block text-xs text-slate-500">Patient</span></span></div>
         </header>
         <main className="flex-1 pb-24">
           <Outlet />
         </main>
+        <div className="pb-24"><Footer /></div>
         <PatientBottomNav />
       </div>
     );
@@ -181,8 +182,7 @@ function AppShell() {
       <div className="flex min-h-screen flex-col w-full overflow-x-hidden">
         <header className="sticky top-0 z-40 h-16 border-b border-border bg-background/95 backdrop-blur px-4 flex items-center">
           <Link to="/" className="flex min-w-0 items-center gap-2" aria-label="HealthReachCare home">
-            <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-9 w-auto shrink-0 sm:h-11" />
-            <span className="truncate text-base font-bold tracking-tight text-foreground sm:text-xl">HealthReachCare</span>
+            <Brand />
           </Link>
         </header>
         <main className="flex-1">
@@ -223,8 +223,7 @@ function SidebarShell() {
           <header className="sticky top-0 z-40 h-16 border-b border-border bg-background/95 backdrop-blur px-4 flex items-center">
             <SidebarTrigger className="mr-2 shrink-0" />
             <Link to="/" className="flex min-w-0 items-center gap-2" aria-label="HealthReachCare home">
-              <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-9 w-auto shrink-0 sm:h-11" />
-              <span className="truncate text-base font-bold tracking-tight text-foreground sm:text-xl">HealthReachCare</span>
+              <Brand />
             </Link>
           </header>
           <main className="flex-1">

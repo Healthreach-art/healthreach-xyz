@@ -20,9 +20,10 @@ import { Sparkles, X } from "lucide-react";
 import { DoctorBottomNav, type DoctorTab } from "@/components/DoctorBottomNav";
 import { DoctorFinance } from "@/components/DoctorFinance";
 import logo from "@/assets/healthreach-logo.png";
+import { validDoctorPrice } from "@/lib/doctor-price-policy";
 
 export const Route = createFileRoute("/dashboard/doctor")({
-  head: () => ({ meta: [{ title: "Doctor Dashboard — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Doctor Dashboard — HealthReachCare" }, { name: "description", content: "Manage your consultation prices, availability and patient appointments." }, { property: "og:title", content: "Doctor Dashboard — HealthReachCare" }, { property: "og:description", content: "Doctor consultation prices and appointments." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: () => (
     <RoleGuard allow="doctor">
       <DoctorDashboard />
@@ -82,7 +83,7 @@ function DoctorDashboard() {
   const [qualifications, setQualifications] = useState("");
   const [practiceNumber, setPracticeNumber] = useState("");
   const [bio, setBio] = useState("");
-  const [consultationFee, setConsultationFee] = useState<number>(450);
+  const [consultationFee, setConsultationFee] = useState<number | "">("");
   const [city, setCity] = useState("");
   const [practiceAddress, setPracticeAddress] = useState("");
   const [servicesDescription, setServicesDescription] = useState("");
@@ -139,7 +140,7 @@ function DoctorDashboard() {
       setQualifications(doc.qualifications ?? "");
       setPracticeNumber(doc.practice_number ?? "");
       setBio(doc.bio ?? "");
-      setConsultationFee(Number(doc.consultation_fee ?? 450));
+      setConsultationFee(doc.consultation_fee == null ? "" : Number(doc.consultation_fee));
       setCity(doc.city ?? "");
       setPracticeAddress(doc.address ?? "");
       setServicesDescription((doc as any).services_description ?? "");
@@ -281,6 +282,7 @@ function DoctorDashboard() {
 
   async function saveProfile() {
     if (!user) return;
+    if (!validDoctorPrice(consultationFee)) return toast.error("Enter your consultation price in rand, with up to two decimal places.");
     setBusy(true);
     const payload: any = {
       user_id: user.id,
@@ -568,7 +570,7 @@ function DoctorDashboard() {
               </div>
               <div className="space-y-2">
                 <Label>Consultation fee (R)</Label>
-                <Input type="number" value={consultationFee} onChange={(e) => setConsultationFee(Number(e.target.value))} min={0} />
+                <Input aria-label="Consultation fee in rand" type="number" value={consultationFee} onChange={(e) => setConsultationFee(e.target.value === "" ? "" : Number(e.target.value))} min={0} step="0.01" required />
               </div>
               <div className="space-y-2">
                 <Label>City</Label>

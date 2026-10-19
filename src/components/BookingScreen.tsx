@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, ChevronLeft, ChevronRight } from "lucide-react";
-import mark from "@/assets/healthreach-mark.png";
+import { Brand } from "@/components/Brand";
 
 /** Phone-style booking screen shell matching the HealthReachCare booking journey design. */
 export function BookingScreen({ onBack, backTo, children }: { onBack?: () => void; backTo?: "/dashboard/patient"; children: ReactNode }) {
@@ -11,7 +11,7 @@ export function BookingScreen({ onBack, backTo, children }: { onBack?: () => voi
       <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center px-4 pt-4 pb-2">
         {onBack ? <button type="button" onClick={onBack} aria-label="Back" className="flex h-9 w-9 items-center justify-center rounded-full text-slate-700 hover:bg-emerald-50">{back}</button>
           : backTo ? <Link to={backTo} aria-label="Back" className="flex h-9 w-9 items-center justify-center rounded-full text-slate-700 hover:bg-emerald-50">{back}</Link> : <span />}
-        <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-emerald-800"><img src={mark} alt="" className="h-5 w-5 object-contain" />HealthReachCare</p>
+        <div className="flex justify-center"><Brand compact /></div>
         <Link to="/dashboard/patient/notifications" aria-label="Notifications" className="flex h-9 w-9 items-center justify-center justify-self-end rounded-full text-emerald-800 hover:bg-emerald-50"><Bell className="h-5 w-5" /></Link>
       </div>
       <div className="px-5 pb-6">{children}</div>

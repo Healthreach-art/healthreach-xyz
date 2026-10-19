@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import logoImg from "@/assets/healthreach-logo.png";
+import { Brand } from "@/components/Brand";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
 type Item = { title: string; url: string; icon: any };
@@ -130,7 +131,7 @@ export function AppSidebar() {
           {collapsed ? (
             <img src={logoImg} alt="HealthReachCare" width={36} height={36} className="h-9 w-9 rounded-xl object-contain" />
           ) : (
-            <img src={logoImg} alt="HealthReachCare" width={160} height={44} className="h-8 w-auto" />
+            <Brand />
           )}
         </Link>
       </SidebarHeader>
