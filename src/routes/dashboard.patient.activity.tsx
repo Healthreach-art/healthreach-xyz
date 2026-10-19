@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
-import { CalendarDays, ChevronRight, ClipboardList, FileText, HousePlus, Loader2, Pill, Stethoscope } from "lucide-react";
+import { CalendarDays, ChevronRight, ClipboardList, FileText, HousePlus, Loader2, Pill, RefreshCw, Stethoscope } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/patient/activity")({
   head: () => ({ meta: [{ title: "Health Records — HealthReachCare" }] }),
@@ -176,6 +176,8 @@ function Page() {
   }, [loadActivities]);
 
   const visibleActivities = useMemo(() => activities.filter((item) => matchesFilter(item.kind, filter)), [activities, filter]);
+  const activeCount = activities.filter((item) => !["Delivered", "Completed", "Successful", "Cancelled"].includes(item.status)).length;
+  const completedCount = activities.length - activeCount;
   const emptyLinks = {
     All: { to: "/dashboard/patient/find", label: "Find a doctor" },
     Appointments: { to: "/dashboard/patient/find", label: "Book an appointment" },
@@ -186,10 +188,36 @@ function Page() {
 
   return (
     <div className="container-narrow space-y-6 px-4 py-8 pb-24 sm:px-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground"><ClipboardList className="h-6 w-6 text-primary" /> Activities</h1>
-        <p className="text-sm text-muted-foreground">Your complete health journey in one place.</p>
-      </div>
+      <section className="overflow-hidden rounded-3xl bg-primary p-5 text-primary-foreground shadow-sm sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-primary-foreground/80">Your HealthReachCare journey</p>
+            <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold sm:text-3xl"><ClipboardList className="h-6 w-6" /> Activities</h1>
+            <p className="mt-2 max-w-xl text-sm text-primary-foreground/85">Track orders, appointments, prescriptions and homecare updates together.</p>
+          </div>
+          <button type="button" onClick={() => void loadActivities()} disabled={loading} aria-label="Refresh activities"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary-foreground/25 bg-primary-foreground/10 transition hover:bg-primary-foreground/20 disabled:opacity-60">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+      </section>
+
+      {!loading && !loadError && (
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Activity summary">
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground">All activities</p>
+            <p className="mt-1 text-2xl font-bold text-foreground tabular-nums">{activities.length}</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground">In progress</p>
+            <p className="mt-1 text-2xl font-bold text-foreground tabular-nums">{activeCount}</p>
+          </div>
+          <div className="col-span-2 rounded-2xl border border-border bg-card p-4 sm:col-span-1">
+            <p className="text-xs font-medium text-muted-foreground">Completed</p>
+            <p className="mt-1 text-2xl font-bold text-foreground tabular-nums">{completedCount}</p>
+          </div>
+        </section>
+      )}
 
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div className="flex w-max gap-2" role="group" aria-label="Filter activities">
@@ -217,12 +245,12 @@ function Page() {
           {visibleActivities.map((item) => {
             const Icon = iconFor(item.kind);
             return (
-              <article key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:gap-4">
+              <article key={item.id} className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/30 sm:gap-4 sm:p-5">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
                   <h2 className="max-w-full truncate text-sm font-semibold text-foreground">{item.title}</h2>
                   <p className="max-w-full truncate text-sm text-muted-foreground">{item.detail}</p>
-                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{formatDate(item.occurredAt)}</p>
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{formatDate(item.occurredAt)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <span className={`max-w-28 truncate rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass(item.status)}`}>{item.status}</span>
