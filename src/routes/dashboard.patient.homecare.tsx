@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoleGuard } from "@/components/RoleGuard";
+import { LockFavourite } from "@/components/LockFavourite";
 import { useAuth } from "@/hooks/useAuth";
 import { firestoreClient } from "@/lib/firestore-client";
 import { Button } from "@/components/ui/button";
@@ -420,6 +421,9 @@ function PatientHomecarePage() {
                   {assignment && <p className="text-xs text-muted-foreground">Visit status: {assignment.status}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">Payment is not collected through this quote workflow.</p>
                 </div>
+              )}
+              {assignment?.provider_id && ["assigned", "completed", "confirmed"].includes(r.status) && (
+                <LockFavourite uid={user?.id} type="caregiver" providerId={assignment.provider_id} providerName={r.homecare_providers?.business_name || r.homecare_providers?.full_name || "this caregiver"} />
               )}
               {assignment && ["accepted", "scheduled", "in_progress"].includes(assignment.status) && (
                 <HomecareServiceChat

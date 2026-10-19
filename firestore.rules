@@ -758,6 +758,14 @@ service cloud.firestore {
       allow update: if isAdmin() || owns('patient_id');
       allow delete: if isAdmin();
     }
+    // Patient-saved preferred doctors and caregivers. Doc id: {uid}_{type}_{providerId}.
+    match /patient_favourites/{id} {
+      allow read, delete: if owns('patient_id');
+      allow create, update: if ownsNew('patient_id')
+        && id == request.auth.uid + '_' + request.resource.data.provider_type + '_' + request.resource.data.provider_id
+        && request.resource.data.provider_type in ['doctor', 'caregiver']
+        && request.resource.data.keys().hasOnly(['patient_id', 'provider_type', 'provider_id', 'provider_name', 'created_at']);
+    }
     match /complaints/{id} {
       allow read: if isAdmin() || owns('user_id') || owns('patient_id');
       allow create: if ownsNew('user_id') || ownsNew('patient_id');

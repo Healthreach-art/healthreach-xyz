@@ -6,14 +6,23 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2, BadgeCheck, ArrowLeft, ShieldCheck, CheckCircle2, Landmark } from "lucide-react";
+import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2, BadgeCheck, ArrowLeft, ShieldCheck, CheckCircle2, Landmark, CalendarPlus, MessageCircle } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { bookDoctorAppointment, getDoctorAvailableSlots, markDoctorAppointmentPaid } from "@/lib/doctors.functions";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
-import { BookingScreen, StepLabel } from "@/components/BookingScreen";
+import { BookingScreen, ScreenTitle, StepLabel } from "@/components/BookingScreen";
+import { LockFavourite } from "@/components/LockFavourite";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+function downloadIcs(startIso: string, doctor: string, place: string) {
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const start = new Date(startIso);
+  const end = new Date(start.getTime() + 30 * 60000);
+  const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//HealthReachCare//EN", "BEGIN:VEVENT", `UID:${startIso}@healthreachcare.co.za`, `DTSTAMP:${fmt(new Date())}`, `DTSTART:${fmt(start)}`, `DTEND:${fmt(end)}`, `SUMMARY:Appointment with ${doctor}`, `LOCATION:${place ?? ""}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+  const a = document.createElement("a"); a.href = url; a.download = "appointment.ics"; a.click(); URL.revokeObjectURL(url);
+}
 import { readPatientAddress } from "@/lib/patient-address";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
@@ -324,6 +333,7 @@ function Page() {
 
   return (
     <main className="min-h-screen bg-emerald-50/60 px-4 py-6 pb-28">
+      {!bookingOpen && (<>
       <StepLabel n={3} label="Select Date & Time" />
       <BookingScreen onBack={() => void navigate({ to: "/dashboard/patient/find", search: { q: "" } })}>
         <div className="flex gap-3">
@@ -369,12 +379,15 @@ function Page() {
         <Button onClick={() => { setBookingStep(bookingStep === 5 ? 5 : reservation ? 4 : when ? 2 : 1); setBookingOpen(true); }} disabled={slotsLoading || slotGroups.length === 0 || doc.consultation_fee == null} className="mt-5 h-12 w-full rounded-xl bg-emerald-700 text-base text-white hover:bg-emerald-800">Continue</Button>
         {doc.bio && <details className="mt-4 text-sm"><summary className="cursor-pointer font-semibold text-emerald-900">About this doctor</summary><p className="mt-2 text-slate-600">{doc.bio}</p>{doc.qualifications && <p className="mt-1 text-xs text-slate-500">{doc.qualifications}</p>}</details>}
       </BookingScreen>
+      </>)}
 
-      <Dialog open={bookingOpen} onOpenChange={setBookingOpen}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+      {bookingOpen && (
+        <>
+        <StepLabel n={bookingStep < 5 ? 4 : 5} label={bookingStep < 5 ? "Review & Pay" : "Booking Confirmed"} />
+        <BookingScreen onBack={bookingStep < 5 && !busy ? () => setBookingOpen(false) : undefined} backTo={bookingStep === 5 ? "/dashboard/patient" : undefined}>
           {bookingStep < 5 ? (
-            <>
-              <DialogHeader><DialogTitle>Book an appointment</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <ScreenTitle title="Review & Pay" sub="Check your booking, then pay securely." />
               <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-3">
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-emerald-100">
                   {doc.photo_url ? <img src={doc.photo_url} alt="" className="h-full w-full object-cover" /> : <UserIcon className="m-3 h-6 w-6 text-emerald-700" />}
@@ -455,7 +468,7 @@ function Page() {
                 {bookingStep > 1 ? <Button variant="outline" disabled={busy} onClick={() => bookingStep === 4 ? setBookingStep(3) : bookingStep === 3 ? void cancelReservation() : setBookingStep(bookingStep - 1)}>Back</Button> : <span />}
                 {bookingStep < 3 ? <Button disabled={!when || (bookingStep === 1 && slotsLoading)} onClick={() => setBookingStep(bookingStep + 1)}>Next</Button> : bookingStep === 3 ? <Button disabled={busy} onClick={() => void preparePayment()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Next</Button> : <Button disabled={busy || !reservation} onClick={() => void confirmBooking()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Pay R{reservation ? totalPayable(doc.consultation_fee, reservation.platformFeeCents).toFixed(2) : "0.00"}</Button>}
               </div>
-            </>
+            </div>
           ) : (
             <section className="space-y-5 py-4 text-center">
               <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100">
@@ -470,11 +483,17 @@ function Page() {
                 <p><strong>Clinic:</strong> {clinicName || doc.city}</p>
                 {distanceKm != null && <p><strong>Distance:</strong> {distanceKm} km</p>}
               </div>
-              <div className="grid gap-2 sm:grid-cols-2"><Button onClick={() => navigate({ to: "/dashboard/patient/consultations" })}>View Appointment</Button><Button variant="outline" onClick={() => navigate({ to: "/dashboard/patient" })}>Back to Home</Button></div>
+              <div className="grid gap-2">
+                <Button className="h-11 rounded-xl bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => navigate({ to: "/dashboard/patient/consultations" })}>View Appointment</Button>
+                {reservation && <Button variant="outline" className="h-11 rounded-xl border-emerald-200 text-emerald-800" onClick={() => downloadIcs(reservation.scheduledAt, doc.full_name, clinicName || doc.city)}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
+                <Button variant="outline" className="h-11 rounded-xl border-emerald-200 text-emerald-800" onClick={() => navigate({ to: "/dashboard/patient/consultations" })}><MessageCircle className="mr-2 h-4 w-4" />Message Doctor</Button>
+              </div>
+              <LockFavourite uid={user?.id} type="doctor" providerId={doc.id} providerName={doc.full_name} />
             </section>
           )}
-        </DialogContent>
-      </Dialog>
+        </BookingScreen>
+        </>
+      )}
 
       {reviews.length > 0 && (
         <section className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:p-6">
