@@ -204,12 +204,12 @@ function Page() {
   }
 
   return (
-    <main className="container-narrow max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="container-narrow mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <Link to="/dashboard/patient" className="mb-5 inline-flex items-center rounded text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <ArrowLeft className="mr-1 h-4 w-4" /> Back to Dashboard
       </Link>
 
-      <section className="mb-7 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/[0.07] via-background to-healthcare-green/[0.08] p-5 shadow-sm sm:p-8" aria-labelledby="prescription-library-title">
+      <section className="mb-7 overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-background to-healthcare-green/[0.08] p-5 shadow-sm sm:p-8" aria-labelledby="prescription-library-title">
         <div className="flex items-center justify-between gap-6">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/80 px-3 py-1 text-xs font-medium text-primary">
