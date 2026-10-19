@@ -9,7 +9,7 @@ import {
 import doctorImg from "@/assets/role-doctor.jpg";
 import homecareImg from "@/assets/role-homecare.jpg";
 
-function Phone({ children }: { children: ReactNode }) {
+function PhoneFrame({ children }: { children: ReactNode }) {
   return (
     <div className="w-[220px] shrink-0 rounded-[2rem] border-[6px] border-foreground/90 bg-card shadow-lg overflow-hidden">
       <div className="flex items-center justify-between px-4 pt-2 text-[9px] font-semibold text-foreground">
@@ -202,7 +202,7 @@ function Journey({ icon: I, title, sub, steps, to, cta }: { icon: typeof Home; t
           <div key={label} className="flex shrink-0 snap-start items-center gap-1">
             <div className="space-y-2">
               <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">{i + 1}</span>{label}</p>
-              <Phone>{body}</Phone>
+              <PhoneFrame>{body}</PhoneFrame>
             </div>
             {i < steps.length - 1 && <ChevronRight className="h-5 w-5 text-primary" />}
           </div>
