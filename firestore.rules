@@ -578,9 +578,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /doctor_appointments/{id} {
-      allow read: if isAdmin() || owns('patient_id') || owns('doctor_id') || owns('hospital_id');
-      allow create: if ownsNew('patient_id');
-      allow update: if isAdmin() || owns('patient_id') || owns('doctor_id') || owns('hospital_id');
+      allow read: if isAdmin() || owns('patient_id') || owns('doctor_id') || owns('doctor_user_id') || owns('hospital_id');
+      // Reservation and paid confirmation are transactional trusted actions.
+      allow create: if false;
+      allow update: if (
+          owns('patient_id') || owns('doctor_id') || owns('doctor_user_id') || owns('hospital_id') || isAdmin()
+        ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelled_at', 'completed_at', 'updated_at', 'doctor_notes'])
+        && (
+          request.resource.data.status == resource.data.status
+          || resource.data.status in ['pending', 'confirmed'] && request.resource.data.status == 'cancelled'
+          || (owns('doctor_id') || owns('doctor_user_id') || owns('hospital_id') || isAdmin())
+            && resource.data.payment_status == 'paid'
+            && resource.data.status == 'confirmed' && request.resource.data.status in ['completed', 'no_show']
+        )
+        && (!(request.resource.data.diff(resource.data).affectedKeys().hasAny(['doctor_notes', 'completed_at']))
+          || owns('doctor_id') || owns('doctor_user_id') || owns('hospital_id') || isAdmin());
       allow delete: if isAdmin();
     }
     match /order_groups/{id} {

@@ -541,6 +541,7 @@ async function dispatchOrder(
     if (["delivered", "cancelled", "out_for_delivery"].includes(String(order.status))) {
       return { ok: false, reason: "order_not_dispatchable" };
     }
+    if (order.status !== "ready") throw new ActionError("Mark the package ready before requesting a driver.", 409);
 
     const [deliverySnapshot, offerSnapshot, onlineSnapshot, approvedSnapshot, roleSnapshot, documentsSnapshot, locationsSnapshot, activeDeliverySnapshot, pharmacySnapshot] = await Promise.all([
       transactionQuery(transaction, db.collection("deliveries").where("order_id", "==", orderId)),
@@ -844,9 +845,7 @@ async function declineDeliveryOffer(identity: Identity, offerId: string) {
 async function registerSelfServiceRole(identity: Identity, args: ActionArgs) {
   const role = stringArg(args, "_role");
   if (role === "admin") {
-    if (identity.email?.toLowerCase() !== BOOTSTRAP_ADMIN_EMAIL) {
-      throw new ActionError("Admin role assignment is restricted to the bootstrap administrator.", 403);
-    }
+    throw new ActionError("Admin access requires a secure invite or an existing administrator.", 403);
   } else if (!(SELF_SERVICE_ROLES as readonly string[]).includes(role)) {
     throw new ActionError("Unsupported signup role.", 400);
   }
@@ -1294,7 +1293,8 @@ async function reserveDoctor(identity: Identity, args: ActionArgs) {
       transaction.get(db.collection("doctor_appointments").where("doctor_id", "==", doctorId)),
     ]);
     if (!doctor.exists || doctor.get("status") !== "approved" || doctor.get("is_active") !== true || doctor.get("is_verified") !== true || doctor.get("is_demo") === true) throw new ActionError("Doctor is not approved and available.", 409);
-    const modeField = { in_person: "in_person_available", video: "online_available", phone: "phone_available" }[mode];
+    const modeFields: Record<string, string> = { in_person: "in_person_available", video: "online_available", phone: "phone_available" };
+    const modeField = modeFields[mode];
     if (!modeField || doctor.get(modeField) !== true) throw new ActionError("This consultation mode is not offered.");
     const slots = availableDoctorSlots(availability.docs.map(row => row.data() as Availability), appointments.docs.map(row => row.data() as ExistingAppointment), Date.now());
     const slot = slots.find(slot => Date.parse(slot.scheduledAt) === Date.parse(scheduledAt) && slot.durationMinutes === duration);
