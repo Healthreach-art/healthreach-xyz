@@ -1313,7 +1313,7 @@ async function reserveDoctor(identity: Identity, args: ActionArgs) {
     transaction.create(appointmentRef, { id: appointmentRef.id, patient_id: identity.uid, doctor_id: doctorId, doctor_user_id: doctor.get("user_id") ?? doctorId, hospital_id: doctor.get("hospital_id") ?? null,
       scheduled_at: slot.scheduledAt, duration_minutes: duration, mode, reason: typeof args._reason === "string" ? args._reason.slice(0, 1000) : "",
       consultation_fee: consultationFee, platform_fee: feeSetting / 100, status: "pending", payment_status: "pending", is_demo: false, created_at: now, updated_at: now });
-    return { appointmentId: appointmentRef.id, platformFeeCents: feeSetting };
+    return { appointmentId: appointmentRef.id, platformFeeCents: feeSetting, consultationFee };
   });
 }
 
@@ -1353,6 +1353,7 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
   if (!key.startsWith("sk_test_")) throw new ActionError("Paystack test payments must be configured; live charges are not enabled.", 503);
   const snapshot = await ref.get();
   if (!snapshot.exists || snapshot.get("patient_id") !== identity.uid) throw new ActionError("Payment request not found.", 404);
+  if (kind === "homecare" ? !["quote_pending", "quote_accepted", "assigned"].includes(String(snapshot.get("status"))) : !["pending", "scheduled", "accepted", "preparing", "ready", "out_for_delivery", "delivered"].includes(String(snapshot.get("status")))) throw new ActionError("This payment target is no longer active.", 409);
   if (snapshot.get("payment_status") === "paid" && snapshot.get("payment_verified_at")) return { paid: true, reference: snapshot.get("payment_reference") };
   if (verify) {
     const reference = stringArg(args, "_reference");
@@ -1377,7 +1378,7 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
       return { paid: true, reference };
     });
   }
-  if (typeof snapshot.get("payment_url") === "string") return { paid: false, reference: snapshot.get("payment_reference"), amount: snapshot.get("payment_amount_cents"), url: snapshot.get("payment_url") };
+  if (typeof snapshot.get("payment_url") === "string" && snapshot.get("payment_status") === "pending") return { paid: false, reference: snapshot.get("payment_reference"), amount: snapshot.get("payment_amount_cents"), url: snapshot.get("payment_url") };
   const pending = await db.runTransaction(async transaction => {
     const current = await transaction.get(ref);
     if (current.get("patient_id") !== identity.uid) throw new ActionError("Payment request not found.", 404);
@@ -1397,6 +1398,11 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
       amount = Math.round(Number(current.get("quote_amount")) * 100);
     } else {
       if (!["pending", "scheduled", "accepted", "preparing", "ready"].includes(String(current.get("status")))) throw new ActionError("This order is no longer payable.", 409);
+      const pharmacyId = String(current.get("pharmacy_id"));
+      const pharmacy = await transaction.get(db.collection("pharmacies").doc(pharmacyId));
+      const profile = await transaction.get(db.collection("profiles").doc(pharmacyId));
+      const role = await transaction.get(db.collection("user_roles").doc(`${pharmacyId}_pharmacy`));
+      if (pharmacy.get("status") !== "approved" || profile.get("approval_status") !== "approved" || role.get("role") !== "pharmacy") throw new ActionError("This pharmacy is not approved for orders.", 409);
       const items = await transaction.get(db.collection("orders").where("order_group_id", "==", targetId));
       if (items.empty || items.size > 50) throw new ActionError("Order items are unavailable.");
       let subtotal = 0;
@@ -1405,6 +1411,14 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
         const med = await transaction.get(db.collection("medications_public").doc(String(item.get("medication_id"))));
         const quantity = item.get("quantity");
         if (!med.exists || med.get("pharmacy_id") !== current.get("pharmacy_id") || med.get("is_active") !== true || med.get("is_demo") === true || !Number.isSafeInteger(quantity) || quantity <= 0 || med.get("stock_quantity") < quantity || typeof med.get("price") !== "number") throw new ActionError("A medicine is no longer available. Contact the pharmacy.", 409);
+        const expired = expiryMillis(med.get("expiry_date"));
+        if (expired !== null && (!Number.isFinite(expired) || expired < Date.now())) throw new ActionError("This medicine has expired.", 409);
+        if (med.get("requires_prescription") === true) {
+          const prescriptionId = item.get("prescription_upload_id");
+          if (typeof prescriptionId !== "string") throw new ActionError("An approved prescription is required.", 409);
+          const prescription = await transaction.get(db.collection("prescription_uploads").doc(prescriptionId));
+          if (!prescription.exists || prescription.get("patient_id") !== identity.uid || prescription.get("status") !== "approved" || prescription.get("pharmacy_id") && prescription.get("pharmacy_id") !== pharmacyId || prescription.get("medication_id") && prescription.get("medication_id") !== item.get("medication_id") || prescription.get("expires_at") && asMillis(prescription.get("expires_at")) <= Date.now() || Number(prescription.get("fraud_score") ?? 0) >= 75 || Number(prescription.get("repeats_total") ?? 0) > 0 && Number(prescription.get("repeats_used") ?? 0) >= Number(prescription.get("repeats_total"))) throw new ActionError("This prescription is no longer eligible.", 409);
+        }
         subtotal += Math.round(Number(med.get("price")) * 1.15 * 100) * quantity;
       }
       const lat = current.get("delivery_lat"), lng = current.get("delivery_lng"), pickupLat = current.get("pickup_lat"), pickupLng = current.get("pickup_lng");

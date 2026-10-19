@@ -43,7 +43,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { PharmacyTerminal } from "@/components/PharmacyTerminal";
 
 export const Route = createFileRoute("/dashboard/pharmacy/")({
-  head: () => ({ meta: [{ title: "Pharmacy Dashboard — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Pharmacy Dashboard — HealthReachCare" }, { name: "description", content: "Manage patient medicine orders, payment requests and pharmacy dispatch." }, { property: "og:title", content: "Pharmacy Dashboard — HealthReachCare" }, { property: "og:description", content: "Pharmacy orders, verified payments and deliveries." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: () => <RoleGuard allow="pharmacy"><PharmacyTerminal /></RoleGuard>,
 });
 
