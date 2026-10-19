@@ -19,7 +19,6 @@ import tileMed from "@/assets/tile-order-medicine.png";
 import tileRx from "@/assets/tile-upload-prescription.png";
 import tileTrack from "@/assets/tile-track-delivery.png";
 import tileAppt from "@/assets/tile-book-appointment.png";
-import { BookingJourney } from "@/components/BookingJourney";
 
 
 export const Route = createFileRoute("/")({
@@ -185,12 +184,6 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Booking journeys */}
-      <section className="py-10 bg-background">
-        <div className="mx-auto max-w-[1600px] px-2 sm:px-4">
-          <BookingJourney />
-        </div>
-      </section>
 
       {/* Features Section */}
       <section className="section-padding bg-background">
