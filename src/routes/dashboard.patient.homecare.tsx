@@ -407,8 +407,8 @@ function PatientHomecarePage() {
           <div>
             <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Request Submitted!</h1>
             <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">Your request has been received by the HealthReachCare coordination team. We will review your needs and share available options and a quote before anything is confirmed.</p>
-            {referenceNumber && <div className="mx-auto mt-4 max-w-sm rounded-xl border border-sky-100 bg-sky-50 p-4 text-left"><p className="text-xs text-slate-500">Reference number</p><p className="font-bold text-slate-900">{referenceNumber}</p><Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void copyReference()}><Copy className="mr-1 h-4 w-4" />{copied ? "Copied" : "Copy reference"}</Button></div>}
-            <Button type="button" className="mt-4 bg-sky-600 hover:bg-sky-700" onClick={() => { setStep(0); setServiceType(""); setInstructions(""); setSpecialRequirements(""); setDateKey(""); setTime(""); }}>Make another request</Button>
+            {referenceNumber && <div className="mx-auto mt-4 max-w-sm rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-left"><p className="text-xs text-slate-500">Reference number</p><p className="font-bold text-slate-900">{referenceNumber}</p><Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void copyReference()}><Copy className="mr-1 h-4 w-4" />{copied ? "Copied" : "Copy reference"}</Button></div>}
+            <Button type="button" className="mt-4 bg-emerald-600 hover:bg-emerald-700" onClick={() => { setStep(0); setServiceType(""); setInstructions(""); setSpecialRequirements(""); setDateKey(""); setTime(""); }}>Make another request</Button>
           </div>
         </section>
       )}

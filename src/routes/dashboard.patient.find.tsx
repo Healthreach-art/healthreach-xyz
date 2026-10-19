@@ -3,12 +3,11 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
-import { Search, Loader2, Stethoscope, MapPin, Navigation, ArrowLeft, Video, Phone, BadgeCheck, SlidersHorizontal, Star, Building2 } from "lucide-react";
+import { Search, Loader2, Stethoscope, MapPin, Navigation, ArrowLeft, Video, Phone, BadgeCheck, SlidersHorizontal, Star, Building2, Baby, HeartPulse, Brain, Sparkles, Eye, Bone, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress } from "@/lib/patient-address";
 import { toast } from "sonner";
-import { BookingJourney } from "@/components/BookingJourney";
 
 interface Doctor {
   id: string; full_name: string; specialty: string; city: string; hospital_id: string | null;
@@ -37,6 +36,17 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 }
 
 const MAX_RADIUS_KM = 100;
+const NEEDS = [
+  { label: "General Check-up", specialty: "General Practitioner", icon: Stethoscope },
+  { label: "Child Health", specialty: "Paediatrician", icon: Baby },
+  { label: "Heart", specialty: "Cardiologist", icon: HeartPulse },
+  { label: "Mental Health", specialty: "Psychologist", icon: Brain },
+  { label: "Skin", specialty: "Dermatologist", icon: Sparkles },
+  { label: "Eyes", specialty: "Ophthalmologist", icon: Eye },
+  { label: "Bones & Joints", specialty: "Orthopaedic Surgeon", icon: Bone },
+  { label: "Physio", specialty: "Physiotherapist", icon: Activity },
+  { label: "Women's Health", specialty: "Gynaecologist", icon: HeartPulse },
+];
 const SPECIALTIES = [
   "General Practitioner", "Paediatrician", "Cardiologist", "Dermatologist", "Gynaecologist", "Psychiatrist",
   "Psychologist", "ENT Specialist", "Ophthalmologist", "Orthopaedic Surgeon", "Neurologist", "Endocrinologist",
@@ -186,12 +196,21 @@ function FindCarePage() {
       <header className="flex justify-end border-b border-border/60 pb-5">
         <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Dashboard</Link>
       </header>
-      <BookingJourney only="doctor" />
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Care that fits your needs</p>
-          <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight text-slate-900"><Stethoscope className="h-7 w-7 text-emerald-600" /> Find the Right Doctor</h1>
+          <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight text-slate-900"><Stethoscope className="h-7 w-7 text-emerald-600" /> Find & Compare Doctors</h1>
           <p className="mt-2 max-w-xl text-sm text-slate-600">Search verified healthcare professionals by specialty, location, or the way you prefer to consult.</p>
+        </div>
+      </section>
+      <section className="space-y-3 rounded-[2rem] bg-gradient-to-br from-emerald-500 to-emerald-700 p-5 text-white shadow-lg">
+        <div><p className="text-xs font-semibold uppercase tracking-wider text-white/80">Step 1 · Choose your need</p><h2 className="mt-1 text-xl font-bold">What do you need help with?</h2></div>
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+          {NEEDS.map(({ label, specialty: value, icon: Icon }) => (
+            <button key={label} type="button" aria-pressed={specialty === value} onClick={() => setSpecialty(specialty === value ? "any" : value)} className={`flex flex-col items-center gap-1.5 rounded-2xl p-3 text-center text-xs font-semibold transition ${specialty === value ? "bg-white text-emerald-800" : "bg-white/15 text-white hover:bg-white/25"}`}>
+              <Icon className="h-6 w-6" />{label}
+            </button>
+          ))}
         </div>
       </section>
       {locationLabel && <p className="text-xs text-muted-foreground">Distance from {locationLabel}</p>}
@@ -306,7 +325,7 @@ function DoctorGrid({ doctors, clinicsById }: { doctors: WithDist[]; clinicsById
           {d.rating_avg != null && d.rating_count != null && d.rating_count > 0 && <p className="mt-3 flex items-center gap-1 text-xs text-slate-600"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />{d.rating_avg.toFixed(1)} ({d.rating_count} reviews)</p>}
           <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-4">
             <div><p className="text-[11px] text-muted-foreground">Consultation fee</p><p className="font-bold text-slate-900">{d.consultation_fee == null ? "Not listed" : `R${Number(d.consultation_fee).toFixed(2)}`}</p></div>
-            <Link to="/dashboard/patient/doctors/$id" params={{ id: d.id }} className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700">View Profile <span className="ml-1" aria-hidden="true">→</span></Link>
+            <Link to="/dashboard/patient/doctors/$id" params={{ id: d.id }} className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700">Book Now <span className="ml-1" aria-hidden="true">→</span></Link>
           </div>
         </article>
       ))}
