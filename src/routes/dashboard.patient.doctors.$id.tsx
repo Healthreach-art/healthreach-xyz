@@ -10,6 +10,7 @@ import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2, B
 import { useServerFn } from "@tanstack/react-start";
 import { bookDoctorAppointment, getDoctorAvailableSlots, markDoctorAppointmentPaid } from "@/lib/doctors.functions";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { BookingScreen, StepLabel } from "@/components/BookingScreen";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -322,71 +323,52 @@ function Page() {
   });
 
   return (
-    <main className="container-narrow space-y-6 px-4 py-6 sm:px-6 sm:py-8">
-      <header className="flex justify-end border-b border-border/60 pb-4">
-        <Link to="/dashboard/patient/find" search={{ q: "" }} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back to doctors</Link>
-      </header>
-      <section className="flex flex-col gap-5 rounded-3xl border border-border/60 bg-white p-5 shadow-sm sm:flex-row sm:p-7">
-        <div className="flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-emerald-50">
-          {doc.photo_url ? <img src={doc.photo_url} alt={doc.full_name} className="h-full w-full object-cover" /> : <UserIcon className="h-10 w-10 text-emerald-700" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900">{doc.full_name.toLowerCase().startsWith("dr.") ? doc.full_name : `Dr. ${doc.full_name}`}</h1>
-          <p className="mt-1 text-sm font-medium text-emerald-700">{doc.specialty}</p>
-          <p className="mt-1 flex items-center gap-1 text-xs font-medium text-emerald-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified practitioner</p>
-          {doc.qualifications && <p className="mt-2 text-sm text-slate-600">{doc.qualifications}</p>}
-          {doc.practice_number && <p className="mt-1 text-xs text-muted-foreground">Practice number: {doc.practice_number}</p>}
-          <p className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-          <MapPin className="h-3 w-3" /> {distanceKm != null ? `${distanceKm} km · ` : ""}{clinicName || doc.city}
-            {doc.rating_count > 0 && (
-              <span className="ml-2 flex items-center gap-0.5">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />{doc.rating_avg.toFixed(1)} ({doc.rating_count})
-              </span>
-            )}
-          </p>
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {doc.in_person_available && <Pill>In-person</Pill>}
-            {doc.online_available && <Pill><Video className="h-3 w-3" /> Video</Pill>}
-            {doc.phone_available && <Pill><Phone className="h-3 w-3" /> Phone</Pill>}
-            
+    <main className="min-h-screen bg-emerald-50/60 px-4 py-6 pb-28">
+      <StepLabel n={3} label="Select Date & Time" />
+      <BookingScreen onBack={() => void navigate({ to: "/dashboard/patient/find", search: { q: "" } })}>
+        <div className="flex gap-3">
+          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-emerald-50">
+            {doc.photo_url ? <img src={doc.photo_url} alt={doc.full_name} className="h-full w-full object-cover" /> : <UserIcon className="m-6 h-8 w-8 text-emerald-700" />}
           </div>
-          {doc.bio && <div className="mt-4"><h2 className="text-sm font-bold text-slate-900">About</h2><p className="mt-1 text-sm text-foreground/80">{doc.bio}</p></div>}
-          {!!doc.languages?.length && <p className="mt-3 text-xs text-muted-foreground"><span className="font-semibold text-slate-700">Languages:</span> {doc.languages.join(", ")}</p>}
-          {!!doc.accepted_medical_aids?.length && <p className="mt-1 text-xs text-muted-foreground"><span className="font-semibold text-slate-700">Medical aids:</span> {doc.accepted_medical_aids.join(", ")}</p>}
+          <div className="min-w-0 flex-1">
+            <h1 className="flex items-center gap-1 text-lg font-bold text-emerald-950">{doc.full_name.toLowerCase().startsWith("dr") ? doc.full_name : `Dr. ${doc.full_name}`}<BadgeCheck className="h-4 w-4 shrink-0 text-emerald-600" /></h1>
+            <p className="text-sm text-slate-600">{doc.specialty}</p>
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-600">{doc.rating_count > 0 ? <><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{doc.rating_avg.toFixed(1)} ({doc.rating_count} reviews)</> : "No reviews yet"}</p>
+            <p className="mt-1 text-xl font-bold text-emerald-950">{doc.consultation_fee == null ? "Fee not listed" : `R${Number(doc.consultation_fee).toFixed(0)}`}</p>
+          </div>
         </div>
-        <div className="shrink-0 sm:text-right">
-          <p className="text-xs text-muted-foreground">Consultation</p>
-          <p className="text-2xl font-bold text-slate-900">{doc.consultation_fee == null ? "Not listed" : `R${Number(doc.consultation_fee).toFixed(2)}`}</p>
-          <p className="text-xs text-muted-foreground">Consultation fee</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {doc.in_person_available && <Pill>In-person</Pill>}
+          {doc.online_available && <Pill>Online</Pill>}
+          {doc.phone_available && <Pill>Phone</Pill>}
         </div>
-      </section>
+        <p className="mt-2 flex items-center gap-1 text-xs text-slate-500"><MapPin className="h-3 w-3" />{distanceKm != null ? `${distanceKm} km · ` : ""}{clinicName || doc.city}</p>
 
-      <section className="space-y-5 rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="flex items-center gap-2 font-bold text-slate-900"><CalendarCheck className="h-5 w-5 text-emerald-600" /> Availability</h2>
-        {slotsLoading ? <p className="text-sm text-muted-foreground">Loading live availability…</p> : slotsError ? <p role="alert" className="text-sm text-destructive">{slotsError}</p> : slotGroups.length === 0 ? <p className="text-sm text-muted-foreground">No appointment times are currently available.</p> : (
+        <div className="mt-5 flex items-center justify-between"><p className="font-bold text-emerald-950">Select a date</p><p className="text-xs text-slate-500">{selectedDate ? new Date(`${selectedDate}T12:00:00+02:00`).toLocaleDateString("en-ZA", { month: "long", year: "numeric", timeZone: "Africa/Johannesburg" }) : ""}</p></div>
+        {slotsLoading ? <p className="mt-3 text-sm text-slate-500">Loading live availability…</p> : slotsError ? <p role="alert" className="mt-3 text-sm text-red-600">{slotsError}</p> : slotGroups.length === 0 ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-slate-600">This doctor has no open appointment times right now.</p> : (
           <>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
               {slotGroups.map(([date]) => (
                 <button key={date} type="button" aria-pressed={selectedDate === date} onClick={() => { setSelectedDate(date); setWhen(""); }}
-                  className={`min-w-24 rounded-xl border px-3 py-2 text-sm ${selectedDate === date ? "border-emerald-600 bg-emerald-600 text-white" : "border-border/70 hover:border-emerald-300"}`}>
-                  <span className="block text-[11px] opacity-80">{selectedDateLabel(date).split(" ")[0]}</span>
-                  <span className="font-semibold">{selectedDateLabel(date).split(" ").slice(1).join(" ")}</span>
+                  className={`flex w-14 shrink-0 flex-col items-center rounded-xl border py-2 text-xs ${selectedDate === date ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 text-slate-700"}`}>
+                  <span>{selectedDateLabel(date).split(" ")[0]}</span>
+                  <span className="text-base font-bold">{selectedDateLabel(date).split(" ")[1]}</span>
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <p className="mt-4 font-bold text-emerald-950">Available time slots</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
               {(slotGroups.find(([date]) => date === selectedDate)?.[1] ?? []).map((slot) => (
-                <button key={slot.scheduledAt} type="button" aria-pressed={when === slot.scheduledAt} onClick={() => setWhen(slot.scheduledAt)} className={`rounded-lg border px-3 py-2 text-xs ${when === slot.scheduledAt ? "border-emerald-600 bg-emerald-600 text-white" : "text-slate-700 hover:border-emerald-400"}`}>
+                <button key={slot.scheduledAt} type="button" aria-pressed={when === slot.scheduledAt} onClick={() => setWhen(slot.scheduledAt)} className={`rounded-xl border py-2.5 text-sm font-medium ${when === slot.scheduledAt ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 text-slate-700 hover:border-emerald-400"}`}>
                   {new Date(slot.scheduledAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })}
                 </button>
               ))}
             </div>
           </>
         )}
-        <Button onClick={() => { setBookingStep(bookingStep === 5 ? 5 : reservation ? 4 : 1); setBookingOpen(true); }} disabled={slotsLoading || slotGroups.length === 0 || doc.consultation_fee == null} className="h-12 w-full rounded-xl bg-emerald-600 text-base text-white hover:bg-emerald-700">
-          <CalendarCheck className="mr-2 h-5 w-5" /> Book Appointment
-        </Button>
-      </section>
+        <Button onClick={() => { setBookingStep(bookingStep === 5 ? 5 : reservation ? 4 : when ? 2 : 1); setBookingOpen(true); }} disabled={slotsLoading || slotGroups.length === 0 || doc.consultation_fee == null} className="mt-5 h-12 w-full rounded-xl bg-emerald-700 text-base text-white hover:bg-emerald-800">Continue</Button>
+        {doc.bio && <details className="mt-4 text-sm"><summary className="cursor-pointer font-semibold text-emerald-900">About this doctor</summary><p className="mt-2 text-slate-600">{doc.bio}</p>{doc.qualifications && <p className="mt-1 text-xs text-slate-500">{doc.qualifications}</p>}</details>}
+      </BookingScreen>
 
       <Dialog open={bookingOpen} onOpenChange={setBookingOpen}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
