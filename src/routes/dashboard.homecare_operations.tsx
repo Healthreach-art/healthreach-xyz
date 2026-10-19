@@ -41,7 +41,6 @@ import {
   REQUEST_LABEL,
   filterHomecareRequestsForCoordinator,
   getHomecareStatusSummary,
-  isHomecareServiceActive,
   isHomecareServicePriceValid,
 } from "@/lib/homecare";
 import { HomecareServiceChat } from "@/components/HomecareServiceChat";
@@ -76,7 +75,7 @@ interface ProviderRow {
 interface AssignmentRow {
   id: string;
   request_id: string | null;
-  patient_id: string | null;
+  patient_id?: string | null;
   provider_id: string | null;
   status: string | null;
   created_at: string | null;
@@ -526,7 +525,7 @@ function HomecareOperationsPage() {
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold text-slate-900">Manage services</h2>
-                <Badge variant="secondary">{serviceCatalog.filter((service) => isHomecareServiceActive(service)).length} active</Badge>
+                <Badge variant="secondary">{serviceCatalog.filter((service) => service.active).length} active</Badge>
               </div>
               <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-2 xl:grid-cols-3">
                 <div className="space-y-1">
@@ -572,13 +571,13 @@ function HomecareOperationsPage() {
                   ].includes(request.status));
                   const validPrice = isHomecareServicePriceValid(service.price);
                   return (
-                    <div key={service.id} className={`rounded-xl border p-3 ${isHomecareServiceActive(service) ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+                    <div key={service.id} className={`rounded-xl border p-3 ${service.active ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-medium text-slate-900">{service.name}</p>
                           <p className="text-xs text-slate-500">{service.description || "Standard service offering"}</p>
                         </div>
-                        <Badge variant={isHomecareServiceActive(service) ? "secondary" : "outline"}>{isHomecareServiceActive(service) ? "Active" : "Inactive"}</Badge>
+                        <Badge variant={service.active ? "secondary" : "outline"}>{service.active ? "Active" : "Inactive"}</Badge>
                       </div>
                       <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
                         <span>{validPrice ? `ZAR ${Number(service.price).toFixed(2)}` : "Price pending"}</span>
@@ -586,7 +585,7 @@ function HomecareOperationsPage() {
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => editService(service)}>Edit</Button>
-                        <Button variant="outline" size="sm" onClick={() => toggleService(service.id)}>{isHomecareServiceActive(service) ? "Deactivate" : "Activate"}</Button>
+                        <Button variant="outline" size="sm" onClick={() => toggleService(service.id)}>{service.active ? "Deactivate" : "Activate"}</Button>
                         <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => removeService(service.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>

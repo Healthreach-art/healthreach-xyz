@@ -66,6 +66,8 @@ export const Route = createFileRoute("/pharmacy/$id")({
         { property: "og:title", content: `${name} — HealthReachCare` },
         { property: "og:description", content: description },
         { property: "og:url", content: url },
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: "summary_large_image" },
       ],
       links: [{ rel: "canonical", href: url }],
       scripts: [
@@ -127,29 +129,9 @@ function Storefront() {
       }
       setPharmacy(profileResult.data && approvalResult.data && roleResult.data ? profileResult.data as Pharmacy : null);
       setIsAcceptingOrders(Boolean(branchResult.data || profileResult.data?.address));
-      let medsList = (medicinesResult.data ?? []).filter((med) =>
+      const medsList = (medicinesResult.data ?? []).filter((med) =>
         med.is_active === true && med.is_demo === false && !isMedicineExpired(med.expiry_date),
       ) as Med[];
-      if (medsList.length === 0) {
-        const fallbackMeds = await firestoreClient
-          .from("medications")
-          .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, description, expiry_date, is_active, is_demo")
-          .eq("pharmacy_id", id)
-          .eq("is_active", true)
-          .eq("is_demo", false)
-          .gt("stock_quantity", 0)
-          .order("name");
-        if (fallbackMeds.error) {
-          toast.error(`Could not load pharmacy catalogue: ${fallbackMeds.error.message}`);
-          setPharmacy(null);
-          setMeds([]);
-          setLoading(false);
-          return;
-        }
-        medsList = (fallbackMeds.data ?? []).filter((med) =>
-          !isMedicineExpired(med.expiry_date),
-        ) as Med[];
-      }
       setMeds(medsList);
       setLoading(false);
     })();

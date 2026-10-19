@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getApps, initializeApp } from "firebase-admin/app";
 import {
   FieldValue,
+  FieldPath,
   getFirestore,
   type DocumentData,
   type Query,
@@ -13,6 +14,7 @@ import { defineSecret } from "firebase-functions/params";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { canPublishForPharmacy, expiryMillis, isPublishableMedication, prepareMedicationPublication, type MedicationRecord } from "./catalogue-policy.js";
 
 export { mcpData, mcpOAuth } from "./mcp-oauth.js";
 
@@ -94,49 +96,6 @@ function transactionQuery<T extends DocumentData>(
   return transaction.get(query);
 }
 
-type MedicationRecord = DocumentData & {
-  pharmacy_id?: unknown;
-  name?: unknown;
-  price?: unknown;
-  stock_quantity?: unknown;
-  publish_requested?: unknown;
-  is_active?: unknown;
-  is_demo?: unknown;
-  expiry_date?: unknown;
-};
-
-function expiryMillis(value: unknown): number | null {
-  if (value == null || value === "") return null;
-  const millis = typeof value === "string"
-    ? new Date(value).getTime()
-    : value instanceof Date
-      ? value.getTime()
-      : typeof value === "object"
-        && "toDate" in value
-        && typeof value.toDate === "function"
-        ? value.toDate().getTime()
-        : Number.NaN;
-  return millis;
-}
-
-function isPublishableMedication(medication: MedicationRecord) {
-  if (
-    medication.publish_requested !== true
-    || medication.is_active !== true
-    || medication.is_demo !== false
-    || typeof medication.name !== "string"
-    || !medication.name.trim()
-    || typeof medication.price !== "number"
-    || !Number.isFinite(medication.price)
-    || typeof medication.stock_quantity !== "number"
-    || !Number.isSafeInteger(medication.stock_quantity)
-    || medication.stock_quantity <= 0
-  ) return false;
-  const expiresAt = expiryMillis(medication.expiry_date);
-  if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt < Date.now())) return false;
-  return true;
-}
-
 async function syncPublicMedication(
   medicationId: string,
 ) {
@@ -150,7 +109,7 @@ async function syncPublicMedication(
     const pharmacyId = typeof medication?.pharmacy_id === "string" ? medication.pharmacy_id : null;
     if (!medication || !pharmacyId || !isPublishableMedication(medication)) {
       transaction.delete(publicRef);
-      return;
+      return false;
     }
 
     const [role, profile, pharmacy, branches] = await Promise.all([
@@ -173,7 +132,7 @@ async function syncPublicMedication(
       || !branch
     ) {
       transaction.delete(publicRef);
-      return;
+      return false;
     }
 
     const expiresAt = expiryMillis(medication.expiry_date);
@@ -204,7 +163,63 @@ async function syncPublicMedication(
       branch_id: branchSnapshot.id,
       updated_at: new Date().toISOString(),
     });
+    return true;
   });
+}
+
+async function publishExistingMedicines(identity: Identity, args: ActionArgs) {
+  await requireRole(identity, "pharmacy");
+  const medicationId = args._medication_id;
+  const afterId = args._after_id;
+  for (const value of [medicationId, afterId]) {
+    if (value !== undefined && (typeof value !== "string" || !value || value.length > 128 || value.includes("/"))) {
+      throw new ActionError("Invalid inventory document ID.");
+    }
+  }
+  const profile = await db.collection("profiles").doc(identity.uid).get();
+  const pharmacy = await db.collection("pharmacies").doc(identity.uid).get();
+  if (profile.get("approval_status") !== "approved" || pharmacy.get("status") !== "approved") {
+    throw new ActionError("Only approved pharmacies may publish medicines.", 403);
+  }
+  let query = db.collection("medications").where("pharmacy_id", "==", identity.uid).orderBy(FieldPath.documentId()).limit(40);
+  if (typeof afterId === "string") query = query.startAfter(afterId);
+  const documents = typeof medicationId === "string"
+    ? [await db.collection("medications").doc(medicationId).get()]
+    : (await query.get()).docs;
+  let published = 0;
+  const skipped: Array<{ id: string; name: string; reason: string }> = [];
+  for (const document of documents) {
+    const result = await db.runTransaction(async (transaction) => {
+      const [source, role, currentProfile, currentPharmacy, branches] = await Promise.all([
+        transaction.get(document.ref),
+        transaction.get(db.collection("user_roles").doc(`${identity.uid}_pharmacy`)),
+        transaction.get(db.collection("profiles").doc(identity.uid)),
+        transaction.get(db.collection("pharmacies").doc(identity.uid)),
+        transaction.get(db.collection("pharmacy_branches").where("pharmacy_id", "==", identity.uid).where("is_active", "==", true).where("is_primary", "==", true)),
+      ]);
+      const medication = source.data();
+      if (!medication || !canPublishForPharmacy(identity.uid, medication.pharmacy_id, role.get("role"), currentProfile.get("approval_status"), currentPharmacy.get("status"))) {
+        throw new ActionError("You may only publish your own inventory as an approved pharmacy.", 403);
+      }
+      const name = typeof medication.name === "string" ? medication.name : document.id;
+      if (branches.empty) return { name, reason: "Set an active primary pharmacy branch before publication" };
+      const prepared = prepareMedicationPublication(medication, typeof medicationId === "string");
+      if (!prepared.eligible) return { name, reason: prepared.reason };
+      if (medication.is_active !== true || medication.publish_requested !== true) {
+        transaction.update(document.ref, { ...prepared.patch, updated_at: new Date().toISOString() });
+      }
+      return { name, reason: null };
+    });
+    if (result.reason) {
+      skipped.push({ id: document.id, name: result.name, reason: result.reason });
+      continue;
+    }
+    await syncPublicMedication(document.id);
+    const publicDocument = await db.collection("medications_public").doc(document.id).get();
+    if (publicDocument.exists && publicDocument.get("pharmacy_id") === identity.uid) published++;
+    else skipped.push({ id: document.id, name: result.name, reason: "Publication eligibility changed; check pharmacy approval and inventory" });
+  }
+  return { published, skipped, nextCursor: typeof medicationId !== "string" && documents.length === 40 ? documents.at(-1)?.id ?? null : null };
 }
 
 async function refreshPharmacyCatalog(pharmacyId: string) {
@@ -1243,6 +1258,8 @@ async function claimAdminWithInvite(identity: Identity, args: ActionArgs) {
 
 async function runAction(identity: Identity, name: string, args: ActionArgs) {
   switch (name) {
+    case "publish_existing_medicines":
+      return publishExistingMedicines(identity, args);
     case "register_self_service_role":
       return registerSelfServiceRole(identity, args);
     case "create_homecare_request":

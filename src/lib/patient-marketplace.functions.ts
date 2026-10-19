@@ -52,20 +52,9 @@ export const listPatientMarketplace = createServerFn({ method: "GET" })
       .gt("stock_quantity", 0);
     if (publicError) throw new Error(`Could not load the medicine catalogue: ${publicError.message}`);
 
-    const { data: legacyData, error: legacyError } = await firestoreAdmin
-      .from("medications")
-      .select("id, pharmacy_id, name, price, stock_quantity, requires_prescription, image_url, description, category, expiry_date, is_active, is_demo")
-      .eq("is_active", true)
-      .eq("is_demo", false)
-      .gt("stock_quantity", 0);
-    if (legacyError) throw new Error(`Could not backfill the medicine catalogue: ${legacyError.message}`);
-
-    const publicMeds = publicData ?? [];
-    const publicIds = new Set(publicMeds.map((medication) => medication.id).filter(Boolean));
-    const allData = [
-      ...publicMeds,
-      ...(legacyData ?? []).filter((medication) => !publicIds.has(medication.id)),
-    ];
+    // Raw inventory is private. Legacy recovery happens through trusted publication,
+    // not through a patient-token query that bypasses catalogue eligibility.
+    const allData = publicData ?? [];
     const meds = allData
       .filter((medication) =>
         medication.is_active === true

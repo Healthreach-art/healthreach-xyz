@@ -137,7 +137,7 @@ function RootComponent() {
 }
 
 function AppShell() {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, profile } = useAuth();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const showSidebar = !!user
     && !loading
@@ -166,7 +166,7 @@ function AppShell() {
             <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-9 w-auto shrink-0 sm:h-11" />
             <span className="hidden text-base font-bold tracking-tight text-sky-900 sm:inline sm:text-xl">HealthReachCare</span>
           </Link>
-          <div className="flex items-center gap-3"><PatientNotificationBell /><span className="hidden text-right sm:block"><span className="block text-sm font-semibold text-slate-900">{user?.displayName || "Patient"}</span><span className="block text-xs text-slate-500">Patient</span></span></div>
+          <div className="flex items-center gap-3"><PatientNotificationBell /><span className="hidden text-right sm:block"><span className="block text-sm font-semibold text-slate-900">{profile?.full_name || "Patient"}</span><span className="block text-xs text-slate-500">Patient</span></span></div>
         </header>
         <main className="flex-1 pb-24">
           <Outlet />
