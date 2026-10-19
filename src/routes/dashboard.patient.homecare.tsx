@@ -368,14 +368,14 @@ function PatientHomecarePage() {
       </BookingScreen></>}
 
       <div className="space-y-3">
-        <div><h2 className="text-lg font-semibold text-slate-900">My active requests</h2><p className="text-sm text-muted-foreground">Track quotations and care coordination updates here.</p></div>
+        <div><h2 className="text-lg font-semibold text-emerald-950">My active requests</h2><p className="text-sm text-muted-foreground">Track quotations and care coordination updates here.</p></div>
         {loading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
         {!loading && requests.length === 0 && <div className="rounded-2xl border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground">You have no homecare requests yet. Use the guided form above to tell us what support you need.</div>}
         {!loading && requests.length > 0 && activeRequests.length === 0 && <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">There are no active requests right now.</p>}
         {visibleRequests.filter((r) => !completedRequests.includes(r)).map((r) => {
           const assignment = latestAssignment(r);
           return (
-            <div key={r.id} className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
+            <div key={r.id} className="mx-auto max-w-md space-y-3 rounded-[2rem] border border-emerald-100 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">{r.service_type}</p>
@@ -385,22 +385,27 @@ function PatientHomecarePage() {
                 <Badge variant={r.status === "confirmed" || r.status === "completed" ? "default" : "secondary"}>{REQUEST_LABEL[r.status] ?? r.status}</Badge>
               </div>
               {r.quote_amount != null && (
-                <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-sm">
-                  <p className="font-semibold text-slate-900">Quotation: {r.quote_currency === "ZAR" || !r.quote_currency ? "R" : `${r.quote_currency} `}{Number(r.quote_amount).toFixed(2)}</p>
-                  {r.quote_details && <p>{r.quote_details}</p>}
-                  {r.quote_issued_at && <p className="text-xs text-muted-foreground">Issued {new Date(r.quote_issued_at).toLocaleString()}</p>}
+                <div className="space-y-3">
+                  <p className="text-lg font-bold text-emerald-950">Quotation from Support</p>
+                  <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3"><ShieldCheck className="h-6 w-6 text-emerald-700" /><div><p className="text-sm font-semibold text-emerald-950">HealthReachCare Support</p><p className="text-xs text-slate-600">Service Quotation</p></div></div>
+                  <dl className="grid grid-cols-[6rem_1fr] gap-y-2 text-sm">
+                    <dt className="text-slate-500">Service</dt><dd className="font-medium text-emerald-950">{r.service_type}</dd>
+                    <dt className="text-slate-500">Date</dt><dd className="font-medium text-emerald-950">{r.preferred_at ? new Date(r.preferred_at).toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Johannesburg" }) : "To be confirmed"}</dd>
+                    <dt className="text-slate-500">Time</dt><dd className="font-medium text-emerald-950">{r.preferred_at ? new Date(r.preferred_at).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" }) : "To be confirmed"}</dd>
+                    <dt className="text-slate-500">Caregiver</dt><dd className="font-medium text-emerald-950">{r.homecare_providers?.business_name || r.homecare_providers?.full_name || "Assigned after acceptance"}</dd>
+                  </dl>
+                  {r.quote_details && <p className="text-xs text-slate-600">{r.quote_details}</p>}
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-3"><span className="font-bold text-emerald-950">Total Price</span><span className="text-xl font-bold text-emerald-950">{r.quote_currency === "ZAR" || !r.quote_currency ? "R" : `${r.quote_currency} `}{Number(r.quote_amount).toFixed(2)}</span></div>
+                  <Button type="button" variant="outline" className="h-10 w-full rounded-xl" onClick={() => setSelectedRequest(r)}>View Full Details</Button>
                 </div>
               )}
               {r.status === "quote_pending" && (
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "accept")}>
-                    Accept Quotation
-                  </Button>
-                  <Button size="sm" variant="outline" className="rounded-lg" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "decline")}>
-                    Decline Quotation
-                  </Button>
+                <div className="space-y-2">
+                  <Button className="h-12 w-full rounded-xl bg-emerald-700 text-white hover:bg-emerald-800" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "accept")}>Accept Quotation</Button>
+                  <Button variant="outline" className="h-12 w-full rounded-xl border-emerald-600 text-emerald-700" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "decline")}>Decline</Button>
                 </div>
               )}
+              {["quote_accepted", "assigned"].includes(r.status) && <ServiceProgress status={assignment?.status ?? r.status} />}
               {r.status === "quote_accepted" && (
                 <p className="text-xs text-muted-foreground">Your quote is accepted. The coordinator will confirm availability and scheduling separately. No payment has been taken.</p>
               )}
@@ -468,6 +473,16 @@ function PatientHomecarePage() {
       </section>
     </main>
   );
+}
+
+function ServiceProgress({ status }: { status: string }) {
+  const steps = [["accepted", "Quotation accepted"], ["scheduled", "Caregiver assigned & scheduled"], ["in_progress", "Service in progress"], ["completed", "Service completed"]] as const;
+  const order = ["quote_accepted", "assigned", "accepted", "scheduled", "in_progress", "completed"];
+  const reached = (key: string) => order.indexOf(status) >= order.indexOf(key === "accepted" ? "quote_accepted" : key);
+  return <div className="rounded-2xl bg-emerald-50 p-4">
+    <p className="flex items-center gap-2 font-bold text-emerald-950"><CheckCircle2 className="h-5 w-5 text-emerald-600" />Care Progress</p>
+    {steps.map(([key, label]) => <p key={key} className={`mt-2.5 flex items-center gap-2 text-sm ${reached(key) ? "font-semibold text-emerald-950" : "text-slate-400"}`}><span className={`flex h-5 w-5 items-center justify-center rounded-full ${reached(key) ? "bg-emerald-600" : "bg-slate-200"}`}><Check className="h-3 w-3 text-white" /></span>{label}</p>)}
+  </div>;
 }
 
 function ReviewRow({ title, value, onChange }: { title: string; value: string; onChange: () => void }) {
