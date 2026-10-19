@@ -15,6 +15,10 @@ export const Route = createFileRoute("/firebase-admin")({
     meta: [
       { title: "Admin Control Centre — HealthReachCare" },
       { name: "description", content: "HealthReachCare admin control centre for profiles, roles, documents and providers." },
+      { property: "og:title", content: "Admin Control Centre — HealthReachCare" },
+      { property: "og:description", content: "Review healthcare providers, patient requests and appointments." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -30,6 +34,8 @@ type TabId =
   | "drivers"
   | "homecare_providers"
   | "bookings"
+  | "doctor_appointments"
+  | "pharmacy_appointments"
   | "homecare_requests"
   | "orders"
   | "payments";
@@ -41,13 +47,13 @@ const TABS: { id: TabId; label: string; provider: boolean }[] = [
   { id: "pharmacies", label: "Pharmacies", provider: true },
   { id: "drivers", label: "Drivers", provider: true },
   { id: "homecare_providers", label: "Home care", provider: true },
-  { id: "bookings", label: "Appointments", provider: false },
+  { id: "doctor_appointments", label: "Doctor appointments", provider: false },
+  { id: "pharmacy_appointments", label: "Pharmacy appointments", provider: false },
+  { id: "bookings", label: "Other bookings", provider: false },
   { id: "homecare_requests", label: "Patient requests", provider: false },
   { id: "orders", label: "Orders", provider: false },
   { id: "payments", label: "Payments", provider: false },
 ];
-
-const BOOTSTRAP_ADMIN = "admin@healthreachcare.co.za";
 
 function str(v: unknown) {
   if (v == null) return "—";
@@ -84,7 +90,7 @@ function providerRowsFor(tab: TabId, data: Record<TabId, Row[]>): Row[] {
     doctors: ["doctor"],
     pharmacies: ["pharmacy"],
     drivers: ["driver"],
-    homecare_providers: ["homecare_company", "homecare_individual"],
+    homecare_providers: ["homecare_company", "homecare_individual", "homecare_staff"],
   };
   const roles = providerRoles[tab];
   if (!roles) return data[tab] ?? [];
@@ -285,7 +291,7 @@ function FirebaseAdminPage() {
   const [tab, setTab] = useState<TabId>("doctors");
   const [data, setData] = useState<Record<TabId, Row[]>>({
     profiles: [], user_roles: [], doctors: [], pharmacies: [], drivers: [], homecare_providers: [],
-    bookings: [], homecare_requests: [], orders: [], payments: [],
+    bookings: [], doctor_appointments: [], pharmacy_appointments: [], homecare_requests: [], orders: [], payments: [],
   });
   const [errors, setErrors] = useState<Partial<Record<TabId, string>>>({});
   const [search, setSearch] = useState("");
@@ -305,13 +311,8 @@ function FirebaseAdminPage() {
           return;
         }
         const roles: string[] = await getUserRoles(u.uid).catch((): string[] => []);
-        const isAdmin = roles.includes("admin") || u.email?.toLowerCase() === BOOTSTRAP_ADMIN;
+        const isAdmin = roles.includes("admin");
         if (!isAdmin) { setState("denied"); return; }
-
-        if (!roles.includes("admin")) {
-          const { grantRole } = await import("@/lib/firestore");
-          await grantRole(u.uid, "admin").catch(() => {});
-        }
 
         const { fsGet, fsSet } = await import("@/lib/firestore");
         if (!(await fsGet("profiles", u.uid).catch(() => null))) {
@@ -335,7 +336,8 @@ function FirebaseAdminPage() {
         try {
           const u = await fsSubscribe<Record<string, unknown>>(t.id, [], (rows) => {
             setData((d) => ({ ...d, [t.id]: rows as Row[] }));
-          });
+            setErrors((previous) => ({ ...previous, [t.id]: undefined }));
+          }, (error) => setErrors((previous) => ({ ...previous, [t.id]: error.message })));
           unsubs.push(u);
         } catch (e) {
           setErrors((er) => ({ ...er, [t.id]: e instanceof Error ? e.message : "Could not load" }));
@@ -407,15 +409,15 @@ function FirebaseAdminPage() {
           const list = providerRowsFor(t.id, data);
           const pending = t.provider ? list.filter((r) => r.status === "pending_review").length : 0;
           return (
-            <button
+            <Button variant="outline"
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`rounded-lg border p-3 text-left transition-colors ${tab === t.id ? "border-primary bg-accent" : "border-border bg-card hover:bg-accent/50"}`}
+              className={`h-auto flex-col items-start rounded-lg border p-3 text-left transition-colors ${tab === t.id ? "border-primary bg-accent" : "border-border bg-card hover:bg-accent/50"}`}
             >
               <div className="text-sm text-muted-foreground">{t.label}</div>
               <div className="text-2xl font-semibold">{list.length}</div>
               {pending > 0 && <div className="text-xs font-semibold text-primary">{pending} pending</div>}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -434,7 +436,7 @@ function FirebaseAdminPage() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-semibold text-base truncate">
-                    {str(r.name ?? r.fullName ?? r.organization_name ?? r.email ?? r.service ?? r.medicationName ?? r.role ?? r.id)}
+                    {str(r.name ?? r.full_name ?? r.fullName ?? r.business_name ?? r.organization_name ?? r.email ?? r.service_type ?? r.service ?? r.medication_name ?? r.medicationName ?? r.role ?? r.id)}
                   </div>
                   <div className="text-sm text-muted-foreground break-all">
                     {tab === "user_roles" ? `User ID: ${str(r.userId || r.user_id)}` : str(r.email)}
@@ -448,9 +450,11 @@ function FirebaseAdminPage() {
                     {r.vehicle_type ? <span>Vehicle: <strong className="text-foreground">{str(r.vehicle_type)}</strong></span> : null}
                   </div>
 
-                  {r.scheduledAt || r.date ? <div className="text-sm text-muted-foreground">Date/Time: {str(r.scheduledAt ?? r.date)}</div> : null}
-                  {r.amount != null ? <div className="text-sm text-muted-foreground">Amount: R{str(r.amount)}</div> : null}
-                  {r.address ? <div className="text-sm text-muted-foreground">Address: {str(r.address)}</div> : null}
+                  {r.scheduled_at || r.preferred_at || r.scheduledAt || r.date ? <div className="text-sm text-muted-foreground">Date/Time: {str(r.scheduled_at ?? r.preferred_at ?? r.scheduledAt ?? r.date)}</div> : null}
+                  {r.patient_id ? <div className="text-sm text-muted-foreground">Patient: {str(data.profiles.find(p => (p.user_id ?? p.id) === r.patient_id)?.full_name ?? r.patient_id)}</div> : null}
+                  {r.payment_status ? <div className="text-sm text-muted-foreground">Payment: {str(r.payment_status)}</div> : null}
+                  {r.amount != null || r.total_amount != null || r.total_paid != null ? <div className="text-sm text-muted-foreground">Amount: R{str(r.amount ?? r.total_paid ?? r.total_amount)}</div> : null}
+                  {r.address || r.delivery_address ? <div className="text-sm text-muted-foreground">Address: {str(r.address ?? r.delivery_address)}</div> : null}
                   {r.reviewNote ? <div className="text-xs text-destructive mt-1 font-medium">Review Note: {str(r.reviewNote)}</div> : null}
                 </div>
                 <div className="flex items-center gap-2">
@@ -462,7 +466,7 @@ function FirebaseAdminPage() {
               {/* Document Review Panel */}
               {isProviderTab && (
                 <div className="pt-2 border-t border-border">
-                  <button
+                  <Button variant="ghost" size="sm"
                     type="button"
                     onClick={() => setExpandedDocs((prev) => ({ ...prev, [r.id]: !prev[r.id] }))}
                     className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
@@ -470,7 +474,7 @@ function FirebaseAdminPage() {
                     <FileText className="h-3.5 w-3.5" />
                     View Verification Documents
                     {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                  </button>
+                  </Button>
 
                   {isExpanded && <DocumentReviewPanel tab={tab} row={r} />}
                 </div>

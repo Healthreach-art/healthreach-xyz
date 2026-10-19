@@ -6,12 +6,17 @@ import { firestoreClient } from "@/lib/firestore-client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { DeliveryMap } from "@/components/DeliveryMap";
+import { deliveryBelongsToOrder } from "@/lib/delivery-policy";
 
 export const Route = createFileRoute("/track")({
   head: () => ({
     meta: [
       { title: "Track Order — HealthReachCare" },
       { name: "description", content: "Track your medication delivery in real time." },
+      { property: "og:title", content: "Track Order — HealthReachCare" },
+      { property: "og:description", content: "Follow your medication package from pharmacy to delivery." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: TrackPage,
@@ -22,6 +27,7 @@ type DeliveryStatus = "assigned" | "picked_up" | "in_transit" | "delivered";
 interface Delivery {
   id: string;
   order_id: string;
+  order_group_id?: string | null;
   status: DeliveryStatus;
   pickup_address: string | null;
   delivery_address: string | null;
@@ -80,13 +86,14 @@ function TrackPage() {
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
+    const userId = user.id;
 
     async function load() {
       // Most recent non-cancelled order — but we want the GROUP it belongs to
       const { data: orders } = await firestoreClient
         .from("orders")
         .select("id, order_group_id, status, medication_name, quantity, total_amount, delivery_address, updated_at")
-        .eq("patient_id", user!.id)
+        .eq("patient_id", userId)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false })
         .limit(1);
@@ -148,7 +155,7 @@ function TrackPage() {
         const prevStatus = (payload.old as { status?: string })?.status;
         setDelivery((prev) => {
           // Adopt newly created delivery for the active order
-          if (!prev && order && next.order_id === order.id) {
+          if (!prev && order && deliveryBelongsToOrder(next, order)) {
             if (statusLabels[next.status]) toast.success(statusLabels[next.status]);
             return next;
           }

@@ -198,6 +198,7 @@ export function PharmacyTerminal() {
   async function readyForDriver(group: GroupedOrder<Order>) {
     if (!user || !(await setGroupStatus(group, "ready"))) return;
     const firstOrder = group.items[0];
+    if (!firstOrder) return;
     try {
       const result = await dispatchDrivers({ data: { orderId: firstOrder.id } });
       if (result.waiting || result.assigned) toast.info("Driver dispatch updated.");
@@ -205,27 +206,6 @@ export function PharmacyTerminal() {
       else toast.warning("Order ready. No online drivers are nearby yet.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Driver dispatch failed.");
-    }
-    const code = String(Math.floor(1000 + Math.random() * 9000));
-    let { data: delivery } = await firestoreClient.from("deliveries").select("id").eq("order_id", firstOrder.id).maybeSingle();
-    if (!delivery) {
-      const { data: inserted, error } = await firestoreClient.from("deliveries").insert({
-        order_id: firstOrder.id,
-        status: "assigned",
-        pickup_code: code,
-        pickup_address: primaryBranch?.address || profile?.address || profile?.organization_name || "Pharmacy",
-        delivery_address: group.group?.delivery_address || firstOrder.delivery_address || "",
-        estimated_time: "30-45 minutes",
-      }).select("id").maybeSingle();
-      if (error) toast.error(`Could not create pickup code: ${error.message}`);
-      delivery = inserted;
-    }
-    if (delivery) {
-      if (delivery.id) {
-        const { error } = await firestoreClient.from("deliveries").update({ pickup_code: code }).eq("id", delivery.id);
-        if (error) toast.error(`Could not create pickup code: ${error.message}`);
-        else toast.success(`Pickup code ${code} generated`);
-      }
     }
     await loadDashboard();
   }

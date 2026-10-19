@@ -121,6 +121,49 @@ Role-Specific Dashboards
 
 ## Firebase privileged operations
 
+### Booking/delivery readiness (not deployed automatically)
+
+The default `privilegedFirestoreAction` endpoint returned HTTP 404 during the
+19 October 2026 read-only check. The export and frontend both use `us-central1`;
+no duplicate function or frontend fallback is required. Production deployment
+and billing changes must be separately authorized.
+
+The existing dispatcher now includes `available_doctor_slots`,
+`book_doctor_appointment` and `confirm_doctor_payment`. Actual doctor availability
+is read from `doctor_availability` in Johannesburg time; reservations exclude
+overlaps transactionally. Configure the existing doctor's `platform_fee` or
+the Functions environment variable `DOCTOR_PLATFORM_FEE_CENTS` to the approved
+business amount. No platform fee is invented. Firebase Functions must have a
+valid **test** `PAYSTACK_SECRET_KEY` and `ADMIN_INVITE_CODE` secret. App-server
+secrets do not automatically configure Firebase Functions secrets.
+
+After authorization, authenticate the Firebase CLI, check the project's existing
+billing plan and secret configuration, and deploy only the existing dispatcher:
+
+```sh
+npx firebase-tools login --no-localhost
+npm run functions:build
+npx firebase-tools deploy --only functions:privilegedFirestoreAction --project healthreachcare-prod
+```
+
+Review and publish the updated appointment rules separately only after approval.
+Without those rules, client writes could still change appointment payment fields.
+Without deploying the dispatcher, availability, reservation, confirmation and
+driver acceptance remain unavailable. Verify an unauthenticated POST returns
+401 (not 404), then use real patient, pharmacy, doctor and driver accounts to
+exercise booking/payment and package delivery. A source test is not proof of
+live payment or delivery.
+
+The classic admin reads actual `doctor_appointments`, `pharmacy_appointments`,
+patient requests and orders. Admin access requires a persisted admin role; no
+email-only elevation is allowed. Pharmacy dispatch no longer invents a driver
+assignment or overwrites pickup codes. Trusted driver acceptance creates the
+package relationship, pickup code and customer delivery code.
+
+Upfront homecare remains blocked on an agreed price/package interpretation and
+provider eligibility/refund handling. Do not interpret the existing request and
+quote screen as a verified paid booking, or charge for an unassigned service.
+
 Wallet and driver-dispatch mutations run in the `privilegedFirestoreAction`
 Firebase Cloud Function so its Admin SDK can apply Firestore transactions
 without granting direct client write access to wallet balances or delivery

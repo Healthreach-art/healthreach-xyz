@@ -15,6 +15,7 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { canPublishForPharmacy, expiryMillis, isPublishableMedication, prepareMedicationPublication, type MedicationRecord } from "./catalogue-policy.js";
+import { availableDoctorSlots, type Availability, type ExistingAppointment } from "./doctor-slots.js";
 
 export { mcpData, mcpOAuth } from "./mcp-oauth.js";
 
@@ -65,7 +66,7 @@ async function hasRole(uid: string, role: string) {
 }
 
 async function isAdmin(identity: Identity) {
-  return identity.email?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL || hasRole(identity.uid, "admin");
+  return identity.emailVerified && hasRole(identity.uid, "admin");
 }
 
 async function requireRole(identity: Identity, role: string) {
@@ -540,6 +541,7 @@ async function dispatchOrder(
     if (["delivered", "cancelled", "out_for_delivery"].includes(String(order.status))) {
       return { ok: false, reason: "order_not_dispatchable" };
     }
+    if (order.status !== "ready") throw new ActionError("Mark the package ready before requesting a driver.", 409);
 
     const [deliverySnapshot, offerSnapshot, onlineSnapshot, approvedSnapshot, roleSnapshot, documentsSnapshot, locationsSnapshot, activeDeliverySnapshot, pharmacySnapshot] = await Promise.all([
       transactionQuery(transaction, db.collection("deliveries").where("order_id", "==", orderId)),
@@ -569,8 +571,11 @@ async function dispatchOrder(
     }
 
     const pharmacy = pharmacySnapshot.docs[0]?.data() ?? {};
-    const pickupLat = Number(order.pickup_lat ?? pharmacy.latitude ?? -33.9249);
-    const pickupLng = Number(order.pickup_lng ?? pharmacy.longitude ?? 18.4241);
+    const pickupLat = order.pickup_lat ?? pharmacy.latitude;
+    const pickupLng = order.pickup_lng ?? pharmacy.longitude;
+    if (typeof pickupLat !== "number" || typeof pickupLng !== "number" || !Number.isFinite(pickupLat) || !Number.isFinite(pickupLng)) {
+      throw new ActionError("The pharmacy must save its real pickup location before dispatch.", 409);
+    }
     const driverRoles = new Set(roleSnapshot.docs.map((document) => String(document.get("user_id"))));
     const approvedProfiles = new Map(
       approvedSnapshot.docs.map((document) => [String(document.get("user_id")), document.data()]),
@@ -753,6 +758,7 @@ async function acceptDeliveryOffer(identity: Identity, offerId: string) {
     if (existingDelivery) throw new ActionError("Too late — another driver took it.", 409);
     if (deliveriesSnapshot.size > 1) throw new ActionError("Multiple deliveries exist for this order.", 409);
     const order = orderSnapshot.data() ?? {};
+    if (order.status !== "ready") throw new ActionError("The pharmacy has not marked this package ready for pickup.", 409);
     const pharmacy = pharmacySnapshot.docs[0]?.data() ?? {};
     const pickupAddress = pharmacy.address || pharmacy.organization_name || "Pharmacy pickup point";
     const orderGroupRef = typeof order.order_group_id === "string"
@@ -771,6 +777,8 @@ async function acceptDeliveryOffer(identity: Identity, offerId: string) {
       transaction.update(delivery.ref, {
         driver_id: identity.uid,
         status: "assigned",
+        order_group_id: order.order_group_id ?? null,
+        pickup_code: delivery.get("pickup_code") || String(randomInt(1000, 10000)),
         pickup_address: delivery.get("pickup_address") || pickupAddress,
         delivery_address: delivery.get("delivery_address") || order.delivery_address || "",
         updated_at: now,
@@ -779,8 +787,10 @@ async function acceptDeliveryOffer(identity: Identity, offerId: string) {
       const deliveryRef = db.collection("deliveries").doc();
       transaction.create(deliveryRef, {
         order_id: orderId,
+        order_group_id: order.order_group_id ?? null,
         driver_id: identity.uid,
         status: "assigned",
+        pickup_code: String(randomInt(1000, 10000)),
         pickup_address: pickupAddress,
         delivery_address: order.delivery_address ?? "",
         estimated_time: "30-45 minutes",
@@ -797,7 +807,7 @@ async function acceptDeliveryOffer(identity: Identity, offerId: string) {
       updated_at: now,
     });
     if (orderGroupRef && orderGroupSnapshot?.exists) {
-      transaction.update(orderGroupRef, { driver_id: identity.uid, updated_at: now });
+      transaction.update(orderGroupRef, { driver_id: identity.uid, delivery_code: orderGroupSnapshot.get("delivery_code") || String(randomInt(1000, 10000)), updated_at: now });
     }
     for (const [userId, title, body, link] of [
       [String(order.patient_id ?? ""), "Driver assigned", "A driver accepted your order and is heading to the pharmacy.", "/dashboard/patient#orders"],
@@ -835,9 +845,7 @@ async function declineDeliveryOffer(identity: Identity, offerId: string) {
 async function registerSelfServiceRole(identity: Identity, args: ActionArgs) {
   const role = stringArg(args, "_role");
   if (role === "admin") {
-    if (identity.email?.toLowerCase() !== BOOTSTRAP_ADMIN_EMAIL) {
-      throw new ActionError("Admin role assignment is restricted to the bootstrap administrator.", 403);
-    }
+    throw new ActionError("Admin access requires a secure invite or an existing administrator.", 403);
   } else if (!(SELF_SERVICE_ROLES as readonly string[]).includes(role)) {
     throw new ActionError("Unsupported signup role.", 400);
   }
@@ -1256,8 +1264,83 @@ async function claimAdminWithInvite(identity: Identity, args: ActionArgs) {
   return { ok: true };
 }
 
+async function doctorSlots(identity: Identity, args: ActionArgs) {
+  const doctorId = stringArg(args, "_doctor_id");
+  const [doctor, availability, appointments] = await Promise.all([
+    db.collection("doctors").doc(doctorId).get(),
+    db.collection("doctor_availability").where("doctor_id", "==", doctorId).get(),
+    db.collection("doctor_appointments").where("doctor_id", "==", doctorId).get(),
+  ]);
+  if (!identity.emailVerified) throw new ActionError("Verify your email before booking.", 403);
+  if (!doctor.exists || doctor.get("status") !== "approved" || doctor.get("is_active") !== true || doctor.get("is_verified") !== true || doctor.get("is_demo") === true) {
+    throw new ActionError("This doctor is not available for booking.", 409);
+  }
+  return { slots: availableDoctorSlots(availability.docs.map(row => row.data() as Availability), appointments.docs.map(row => row.data() as ExistingAppointment), Date.now()) };
+}
+
+async function reserveDoctor(identity: Identity, args: ActionArgs) {
+  await requireRole(identity, "patient");
+  if (!identity.emailVerified) throw new ActionError("Verify your email before booking.", 403);
+  const doctorId = stringArg(args, "_doctor_id");
+  const scheduledAt = stringArg(args, "_scheduled_at");
+  const duration = integerArg(args, "_duration_minutes", undefined, 30, 120);
+  const mode = stringArg(args, "_mode");
+  const appointmentRef = db.collection("doctor_appointments").doc(randomUUID());
+  return db.runTransaction(async transaction => {
+    const [doctor, availability, appointments] = await Promise.all([
+      transaction.get(db.collection("doctors").doc(doctorId)),
+      transaction.get(db.collection("doctor_availability").where("doctor_id", "==", doctorId)),
+      transaction.get(db.collection("doctor_appointments").where("doctor_id", "==", doctorId)),
+    ]);
+    if (!doctor.exists || doctor.get("status") !== "approved" || doctor.get("is_active") !== true || doctor.get("is_verified") !== true || doctor.get("is_demo") === true) throw new ActionError("Doctor is not approved and available.", 409);
+    const modeFields: Record<string, string> = { in_person: "in_person_available", video: "online_available", phone: "phone_available" };
+    const modeField = modeFields[mode];
+    if (!modeField || doctor.get(modeField) !== true) throw new ActionError("This consultation mode is not offered.");
+    const slots = availableDoctorSlots(availability.docs.map(row => row.data() as Availability), appointments.docs.map(row => row.data() as ExistingAppointment), Date.now());
+    const slot = slots.find(slot => Date.parse(slot.scheduledAt) === Date.parse(scheduledAt) && slot.durationMinutes === duration);
+    if (!slot) throw new ActionError("That appointment time is no longer available.", 409);
+    const consultationFee = doctor.get("consultation_fee");
+    const feeSetting = doctor.get("platform_fee") != null ? Number(doctor.get("platform_fee")) * 100 : Number(process.env.DOCTOR_PLATFORM_FEE_CENTS ?? NaN);
+    if (typeof consultationFee !== "number" || !Number.isFinite(consultationFee) || consultationFee < 0 || !Number.isSafeInteger(feeSetting) || feeSetting < 0) {
+      throw new ActionError("The consultation and platform fees must be configured before checkout.", 503);
+    }
+    const now = new Date().toISOString();
+    transaction.create(appointmentRef, { id: appointmentRef.id, patient_id: identity.uid, doctor_id: doctorId, doctor_user_id: doctor.get("user_id") ?? doctorId, hospital_id: doctor.get("hospital_id") ?? null,
+      scheduled_at: slot.scheduledAt, duration_minutes: duration, mode, reason: typeof args._reason === "string" ? args._reason.slice(0, 1000) : "",
+      consultation_fee: consultationFee, platform_fee: feeSetting / 100, status: "pending", payment_status: "pending", is_demo: false, created_at: now, updated_at: now });
+    return { appointmentId: appointmentRef.id, platformFeeCents: feeSetting };
+  });
+}
+
+async function confirmDoctorPayment(identity: Identity, args: ActionArgs) {
+  if (!identity.emailVerified) throw new ActionError("Verify your email before paying.", 403);
+  const id = stringArg(args, "_appointment_id");
+  const reference = stringArg(args, "_reference");
+  const key = paystackSecret.value().trim();
+  if (!key.startsWith("sk_test_")) throw new ActionError("A valid Paystack test secret is required; live charges are not enabled.", 503);
+  const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, { headers: { Authorization: `Bearer ${key}` } });
+  const verified = await response.json() as { status?: boolean; data?: { status?: string; reference?: string; amount?: number; currency?: string; metadata?: Record<string, unknown> } };
+  const payment = verified.data;
+  if (!response.ok || !verified.status || payment?.status !== "success" || payment.reference !== reference || payment.currency !== "ZAR"
+    || payment.metadata?.appointment_id !== id || payment.metadata?.payment_type !== "doctor_booking_fee") throw new ActionError("Payment could not be verified for this appointment.");
+  const ref = db.collection("doctor_appointments").doc(id);
+  return db.runTransaction(async transaction => {
+    const appointment = await transaction.get(ref);
+    if (!appointment.exists || appointment.get("patient_id") !== identity.uid) throw new ActionError("Appointment not found.", 404);
+    const total = Number(appointment.get("consultation_fee")) + Number(appointment.get("platform_fee"));
+    if (!Number.isFinite(total) || total <= 0 || payment.amount !== Math.round(total * 100)) throw new ActionError("Payment amount does not match the appointment fee.");
+    if (appointment.get("payment_status") === "paid" && appointment.get("payment_reference") === reference) return { ok: true };
+    if (appointment.get("payment_status") !== "pending" || appointment.get("status") !== "pending") throw new ActionError("Appointment is no longer awaiting payment.", 409);
+    transaction.update(ref, { status: "confirmed", payment_status: "paid", payment_reference: reference, total_paid: total, updated_at: new Date().toISOString() });
+    return { ok: true };
+  });
+}
+
 async function runAction(identity: Identity, name: string, args: ActionArgs) {
   switch (name) {
+    case "available_doctor_slots": return doctorSlots(identity, args);
+    case "book_doctor_appointment": return reserveDoctor(identity, args);
+    case "confirm_doctor_payment": return confirmDoctorPayment(identity, args);
     case "publish_existing_medicines":
       return publishExistingMedicines(identity, args);
     case "register_self_service_role":

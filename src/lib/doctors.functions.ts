@@ -5,7 +5,7 @@ import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 
 export const getDoctorAvailableSlots = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((d) => z.object({ doctorId: z.string().uuid() }).parse(d))
+  .inputValidator((d) => z.object({ doctorId: z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/) }).parse(d))
   .handler(async ({ data }) => {
     const { firestoreAdmin } = await import("@/lib/firestore-admin");
     const result = await firestoreAdmin.rpc("available_doctor_slots", {
@@ -20,7 +20,7 @@ export const bookDoctorAppointment = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((d) =>
     z.object({
-      doctorId: z.string().uuid(),
+      doctorId: z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
       scheduledAt: z.string().datetime({ offset: true }),
       durationMinutes: z.number().int().min(30).max(120).multipleOf(30),
       mode: z.enum(["in_person", "video", "phone"]),
@@ -54,86 +54,8 @@ export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     if (context.claims.email_verified !== true) throw new Error("Verify your email before paying for an appointment.");
-    const paystackSecret = (process.env.PAYSTACK_SECRET_KEY || process.env.STRIPE_TEST_API_KEY);
-    if (!paystackSecret) throw new Error("Payment provider not configured");
-
-    const { data: existing, error: lookupErr } = await firestoreAdmin
-      .from("doctor_appointments")
-      .select("id, patient_id, payment_status, payment_reference, platform_fee, consultation_fee")
-      .eq("id", data.appointmentId)
-      .maybeSingle();
-    if (lookupErr) throw new Error(lookupErr.message);
-    if (!existing || existing.patient_id !== context.userId) throw new Error("Appointment not found");
-
-    // Verify the reference against Paystack before marking the appointment paid.
-    const verifyRes = await fetch(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(data.reference)}`,
-      { headers: { Authorization: `Bearer ${paystackSecret}` } },
-    );
-    const verifyJson = (await verifyRes.json().catch(() => ({}))) as {
-      status?: boolean;
-      data?: {
-        status?: string;
-        amount?: number;
-        currency?: string;
-        reference?: string;
-        metadata?: Record<string, unknown>;
-      };
-    };
-    if (
-      !verifyRes.ok
-      || !verifyJson.status
-      || verifyJson.data?.status !== "success"
-      || verifyJson.data.reference !== data.reference
-      || verifyJson.data.metadata?.appointment_id !== data.appointmentId
-      || verifyJson.data.metadata?.payment_type !== "doctor_booking_fee"
-    ) {
-      throw new Error("Payment could not be verified");
-    }
-    const paidMinor = Number(verifyJson.data?.amount ?? 0);
-    const amountDue = Number(existing.platform_fee) + Number(existing.consultation_fee);
-    const expectedMinor = Math.round(amountDue * 100);
-    if (
-      !Number.isSafeInteger(expectedMinor)
-      || expectedMinor <= 0
-      || paidMinor !== expectedMinor
-      || verifyJson.data.currency !== "ZAR"
-    ) {
-      throw new Error("Payment amount does not match the appointment fee");
-    }
-
-    if (existing.payment_status === "paid" && existing.payment_reference === data.reference) {
-      return { ok: true };
-    }
-    if (existing.payment_status !== "pending") {
-      throw new Error("Appointment already paid");
-    }
-
-    const { error, count } = await firestoreAdmin
-      .from("doctor_appointments")
-      .update({
-        payment_status: "paid",
-        payment_reference: data.reference,
-        total_paid: amountDue,
-        status: "confirmed",
-      })
-      .eq("id", data.appointmentId)
-      .eq("patient_id", context.userId)
-      .eq("payment_status", "pending");
-    if (error) throw new Error(error.message);
-    if (count === 0) {
-      const { data: current, error: currentError } = await firestoreAdmin
-        .from("doctor_appointments")
-        .select("payment_status, payment_reference")
-        .eq("id", data.appointmentId)
-        .eq("patient_id", context.userId)
-        .maybeSingle();
-      if (currentError) throw new Error(currentError.message);
-      if (current?.payment_status === "paid" && current.payment_reference === data.reference) {
-        return { ok: true };
-      }
-      throw new Error("The payment state changed before it could be recorded. Refresh your appointment.");
-    }
+    const { error } = await firestoreAdmin.rpc("confirm_doctor_payment", { _appointment_id: data.appointmentId, _reference: data.reference });
+    if (error) throw error;
     return { ok: true };
   });
 

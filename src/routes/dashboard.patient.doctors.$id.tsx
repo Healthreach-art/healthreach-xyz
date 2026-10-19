@@ -14,15 +14,7 @@ import { BookingScreen, ScreenTitle, StepLabel } from "@/components/BookingScree
 import { LockFavourite } from "@/components/LockFavourite";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
-
-function downloadIcs(startIso: string, doctor: string, place: string) {
-  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const start = new Date(startIso);
-  const end = new Date(start.getTime() + 30 * 60000);
-  const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//HealthReachCare//EN", "BEGIN:VEVENT", `UID:${startIso}@healthreachcare.co.za`, `DTSTAMP:${fmt(new Date())}`, `DTSTART:${fmt(start)}`, `DTEND:${fmt(end)}`, `SUMMARY:Appointment with ${doctor}`, `LOCATION:${place ?? ""}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
-  const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
-  const a = document.createElement("a"); a.href = url; a.download = "appointment.ics"; a.click(); URL.revokeObjectURL(url);
-}
+import { downloadAppointmentCalendar } from "@/lib/appointment-calendar";
 import { readPatientAddress } from "@/lib/patient-address";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
@@ -74,7 +66,7 @@ function distanceInKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 }
 
 export const Route = createFileRoute("/dashboard/patient/doctors/$id")({
-  head: () => ({ meta: [{ title: "Doctor — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Book a Doctor — HealthReachCare" }, { name: "description", content: "Choose a real available appointment, review fees and securely confirm your doctor booking." }, { property: "og:title", content: "Book a Doctor — HealthReachCare" }, { property: "og:description", content: "Doctor availability, appointment payment and confirmation." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   validateSearch: (s: Record<string, unknown>): { when?: string } =>
     typeof s.when === "string" ? { when: s.when } : {},
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
@@ -97,6 +89,7 @@ interface BookingReservation {
   appointmentId: string;
   platformFeeCents: number;
   scheduledAt: string;
+  durationMinutes: number;
   mode: "in_person" | "video" | "phone";
   reason: string;
 }
@@ -232,19 +225,7 @@ function Page() {
       if (platformFeeCents == null || !Number.isSafeInteger(platformFeeCents) || platformFeeCents < 0) {
         throw new Error("The appointment service returned an invalid platform fee.");
       }
-      void import("@/lib/firestore-sync").then(({ mirrorRecord }) => {
-        void mirrorRecord("bookings", appointmentId, {
-          type: "doctor", service: `Doctor: ${doc.full_name}`, name: user.email,
-          doctorRecordId: doc.id, scheduledAt: selectedSlot.scheduledAt, mode, reason: appointmentReason,
-          status: "pending", paymentStatus: "pending",
-        });
-        void mirrorRecord("payments", appointmentId, {
-          type: "doctor_appointment_payment",
-          amount: Number(doc.consultation_fee ?? 0) + platformFeeCents / 100,
-          status: "pending",
-        });
-      });
-      setReservation({ appointmentId, platformFeeCents, scheduledAt: selectedSlot.scheduledAt, mode, reason: appointmentReason });
+      setReservation({ appointmentId, platformFeeCents, scheduledAt: selectedSlot.scheduledAt, durationMinutes: selectedSlot.durationMinutes, mode, reason: appointmentReason });
       setBookingStep(4);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Could not prepare appointment payment");
@@ -298,9 +279,6 @@ function Page() {
                 || v.metadata.payment_type !== "doctor_booking_fee"
               ) throw new Error("Payment not verified for this appointment");
               await markPaid({ data: { appointmentId: reservation.appointmentId, reference: resp.reference } });
-              void import("@/lib/firestore-sync").then(({ mirrorRecord }) => {
-                void mirrorRecord("bookings", reservation.appointmentId, { status: "confirmed", paymentStatus: "paid" });
-              });
               toast.success("Appointment confirmed!");
               setBookingStep(5);
             } catch (error: unknown) { toast.error(error instanceof Error ? error.message : "Could not confirm payment"); }
@@ -484,8 +462,8 @@ function Page() {
                 {distanceKm != null && <p><strong>Distance:</strong> {distanceKm} km</p>}
               </div>
               <div className="grid gap-2">
-                <Button className="h-11 rounded-xl bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => navigate({ to: "/dashboard/patient/consultations" })}>View Appointment</Button>
-                {reservation && <Button variant="outline" className="h-11 rounded-xl border-emerald-200 text-emerald-800" onClick={() => downloadIcs(reservation.scheduledAt, doc.full_name, clinicName || doc.city)}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
+                <Button className="h-11 rounded-xl" onClick={() => navigate({ to: "/dashboard/patient/consultations", search: { appointment: reservation?.appointmentId } })}>View Appointment</Button>
+                {reservation && <Button variant="outline" className="h-11 rounded-xl" onClick={() => downloadAppointmentCalendar({ id: reservation.appointmentId, scheduledAt: reservation.scheduledAt, durationMinutes: reservation.durationMinutes, doctor: doc.full_name, location: clinicName || doc.city })}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
                 <Button variant="outline" className="h-11 rounded-xl border-emerald-200 text-emerald-800" onClick={() => navigate({ to: "/dashboard/patient/consultations" })}><MessageCircle className="mr-2 h-4 w-4" />Message Doctor</Button>
               </div>
               <LockFavourite uid={user?.id} type="doctor" providerId={doc.id} providerName={doc.full_name} />

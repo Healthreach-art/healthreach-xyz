@@ -151,7 +151,7 @@ async function assertPharmacyOrAdmin(userId: string, orderId?: string) {
 
 export const dispatchOrderToNearbyDrivers = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((i) => z.object({ orderId: z.string().uuid() }).parse(i))
+  .inputValidator((i) => z.object({ orderId: z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/) }).parse(i))
   .handler(async ({ data, context }) => {
     await assertPharmacyOrAdmin(context.userId, data.orderId);
     const { data: result, error } = await firestoreAdmin.rpc("dispatch_ready_order_to_drivers", {
@@ -179,7 +179,7 @@ export const rebroadcastUnacceptedDriverOrders = createServerFn({ method: "POST"
 
 export const acceptDeliveryOffer = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((i) => z.object({ offerId: z.string().uuid() }).parse(i))
+  .inputValidator((i) => z.object({ offerId: z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/) }).parse(i))
   .handler(async ({ data, context }) => {
     const { data: result, error } = await firestoreAdmin.rpc("accept_delivery_offer_for_driver", {
       _offer_id: data.offerId,
@@ -191,7 +191,7 @@ export const acceptDeliveryOffer = createServerFn({ method: "POST" })
 
 export const declineDeliveryOffer = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((i) => z.object({ offerId: z.string().uuid() }).parse(i))
+  .inputValidator((i) => z.object({ offerId: z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/) }).parse(i))
   .handler(async ({ data, context }) => {
     const { data: result, error } = await firestoreAdmin.rpc("decline_delivery_offer_for_driver", {
       _offer_id: data.offerId,
