@@ -78,14 +78,14 @@ function FindCarePage() {
     setLoading(true);
     setLoadError("");
     try {
-      const columns = "id, full_name, specialty, city, address, hospital_id, qualifications, photo_url, consultation_fee, rating_avg, rating_count, latitude, longitude, subspecialties, services_tags, in_person_available, online_available, phone_available";
+      // Select the live row shape instead of a brittle column list: older approved doctor records may not yet have optional profile fields.
       const { data, error } = await firestoreClient.from("doctors")
-        .select(columns)
+        .select("*")
         .eq("is_active", true).eq("is_verified", true)
-        .order("rating_avg", { ascending: false }).limit(80);
+        .limit(80);
       if (currentRequest !== doctorRequestId.current) return;
       if (error) throw error;
-      const results = (data ?? []) as Doctor[];
+      const results = ((data ?? []) as Doctor[]).sort((a, b) => (b.rating_avg ?? 0) - (a.rating_avg ?? 0));
       setDoctors(results);
       const hospitalIds = Array.from(new Set(results.map((doctor) => doctor.hospital_id).filter((id): id is string => !!id)));
       if (hospitalIds.length) {
