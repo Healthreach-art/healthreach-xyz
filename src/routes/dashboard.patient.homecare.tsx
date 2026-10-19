@@ -18,6 +18,7 @@ import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from
 import { useServerFn } from "@tanstack/react-start";
 import { reorderCompletedHomecare, respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
 import { HomecareServiceChat } from "@/components/HomecareServiceChat";
+import { REQUEST_LABEL } from "@/lib/homecare";
 
 interface HomecareRequest {
   id: string;
@@ -121,7 +122,7 @@ function PatientHomecarePage() {
   const [dateKey, setDateKey] = useState("");
   const [time, setTime] = useState("");
   const [locationMode, setLocationMode] = useState<"home" | "different">("home");
-  const [address, setAddress] = useState<PickedAddress | null>(null);
+  const [address, setAddress] = useState<{ address: string; lat: number | null; lng: number | null } | null>(null);
   const [savedAddress, setSavedAddress] = useState("");
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);

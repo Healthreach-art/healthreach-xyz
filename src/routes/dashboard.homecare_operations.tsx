@@ -41,7 +41,6 @@ import {
   REQUEST_LABEL,
   filterHomecareRequestsForCoordinator,
   getHomecareStatusSummary,
-  isHomecareServiceActive,
   isHomecareServicePriceValid,
 } from "@/lib/homecare";
 import { HomecareServiceChat } from "@/components/HomecareServiceChat";
@@ -76,7 +75,7 @@ interface ProviderRow {
 interface AssignmentRow {
   id: string;
   request_id: string | null;
-  patient_id: string | null;
+  patient_id?: string | null;
   provider_id: string | null;
   status: string | null;
   created_at: string | null;

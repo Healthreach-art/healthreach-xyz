@@ -22,6 +22,8 @@ import { customerPrice } from "@/lib/pricing";
 import { BulkMedicineImportDialog } from "@/components/BulkMedicineImportDialog";
 import medGeneric from "@/assets/med-generic.jpg";
 import { PrescriptionBadge } from "@/components/PrescriptionBadge";
+import { useServerFn } from "@tanstack/react-start";
+import { publishExistingMedicines, type PublicationResult } from "@/lib/medication-publication.functions";
 
 export interface PharmacyInventoryPanelProps {
   /** Only show items at or below the low-stock threshold. */
@@ -36,8 +38,8 @@ interface Medication {
   stock_quantity: number;
   price: number;
   category: string | null;
-  is_active: boolean;
-  publish_requested: boolean;
+  is_active?: boolean;
+  publish_requested?: boolean;
   requires_prescription?: boolean | null;
   image_url?: string | null;
   expiry_date?: string | null;
@@ -58,6 +60,32 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
   const [stockAdjustment, setStockAdjustment] = useState("1");
+  const publishInventory = useServerFn(publishExistingMedicines);
+  const [publishing, setPublishing] = useState(false);
+  const [publicationResult, setPublicationResult] = useState<PublicationResult | null>(null);
+
+  async function requestPublication(medicationId?: string) {
+    if (publishing) return;
+    setPublishing(true);
+    setPublicationResult(null);
+    const summary: PublicationResult = { published: 0, skipped: [], nextCursor: null };
+    try {
+      let afterId: string | undefined;
+      do {
+        const page = await publishInventory({ data: { medicationId, afterId } });
+        summary.published += page.published;
+        summary.skipped.push(...page.skipped);
+        afterId = page.nextCursor ?? undefined;
+        setPublicationResult({ ...summary, skipped: [...summary.skipped] });
+      } while (afterId && !medicationId);
+      toast.success(`${summary.published} medicines published`);
+      await loadInventory();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not publish medicines");
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   const [medDialogOpen, setMedDialogOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
@@ -196,19 +224,6 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
     setInventory((prev) => prev.map((m) => (m.id === med.id ? { ...m, stock_quantity: next } : m)));
   }
 
-  async function togglePublish(med: Medication) {
-    const publishRequested = !med.publish_requested;
-    const { error } = await firestoreClient.from("medications").update({
-      publish_requested: publishRequested,
-      updated_at: new Date().toISOString(),
-    }).eq("id", med.id);
-    if (error) { toast.error(error.message); return; }
-    setInventory((prev) => prev.map((item) =>
-      item.id === med.id ? { ...item, publish_requested: publishRequested } : item,
-    ));
-    toast.success(publishRequested ? "Medicine publication requested" : "Medicine unpublished");
-  }
-
   async function confirmArchive() {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -259,10 +274,20 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" disabled={publishing || loading || inventory.length === 0} onClick={() => void requestPublication()}>
+            {publishing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Package className="mr-1 h-4 w-4" />}Publish existing medicines
+          </Button>
           <BulkMedicineImportDialog onImported={loadInventory} />
           <Button size="sm" onClick={openAdd} className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"><Plus className="mr-1 h-4 w-4" />Add New Item</Button>
         </div>
       </div>
+
+      {publicationResult && <div role="status" className="mb-5 border border-border bg-muted/30 p-3 text-sm">
+        <p className="font-semibold">{publicationResult.published} published · {publicationResult.skipped.length} skipped</p>
+        {publicationResult.skipped.length > 0 && <ul className="mt-2 max-h-48 space-y-1 overflow-auto text-xs text-muted-foreground">
+          {publicationResult.skipped.map((item) => <li key={item.id}>{item.name}: {item.reason}</li>)}
+        </ul>}
+      </div>}
 
       {!lowStockOnly && (
         <div className="mb-5 space-y-4">
@@ -387,7 +412,7 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
                     <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Increase stock of ${item.name}`} onClick={() => adjustStock(item, Math.max(1, Math.floor(Number(stockAdjustment) || 1)))}><Plus className="h-3.5 w-3.5" /></Button>
                     <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={`${item.is_active === false ? "Restore" : "Archive"} ${item.name}`} onClick={() => setDeleteTarget(item)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
-                  {item.publish_requested === false && <button type="button" onClick={() => void togglePublish(item)} className="mt-1 text-[10px] text-emerald-700 underline">Request publication</button>}
+                  {item.publish_requested !== true && item.is_active !== false && <Button variant="link" size="sm" disabled={publishing} onClick={() => void requestPublication(item.id)} className="mt-1 h-auto px-0 text-xs">Request publication</Button>}
                 </td>
               </tr>
             );
