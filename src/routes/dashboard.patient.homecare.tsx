@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { AddressPicker, type PickedAddress } from "@/components/AddressPicker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { BookingScreen, ScreenTitle, ServiceRow, StepLabel } from "@/components/BookingScreen";
+import homecareImg from "@/assets/role-homecare.jpg";
 import {
   Accessibility, ArrowLeft, BadgeCheck, CalendarDays, Check, CheckCircle2, ChevronRight,
   Clock3, Copy, HeartHandshake, HeartPulse, Loader2, Mail, MapPin, MessageCircle, Pill,
@@ -308,120 +310,72 @@ function PatientHomecarePage() {
   });
 
   return (
-    <main className="container-narrow space-y-8 px-4 py-6 pb-28 sm:px-6 sm:py-8">
-      <header className="flex items-center justify-between border-b border-border/60 pb-4">
-        <Link to="/dashboard/patient" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Back</Link>
-      </header>
-      {step < 4 && (
-        <section className="mx-auto max-w-2xl overflow-hidden rounded-[2rem] border border-emerald-100 bg-white shadow-lg">
-          <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 pb-6 pt-5 text-white">
-            <div className="flex items-center justify-between">
-              {step > 0 ? <button type="button" onClick={() => setStep(step - 1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20" aria-label="Back"><ArrowLeft className="h-4 w-4" /></button> : <span className="h-9 w-9" />}
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/80">Step {step + 1} of 4</p>
-              <span className="h-9 w-9" />
-            </div>
-            <h1 className="mt-3 text-2xl font-bold">{["Choose a Service", "Tell Us What You Need", "When & Where", "Review & Submit"][step]}</h1>
-            <p className="mt-1 text-sm text-white/85">{["What type of care do you need?", serviceType || "Describe the care needed", "Pick a date, time and address", "Check your details before sending"][step]}</p>
-            <div className="mt-4 grid grid-cols-4 gap-1.5" aria-label="Request progress">
-              {[0, 1, 2, 3].map((i) => <span key={i} className={`h-1.5 rounded-full ${i <= step ? "bg-white" : "bg-white/30"}`} />)}
-            </div>
-          </div>
+    <main className="min-h-screen space-y-8 bg-emerald-50/60 px-4 py-6 pb-28">
+      {step === 0 && <><StepLabel n={1} label="Choose a Service" /><BookingScreen backTo="/dashboard/patient">
+        <ScreenTitle title="Book Home Care" sub="Professional care and support in the comfort of your home." />
+        {SERVICES.map((service) => <ServiceRow key={service.title} icon={service.icon} title={service.title} sub={service.description} selected={serviceType === service.title} onClick={() => { setServiceType(service.title); setStep(1); }} />)}
+      </BookingScreen></>}
 
-          <div className="space-y-5 p-5 sm:p-6">
-          {step === 0 && (
-            <>
-              <div className="space-y-2.5">
-                {SERVICES.map((service) => {
-                  const Icon = service.icon;
-                  const selected = serviceType === service.title;
-                  return <button key={service.title} type="button" onClick={() => setServiceType(service.title)} aria-pressed={selected} className={`flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition ${selected ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-200 bg-white hover:border-emerald-300"}`}>
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><Icon className="h-5 w-5" /></span>
-                    <span className="min-w-0 flex-1"><span className="block font-semibold text-slate-900">{service.title}</span><span className="block text-xs text-slate-600">{service.description}</span></span>
-                    {selected ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <ChevronRight className="h-5 w-5 text-slate-400" />}
-                  </button>;
-                })}
-              </div>
-              <Button type="button" className="h-12 w-full rounded-xl bg-emerald-600 text-base hover:bg-emerald-700" onClick={() => { if (!serviceType) { toast.error("Choose the type of care you need."); return; } setStep(1); }}>Continue</Button>
-            </>
-          )}
-          {step === 1 && (
-            <>
-              <div className="rounded-2xl bg-emerald-50 p-4">
-                <p className="text-sm font-semibold text-emerald-900">{serviceType} includes</p>
-                <ul className="mt-2 space-y-1.5">{(INCLUDES[serviceType] ?? []).map((item) => <li key={item} className="flex items-center gap-2 text-sm text-slate-700"><Check className="h-4 w-4 text-emerald-600" />{item}</li>)}</ul>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-slate-900">Who is the care for?</p>
-                <div className="flex flex-wrap gap-2">{["Myself", "My parent", "My child", "My partner", "Another loved one"].map((who) => <button key={who} type="button" onClick={() => setCareFor(who)} className={`rounded-full border px-4 py-2 text-sm font-medium ${careFor === who ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 text-slate-700"}`}>{who}</button>)}</div>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-slate-900">How long per visit?</p>
-                <div className="grid grid-cols-4 gap-2">{["2", "4", "8", "12", "24", "1", "3", "6"].sort((a, b) => Number(a) - Number(b)).map((h) => <button key={h} type="button" onClick={() => setHours(h)} className={`rounded-xl border py-2.5 text-sm font-semibold ${hours === h ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 text-slate-700"}`}>{h} hr{h === "1" ? "" : "s"}</button>)}</div>
-              </div>
-              <label className="block space-y-2 text-sm font-semibold text-slate-900">Describe the help needed
-                <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={5000} rows={4} className="rounded-xl font-normal" placeholder="For example: help with bathing, dressing, meal preparation or companionship." />
-              </label>
-              <label className="block space-y-2 text-sm font-semibold text-slate-900">Special requirements <span className="font-normal text-slate-500">(optional)</span>
-                <Textarea value={specialRequirements} onChange={(e) => setSpecialRequirements(e.target.value)} maxLength={1500} rows={2} className="rounded-xl font-normal" placeholder="Mobility needs, language preference, pets at home…" />
-              </label>
-              <Button type="button" className="h-12 w-full rounded-xl bg-emerald-600 text-base hover:bg-emerald-700" onClick={() => { if (!instructions.trim()) { toast.error("Please describe the care you need."); return; } setStep(2); }}>Continue</Button>
-            </>
-          )}
-          {step === 2 && (
-            <>
-              <div className="space-y-2">
-                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900"><CalendarDays className="h-4 w-4 text-emerald-600" />Preferred date</p>
-                <div className="flex gap-2 overflow-x-auto pb-1">{nextDays(14).map((d) => <button key={d.key} type="button" onClick={() => setDateKey(d.key)} className={`flex w-16 shrink-0 flex-col items-center rounded-2xl border py-2.5 ${dateKey === d.key ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 text-slate-700"}`}><span className="text-[11px] font-medium uppercase">{d.day}</span><span className="text-lg font-bold">{d.num}</span><span className="text-[11px]">{d.month}</span></button>)}</div>
-              </div>
-              <div className="space-y-2">
-                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900"><Clock3 className="h-4 w-4 text-emerald-600" />Preferred time</p>
-                <div className="grid grid-cols-4 gap-2">{TIME_SLOTS.map((slot) => <button key={slot.value} type="button" onClick={() => setTime(slot.value)} className={`rounded-xl border py-2.5 text-xs font-semibold ${time === slot.value ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 text-slate-700"}`}>{slot.label}</button>)}</div>
-              </div>
-              <div className="space-y-2">
-                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900"><MapPin className="h-4 w-4 text-emerald-600" />Service address</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => setLocationMode("home")} className={`rounded-xl border py-2.5 text-sm font-semibold ${locationMode === "home" ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-700"}`}>Saved address</button>
-                  <button type="button" onClick={() => setLocationMode("different")} className={`rounded-xl border py-2.5 text-sm font-semibold ${locationMode === "different" ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-700"}`}>Another address</button>
-                </div>
-                {locationMode === "home" ? <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{homeAddress || "No saved address yet. Choose “Another address” and enter the service location."}</div> : <input value={address?.address ?? ""} onChange={(e) => setAddress({ address: e.target.value, lat: null, lng: null })} placeholder="Street, suburb, city and postal code" className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm" />}
-              </div>
-              <Button type="button" className="h-12 w-full rounded-xl bg-emerald-600 text-base hover:bg-emerald-700" onClick={() => { if (!dateKey || !time || !preferredAt || new Date(preferredAt).getTime() <= Date.now()) { toast.error("Choose a date and time in the future."); return; } if (!visitAddress.trim()) { toast.error("Choose or enter the service address."); return; } setStep(3); }}>Review request</Button>
-            </>
-          )}
-          {step === 3 && (
-            <>
-              <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
-                {([["Service", serviceType, 0], ["Care for", careFor, 1], ["Duration", `${hours} ${hours === "1" ? "hour" : "hours"}`, 1], ["Needs", instructions, 1], ["Date & time", preferredAt ? new Date(preferredAt).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Johannesburg" }) : "", 2], ["Address", visitAddress, 2]] as const).map(([label, value, target]) => <ReviewRow key={label} title={label} value={value} onChange={() => setStep(target)} />)}
-              </div>
-              <div className="flex gap-3 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900"><ShieldCheck className="h-5 w-5 shrink-0" /><p>Our care team reviews your request and sends you a quotation. Nothing is booked or paid until you accept it.</p></div>
-              <Button type="button" disabled={saving} className="h-12 w-full rounded-xl bg-emerald-600 text-base hover:bg-emerald-700" onClick={() => void submit()}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</> : "Submit Request"}</Button>
-            </>
-          )}
-          </div>
-        </section>
-      )}
+      {step === 1 && <><StepLabel n={2} label="Tell Us What You Need" /><BookingScreen onBack={() => setStep(0)}>
+        <ScreenTitle title="Service Details" />
+        <img src={homecareImg} alt={`${serviceType} at home`} className="h-44 w-full rounded-2xl object-cover" />
+        <p className="mt-3 text-sm font-semibold text-emerald-950">{serviceType}</p>
+        <p className="mt-1 text-sm text-slate-600">{SERVICES.find((x) => x.title === serviceType)?.description}. Compassionate, professional support arranged by the HealthReachCare care team.</p>
+        <p className="mt-4 text-sm font-bold text-emerald-950">Service includes</p>
+        <ul className="mt-2 space-y-2">{(INCLUDES[serviceType] ?? []).map((item) => <li key={item} className="flex items-center gap-2 text-sm text-slate-700"><Check className="h-4 w-4 text-emerald-600" />{item}</li>)}</ul>
+        <p className="mt-4 text-sm font-semibold text-emerald-900">Price set by quotation after review</p>
+        <Button type="button" className="mt-4 h-12 w-full rounded-xl bg-emerald-700 text-base hover:bg-emerald-800" onClick={() => setStep(2)}>Continue</Button>
+      </BookingScreen></>}
 
-      {step === 4 && (
-        <section className="mx-auto max-w-2xl space-y-6 rounded-3xl border border-emerald-100 bg-white p-6 text-center shadow-sm sm:p-10">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100"><CheckCircle2 className="h-11 w-11 text-emerald-700" /></div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Request Submitted!</h1>
-            <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">Your request has been received by the HealthReachCare coordination team. We will review your needs and share available options and a quote before anything is confirmed.</p>
-            {referenceNumber && <div className="mx-auto mt-4 max-w-sm rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-left"><p className="text-xs text-slate-500">Reference number</p><p className="font-bold text-slate-900">{referenceNumber}</p><Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void copyReference()}><Copy className="mr-1 h-4 w-4" />{copied ? "Copied" : "Copy reference"}</Button></div>}
-            <Button type="button" className="mt-4 bg-emerald-600 hover:bg-emerald-700" onClick={() => { setStep(0); setServiceType(""); setInstructions(""); setSpecialRequirements(""); setDateKey(""); setTime(""); }}>Make another request</Button>
+      {step === 2 && <><StepLabel n={3} label="Review & Submit" /><BookingScreen onBack={() => setStep(1)}>
+        <ScreenTitle title="Your Requirements" />
+        <div className="space-y-3 text-sm">
+          <label className="block font-semibold text-emerald-950">Preferred Date
+            <input type="date" min={localDateKey(new Date())} value={dateKey} onChange={(e) => setDateKey(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 font-normal" /></label>
+          <label className="block font-semibold text-emerald-950">Preferred Time
+            <select value={time} onChange={(e) => setTime(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-normal"><option value="">Select time</option>{TIME_SLOTS.map((t) => <option key={t.value} value={t.value}>{t.value}</option>)}</select></label>
+          <label className="block font-semibold text-emerald-950">Duration
+            <select value={hours} onChange={(e) => setHours(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-normal">{[1, 2, 3, 4, 6, 8, 12, 24].map((n) => <option key={n} value={n}>{n} {n === 1 ? "hour" : "hours"}</option>)}</select></label>
+          <label className="block font-semibold text-emerald-950">Who is the care for?
+            <select value={careFor} onChange={(e) => setCareFor(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-normal">{["Myself", "My parent", "My child", "My partner", "Another loved one"].map((w) => <option key={w}>{w}</option>)}</select></label>
+          <div className="font-semibold text-emerald-950">Your Address
+            {locationMode === "home" && homeAddress
+              ? <div className="mt-1 flex items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2.5 font-normal text-slate-700"><span className="min-w-0 truncate">{homeAddress}</span><button type="button" onClick={() => setLocationMode("different")} className="shrink-0 text-xs font-semibold text-emerald-700">Change</button></div>
+              : <input value={address?.address ?? ""} onChange={(e) => { setLocationMode("different"); setAddress({ address: e.target.value, lat: null, lng: null }); }} placeholder="Street, suburb, city" className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 font-normal" />}
           </div>
-        </section>
-      )}
+          <label className="block font-semibold text-emerald-950">Care Needs
+            <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={5000} rows={3} className="mt-1 rounded-xl border-0 bg-emerald-50 font-normal" placeholder="E.g. My mother needs help with bathing and light meal preparation." /></label>
+          <label className="block font-semibold text-emerald-950">Additional Needs <span className="font-normal text-slate-500">(Optional)</span>
+            <Textarea value={specialRequirements} onChange={(e) => setSpecialRequirements(e.target.value)} maxLength={1500} rows={2} className="mt-1 rounded-xl border-0 bg-emerald-50 font-normal" placeholder="Please bring any necessary equipment." /></label>
+        </div>
+        <Button type="button" disabled={saving} className="mt-4 h-12 w-full rounded-xl bg-emerald-700 text-base hover:bg-emerald-800" onClick={() => { if (!dateKey || !time || new Date(preferredAt).getTime() <= Date.now()) { toast.error("Choose a date and time in the future."); return; } if (!visitAddress.trim()) { toast.error("Add the address for the care visit."); return; } if (!instructions.trim()) { toast.error("Please describe the care you need."); return; } void submit(); }}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</> : "Continue"}</Button>
+      </BookingScreen></>}
+
+      {step === 4 && <><StepLabel n={4} label="Receive Quotation" /><BookingScreen onBack={() => setStep(0)}>
+        <div className="pt-4 text-center">
+          <Clock3 className="mx-auto h-14 w-14 text-emerald-600" />
+          <h1 className="mt-3 text-xl font-bold text-emerald-950">Request Submitted</h1>
+          <p className="mt-1 text-sm text-slate-600">Your request has been sent to our support team. We will review your requirements and send you a quotation shortly.</p>
+          {referenceNumber && <button type="button" onClick={() => void copyReference()} className="mt-3 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-mono text-xs text-emerald-800"><Copy className="h-3 w-3" />{copied ? "Copied" : referenceNumber}</button>}
+        </div>
+        <div className="mt-5 rounded-2xl bg-emerald-50 p-4">
+          <p className="font-bold text-emerald-950">What happens next?</p>
+          {[["Support reviews your request", "We check details and match the right caregiver"], ["Receive a quotation", "You'll get a detailed price and service plan"], ["Review and accept", "Accept or decline the quotation here"], ["Service booked", "We will confirm the schedule with you"]].map(([t, d], i) => (
+            <div key={t} className="mt-3 flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">{i + 1}</span><div><p className="text-sm font-semibold text-emerald-950">{t}</p><p className="text-xs text-slate-600">{d}</p></div></div>
+          ))}
+        </div>
+        <Button type="button" variant="outline" className="mt-4 h-11 w-full rounded-xl border-emerald-600 text-emerald-700" onClick={() => { setStep(0); setServiceType(""); setInstructions(""); setSpecialRequirements(""); setDateKey(""); setTime(""); }}>Make another request</Button>
+      </BookingScreen></>}
 
       <div className="space-y-3">
-        <div><h2 className="text-lg font-semibold text-slate-900">My active requests</h2><p className="text-sm text-muted-foreground">Track quotations and care coordination updates here.</p></div>
+        <div><h2 className="text-lg font-semibold text-emerald-950">My active requests</h2><p className="text-sm text-muted-foreground">Track quotations and care coordination updates here.</p></div>
         {loading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
         {!loading && requests.length === 0 && <div className="rounded-2xl border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground">You have no homecare requests yet. Use the guided form above to tell us what support you need.</div>}
         {!loading && requests.length > 0 && activeRequests.length === 0 && <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">There are no active requests right now.</p>}
         {visibleRequests.filter((r) => !completedRequests.includes(r)).map((r) => {
           const assignment = latestAssignment(r);
           return (
-            <div key={r.id} className="space-y-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
+            <div key={r.id} className="mx-auto max-w-md space-y-3 rounded-[2rem] border border-emerald-100 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">{r.service_type}</p>
@@ -431,22 +385,27 @@ function PatientHomecarePage() {
                 <Badge variant={r.status === "confirmed" || r.status === "completed" ? "default" : "secondary"}>{REQUEST_LABEL[r.status] ?? r.status}</Badge>
               </div>
               {r.quote_amount != null && (
-                <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-sm">
-                  <p className="font-semibold text-slate-900">Quotation: {r.quote_currency === "ZAR" || !r.quote_currency ? "R" : `${r.quote_currency} `}{Number(r.quote_amount).toFixed(2)}</p>
-                  {r.quote_details && <p>{r.quote_details}</p>}
-                  {r.quote_issued_at && <p className="text-xs text-muted-foreground">Issued {new Date(r.quote_issued_at).toLocaleString()}</p>}
+                <div className="space-y-3">
+                  <p className="text-lg font-bold text-emerald-950">Quotation from Support</p>
+                  <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3"><ShieldCheck className="h-6 w-6 text-emerald-700" /><div><p className="text-sm font-semibold text-emerald-950">HealthReachCare Support</p><p className="text-xs text-slate-600">Service Quotation</p></div></div>
+                  <dl className="grid grid-cols-[6rem_1fr] gap-y-2 text-sm">
+                    <dt className="text-slate-500">Service</dt><dd className="font-medium text-emerald-950">{r.service_type}</dd>
+                    <dt className="text-slate-500">Date</dt><dd className="font-medium text-emerald-950">{r.preferred_at ? new Date(r.preferred_at).toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Johannesburg" }) : "To be confirmed"}</dd>
+                    <dt className="text-slate-500">Time</dt><dd className="font-medium text-emerald-950">{r.preferred_at ? new Date(r.preferred_at).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" }) : "To be confirmed"}</dd>
+                    <dt className="text-slate-500">Caregiver</dt><dd className="font-medium text-emerald-950">{r.homecare_providers?.business_name || r.homecare_providers?.full_name || "Assigned after acceptance"}</dd>
+                  </dl>
+                  {r.quote_details && <p className="text-xs text-slate-600">{r.quote_details}</p>}
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-3"><span className="font-bold text-emerald-950">Total Price</span><span className="text-xl font-bold text-emerald-950">{r.quote_currency === "ZAR" || !r.quote_currency ? "R" : `${r.quote_currency} `}{Number(r.quote_amount).toFixed(2)}</span></div>
+                  <Button type="button" variant="outline" className="h-10 w-full rounded-xl" onClick={() => setSelectedRequest(r)}>View Full Details</Button>
                 </div>
               )}
               {r.status === "quote_pending" && (
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "accept")}>
-                    Accept Quotation
-                  </Button>
-                  <Button size="sm" variant="outline" className="rounded-lg" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "decline")}>
-                    Decline Quotation
-                  </Button>
+                <div className="space-y-2">
+                  <Button className="h-12 w-full rounded-xl bg-emerald-700 text-white hover:bg-emerald-800" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "accept")}>Accept Quotation</Button>
+                  <Button variant="outline" className="h-12 w-full rounded-xl border-emerald-600 text-emerald-700" disabled={respondingTo === r.id} onClick={() => answerQuote(r.id, "decline")}>Decline</Button>
                 </div>
               )}
+              {["quote_accepted", "assigned"].includes(r.status) && <ServiceProgress status={assignment?.status ?? r.status} />}
               {r.status === "quote_accepted" && (
                 <p className="text-xs text-muted-foreground">Your quote is accepted. The coordinator will confirm availability and scheduling separately. No payment has been taken.</p>
               )}
@@ -512,8 +471,24 @@ function PatientHomecarePage() {
           );
         })}
       </section>
+      <Dialog open={!!selectedRequest} onOpenChange={(open) => { if (!open) setSelectedRequest(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader><DialogTitle>Request details</DialogTitle></DialogHeader>
+          {selectedRequest && <RequestDetails request={selectedRequest} busy={respondingTo === selectedRequest.id} onQuoteResponse={(response) => void answerQuote(selectedRequest.id, response)} />}
+        </DialogContent>
+      </Dialog>
     </main>
   );
+}
+
+function ServiceProgress({ status }: { status: string }) {
+  const steps = [["accepted", "Quotation accepted"], ["scheduled", "Caregiver assigned & scheduled"], ["in_progress", "Service in progress"], ["completed", "Service completed"]] as const;
+  const order = ["quote_accepted", "assigned", "accepted", "scheduled", "in_progress", "completed"];
+  const reached = (key: string) => order.indexOf(status) >= order.indexOf(key === "accepted" ? "quote_accepted" : key);
+  return <div className="rounded-2xl bg-emerald-50 p-4">
+    <p className="flex items-center gap-2 font-bold text-emerald-950"><CheckCircle2 className="h-5 w-5 text-emerald-600" />Care Progress</p>
+    {steps.map(([key, label]) => <p key={key} className={`mt-2.5 flex items-center gap-2 text-sm ${reached(key) ? "font-semibold text-emerald-950" : "text-slate-400"}`}><span className={`flex h-5 w-5 items-center justify-center rounded-full ${reached(key) ? "bg-emerald-600" : "bg-slate-200"}`}><Check className="h-3 w-3 text-white" /></span>{label}</p>)}
+  </div>;
 }
 
 function ReviewRow({ title, value, onChange }: { title: string; value: string; onChange: () => void }) {
