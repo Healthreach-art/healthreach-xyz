@@ -160,9 +160,19 @@ email-only elevation is allowed. Pharmacy dispatch no longer invents a driver
 assignment or overwrites pickup codes. Trusted driver acceptance creates the
 package relationship, pickup code and customer delivery code.
 
-Upfront homecare remains blocked on an agreed price/package interpretation and
-provider eligibility/refund handling. Do not interpret the existing request and
-quote screen as a verified paid booking, or charge for an unassigned service.
+Homecare quotations and grouped medication orders now have authenticated
+`initialize_marketplace_payment` / `verify_marketplace_payment` actions. Quote
+acceptance and assignment require verified exact ZAR payment; medication dispatch
+and driver acceptance require paid, ready orders. Checkout creates an unpaid
+package before opening Paystack, so payment failures can be retried from the
+patient order page. Pharmacies request payment from the patient, not their own card.
+Mock card entry has been removed from `/payment`. Payments remain test-only.
+The user returns from Paystack and selects Verify payment; new marketplace
+payments are not fulfilled by the generic webhook. No automated refunds or
+provider availability reservation were added: support must resolve unavailable
+visits, changed prices, pending-payment cancellations and paid-order refunds.
+Deploy the dispatcher and reviewed rules only with explicit authorization,
+then test real role accounts before enabling production charges.
 
 Wallet and driver-dispatch mutations run in the `privilegedFirestoreAction`
 Firebase Cloud Function so its Admin SDK can apply Firestore transactions

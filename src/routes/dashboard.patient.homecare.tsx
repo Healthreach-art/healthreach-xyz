@@ -486,7 +486,7 @@ function PatientHomecarePage() {
       <Dialog open={!!selectedRequest} onOpenChange={(open) => { if (!open) setSelectedRequest(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader><DialogTitle>Request details</DialogTitle></DialogHeader>
-          {selectedRequest && <RequestDetails request={selectedRequest} busy={respondingTo === selectedRequest.id} onQuoteResponse={(response) => void answerQuote(selectedRequest.id, response)} />}
+          {selectedRequest && <RequestDetails request={selectedRequest} onPaid={() => { setSelectedRequest(null); void load(); }} />}
         </DialogContent>
       </Dialog>
     </main>
@@ -528,10 +528,9 @@ function RequestCard({ request, onDetails }: { request: HomecareRequest; onDetai
   </article>;
 }
 
-function RequestDetails({ request, busy, onQuoteResponse }: {
+function RequestDetails({ request, onPaid }: {
   request: HomecareRequest;
-  busy: boolean;
-  onQuoteResponse: (response: "accept" | "decline") => void;
+  onPaid: () => void;
 }) {
   const requestRef = referenceFor(request);
   const providerName = request.homecare_providers?.business_name || request.homecare_providers?.full_name;
@@ -575,7 +574,7 @@ function RequestDetails({ request, busy, onQuoteResponse }: {
             {request.quote_issued_at && <p className="mt-2 text-xs text-muted-foreground">Quotation issued {new Date(request.quote_issued_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</p>}
           </div>
         </section>
-        {canRespond && <MarketplacePayment kind="homecare" targetId={request.id} reference={request.payment_reference} onPaid={() => window.location.reload()} />}
+        {canRespond && <MarketplacePayment kind="homecare" targetId={request.id} reference={request.payment_reference} onPaid={onPaid} />}
         {request.status === "quote_accepted" && <p className="text-sm text-emerald-800">Quotation accepted after payment verification. The coordinator will confirm the visit.</p>}
       </>
     ) : (

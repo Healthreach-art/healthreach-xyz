@@ -459,11 +459,12 @@ function Page() {
                 <p><strong>Time:</strong> {reservation && new Date(reservation.scheduledAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })}</p>
                 <p><strong>Mode:</strong> {reservation?.mode === "video" ? "Video consultation" : reservation?.mode === "phone" ? "Phone consultation" : "In-person"}</p>
                 <p><strong>Clinic:</strong> {clinicName || doc.city}</p>
+                {reservation && <p><strong>Paid:</strong> R{totalPayable(doc.consultation_fee, reservation.platformFeeCents).toFixed(2)}</p>}
                 {distanceKm != null && <p><strong>Distance:</strong> {distanceKm} km</p>}
               </div>
               <div className="grid gap-2">
                 <Button className="h-11 rounded-xl" onClick={() => navigate({ to: "/dashboard/patient/consultations", search: { appointment: reservation?.appointmentId } })}>View Appointment</Button>
-                {reservation && <Button variant="outline" className="h-11 rounded-xl" onClick={() => downloadAppointmentCalendar({ id: reservation.appointmentId, scheduledAt: reservation.scheduledAt, durationMinutes: reservation.durationMinutes, doctor: doc.full_name, location: clinicName || doc.city })}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
+                {reservation && <Button variant="outline" className="h-11 rounded-xl" onClick={() => downloadAppointmentCalendar({ id: reservation.appointmentId, scheduledAt: reservation.scheduledAt, durationMinutes: reservation.durationMinutes, doctor: doc.full_name, location: clinicName || doc.city, totalPaid: totalPayable(doc.consultation_fee, reservation.platformFeeCents) })}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
                 <Button variant="outline" className="h-11 rounded-xl border-emerald-200 text-emerald-800" onClick={() => navigate({ to: "/dashboard/patient/consultations" })}><MessageCircle className="mr-2 h-4 w-4" />Message Doctor</Button>
               </div>
               <LockFavourite uid={user?.id} type="doctor" providerId={doc.id} providerName={doc.full_name} />

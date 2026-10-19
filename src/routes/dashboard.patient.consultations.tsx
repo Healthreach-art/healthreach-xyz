@@ -292,7 +292,8 @@ function Page() {
               <p><strong>Status:</strong> {detailsFor.status}</p>
               {detailsFor.reason && <p><strong>Reason:</strong> {detailsFor.reason}</p>}
               <p><strong>Payment:</strong> {detailsFor.payment_status}</p>
-              {detailsFor.status === "confirmed" && detailsFor.payment_status === "paid" && <Button variant="outline" onClick={() => downloadAppointmentCalendar({ id: detailsFor.id, scheduledAt: detailsFor.scheduled_at, durationMinutes: detailsFor.duration_minutes ?? 30, doctor: docs[detailsFor.doctor_id]?.full_name ?? "Doctor", location: docs[detailsFor.doctor_id]?.address ?? "" })}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
+              {detailsFor.payment_status === "paid" && <p><strong>Paid:</strong> R{Number(detailsFor.total_paid).toFixed(2)}</p>}
+              {detailsFor.status === "confirmed" && detailsFor.payment_status === "paid" && <Button variant="outline" onClick={() => downloadAppointmentCalendar({ id: detailsFor.id, scheduledAt: detailsFor.scheduled_at, durationMinutes: detailsFor.duration_minutes ?? 30, doctor: docs[detailsFor.doctor_id]?.full_name ?? "Doctor", location: docs[detailsFor.doctor_id]?.address ?? "", totalPaid: detailsFor.total_paid })}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
             </div>
           )}
         </DialogContent>
