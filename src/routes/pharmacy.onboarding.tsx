@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Brand } from "@/components/Brand";
 
 export const Route = createFileRoute("/pharmacy/onboarding")({
-  head: () => ({ meta: [{ title: "Pharmacy Verification — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Pharmacy Verification — HealthReachCare" }, { name: "description", content: "Submit pharmacy details and compliance documents for HealthReachCare review." }, { property: "og:title", content: "Pharmacy Verification — HealthReachCare" }, { property: "og:description", content: "Pharmacy account verification and documents." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: () => <RoleGuard allow="pharmacy"><Onboarding /></RoleGuard>,
 });
 

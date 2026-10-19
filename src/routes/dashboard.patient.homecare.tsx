@@ -94,6 +94,10 @@ export const Route = createFileRoute("/dashboard/patient/homecare")({
     meta: [
       { title: "Home Care Requests — HealthReachCare" },
       { name: "description", content: "Request trusted homecare services and track quotations from HealthReachCare." },
+      { property: "og:title", content: "Home Care Requests — HealthReachCare" },
+      { property: "og:description", content: "Homecare quotations, secure payment and visit coordination." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: () => <RoleGuard allow="patient"><PatientHomecarePage /></RoleGuard>,

@@ -168,13 +168,15 @@ service cloud.firestore {
       return owns('pharmacy_id')
         && hasRole('pharmacy')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at'])
-        && pharmacyOrderTransition(resource.data.status, request.resource.data.status);
+        && pharmacyOrderTransition(resource.data.status, request.resource.data.status)
+        && (request.resource.data.status != 'ready' || resource.data.get('payment_status', '') == 'paid' && resource.data.get('payment_verified_at', '') is string && resource.data.get('payment_verified_at', '') != '');
     }
     function driverOrderUpdate() {
       return owns('driver_id')
         && hasRole('driver')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at'])
-        && driverOrderTransition(resource.data.status, request.resource.data.status);
+        && driverOrderTransition(resource.data.status, request.resource.data.status)
+        && resource.data.get('payment_status', '') == 'paid';
     }
     function pharmacyMayHandlePrescription() {
       return owns('pharmacy_id')
@@ -618,10 +620,12 @@ service cloud.firestore {
           && hasRole('pharmacy')
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at'])
           && pharmacyOrderTransition(resource.data.status, request.resource.data.status)
+          && (request.resource.data.status != 'ready' || resource.data.get('payment_status', '') == 'paid')
         || owns('driver_id')
           && hasRole('driver')
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at'])
-          && driverOrderTransition(resource.data.status, request.resource.data.status);
+          && driverOrderTransition(resource.data.status, request.resource.data.status)
+          && resource.data.get('payment_status', '') == 'paid';
       allow delete: if isAdmin();
     }
     match /order_group_events/{id} {
