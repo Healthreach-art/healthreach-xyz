@@ -147,19 +147,7 @@ export const placeOrderWithRouting = createServerFn({ method: "POST" })
       .gt("stock_quantity", 0);
     if (medicationsError) throw medicationsError;
 
-    const publicMedicationIds = new Set((publicMedications ?? []).map((medication) => medication.id));
-    const missingMedicationIds = medIds.filter((id) => !publicMedicationIds.has(id));
-    const { data: legacyMedications, error: legacyMedicationsError } = missingMedicationIds.length > 0
-      ? await firestoreAdmin
-        .from("medications")
-        .select("*")
-        .in("id", missingMedicationIds)
-        .eq("is_active", true)
-        .eq("is_demo", false)
-        .gt("stock_quantity", 0)
-      : { data: [], error: null };
-    if (legacyMedicationsError) throw legacyMedicationsError;
-    const medications = [...(publicMedications ?? []), ...(legacyMedications ?? [])];
+    const medications = publicMedications ?? [];
     const medicationById = new Map((medications ?? []).map((medication) => [medication.id, medication]));
     const pharmacyIds = new Set<string>();
     for (const item of data.items) {
