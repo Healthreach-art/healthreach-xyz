@@ -10,6 +10,7 @@ import { ServiceRatingPrompt } from "@/components/ServiceRatingPrompt";
 import { CookieConsent } from "@/components/CookieConsent";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { PatientBottomNav } from "@/components/PatientBottomNav";
+import { PatientNotificationBell } from "@/components/PatientNotificationBell";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -159,7 +160,14 @@ function AppShell() {
 
   if (user && pathname.startsWith("/dashboard/patient")) {
     return (
-      <div className="flex min-h-screen w-full flex-col overflow-x-hidden">
+      <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50">
+        <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-sky-100 bg-white/95 px-4 backdrop-blur sm:px-6">
+          <Link to="/dashboard/patient" className="flex min-w-0 items-center gap-2" aria-label="HealthReachCare patient home">
+            <img src={logoUrl} alt="HealthReachCare" width={160} height={44} className="h-9 w-auto shrink-0 sm:h-11" />
+            <span className="hidden text-base font-bold tracking-tight text-sky-900 sm:inline sm:text-xl">HealthReachCare</span>
+          </Link>
+          <div className="flex items-center gap-3"><PatientNotificationBell /><span className="hidden text-right sm:block"><span className="block text-sm font-semibold text-slate-900">{user?.displayName || "Patient"}</span><span className="block text-xs text-slate-500">Patient</span></span></div>
+        </header>
         <main className="flex-1 pb-24">
           <Outlet />
         </main>
