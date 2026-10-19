@@ -280,9 +280,9 @@ function DoctorGrid({ doctors, clinicsById }: { doctors: WithDist[]; clinicsById
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {doctors.map((d) => (
-        <article key={d.id} className="group flex flex-col rounded-2xl border border-border/60 bg-white p-5 shadow-sm transition hover:shadow-md">
+        <article key={d.id} className="group flex flex-col rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-lg">
           <div className="flex gap-4">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-emerald-50">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-emerald-50 ring-1 ring-emerald-100">
               {d.photo_url ? <img src={d.photo_url} alt={d.full_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-emerald-700"><Stethoscope className="h-7 w-7" /></div>}
             </div>
             <div className="min-w-0 flex-1">
