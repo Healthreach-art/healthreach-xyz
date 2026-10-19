@@ -6,14 +6,23 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2, BadgeCheck, ArrowLeft, ShieldCheck, CheckCircle2, Landmark } from "lucide-react";
+import { Star, MapPin, Video, Phone, User as UserIcon, CalendarCheck, Loader2, BadgeCheck, ArrowLeft, ShieldCheck, CheckCircle2, Landmark, CalendarPlus, MessageCircle } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { bookDoctorAppointment, getDoctorAvailableSlots, markDoctorAppointmentPaid } from "@/lib/doctors.functions";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
-import { BookingScreen, StepLabel } from "@/components/BookingScreen";
+import { BookingScreen, ScreenTitle, StepLabel } from "@/components/BookingScreen";
+import { LockFavourite } from "@/components/LockFavourite";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+function downloadIcs(startIso: string, doctor: string, place: string) {
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const start = new Date(startIso);
+  const end = new Date(start.getTime() + 30 * 60000);
+  const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//HealthReachCare//EN", "BEGIN:VEVENT", `UID:${startIso}@healthreachcare.co.za`, `DTSTAMP:${fmt(new Date())}`, `DTSTART:${fmt(start)}`, `DTEND:${fmt(end)}`, `SUMMARY:Appointment with ${doctor}`, `LOCATION:${place ?? ""}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+  const a = document.createElement("a"); a.href = url; a.download = "appointment.ics"; a.click(); URL.revokeObjectURL(url);
+}
 import { readPatientAddress } from "@/lib/patient-address";
 
 const PAYSTACK_PUBLIC_KEY = "pk_test_d1b55c54edcc82e952942340a77d0ca85cda7d9a";
@@ -459,7 +468,7 @@ function Page() {
                 {bookingStep > 1 ? <Button variant="outline" disabled={busy} onClick={() => bookingStep === 4 ? setBookingStep(3) : bookingStep === 3 ? void cancelReservation() : setBookingStep(bookingStep - 1)}>Back</Button> : <span />}
                 {bookingStep < 3 ? <Button disabled={!when || (bookingStep === 1 && slotsLoading)} onClick={() => setBookingStep(bookingStep + 1)}>Next</Button> : bookingStep === 3 ? <Button disabled={busy} onClick={() => void preparePayment()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Next</Button> : <Button disabled={busy || !reservation} onClick={() => void confirmBooking()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Pay R{reservation ? totalPayable(doc.consultation_fee, reservation.platformFeeCents).toFixed(2) : "0.00"}</Button>}
               </div>
-            </>
+            </div>
           ) : (
             <section className="space-y-5 py-4 text-center">
               <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100">
