@@ -17,6 +17,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { canPublishForPharmacy, expiryMillis, isPublishableMedication, prepareMedicationPublication, type MedicationRecord } from "./catalogue-policy.js";
 import { availableDoctorSlots, type Availability, type ExistingAppointment } from "./doctor-slots.js";
 import { matchesDoctorPayment } from "./doctor-payment-policy.js";
+import { matchesMarketplacePayment, canDeliverPaidOrder, type PaymentProof } from "./marketplace-payment-policy.js";
 
 export { mcpData, mcpOAuth } from "./mcp-oauth.js";
 
@@ -542,7 +543,7 @@ async function dispatchOrder(
     if (["delivered", "cancelled", "out_for_delivery"].includes(String(order.status))) {
       return { ok: false, reason: "order_not_dispatchable" };
     }
-    if (order.status !== "ready") throw new ActionError("Mark the package ready before requesting a driver.", 409);
+    if (!canDeliverPaidOrder(order)) throw new ActionError("Verified payment and a ready package are required before requesting a driver.", 409);
 
     const [deliverySnapshot, offerSnapshot, onlineSnapshot, approvedSnapshot, roleSnapshot, documentsSnapshot, locationsSnapshot, activeDeliverySnapshot, pharmacySnapshot] = await Promise.all([
       transactionQuery(transaction, db.collection("deliveries").where("order_id", "==", orderId)),
@@ -759,7 +760,7 @@ async function acceptDeliveryOffer(identity: Identity, offerId: string) {
     if (existingDelivery) throw new ActionError("Too late — another driver took it.", 409);
     if (deliveriesSnapshot.size > 1) throw new ActionError("Multiple deliveries exist for this order.", 409);
     const order = orderSnapshot.data() ?? {};
-    if (order.status !== "ready") throw new ActionError("The pharmacy has not marked this package ready for pickup.", 409);
+    if (!canDeliverPaidOrder(order)) throw new ActionError("This package needs verified payment and pharmacy readiness.", 409);
     const pharmacy = pharmacySnapshot.docs[0]?.data() ?? {};
     const pickupAddress = pharmacy.address || pharmacy.organization_name || "Pharmacy pickup point";
     const orderGroupRef = typeof order.order_group_id === "string"
@@ -876,6 +877,7 @@ async function registerSelfServiceRole(identity: Identity, args: ActionArgs) {
       if (providerCollection) {
         const providerSnapshot = await transaction.get(db.collection(providerCollection).doc(identity.uid));
         const provider = providerSnapshot.data() ?? {};
+    if (request.payment_status !== "paid") throw new ActionError("Verified quotation payment is required before provider assignment.", 409);
         if (
           !providerSnapshot.exists
           || provider.user_id !== identity.uid
@@ -1052,7 +1054,9 @@ async function respondToHomecareQuote(identity: Identity, args: ActionArgs) {
     if (request.status !== "quote_pending") {
       throw new ActionError("This quote is no longer awaiting your response.", 409);
     }
-    const status = response === "accept" ? "quote_accepted" : "quote_declined";
+    if (response === "accept") throw new ActionError("Pay this quotation through Paystack before acceptance.", 409);
+    if (request.payment_reference) throw new ActionError("A payment is pending. Verify it or contact support before declining.", 409);
+    const status = "quote_declined";
     transaction.update(requestRef, { status, updated_at: now });
     return { status };
   });
@@ -1084,6 +1088,7 @@ async function coordinateHomecareRequest(identity: Identity, args: ActionArgs) {
     if (!providerSnapshot.exists) throw new ActionError("Home care provider not found.", 404);
     const request = requestSnapshot.data() ?? {};
     const provider = providerSnapshot.data() ?? {};
+    if (request.payment_status !== "paid") throw new ActionError("Verified quotation payment is required before provider assignment.", 409);
     const providerRoleSnapshot = typeof provider.user_id === "string"
       ? await transaction.get(db.collection("user_roles").doc(`${provider.user_id}_homecare_company`))
       : null;
@@ -1337,8 +1342,102 @@ async function confirmDoctorPayment(identity: Identity, args: ActionArgs) {
   });
 }
 
+async function marketplacePayment(identity: Identity, args: ActionArgs, verify: boolean) {
+  await requireRole(identity, "patient");
+  if (!identity.emailVerified || !identity.email) throw new ActionError("Verify your account email before paying.", 403);
+  const kind = stringArg(args, "_kind");
+  if (!["homecare", "medication"].includes(kind)) throw new ActionError("Invalid payment category.");
+  const targetId = stringArg(args, "_target_id");
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(targetId)) throw new ActionError("Invalid payment target.");
+  const ref = db.collection(kind === "homecare" ? "homecare_requests" : "order_groups").doc(targetId);
+  const key = paystackSecret.value().trim();
+  if (!key.startsWith("sk_test_")) throw new ActionError("Paystack test payments must be configured; live charges are not enabled.", 503);
+  const snapshot = await ref.get();
+  if (!snapshot.exists || snapshot.get("patient_id") !== identity.uid) throw new ActionError("Payment request not found.", 404);
+  if (snapshot.get("payment_status") === "paid") return { paid: true, reference: snapshot.get("payment_reference") };
+  if (verify) {
+    const reference = stringArg(args, "_reference");
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, { headers: { Authorization: `Bearer ${key}` } });
+    const result = await response.json() as { status?: boolean; data?: PaymentProof };
+    if (!response.ok || result.status !== true) throw new ActionError("Paystack has not confirmed this payment.");
+    return db.runTransaction(async transaction => {
+      const current = await transaction.get(ref);
+      const paymentRef = db.collection("payments").doc(reference);
+      const priorPayment = await transaction.get(paymentRef);
+      const items = kind === "medication" ? await transaction.get(db.collection("orders").where("order_group_id", "==", targetId)) : null;
+      if (current.get("patient_id") !== identity.uid) throw new ActionError("Payment ownership changed.", 403);
+      if (!matchesMarketplacePayment(result.data, { reference: String(current.get("payment_reference")), amount: Number(current.get("payment_amount_cents")), patientId: identity.uid, targetId, kind })) throw new ActionError("Payment does not match this quotation or order.");
+      if (current.get("payment_status") === "paid") return { paid: true, reference };
+      if (priorPayment.exists || current.get("payment_status") !== "pending") throw new ActionError("Payment already recorded or no longer pending.", 409);
+      if (kind === "homecare" ? current.get("status") !== "quote_pending" : !["pending", "scheduled", "accepted", "preparing", "ready"].includes(String(current.get("status")))) throw new ActionError("This quotation or order is no longer payable.", 409);
+      const now = new Date().toISOString();
+      const patch = { payment_status: "paid", payment_reference: reference, payment_verified_at: now, total_paid: Number(current.get("payment_amount_cents")) / 100, updated_at: now };
+      transaction.update(ref, { ...patch, ...(kind === "homecare" ? { status: "quote_accepted", quote_responded_at: now } : {}) });
+      for (const item of items?.docs ?? []) transaction.update(item.ref, patch);
+      transaction.create(paymentRef, { patient_id: identity.uid, pharmacy_id: current.get("pharmacy_id") ?? null, provider_id: current.get("pharmacy_id") ?? null, order_group_id: kind === "medication" ? targetId : null, homecare_request_id: kind === "homecare" ? targetId : null, amount: patch.total_paid, total_paid: patch.total_paid, currency: "ZAR", provider: "paystack", status: "completed", transaction_ref: reference, created_at: now });
+      return { paid: true, reference };
+    });
+  }
+  const pending = await db.runTransaction(async transaction => {
+    const current = await transaction.get(ref);
+    if (current.get("patient_id") !== identity.uid) throw new ActionError("Payment request not found.", 404);
+    if (current.get("payment_status") === "paid") throw new ActionError("Already paid.", 409);
+    let amount: number;
+    if (kind === "homecare") {
+      if (current.get("status") !== "quote_pending" || current.get("quote_currency") !== "ZAR") throw new ActionError("This quote is not awaiting payment.", 409);
+      const providers = await transaction.get(db.collection("homecare_providers").where("approval_status", "==", "approved").where("is_active", "==", true));
+      if (providers.empty) throw new ActionError("No approved active care provider is available. Contact support before paying.", 409);
+      amount = Math.round(Number(current.get("quote_amount")) * 100);
+    } else {
+      if (!["pending", "scheduled", "accepted", "preparing", "ready"].includes(String(current.get("status")))) throw new ActionError("This order is no longer payable.", 409);
+      const items = await transaction.get(db.collection("orders").where("order_group_id", "==", targetId));
+      if (items.empty || items.size > 50) throw new ActionError("Order items are unavailable.");
+      let subtotal = 0;
+      for (const item of items.docs) {
+        if (item.get("patient_id") !== identity.uid || item.get("pharmacy_id") !== current.get("pharmacy_id") || item.get("status") === "cancelled") throw new ActionError("Order items do not match this package.");
+        const med = await transaction.get(db.collection("medications_public").doc(String(item.get("medication_id"))));
+        const quantity = item.get("quantity");
+        if (!med.exists || med.get("pharmacy_id") !== current.get("pharmacy_id") || med.get("is_active") !== true || med.get("is_demo") === true || !Number.isSafeInteger(quantity) || quantity <= 0 || med.get("stock_quantity") < quantity || typeof med.get("price") !== "number") throw new ActionError("A medicine is no longer available. Contact the pharmacy.", 409);
+        subtotal += Math.round(Number(med.get("price")) * 1.15 * 100) * quantity;
+      }
+      const lat = current.get("delivery_lat"), lng = current.get("delivery_lng"), pickupLat = current.get("pickup_lat"), pickupLng = current.get("pickup_lng");
+      if (![lat, lng, pickupLat, pickupLng].every(value => typeof value === "number" && Number.isFinite(value))) throw new ActionError("Save the real pharmacy and delivery locations before paying.");
+      const km = Number(haversineKm(lat, lng, pickupLat, pickupLng).toFixed(2));
+      amount = subtotal + Math.round((26 + 10 * km) * 100);
+    }
+    if (!Number.isSafeInteger(amount) || amount <= 0) throw new ActionError("A valid price is required before payment.");
+    const reference = typeof current.get("payment_reference") === "string" ? String(current.get("payment_reference")) : `HR-${randomUUID()}`;
+    if (current.get("payment_reference") && current.get("payment_amount_cents") !== amount) throw new ActionError("Price changed after payment was prepared. Contact support before retrying.", 409);
+    transaction.update(ref, { payment_reference: reference, payment_status: "pending", payment_amount_cents: amount, updated_at: new Date().toISOString() });
+    return { reference, amount };
+  });
+  const response = await fetch("https://api.paystack.co/transaction/initialize", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ email: identity.email, amount: pending.amount, currency: "ZAR", reference: pending.reference, metadata: { patient_id: identity.uid, target_id: targetId, payment_kind: kind } }) });
+  const initialized = await response.json() as { status?: boolean; data?: { authorization_url?: string } };
+  if (!response.ok || initialized.status !== true || !initialized.data?.authorization_url) throw new ActionError("Could not open Paystack payment. Retry verification if you already paid.");
+  const url = new URL(initialized.data.authorization_url);
+  if (url.protocol !== "https:" || !url.hostname.endsWith(".paystack.co")) throw new ActionError("Invalid payment address.");
+  return { paid: false, reference: pending.reference, amount: pending.amount, url: url.href };
+}
+
+async function requestMedicationPayment(identity: Identity, args: ActionArgs) {
+  await requireRole(identity, "pharmacy");
+  const groupId = stringArg(args, "_target_id");
+  const ref = db.collection("order_groups").doc(groupId);
+  return db.runTransaction(async transaction => {
+    const group = await transaction.get(ref);
+    if (!group.exists || group.get("pharmacy_id") !== identity.uid) throw new ActionError("Order not found.", 404);
+    if (group.get("payment_status") === "paid") return { ok: true, alreadyPaid: true };
+    if (!["pending", "scheduled", "accepted", "preparing", "ready"].includes(String(group.get("status")))) throw new ActionError("This order cannot be paid.", 409);
+    transaction.create(db.collection("notifications").doc(), { user_id: group.get("patient_id"), category: "order", title: "Medication payment requested", body: "Your pharmacy requested payment before delivery. Open your order to pay securely.", link: `/payment?orderGroupId=${encodeURIComponent(groupId)}`, created_at: new Date().toISOString(), read: false });
+    return { ok: true, alreadyPaid: false };
+  });
+}
+
 async function runAction(identity: Identity, name: string, args: ActionArgs) {
   switch (name) {
+    case "initialize_marketplace_payment": return marketplacePayment(identity, args, false);
+    case "verify_marketplace_payment": return marketplacePayment(identity, args, true);
+    case "request_medication_payment": return requestMedicationPayment(identity, args);
     case "available_doctor_slots": return doctorSlots(identity, args);
     case "book_doctor_appointment": return reserveDoctor(identity, args);
     case "confirm_doctor_payment": return confirmDoctorPayment(identity, args);
