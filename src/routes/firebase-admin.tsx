@@ -90,7 +90,7 @@ function providerRowsFor(tab: TabId, data: Record<TabId, Row[]>): Row[] {
     doctors: ["doctor"],
     pharmacies: ["pharmacy"],
     drivers: ["driver"],
-    homecare_providers: ["homecare_company", "homecare_individual", "homecare_staff"],
+    homecare_providers: ["homecare_company", "homecare_individual"],
   };
   const roles = providerRoles[tab];
   if (!roles) return data[tab] ?? [];
