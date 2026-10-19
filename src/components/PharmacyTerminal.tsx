@@ -18,7 +18,8 @@ import { toast } from "sonner";
 import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import logo from "@/assets/healthreach-logo.png";
+import { Brand } from "@/components/Brand";
+import { requestMedicationPayment } from "@/lib/marketplace-payments.functions";
 
 interface Order {
   id: string;
@@ -28,6 +29,8 @@ interface Order {
   quantity: number;
   status: string;
   total_amount: number;
+  payment_status?: string;
+  payment_reference?: string;
   created_at: string;
   prescription_upload_id?: string | null;
   delivery_address?: string | null;
@@ -57,6 +60,7 @@ interface PharmacyMetadata {
 export function PharmacyTerminal() {
   const { user, profile, approvalStatus, isDemo, signOut, loading: authLoading } = useAuth();
   const dispatchDrivers = useServerFn(dispatchOrderToNearbyDrivers);
+  const requestPayment = useServerFn(requestMedicationPayment);
   const [activeTab, setActiveTab] = useState<PharmacyTab>("home");
   const [orders, setOrders] = useState<Order[]>([]);
   const [groups, setGroups] = useState<GroupedOrder<Order>[]>([]);
@@ -196,6 +200,7 @@ export function PharmacyTerminal() {
   }
 
   async function readyForDriver(group: GroupedOrder<Order>) {
+    if (!group.items.every(item => item.payment_status === "paid" && item.payment_reference)) { toast.error("Patient payment must be verified before delivery."); return; }
     if (!user || !(await setGroupStatus(group, "ready"))) return;
     const firstOrder = group.items[0];
     if (!firstOrder) return;
@@ -262,7 +267,7 @@ export function PharmacyTerminal() {
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <img src={logo} alt="HealthReachCare" className="h-10 w-auto" />
+              <Brand />
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pharmacy terminal</p>
                 <h1 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">{pharmacyName}</h1>
@@ -447,9 +452,15 @@ export function PharmacyTerminal() {
               </div>
               <ul className="space-y-2">{selectedGroup.items.map((item) => <li key={item.id} className="flex justify-between gap-3 text-sm"><span>{item.medication_name} × {item.quantity}</span><span>R{Number(item.total_amount).toFixed(2)}</span></li>)}</ul>
               <p className="flex justify-between border-t pt-3 font-semibold"><span>Order total</span><span>R{selectedGroup.total.toFixed(2)}</span></p>
+              <p className="text-sm font-semibold">Payment: {selectedGroup.items.every(item => item.payment_status === "paid") ? "Verified" : "Awaiting patient payment"}</p>
+              {selectedGroup.group?.id && !selectedGroup.items.every(item => item.payment_status === "paid") && <Button variant="outline" onClick={async () => {
+                if (!selectedGroup.group?.id) return;
+                try { await requestPayment({ data: { targetId: selectedGroup.group.id } }); toast.success("Payment request sent to the patient."); }
+                catch (error) { toast.error(error instanceof Error ? error.message : "Could not request payment."); }
+              }}>Request patient payment</Button>}
               <div className="flex flex-wrap gap-2">
                 {selectedGroup.status === "pending" && <Button onClick={() => { void acceptAndPack(selectedGroup); setSelectedGroupKey(null); }}>Accept &amp; Pack</Button>}
-                {["accepted", "preparing"].includes(selectedGroup.status) && <Button onClick={() => { void readyForDriver(selectedGroup); setSelectedGroupKey(null); }}><Truck className="mr-2 h-4 w-4" />Dispatch Driver</Button>}
+                {["accepted", "preparing"].includes(selectedGroup.status) && <Button disabled={!selectedGroup.items.every(item => item.payment_status === "paid")} onClick={() => { void readyForDriver(selectedGroup); setSelectedGroupKey(null); }}><Truck className="mr-2 h-4 w-4" />Dispatch Driver</Button>}
                 <Button variant="outline" onClick={() => { setChatOrderId(selectedGroup.primaryOrderId); setSelectedGroupKey(null); }}><MessageCircle className="mr-2 h-4 w-4" />Open Chat</Button>
               </div>
             </div>;

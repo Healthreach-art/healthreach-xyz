@@ -45,6 +45,11 @@ export const Route = createFileRoute("/api/public/payment-webhook")({
 
         const { event, data } = parsed;
         const meta = (typeof data.metadata === "object" && data.metadata) ? data.metadata as Record<string, unknown> : {};
+        // These payments are fulfilled transactionally by the authenticated
+        // dispatcher, which checks the persisted target, amount and patient.
+        if (meta.payment_kind === "homecare" || meta.payment_kind === "medication") {
+          return new Response("Payment awaits authenticated verification", { status: 200 });
+        }
         const reference = data.reference;
         const now = new Date().toISOString();
         const status =
@@ -108,11 +113,6 @@ export const Route = createFileRoute("/api/public/payment-webhook")({
             updated_at: now,
           });
 
-          if (orderId && status === "paid") {
-            await serviceMergeDocument("orders", orderId, {
-              payment_status: "paid", payment_reference: reference, paid_at: now, updated_at: now,
-            });
-          }
           if (bookingId && status === "paid") {
             await serviceMergeDocument("appointments", bookingId, {
               payment_status: "paid", payment_reference: reference, updated_at: now,

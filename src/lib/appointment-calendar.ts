@@ -4,6 +4,7 @@ export interface CalendarAppointment {
   durationMinutes: number;
   doctor: string;
   location: string;
+  totalPaid?: number;
 }
 
 export function appointmentCalendar(event: CalendarAppointment, now = new Date()): string {
@@ -17,6 +18,7 @@ export function appointmentCalendar(event: CalendarAppointment, now = new Date()
     `UID:${escape(event.id)}@healthreachcare.co.za`, `DTSTAMP:${format(now)}`, `DTSTART:${format(start)}`,
     `DTEND:${format(new Date(start.getTime() + event.durationMinutes * 60_000))}`,
     `SUMMARY:${escape(`Appointment with ${event.doctor}`)}`, `LOCATION:${escape(event.location)}`,
+    ...(event.totalPaid != null && Number.isFinite(event.totalPaid) ? [`DESCRIPTION:${escape(`Verified payment: R${event.totalPaid.toFixed(2)}`)}`] : []),
     "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
 }
 

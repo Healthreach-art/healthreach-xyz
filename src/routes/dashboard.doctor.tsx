@@ -19,10 +19,11 @@ import { normalizeServices } from "@/lib/normalize-services.functions";
 import { Sparkles, X } from "lucide-react";
 import { DoctorBottomNav, type DoctorTab } from "@/components/DoctorBottomNav";
 import { DoctorFinance } from "@/components/DoctorFinance";
-import logo from "@/assets/healthreach-logo.png";
+import { Brand } from "@/components/Brand";
+import { validDoctorPrice } from "@/lib/doctor-price-policy";
 
 export const Route = createFileRoute("/dashboard/doctor")({
-  head: () => ({ meta: [{ title: "Doctor Dashboard — HealthReachCare" }] }),
+  head: () => ({ meta: [{ title: "Doctor Dashboard — HealthReachCare" }, { name: "description", content: "Manage your consultation prices, availability and patient appointments." }, { property: "og:title", content: "Doctor Dashboard — HealthReachCare" }, { property: "og:description", content: "Doctor consultation prices and appointments." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: () => (
     <RoleGuard allow="doctor">
       <DoctorDashboard />
@@ -82,7 +83,7 @@ function DoctorDashboard() {
   const [qualifications, setQualifications] = useState("");
   const [practiceNumber, setPracticeNumber] = useState("");
   const [bio, setBio] = useState("");
-  const [consultationFee, setConsultationFee] = useState<number>(450);
+  const [consultationFee, setConsultationFee] = useState<number | "">("");
   const [city, setCity] = useState("");
   const [practiceAddress, setPracticeAddress] = useState("");
   const [servicesDescription, setServicesDescription] = useState("");
@@ -139,7 +140,7 @@ function DoctorDashboard() {
       setQualifications(doc.qualifications ?? "");
       setPracticeNumber(doc.practice_number ?? "");
       setBio(doc.bio ?? "");
-      setConsultationFee(Number(doc.consultation_fee ?? 450));
+      setConsultationFee(doc.consultation_fee == null ? "" : Number(doc.consultation_fee));
       setCity(doc.city ?? "");
       setPracticeAddress(doc.address ?? "");
       setServicesDescription((doc as any).services_description ?? "");
@@ -281,6 +282,7 @@ function DoctorDashboard() {
 
   async function saveProfile() {
     if (!user) return;
+    if (!validDoctorPrice(consultationFee)) return toast.error("Enter your consultation price in rand, with up to two decimal places.");
     setBusy(true);
     const payload: any = {
       user_id: user.id,
@@ -382,7 +384,7 @@ function DoctorDashboard() {
     <div className="container mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-4 sm:py-8 sm:pb-24">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex min-w-0 items-center gap-4">
-          <img src={logo} alt="HealthReachCare" className="h-10 w-auto shrink-0" />
+          <Brand />
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Doctor workspace</p>
             <h1 className="truncate text-xl font-bold text-slate-900 sm:text-2xl">{profile?.full_name ? `Welcome, Dr. ${profile.full_name}` : "Welcome to your workspace"}</h1>
@@ -568,7 +570,7 @@ function DoctorDashboard() {
               </div>
               <div className="space-y-2">
                 <Label>Consultation fee (R)</Label>
-                <Input type="number" value={consultationFee} onChange={(e) => setConsultationFee(Number(e.target.value))} min={0} />
+                <Input aria-label="Consultation fee in rand" type="number" value={consultationFee} onChange={(e) => setConsultationFee(e.target.value === "" ? "" : Number(e.target.value))} min={0} step="0.01" required />
               </div>
               <div className="space-y-2">
                 <Label>City</Label>

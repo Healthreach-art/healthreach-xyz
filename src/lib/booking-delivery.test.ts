@@ -9,6 +9,11 @@ test("calendar uses the booked 60-minute slot rather than a fixed half hour", ()
   assert.ok(result.includes("UID:appointment-42@healthreachcare.co.za"));
   assert.ok(result.includes("LOCATION:Clinic\\, Room\\; 1"));
 });
+test("appointment calendar contains the actual verified payment amount", () => {
+  const result = appointmentCalendar({ id: "appointment-paid", scheduledAt: "2026-10-20T10:00:00+02:00", durationMinutes: 30, doctor: "Doctor", location: "Clinic", totalPaid: 723.45 });
+  assert.ok(result.includes("DESCRIPTION:Verified payment: R723.45"));
+  assert.ok(!result.includes("R450"));
+});
 test("delivery accepts zero coordinates and rejects missing or out-of-range locations", () => {
   assert.equal(hasDeliveryCoordinates({ lat: 0, lng: 18 }), true);
   assert.equal(hasDeliveryCoordinates({ lat: -26, lng: 0 }), true);

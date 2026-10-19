@@ -20,7 +20,7 @@ import { getHomecareDocumentUrl, getMyHomecareBanking, saveMyHomecareBanking } f
 import { PLATFORM_RULES } from "@/lib/platform-rules";
 import { HomecareBottomNav, type HomecareTerminalTab } from "@/components/HomecareBottomNav";
 import { HomecareServiceChat } from "@/components/HomecareServiceChat";
-import logo from "@/assets/healthreach-logo.png";
+import { Brand } from "@/components/Brand";
 
 export const Route = createFileRoute("/dashboard/homecare_company")({
   head: () => ({
@@ -148,7 +148,7 @@ function HomecareProviderPage() {
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-4">
-              <img src={logo} alt="HealthReachCare" className="mt-1 h-10 w-auto shrink-0" />
+              <Brand />
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Homecare provider terminal</p>
                 <h1 className="mt-1 flex items-center gap-2 truncate text-xl font-bold text-slate-900 sm:text-2xl">

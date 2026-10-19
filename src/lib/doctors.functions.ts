@@ -37,11 +37,11 @@ export const bookDoctorAppointment = createServerFn({ method: "POST" })
       _reason: data.reason,
     });
     if (result.error) throw new Error(result.error.message);
-    const booking = result.data as { appointmentId?: string; platformFeeCents?: number } | null;
-    if (!booking?.appointmentId || !Number.isSafeInteger(booking.platformFeeCents)) {
+    const booking = result.data as { appointmentId?: string; platformFeeCents?: number; consultationFee?: number } | null;
+    if (!booking?.appointmentId || !Number.isSafeInteger(booking.platformFeeCents) || typeof booking.consultationFee !== "number") {
       throw new Error("The appointment booking service returned an invalid response.");
     }
-    return { appointmentId: booking.appointmentId, platformFeeCents: booking.platformFeeCents };
+    return { appointmentId: booking.appointmentId, platformFeeCents: booking.platformFeeCents, consultationFee: booking.consultationFee };
   });
 
 export const markDoctorAppointmentPaid = createServerFn({ method: "POST" })

@@ -88,6 +88,7 @@ interface AvailableSlot {
 interface BookingReservation {
   appointmentId: string;
   platformFeeCents: number;
+  consultationFee: number;
   scheduledAt: string;
   durationMinutes: number;
   mode: "in_person" | "video" | "phone";
@@ -213,7 +214,7 @@ function Page() {
     setBusy(true);
     try {
       const appointmentReason = [visitReason, note.trim()].filter(Boolean).join(": ").slice(0, 1000);
-      const { appointmentId, platformFeeCents } = await book({
+      const { appointmentId, platformFeeCents, consultationFee } = await book({
         data: {
           doctorId: doc.id,
           scheduledAt: selectedSlot.scheduledAt,
@@ -225,7 +226,7 @@ function Page() {
       if (platformFeeCents == null || !Number.isSafeInteger(platformFeeCents) || platformFeeCents < 0) {
         throw new Error("The appointment service returned an invalid platform fee.");
       }
-      setReservation({ appointmentId, platformFeeCents, scheduledAt: selectedSlot.scheduledAt, durationMinutes: selectedSlot.durationMinutes, mode, reason: appointmentReason });
+      setReservation({ appointmentId, platformFeeCents, consultationFee, scheduledAt: selectedSlot.scheduledAt, durationMinutes: selectedSlot.durationMinutes, mode, reason: appointmentReason });
       setBookingStep(4);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Could not prepare appointment payment");
@@ -255,7 +256,7 @@ function Page() {
     if (doc.consultation_fee == null) return toast.error("This doctor has not listed a consultation fee yet.");
     if (!user.email) return toast.error("Add an email address to your account before paying.");
     if (!user.emailVerified) return toast.error("Verify your email address before paying for an appointment.");
-    const totalCents = Math.round(Number(doc.consultation_fee ?? 0) * 100) + reservation.platformFeeCents;
+    const totalCents = Math.round(reservation.consultationFee * 100) + reservation.platformFeeCents;
     setBusy(true);
     try {
       await loadPaystack();
@@ -434,9 +435,9 @@ function Page() {
                     <button type="button" aria-pressed={paymentMethod === "bank_transfer"} onClick={() => setPaymentMethod("bank_transfer")} className={`rounded-xl border p-4 text-left ${paymentMethod === "bank_transfer" ? "border-emerald-600 bg-emerald-50" : "border-border"}`}><strong className="flex items-center gap-2 text-sm"><Landmark className="h-4 w-4" /> Bank Transfer</strong><span className="text-xs text-muted-foreground">Secure bank transfer through Paystack</span></button>
                   </div>
                   <div className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Consultation fee</span><span>R{Number(doc.consultation_fee ?? 0).toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Consultation fee</span><span>R{reservation.consultationFee.toFixed(2)}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Platform fee</span><span>R{(reservation.platformFeeCents / 100).toFixed(2)}</span></div>
-                    <div className="flex justify-between border-t pt-2 font-bold"><span>Total</span><span className="text-emerald-800">R{(totalPayable(doc.consultation_fee, reservation.platformFeeCents)).toFixed(2)}</span></div>
+                    <div className="flex justify-between border-t pt-2 font-bold"><span>Total</span><span className="text-emerald-800">R{(totalPayable(reservation.consultationFee, reservation.platformFeeCents)).toFixed(2)}</span></div>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-emerald-800"><ShieldCheck className="h-4 w-4" /> Your payment is secure</div>
                 </section>
@@ -444,7 +445,7 @@ function Page() {
 
               <div className="flex justify-between gap-3 border-t pt-4">
                 {bookingStep > 1 ? <Button variant="outline" disabled={busy} onClick={() => bookingStep === 4 ? setBookingStep(3) : bookingStep === 3 ? void cancelReservation() : setBookingStep(bookingStep - 1)}>Back</Button> : <span />}
-                {bookingStep < 3 ? <Button disabled={!when || (bookingStep === 1 && slotsLoading)} onClick={() => setBookingStep(bookingStep + 1)}>Next</Button> : bookingStep === 3 ? <Button disabled={busy} onClick={() => void preparePayment()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Next</Button> : <Button disabled={busy || !reservation} onClick={() => void confirmBooking()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Pay R{reservation ? totalPayable(doc.consultation_fee, reservation.platformFeeCents).toFixed(2) : "0.00"}</Button>}
+                {bookingStep < 3 ? <Button disabled={!when || (bookingStep === 1 && slotsLoading)} onClick={() => setBookingStep(bookingStep + 1)}>Next</Button> : bookingStep === 3 ? <Button disabled={busy} onClick={() => void preparePayment()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Next</Button> : <Button disabled={busy || !reservation} onClick={() => void confirmBooking()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Pay R{reservation ? totalPayable(reservation.consultationFee, reservation.platformFeeCents).toFixed(2) : "0.00"}</Button>}
               </div>
             </div>
           ) : (
@@ -459,11 +460,12 @@ function Page() {
                 <p><strong>Time:</strong> {reservation && new Date(reservation.scheduledAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })}</p>
                 <p><strong>Mode:</strong> {reservation?.mode === "video" ? "Video consultation" : reservation?.mode === "phone" ? "Phone consultation" : "In-person"}</p>
                 <p><strong>Clinic:</strong> {clinicName || doc.city}</p>
+                {reservation && <p><strong>Paid:</strong> R{totalPayable(reservation.consultationFee, reservation.platformFeeCents).toFixed(2)}</p>}
                 {distanceKm != null && <p><strong>Distance:</strong> {distanceKm} km</p>}
               </div>
               <div className="grid gap-2">
                 <Button className="h-11 rounded-xl" onClick={() => navigate({ to: "/dashboard/patient/consultations", search: { appointment: reservation?.appointmentId } })}>View Appointment</Button>
-                {reservation && <Button variant="outline" className="h-11 rounded-xl" onClick={() => downloadAppointmentCalendar({ id: reservation.appointmentId, scheduledAt: reservation.scheduledAt, durationMinutes: reservation.durationMinutes, doctor: doc.full_name, location: clinicName || doc.city })}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
+                {reservation && <Button variant="outline" className="h-11 rounded-xl" onClick={() => downloadAppointmentCalendar({ id: reservation.appointmentId, scheduledAt: reservation.scheduledAt, durationMinutes: reservation.durationMinutes, doctor: doc.full_name, location: clinicName || doc.city, totalPaid: totalPayable(reservation.consultationFee, reservation.platformFeeCents) })}><CalendarPlus className="mr-2 h-4 w-4" />Add to Calendar</Button>}
                 <Button variant="outline" className="h-11 rounded-xl border-emerald-200 text-emerald-800" onClick={() => navigate({ to: "/dashboard/patient/consultations" })}><MessageCircle className="mr-2 h-4 w-4" />Message Doctor</Button>
               </div>
               <LockFavourite uid={user?.id} type="doctor" providerId={doc.id} providerName={doc.full_name} />
