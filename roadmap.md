@@ -1,5 +1,11 @@
 # Roadmap
 
+- [ ] Verify patient doctor booking, Paystack, appointment viewing and calendar download (requires real Firebase patient session and configured payment access).
+- [ ] Complete classic admin approvals and visibility of patient requests/bookings.
+- [ ] Complete patient medication order → pharmacy acceptance → driver pickup/delivery with saved destination.
+- [ ] Diagnose missing privileged Firebase action endpoint; prepare fixes without deployment or billing changes.
+- [ ] Implement secure upfront homecare payment where real configured prices and approved service eligibility permit; report blockers.
+
 - [ ] Restore legacy medicine publication and align patient catalogue/checkout reads; verify local tests.
 - [ ] Deploy updated Firebase publication action and verify a real pharmacy-to-patient order (blocked until deployment authorization and authenticated accounts are available).
 
