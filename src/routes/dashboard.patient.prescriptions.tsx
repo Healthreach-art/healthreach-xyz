@@ -3,7 +3,6 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { firestoreClient } from "@/lib/firestore-client";
-import { useServerFn } from "@tanstack/react-start";
 import {
   FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw,
   Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles, Download,
@@ -175,7 +174,7 @@ function Page() {
     return { expiring, expired, refillable };
   }, [pxUploads]);
 
-
+  return (
     <main className="container-narrow max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <Link to="/dashboard/patient" className="mb-5 inline-flex items-center rounded text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <ArrowLeft className="mr-1 h-4 w-4" /> Back to Dashboard
