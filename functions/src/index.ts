@@ -19,7 +19,7 @@ import { availableDoctorSlots, type Availability, type ExistingAppointment } fro
 import { matchesDoctorPayment } from "./doctor-payment-policy.js";
 import { matchesMarketplacePayment, canDeliverPaidOrder, type PaymentProof } from "./marketplace-payment-policy.js";
 
-import { homecarePriceCents, careVisitsOverlap } from "./homecare-upfront-policy.js";
+import { homecarePriceCents, careVisitsOverlap, withinCareHours } from "./homecare-upfront-policy.js";
 
 export { mcpData, mcpOAuth } from "./mcp-oauth.js";
 
@@ -993,7 +993,9 @@ async function createHomecareRequest(identity: Identity, args: ActionArgs) {
         const uid = candidate.provider.get("user_id");
         if (typeof uid !== "string") continue;
         const role = await transaction.get(db.collection("user_roles").doc(`${uid}_homecare_company`));
-        if (role.get("role") !== "homecare_company" || candidate.provider.get("availability") === false) continue;
+        if (role.get("role") !== "homecare_company" || !withinCareHours(candidate.provider.get("operating_hours") || candidate.provider.get("availability"), preferredAt, durationHours)) continue;
+        const areas = candidate.provider.get("service_areas");
+        if (!Array.isArray(areas) || !areas.some(area => typeof area === "string" && area.trim().length > 2 && address.toLowerCase().includes(area.trim().toLowerCase()))) continue;
         const bookings = await transaction.get(db.collection("homecare_requests").where("provider_id", "==", candidate.provider.id));
         if (bookings.docs.some(booking => careVisitsOverlap(preferredAt, durationHours, booking.data(), Date.now()))) continue;
         selected = candidate; break;
@@ -1408,7 +1410,9 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
       const upfront = kind === "homecare" && current.get("pricing_mode") === "upfront";
       const careProvider = upfront ? await transaction.get(db.collection("homecare_providers").doc(String(current.get("provider_id")))) : null;
       const careRole = careProvider && typeof careProvider.get("user_id") === "string" ? await transaction.get(db.collection("user_roles").doc(`${careProvider.get("user_id")}_homecare_company`)) : null;
-      const careEligible = careProvider && careRole?.get("role") === "homecare_company" && homecarePriceCents(careProvider.data() ?? {}, String(current.get("service_type")), Number(current.get("duration_hours"))) !== null && asMillis(current.get("reservation_expires_at")) > Date.now();
+      const careEligible = careProvider && careRole?.get("role") === "homecare_company" && homecarePriceCents(careProvider.data() ?? {}, String(current.get("service_type")), Number(current.get("duration_hours"))) !== null
+        && withinCareHours(careProvider.get("operating_hours") || careProvider.get("availability"), String(current.get("preferred_at")), Number(current.get("duration_hours")))
+        && asMillis(current.get("reservation_expires_at")) > Date.now();
       if (current.get("patient_id") !== identity.uid) throw new ActionError("Payment ownership changed.", 403);
       if (!matchesMarketplacePayment(result.data, { reference: String(current.get("payment_reference")), amount: Number(current.get("payment_amount_cents")), patientId: identity.uid, targetId, kind })) throw new ActionError("Payment does not match this quotation or order.");
       if (current.get("payment_status") === "paid") return { paid: true, reference };
@@ -1427,7 +1431,7 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
       return { paid: true, reference };
     });
   }
-  if (typeof snapshot.get("payment_url") === "string" && snapshot.get("payment_status") === "pending") return { paid: false, reference: snapshot.get("payment_reference"), amount: snapshot.get("payment_amount_cents"), url: snapshot.get("payment_url") };
+  if (typeof snapshot.get("payment_url") === "string" && snapshot.get("payment_status") === "pending" && (snapshot.get("pricing_mode") !== "upfront" || asMillis(snapshot.get("reservation_expires_at")) > Date.now())) return { paid: false, reference: snapshot.get("payment_reference"), amount: snapshot.get("payment_amount_cents"), url: snapshot.get("payment_url") };
   const pending = await db.runTransaction(async transaction => {
     const current = await transaction.get(ref);
     if (current.get("patient_id") !== identity.uid) throw new ActionError("Payment request not found.", 404);
