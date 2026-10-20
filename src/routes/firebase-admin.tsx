@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import {
   Loader2, LogOut, ShieldCheck, CheckCircle, XCircle, FileQuestion, Ban,
   FileText, ExternalLink, ChevronDown, ChevronUp, AlertCircle,
+  LayoutDashboard, ClipboardCheck, Stethoscope, Pill, Home as HomeIcon, Truck, Package, CalendarDays, HeartHandshake, BarChart3, Users,
 } from "lucide-react";
+import { Brand } from "@/components/Brand";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/firebase-admin")({
@@ -289,6 +291,7 @@ function FirebaseAdminPage() {
   const [adminUid, setAdminUid] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [tab, setTab] = useState<TabId>("doctors");
+  const [view, setView] = useState<"dashboard" | "pending" | TabId>("dashboard");
   const [data, setData] = useState<Record<TabId, Row[]>>({
     profiles: [], user_roles: [], doctors: [], pharmacies: [], drivers: [], homecare_providers: [],
     bookings: [], doctor_appointments: [], pharmacy_appointments: [], homecare_requests: [], orders: [], payments: [],
@@ -564,7 +567,7 @@ function FirebaseAdminPage() {
           const isExpanded = expandedDocs[r.id];
 
           return (
-            <div key={r.id} className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-3">
+            <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-semibold text-base truncate">
@@ -632,6 +635,9 @@ function FirebaseAdminPage() {
             </div>
           );
         })}
+      </div>
+      </>)}
+        </main>
       </div>
     </div>
   );
