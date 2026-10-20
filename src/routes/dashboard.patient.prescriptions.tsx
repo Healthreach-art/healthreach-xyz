@@ -8,7 +8,7 @@ import { verifyPrescription } from "@/utils/ai.functions";
 import {
   FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw,
   Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles, Download,
-  Share2, Link as LinkIcon, Package, ArrowLeft, Pill, BadgeCheck,
+  Share2, Link as LinkIcon, Package, ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrescriptionStatusBadge, PrescriptionUploader, getPrescriptionFileUrl, FraudPanel, type PrescriptionUpload } from "@/components/PrescriptionVerification";
