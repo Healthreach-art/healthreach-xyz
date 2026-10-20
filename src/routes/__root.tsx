@@ -1,6 +1,12 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Footer } from "@/components/Footer";
+import { usePatientLocationBroadcaster } from "@/hooks/usePatientLocationBroadcaster";
+
+function PatientLiveLocation({ userId }: { userId: string }) {
+  usePatientLocationBroadcaster({ userId });
+  return null;
+}
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
 import { FloatingCart } from "@/components/FloatingCart";
@@ -154,7 +160,6 @@ function AppShell() {
         <main className="flex-1">
           <Outlet />
         </main>
-        <Footer />
       </div>
     );
   }
@@ -171,7 +176,7 @@ function AppShell() {
         <main className="flex-1 pb-24">
           <Outlet />
         </main>
-        <div className="pb-24"><Footer /></div>
+        <PatientLiveLocation userId={user.id} />
         <PatientBottomNav />
       </div>
     );
@@ -188,7 +193,7 @@ function AppShell() {
         <main className="flex-1">
           <Outlet />
         </main>
-        <Footer />
+        {pathname === "/" && <Footer />}
       </div>
     );
   }
@@ -229,7 +234,6 @@ function SidebarShell() {
           <main className="flex-1">
             <Outlet />
           </main>
-          <Footer />
         </div>
       </div>
     </SidebarProvider>
