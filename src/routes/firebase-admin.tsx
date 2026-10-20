@@ -398,7 +398,7 @@ function FirebaseAdminPage() {
   }
 
   const providerTabs = TABS.filter((t) => t.provider);
-  const pendingAll = providerTabs.flatMap((t) => providerRowsFor(t.id, data).filter((r) => r.status === "pending_review").map((r) => ({ ...r, __tab: t.id })));
+  const pendingAll = providerTabs.flatMap((t) => providerRowsFor(t.id, data).filter((r) => r.status === "pending_review").map((r) => ({ ...r, __tab: t.id }) as Row & { __tab: TabId }));
   const totalProviders = providerTabs.reduce((n, t) => n + providerRowsFor(t.id, data).filter((r) => r.status === "approved").length, 0);
   const activeOrders = data.orders.filter((o) => !["delivered", "cancelled", "completed", "rejected"].includes(String(o.status ?? ""))).length;
   const activeHomecare = data.homecare_requests.filter((o) => !["completed", "cancelled", "declined"].includes(String(o.status ?? ""))).length;
