@@ -19,3 +19,20 @@ export function careVisitsOverlap(start: string, hours: number, other: { preferr
   if (!Number.isFinite(otherFrom) || !Number.isFinite(otherHours)) return true;
   return from < otherFrom + otherHours * 3_600_000 && otherFrom < from + hours * 3_600_000;
 }
+
+// Only explicit weekly windows can authorize automatic confirmation; ambiguous prose requires review.
+export function withinCareHours(schedule: unknown, start: string, hours: number) {
+  if (typeof schedule !== "string") return false;
+  const match = /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:\s*[-–]\s*(Mon|Tue|Wed|Thu|Fri|Sat|Sun))?\s*,?\s*(\d{2}):(\d{2})\s*[-–]\s*(\d{2}):(\d{2})$/i.exec(schedule.trim());
+  if (!match) return false;
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const first = days.findIndex(day => day.toLowerCase() === match[1].toLowerCase());
+  const last = days.findIndex(day => day.toLowerCase() === (match[2] ?? match[1]).toLowerCase());
+  const local = new Date(Date.parse(start) + 2 * 3_600_000);
+  const day = local.getUTCDay();
+  const time = local.getUTCHours() * 60 + local.getUTCMinutes();
+  const opening = Number(match[3]) * 60 + Number(match[4]);
+  const closing = Number(match[5]) * 60 + Number(match[6]);
+  const inDay = first <= last ? day >= first && day <= last : day >= first || day <= last;
+  return Number.isFinite(local.getTime()) && inDay && opening >= 0 && closing <= 1440 && Number(match[4]) < 60 && Number(match[6]) < 60 && time >= opening && time + hours * 60 <= closing;
+}
