@@ -9,11 +9,9 @@ import { Loader2, Save, CalendarCheck, DoorOpen, Sparkles, X } from "lucide-reac
 import { toast } from "sonner";
 import { PHARMACY_SERVICES } from "@/lib/services";
 import { useServerFn } from "@tanstack/react-start";
-import { normalizeServices } from "@/lib/normalize-services.functions";
 
 export function PharmacyBookingSettings() {
   const { user } = useAuth();
-  const normalize = useServerFn(normalizeServices);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -48,25 +46,6 @@ export function PharmacyBookingSettings() {
     setServices((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   };
 
-  const runNormalize = async () => {
-    if (description.trim().length < 10) {
-      toast.error("Add a longer description first so the AI has something to work with");
-      return;
-    }
-    setAiBusy(true);
-    try {
-      const r = await normalize({ data: { text: description.trim(), kind: "pharmacy" } });
-      const merged = Array.from(new Set([...services, ...r.services]));
-      setServices(merged);
-      const mergedTags = Array.from(new Set([...tags, ...r.subspecialties, ...r.keywords]));
-      setTags(mergedTags.slice(0, 60));
-      toast.success(`AI added ${r.services.length} services + ${r.keywords.length + r.subspecialties.length} keywords`);
-    } catch (e: any) {
-      toast.error(e?.message ?? "AI normalize failed");
-    } finally {
-      setAiBusy(false);
-    }
-  };
 
   const save = async () => {
     if (!user) return;
@@ -123,7 +102,7 @@ export function PharmacyBookingSettings() {
       <div className="healthcare-card p-5 space-y-3">
         <div>
           <h3 className="text-base font-bold">Services offered</h3>
-          <p className="text-xs text-muted-foreground">Pick the common ones below, then describe anything else in plain English. AI will turn it into search tags.</p>
+          <p className="text-xs text-muted-foreground">Pick the common ones below, then describe anything else in plain English. Patients can find you by these details.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {PHARMACY_SERVICES.map((s) => (
@@ -145,9 +124,6 @@ export function PharmacyBookingSettings() {
             maxLength={8000}
           />
           <div className="mt-2 flex items-center gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={runNormalize} disabled={aiBusy}>
-              {aiBusy ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Analysing…</> : <><Sparkles className="h-3 w-3 mr-1" /> Build search tags</>}
-            </Button>
             <span className="text-[11px] text-muted-foreground">{description.length}/8000</span>
           </div>
           {tags.length > 0 && (

@@ -109,8 +109,7 @@ export function PrescriptionPicker({
           </button>
         )}
         <p className="text-xs text-muted-foreground">
-          {medicationName ? `${medicationName} — ` : ""}Add a prescription to your personal library. Our AI verifies it
-          automatically and you can re-use it at any pharmacy{pharmacyName ? ` (including ${pharmacyName})` : ""}.
+          {medicationName ? `${medicationName} — ` : ""}Add a prescription to your personal library. A pharmacist reviews it and you can re-use it at any pharmacy{pharmacyName ? ` (including ${pharmacyName})` : ""}.
         </p>
         <PrescriptionUploader
           medicationId={medicationId ?? null}
@@ -152,11 +151,6 @@ export function PrescriptionPicker({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <PrescriptionStatusBadge status={u.status} />
-                            {(u.fraud_score ?? 0) < 40 && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-healthcare-green/15 text-healthcare-green inline-flex items-center gap-1">
-                                <ShieldCheck className="h-2.5 w-2.5" /> AI verified
-                              </span>
-                            )}
                             {(u.repeats_total ?? 0) > 0 && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                                 {remaining}/{u.repeats_total} repeats left
@@ -183,7 +177,7 @@ export function PrescriptionPicker({
             <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
               <p className="text-sm font-medium">Your prescription library is empty</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Upload one — our AI will verify it and keep it ready for every pharmacy visit.
+                Upload one — a pharmacist reviews it and it stays ready for every pharmacy visit.
               </p>
             </div>
           )}

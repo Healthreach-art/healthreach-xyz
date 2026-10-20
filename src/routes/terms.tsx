@@ -33,7 +33,7 @@ function TermsPage() {
           </Section>
 
           <Section title="3. Medical disclaimer">
-            HealthReachCare is a logistics and ordering platform — not a medical provider. Information from our AI assistant is for guidance only and is not a substitute for professional medical advice. Always consult a registered healthcare practitioner.
+            HealthReachCare is a logistics and ordering platform — not a medical provider. Information on the platform is for guidance only and is not a substitute for professional medical advice. Always consult a registered healthcare practitioner.
           </Section>
 
           <Section title="4. Prescriptions">

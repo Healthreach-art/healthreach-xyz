@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { firestoreClient } from "@/lib/firestore-client";
 import { useServerFn } from "@tanstack/react-start";
-import { verifyPrescription } from "@/utils/ai.functions";
 import {
   FileText, Loader2, AlertTriangle, CheckCircle2, Clock, RefreshCw,
   Upload as UploadIcon, ShieldCheck, KeyRound, Sparkles, Download,
@@ -13,8 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { PrescriptionStatusBadge, PrescriptionUploader, getPrescriptionFileUrl, FraudPanel, type PrescriptionUpload } from "@/components/PrescriptionVerification";
 import { PatientVerificationCard } from "@/components/PatientVerificationCard";
-import { PrescriptionScanButton } from "@/components/PrescriptionScanButton";
-import { DrugInteractionPanel } from "@/components/DrugInteractionPanel";
 import { toast } from "sonner";
 import { isPrescriptionRefillEligible, prescriptionValidity } from "@/lib/prescription-eligibility";
 
@@ -51,7 +48,6 @@ function Page() {
   }>>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const verifyRx = useServerFn(verifyPrescription);
 
   const reloadUploads = async () => {
     if (!user) return;
@@ -179,36 +175,7 @@ function Page() {
     return { expiring, expired, refillable };
   }, [pxUploads]);
 
-  async function runAutoVerify(upload: PrescriptionUpload) {
-    if (upload.mime_type === "application/pdf") {
-      toast.info("PDF uploaded for pharmacy review.", {
-        description: "Automatic image extraction is not available for PDF files.",
-      });
-      return;
-    }
-    try {
-      const result = await verifyRx({ data: { uploadId: upload.id } });
-      if (result.error) {
-        toast.warning("Prescription remains pending pharmacy review.", { description: result.error });
-      } else {
-        toast.success("AI extraction complete.", {
-          description: `AI assistance only — pharmacy review is still required. ${result.medications.length} medication(s) detected; ${result.risk_level} risk.`,
-        });
-      }
-    } catch (error) {
-      toast.warning("AI extraction is unavailable; the prescription remains pending pharmacy review.", {
-        description: error instanceof Error ? error.message : undefined,
-      });
-    } finally {
-      try {
-        await reloadUploads();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not refresh prescription status.");
-      }
-    }
-  }
 
-  return (
     <main className="container-narrow max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <Link to="/dashboard/patient" className="mb-5 inline-flex items-center rounded text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <ArrowLeft className="mr-1 h-4 w-4" /> Back to Dashboard
@@ -221,7 +188,7 @@ function Page() {
               My Prescription Library
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-lg">
-              Upload once — our AI helps check it and you can re-use it at any pharmacy when you order. A pharmacist still reviews it before dispensing.
+              Upload once and re-use it at any pharmacy when you order. A pharmacist reviews it before dispensing.
             </p>
           </div>
           <div aria-hidden="true" className="relative hidden h-36 w-40 shrink-0 sm:block">
@@ -253,7 +220,7 @@ function Page() {
             <div>
               <h2 id="add-to-library-title" className="text-lg font-semibold text-foreground">Add to my library</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                No need to choose a pharmacy. Upload your prescription and our AI helps capture the doctor details, medicines, dates and signature where legible. When you order Rx medicine, an eligible prescription is attached automatically.
+                No need to choose a pharmacy. Upload your prescription and a pharmacist reviews it. When you order Rx medicine, an eligible prescription is attached automatically.
               </p>
             </div>
           </div>
@@ -261,7 +228,6 @@ function Page() {
             void reloadUploads().catch((error: unknown) => {
               toast.error(error instanceof Error ? error.message : "Could not refresh your library.");
             });
-            void runAutoVerify(upload);
           }} />
         </section>
 
@@ -358,31 +324,6 @@ function Page() {
                       </div>
                     </div>
 
-                    {upload.ai_extraction && (
-                      <div className="mt-3 rounded-lg border border-primary/10 bg-primary/[0.03] p-3">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                          <Sparkles className="h-3.5 w-3.5 text-primary" /> AI-extracted information · not an approval
-                          {upload.ai_trust_score != null && <span className="ml-auto text-muted-foreground">Confidence {upload.ai_trust_score}/100</span>}
-                        </div>
-                        {upload.ai_extraction.medications.length > 0 && (
-                          <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                            {upload.ai_extraction.medications.map((medication, index) => (
-                              <li key={`${upload.id}-med-${index}`}>
-                                <span className="font-medium text-foreground">{medication.name}</span>
-                                {medication.strength && ` · ${medication.strength}`}
-                                {medication.quantity && ` · ${medication.quantity}`}
-                                {medication.instructions && ` · ${medication.instructions}`}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        {upload.ai_extraction.issue_date && (
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            Prescription date: {new Date(upload.ai_extraction.issue_date).toLocaleDateString("en-ZA")}
-                          </p>
-                        )}
-                      </div>
-                    )}
 
                     {(upload.status === "rejected" || upload.status === "reupload_requested") && upload.pharmacist_notes && (
                       <p className="mt-2 text-xs text-destructive">Pharmacy review: {upload.pharmacist_notes}</p>
@@ -440,11 +381,6 @@ function Page() {
                           <AlertTriangle className="h-3 w-3" /> Renewal required
                         </span>
                       )}
-                      <PrescriptionScanButton row={upload} onProcessed={() => {
-                        void reloadUploads().catch((error: unknown) => {
-                          toast.error(error instanceof Error ? error.message : "Could not refresh prescription status.");
-                        });
-                      }} />
                     </div>
 
                     {(linkedOrders[upload.id]?.length ?? 0) > 0 && (
@@ -493,9 +429,6 @@ function Page() {
             </div>
           )}
         </section>
-        {prescriptions.filter((prescription) => prescription.is_active !== false).length >= 2 && (
-          <DrugInteractionPanel medications={prescriptions.filter((prescription) => prescription.is_active !== false).map((prescription) => prescription.medication_name)} />
-        )}
       </div>
     </main>
   );

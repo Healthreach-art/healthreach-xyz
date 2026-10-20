@@ -15,7 +15,6 @@ import { AppointmentChatDialog } from "@/components/AppointmentChatDialog";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { submitDoctorDocuments } from "@/lib/doctor-verify.functions";
-import { normalizeServices } from "@/lib/normalize-services.functions";
 import { Sparkles, X } from "lucide-react";
 import { DoctorBottomNav, type DoctorTab } from "@/components/DoctorBottomNav";
 import { DoctorFinance } from "@/components/DoctorFinance";
@@ -57,7 +56,6 @@ const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function DoctorDashboard() {
   const { user, approvalStatus, signOut, profile } = useAuth();
   const submit = useServerFn(submitDoctorDocuments);
-  const normalize = useServerFn(normalizeServices);
   const [docs, setDocs] = useState<DocRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -318,23 +316,6 @@ function DoctorDashboard() {
     load();
   }
 
-  async function runNormalize() {
-    if (servicesDescription.trim().length < 10) {
-      toast.error("Write a longer description first");
-      return;
-    }
-    setAiBusy(true);
-    try {
-      const r = await normalize({ data: { text: servicesDescription.trim(), kind: "doctor" } });
-      setSubspecialties(Array.from(new Set([...subspecialties, ...r.subspecialties])).slice(0, 40));
-      setServicesTags(Array.from(new Set([...servicesTags, ...r.keywords, ...r.subspecialties])).slice(0, 80));
-      toast.success(`AI added ${r.subspecialties.length} subspecialties + ${r.keywords.length} keywords`);
-    } catch (e: any) {
-      toast.error(e?.message ?? "AI failed");
-    } finally {
-      setAiBusy(false);
-    }
-  }
 
   async function submitDocs() {
     if (!user) return;
@@ -540,7 +521,7 @@ function DoctorDashboard() {
               </div>
               <div className="flex-1 space-y-1">
                 <p className="text-sm font-medium">Profile photo {photoUrl ? "" : <span className="text-destructive">*required</span>}</p>
-                <p className="text-[11px] text-muted-foreground">Patients and our AI use this face when searching. Use a clear, friendly head-shot.</p>
+                <p className="text-[11px] text-muted-foreground">Patients see this photo when searching. Use a clear, friendly head-shot.</p>
                 <label className="inline-flex items-center gap-2 mt-1">
                   <Button type="button" size="sm" variant="outline" disabled={photoBusy} asChild>
                     <span><Upload className="h-3 w-3 mr-1" />{photoBusy ? "Uploading…" : photoUrl ? "Replace photo" : "Upload photo"}</span>
@@ -594,9 +575,6 @@ function DoctorDashboard() {
                   placeholder="E.g. I treat type-2 diabetes, hypertension, asthma, women's health, child immunisations, mental-health screening, minor wound suturing, contraception fitting…"
                 />
                 <div className="flex items-center gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={runNormalize} disabled={aiBusy}>
-                    {aiBusy ? "Analysing…" : (<><Sparkles className="h-3 w-3 mr-1" /> Build search tags</>)}
-                  </Button>
                   <span className="text-[11px] text-muted-foreground">{servicesDescription.length}/8000</span>
                 </div>
                 {(subspecialties.length > 0 || servicesTags.length > 0) && (

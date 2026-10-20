@@ -254,7 +254,7 @@ export function PrescriptionUploader({ pharmacyId, medicationId, orderId, family
       )}
       {progress > 0 && <Progress value={progress} />}
       <p className="text-[11px] text-muted-foreground text-center">
-        AI may assist with extraction. It does not approve prescriptions or replace pharmacy review.
+        A pharmacist reviews every prescription before medicine is dispensed.
       </p>
     </div>
   );
