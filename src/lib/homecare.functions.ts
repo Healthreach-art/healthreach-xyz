@@ -28,6 +28,7 @@ async function assertHomecareOperations(userId: string) {
 export const submitHomecareRequest = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((d) => z.object({
+    expectedAmountCents: z.number().int().positive(),
     serviceType: z.string().trim().min(2).max(120),
     description: z.string().trim().max(5000).default(""),
     address: z.string().trim().min(5).max(500),
@@ -43,6 +44,7 @@ export const submitHomecareRequest = createServerFn({ method: "POST" })
     }
     const { firestoreAdmin } = await import("@/lib/firestore-admin");
     const { data: created, error } = await firestoreAdmin.rpc("create_homecare_request", {
+      _expected_amount_cents: data.expectedAmountCents,
       _service_type: data.serviceType,
       _description: data.description,
       _address: data.address,
@@ -89,6 +91,7 @@ export const reorderCompletedHomecare = createServerFn({ method: "POST" })
       throw new Error("Only a completed home care service can be reordered.");
     }
 
+    throw new Error("Choose the service again to review its current price and visit time before paying.");
     const { data: created, error } = await firestoreAdmin.rpc("create_homecare_request", {
       _service_type: request.service_type,
       _description: request.description ?? "",
@@ -527,4 +530,13 @@ export const saveMyHomecareBanking = createServerFn({ method: "POST" })
       .eq("id", provider.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const listHomecareServicePrices = createServerFn({ method: "GET" })
+  .middleware([requireFirebaseAuth])
+  .handler(async () => {
+    const { firestoreAdmin } = await import("@/lib/firestore-admin");
+    const result = await firestoreAdmin.rpc("list_homecare_service_prices", {});
+    if (result.error) throw result.error;
+    return result.data as { services: Array<{ name: string; hourlyRateCents: number }> };
   });

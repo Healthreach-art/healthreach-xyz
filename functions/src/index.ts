@@ -19,6 +19,8 @@ import { availableDoctorSlots, type Availability, type ExistingAppointment } fro
 import { matchesDoctorPayment } from "./doctor-payment-policy.js";
 import { matchesMarketplacePayment, canDeliverPaidOrder, type PaymentProof } from "./marketplace-payment-policy.js";
 
+import { homecarePriceCents, careVisitsOverlap } from "./homecare-upfront-policy.js";
+
 export { mcpData, mcpOAuth } from "./mcp-oauth.js";
 
 const app = getApps()[0] ?? initializeApp();
@@ -904,6 +906,22 @@ async function requireHomecareOperations(identity: Identity) {
   }
 }
 
+async function homecareServicePrices(identity: Identity) {
+  await requireRole(identity, "patient");
+  const providers = await db.collection("homecare_providers").where("approval_status", "==", "approved").where("is_active", "==", true).get();
+  const prices = new Map<string, number>();
+  for (const provider of providers.docs) {
+    const uid = provider.get("user_id");
+    if (typeof uid !== "string" || !(await hasRole(uid, "homecare_company"))) continue;
+    for (const service of Array.isArray(provider.get("services")) ? provider.get("services") : []) {
+      if (typeof service !== "string") continue;
+      const cents = homecarePriceCents(provider.data(), service, 1);
+      if (cents !== null && (!prices.has(service) || cents < Number(prices.get(service)))) prices.set(service, cents);
+    }
+  }
+  return { services: [...prices].map(([name, hourlyRateCents]) => ({ name, hourlyRateCents })) };
+}
+
 async function createHomecareRequest(identity: Identity, args: ActionArgs) {
   await requireRole(identity, "patient");
   if (!identity.emailVerified) {
@@ -955,6 +973,8 @@ async function createHomecareRequest(identity: Identity, args: ActionArgs) {
     throw new ActionError("Requested duration must be between 1 and 24 hours.");
   }
 
+  const expectedAmount = integerArg(args, "_expected_amount_cents");
+  if (typeof preferredAt !== "string" || typeof durationHours !== "number") throw new ActionError("Choose a visit date, time and duration.");
   const year = new Date().getFullYear();
   const requestRef = db.collection("homecare_requests").doc(randomUUID());
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -965,6 +985,21 @@ async function createHomecareRequest(identity: Identity, args: ActionArgs) {
         db.collection("homecare_requests").where("reference_number", "==", referenceNumber).limit(1),
       );
       if (!duplicate.empty) return false;
+      const providers = await transaction.get(db.collection("homecare_providers").where("approval_status", "==", "approved").where("is_active", "==", true));
+      const candidates = providers.docs.map(provider => ({ provider, amount: homecarePriceCents(provider.data(), serviceType, durationHours) }))
+        .filter(candidate => candidate.amount !== null).sort((a, b) => Number(a.amount) - Number(b.amount) || a.provider.id.localeCompare(b.provider.id));
+      let selected: typeof candidates[number] | undefined;
+      for (const candidate of candidates) {
+        const uid = candidate.provider.get("user_id");
+        if (typeof uid !== "string") continue;
+        const role = await transaction.get(db.collection("user_roles").doc(`${uid}_homecare_company`));
+        if (role.get("role") !== "homecare_company" || candidate.provider.get("availability") === false) continue;
+        const bookings = await transaction.get(db.collection("homecare_requests").where("provider_id", "==", candidate.provider.id));
+        if (bookings.docs.some(booking => careVisitsOverlap(preferredAt, durationHours, booking.data(), Date.now()))) continue;
+        selected = candidate; break;
+      }
+      if (!selected) throw new ActionError("No approved caregiver can take this visit. Choose another time or contact support; no payment has been taken.", 409);
+      if (selected.amount !== expectedAmount) throw new ActionError("The price for this time has changed. Refresh and review the price before paying.", 409);
       const now = new Date().toISOString();
       transaction.create(requestRef, {
         patient_id: identity.uid,
@@ -976,8 +1011,13 @@ async function createHomecareRequest(identity: Identity, args: ActionArgs) {
         longitude,
         preferred_at: preferredAt,
         duration_hours: durationHours,
-        provider_id: null,
-        status: "pending_review",
+        provider_id: selected.provider.id,
+        pricing_mode: "upfront",
+        total_amount: selected.amount / 100,
+        payment_amount_cents: selected.amount,
+        payment_status: "pending",
+        reservation_expires_at: new Date(Date.now() + 30 * 60_000).toISOString(),
+        status: "awaiting_payment",
         created_at: now,
         updated_at: now,
       });
@@ -1353,7 +1393,7 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
   if (!key.startsWith("sk_test_")) throw new ActionError("Paystack test payments must be configured; live charges are not enabled.", 503);
   const snapshot = await ref.get();
   if (!snapshot.exists || snapshot.get("patient_id") !== identity.uid) throw new ActionError("Payment request not found.", 404);
-  if (kind === "homecare" ? !["quote_pending", "quote_accepted", "assigned"].includes(String(snapshot.get("status"))) : !["pending", "scheduled", "accepted", "preparing", "ready", "out_for_delivery", "delivered"].includes(String(snapshot.get("status")))) throw new ActionError("This payment target is no longer active.", 409);
+  if (kind === "homecare" ? !["awaiting_payment", "scheduled", "payment_review", "quote_pending", "quote_accepted", "assigned"].includes(String(snapshot.get("status"))) : !["pending", "scheduled", "accepted", "preparing", "ready", "out_for_delivery", "delivered"].includes(String(snapshot.get("status")))) throw new ActionError("This payment target is no longer active.", 409);
   if (snapshot.get("payment_status") === "paid" && snapshot.get("payment_verified_at")) return { paid: true, reference: snapshot.get("payment_reference") };
   if (verify) {
     const reference = stringArg(args, "_reference");
@@ -1365,14 +1405,23 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
       const paymentRef = db.collection("payments").doc(reference);
       const priorPayment = await transaction.get(paymentRef);
       const items = kind === "medication" ? await transaction.get(db.collection("orders").where("order_group_id", "==", targetId)) : null;
+      const upfront = kind === "homecare" && current.get("pricing_mode") === "upfront";
+      const careProvider = upfront ? await transaction.get(db.collection("homecare_providers").doc(String(current.get("provider_id")))) : null;
+      const careRole = careProvider && typeof careProvider.get("user_id") === "string" ? await transaction.get(db.collection("user_roles").doc(`${careProvider.get("user_id")}_homecare_company`)) : null;
+      const careEligible = careProvider && careRole?.get("role") === "homecare_company" && homecarePriceCents(careProvider.data() ?? {}, String(current.get("service_type")), Number(current.get("duration_hours"))) !== null && asMillis(current.get("reservation_expires_at")) > Date.now();
       if (current.get("patient_id") !== identity.uid) throw new ActionError("Payment ownership changed.", 403);
       if (!matchesMarketplacePayment(result.data, { reference: String(current.get("payment_reference")), amount: Number(current.get("payment_amount_cents")), patientId: identity.uid, targetId, kind })) throw new ActionError("Payment does not match this quotation or order.");
       if (current.get("payment_status") === "paid") return { paid: true, reference };
       if (priorPayment.exists || current.get("payment_status") !== "pending") throw new ActionError("Payment already recorded or no longer pending.", 409);
-      if (kind === "homecare" ? current.get("status") !== "quote_pending" : !["pending", "scheduled", "accepted", "preparing", "ready"].includes(String(current.get("status")))) throw new ActionError("This quotation or order is no longer payable.", 409);
+      if (kind === "homecare" ? !["quote_pending", "awaiting_payment"].includes(String(current.get("status"))) : !["pending", "scheduled", "accepted", "preparing", "ready"].includes(String(current.get("status")))) throw new ActionError("This quotation or order is no longer payable.", 409);
       const now = new Date().toISOString();
       const patch = { payment_status: "paid", payment_reference: reference, payment_verified_at: now, total_paid: Number(current.get("payment_amount_cents")) / 100, updated_at: now };
-      transaction.update(ref, { ...patch, ...(kind === "homecare" ? { status: "quote_accepted", quote_responded_at: now } : {}) });
+      transaction.update(ref, { ...patch, ...(kind === "homecare" ? upfront ? { status: careEligible ? "scheduled" : "payment_review" } : { status: "quote_accepted", quote_responded_at: now } : {}) });
+      if (upfront && careEligible) {
+        const assignmentRef = db.collection("homecare_assignments").doc(targetId);
+        transaction.create(assignmentRef, { id: targetId, request_id: targetId, patient_id: identity.uid, provider_id: current.get("provider_id"), staff_id: null, status: "scheduled", amount: patch.total_paid, scheduled_at: current.get("preferred_at"), created_at: now, updated_at: now });
+        transaction.create(db.collection("notifications").doc(), { user_id: careProvider?.get("user_id"), category: "homecare", title: "Home care booking paid and confirmed", body: "A paid visit has been scheduled. View the patient address and booking details.", link: "/dashboard/homecare_company", read: false, created_at: now });
+      }
       for (const item of items?.docs ?? []) transaction.update(item.ref, patch);
       transaction.create(paymentRef, { patient_id: identity.uid, pharmacy_id: current.get("pharmacy_id") ?? null, provider_id: current.get("pharmacy_id") ?? null, order_group_id: kind === "medication" ? targetId : null, homecare_request_id: kind === "homecare" ? targetId : null, amount: patch.total_paid, total_paid: patch.total_paid, currency: "ZAR", provider: "paystack", status: "completed", transaction_ref: reference, created_at: now });
       return { paid: true, reference };
@@ -1385,7 +1434,15 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
     if (current.get("payment_status") === "paid") throw new ActionError("Already paid.", 409);
     let amount: number;
     if (kind === "homecare") {
-      if (current.get("status") !== "quote_pending" || current.get("quote_currency") !== "ZAR") throw new ActionError("This quote is not awaiting payment.", 409);
+      if (current.get("pricing_mode") === "upfront") {
+        if (current.get("status") !== "awaiting_payment" || asMillis(current.get("reservation_expires_at")) <= Date.now()) throw new ActionError("This visit reservation expired. Choose your service again before paying.", 409);
+        const provider = await transaction.get(db.collection("homecare_providers").doc(String(current.get("provider_id"))));
+        const uid = provider.get("user_id");
+        const role = typeof uid === "string" ? await transaction.get(db.collection("user_roles").doc(`${uid}_homecare_company`)) : null;
+        if (role?.get("role") !== "homecare_company" || homecarePriceCents(provider.data() ?? {}, String(current.get("service_type")), Number(current.get("duration_hours"))) === null) throw new ActionError("This caregiver is no longer eligible. No payment has been taken.", 409);
+        amount = Number(current.get("payment_amount_cents"));
+      } else {
+      if (current.get("status") !== "quote_pending" || current.get("quote_currency") !== "ZAR") throw new ActionError("This legacy quote is not awaiting payment.", 409);
       const providers = await transaction.get(db.collection("homecare_providers").where("approval_status", "==", "approved").where("is_active", "==", true));
       let eligible = false;
       for (const provider of providers.docs) {
@@ -1396,6 +1453,7 @@ async function marketplacePayment(identity: Identity, args: ActionArgs, verify: 
       }
       if (!eligible) throw new ActionError("No approved active care provider is available. Contact support before paying.", 409);
       amount = Math.round(Number(current.get("quote_amount")) * 100);
+      }
     } else {
       if (!["pending", "scheduled", "accepted", "preparing", "ready"].includes(String(current.get("status")))) throw new ActionError("This order is no longer payable.", 409);
       const pharmacyId = String(current.get("pharmacy_id"));
@@ -1458,6 +1516,7 @@ async function requestMedicationPayment(identity: Identity, args: ActionArgs) {
 
 async function runAction(identity: Identity, name: string, args: ActionArgs) {
   switch (name) {
+    case "list_homecare_service_prices": return homecareServicePrices(identity);
     case "initialize_marketplace_payment": return marketplacePayment(identity, args, false);
     case "verify_marketplace_payment": return marketplacePayment(identity, args, true);
     case "request_medication_payment": return requestMedicationPayment(identity, args);
