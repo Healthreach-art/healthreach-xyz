@@ -19,7 +19,12 @@ import { toast } from "sonner";
 import { isPrescriptionRefillEligible, prescriptionValidity } from "@/lib/prescription-eligibility";
 
 export const Route = createFileRoute("/dashboard/patient/prescriptions")({
-  head: () => ({ meta: [{ title: "Prescriptions — HealthReachCare" }] }),
+  head: () => ({ meta: [
+    { title: "My Prescription Library — HealthReachCare" },
+    { name: "description", content: "Upload prescriptions once and re-use them at any HealthReachCare pharmacy." },
+    { property: "og:title", content: "My Prescription Library — HealthReachCare" },
+    { property: "og:description", content: "Upload prescriptions once and re-use them at any pharmacy." },
+  ] }),
   component: () => <RoleGuard allow="patient"><Page /></RoleGuard>,
 });
 
@@ -299,15 +304,16 @@ function Page() {
             </div>
           )}
           {!loading && !loadError && pxUploads.length === 0 && prescriptions.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-5 py-10 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <FileText className="h-7 w-7" />
+            <div className="px-5 py-10 text-center">
+              <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-healthcare-green/15">
+                <div className="rounded-xl border border-border bg-card p-2 shadow-md"><span className="font-serif text-lg font-bold text-foreground">℞</span><div className="mt-1 h-1 w-8 rounded bg-muted" /></div>
+                <span className="absolute bottom-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-healthcare-green text-xs font-bold text-primary-foreground">+</span>
               </div>
               <h3 className="mt-4 font-semibold text-foreground">Nothing here yet</h3>
               <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                 Upload a prescription above or order Rx medicine to add one automatically.
               </p>
-              <Button asChild variant="outline" className="mt-4">
+              <Button asChild className="mt-4 bg-healthcare-green hover:bg-healthcare-green/90">
                 <a href="#add-to-library">Upload a prescription</a>
               </Button>
             </div>
