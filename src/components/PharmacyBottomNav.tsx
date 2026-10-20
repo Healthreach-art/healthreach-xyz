@@ -18,7 +18,7 @@ export function PharmacyBottomNav({
   pendingCount: number;
 }) {
   return (
-    <nav aria-label="Pharmacy terminal" className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-white shadow-lg pb-[env(safe-area-inset-bottom)]">
+    <nav aria-label="Pharmacy terminal" className="fixed inset-x-0 bottom-0 z-50 md:hidden border-t border-border/70 bg-white shadow-lg pb-[env(safe-area-inset-bottom)]">
       <ul className="mx-auto grid h-16 max-w-xl grid-cols-3">
         {ITEMS.map(({ id, label, icon: Icon }) => {
           const active = activeTab === id;
