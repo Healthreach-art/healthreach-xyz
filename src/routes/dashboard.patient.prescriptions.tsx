@@ -209,29 +209,29 @@ function Page() {
         <ArrowLeft className="mr-1 h-4 w-4" /> Back to Dashboard
       </Link>
 
-      <section className="mb-7 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/[0.07] via-background to-healthcare-green/[0.08] p-5 shadow-sm sm:p-8" aria-labelledby="prescription-library-title">
-        <div className="flex items-center justify-between gap-6">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/80 px-3 py-1 text-xs font-medium text-primary">
-              <ShieldCheck className="h-3.5 w-3.5" /> Your secure prescription space
-            </span>
-            <h1 id="prescription-library-title" className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+      <section className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-healthcare-green/[0.06] via-background to-healthcare-green/[0.14] p-5 sm:p-8" aria-labelledby="prescription-library-title">
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative z-10 max-w-2xl">
+            <h1 id="prescription-library-title" className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               My Prescription Library
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Keep your prescriptions together. AI can assist with document extraction; a pharmacy reviews prescriptions before dispensing.
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-lg">
+              Upload once — our AI helps check it and you can re-use it at any pharmacy when you order. A pharmacist still reviews it before dispensing.
             </p>
           </div>
-          <div aria-hidden="true" className="relative hidden h-36 w-44 shrink-0 items-center justify-center sm:flex">
-            <div className="absolute inset-4 rotate-[-7deg] rounded-3xl border border-primary/10 bg-background/80 shadow-lg" />
-            <div className="relative flex h-24 w-24 items-center justify-center rounded-3xl bg-primary text-primary-foreground shadow-xl">
-              <Pill className="h-12 w-12" />
+          <div aria-hidden="true" className="relative hidden h-36 w-40 shrink-0 sm:block">
+            <div className="absolute inset-0 rounded-full bg-healthcare-green/15 blur-xl" />
+            <div className="absolute left-4 top-2 h-32 w-28 rotate-[-6deg] rounded-2xl border border-border bg-card p-3 shadow-lg">
+              <p className="font-serif text-2xl font-bold text-foreground">℞</p>
+              <div className="mt-2 space-y-1.5">
+                <div className="h-1.5 w-16 rounded bg-healthcare-green/25" />
+                <div className="h-1.5 w-20 rounded bg-muted" />
+                <div className="h-1.5 w-14 rounded bg-muted" />
+                <div className="h-1.5 w-18 rounded bg-muted" />
+              </div>
             </div>
-            <span className="absolute right-1 top-3 flex h-10 w-10 items-center justify-center rounded-2xl border border-healthcare-green/20 bg-background text-healthcare-green shadow-md">
-              <BadgeCheck className="h-5 w-5" />
-            </span>
-            <span className="absolute bottom-1 left-1 flex h-9 w-9 items-center justify-center rounded-xl border border-primary/15 bg-background text-primary shadow-md">
-              <FileText className="h-4 w-4" />
+            <span className="absolute bottom-2 right-1 flex h-14 w-14 items-center justify-center rounded-2xl bg-healthcare-green text-primary-foreground shadow-xl">
+              <ShieldCheck className="h-8 w-8" />
             </span>
           </div>
         </div>
@@ -241,15 +241,17 @@ function Page() {
         <PatientVerificationCard />
 
         <section id="add-to-library" className="healthcare-card scroll-mt-20 p-5 sm:p-7" aria-labelledby="add-to-library-title">
-          <h2 id="add-to-library-title" className="mb-2 flex items-center gap-2 text-lg font-semibold text-foreground">
-            <UploadIcon className="h-5 w-5 text-primary" /> Add to my library
-          </h2>
-          <p className="mb-5 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
-            <Sparkles className="mt-1 h-4 w-4 shrink-0 text-primary" />
-            <span>
-              Upload your prescription and our AI may help capture doctor details, medications, dates, and signature information where legible. When you order Rx medicine, an eligible prescription can be attached automatically. AI extraction does not replace pharmacy review or authorize medicine.
+          <div className="mb-5 flex items-start gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-healthcare-green/15 text-healthcare-green">
+              <UploadIcon className="h-6 w-6" />
             </span>
-          </p>
+            <div>
+              <h2 id="add-to-library-title" className="text-lg font-semibold text-foreground">Add to my library</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                No need to choose a pharmacy. Upload your prescription and our AI helps capture the doctor details, medicines, dates and signature where legible. When you order Rx medicine, an eligible prescription is attached automatically.
+              </p>
+            </div>
+          </div>
           <PrescriptionUploader onUploaded={(upload) => {
             void reloadUploads().catch((error: unknown) => {
               toast.error(error instanceof Error ? error.message : "Could not refresh your library.");
@@ -259,10 +261,13 @@ function Page() {
         </section>
 
         <section className="healthcare-card p-5 sm:p-7" aria-labelledby="library-list-title">
-          <h2 id="library-list-title" className="mb-4 flex flex-wrap items-center gap-2 text-lg font-semibold text-foreground">
-            <FileText className="h-5 w-5 text-primary" /> My Prescription Library
-            <span className="ml-auto text-xs font-normal text-muted-foreground">{alerts.refillable.length} eligible for refill</span>
-          </h2>
+          <div className="mb-4 flex items-center gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-healthcare-green/15 text-healthcare-green">
+              <FileText className="h-6 w-6" />
+            </span>
+            <h2 id="library-list-title" className="text-lg font-semibold text-foreground">My Prescription Library</h2>
+            <span className="ml-auto rounded-full bg-healthcare-green/15 px-3 py-1 text-xs font-semibold text-healthcare-green">{alerts.refillable.length} eligible for refill</span>
+          </div>
           {(alerts.expiring.length > 0 || alerts.expired.length > 0) && (
             <div className="mb-4 space-y-2">
               {alerts.expired.length > 0 && (
