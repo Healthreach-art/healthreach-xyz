@@ -19,7 +19,6 @@ import {
 import { Loader2, Pencil, Trash2, Plus, Minus, AlertTriangle, Package, Search, Boxes } from "lucide-react";
 import { MEDICINE_CATEGORIES } from "@/lib/categories";
 import { customerPrice } from "@/lib/pricing";
-import { BulkMedicineImportDialog } from "@/components/BulkMedicineImportDialog";
 import medGeneric from "@/assets/med-generic.jpg";
 import { PrescriptionBadge } from "@/components/PrescriptionBadge";
 import { useServerFn } from "@tanstack/react-start";
@@ -277,7 +276,6 @@ export function PharmacyInventoryPanel({ lowStockOnly = false, threshold = 10 }:
           <Button size="sm" variant="outline" disabled={publishing || loading || inventory.length === 0} onClick={() => void requestPublication()}>
             {publishing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Package className="mr-1 h-4 w-4" />}Publish existing medicines
           </Button>
-          <BulkMedicineImportDialog onImported={loadInventory} />
           <Button size="sm" onClick={openAdd} className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"><Plus className="mr-1 h-4 w-4" />Add New Item</Button>
         </div>
       </div>

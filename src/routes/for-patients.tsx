@@ -20,7 +20,7 @@ const features = [
   { icon: Pill, title: "Order medication", body: "Search nearby pharmacies, upload your script, and check out securely in ZAR." },
   { icon: Truck, title: "Same-day delivery", body: "Drivers dispatched from the closest pharmacy with stock — live tracking included." },
   { icon: Bell, title: "Smart reminders", body: "Never miss a dose. Schedule reminders for every medication on your plan." },
-  { icon: Stethoscope, title: "AI health assistant", body: "Get medication info, interaction warnings, and triage guidance any time." },
+  { icon: Stethoscope, title: "Support when you need it", body: "Chat to our team on WhatsApp for help with orders and bookings." },
   { icon: ShieldCheck, title: "Private & secure", body: "Your health data is encrypted and only shared with pharmacies you choose." },
   { icon: Clock, title: "Repeat prescriptions", body: "Approved scripts auto-refill up to 5 times — no admin, no waiting rooms." },
 ];
