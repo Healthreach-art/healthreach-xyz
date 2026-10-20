@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import {
   Loader2, LogOut, ShieldCheck, CheckCircle, XCircle, FileQuestion, Ban,
   FileText, ExternalLink, ChevronDown, ChevronUp, AlertCircle,
+  LayoutDashboard, ClipboardCheck, Stethoscope, Pill, Home as HomeIcon, Truck, Package, CalendarDays, HeartHandshake, BarChart3, Users,
 } from "lucide-react";
+import { Brand } from "@/components/Brand";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/firebase-admin")({
@@ -289,6 +291,7 @@ function FirebaseAdminPage() {
   const [adminUid, setAdminUid] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [tab, setTab] = useState<TabId>("doctors");
+  const [view, setView] = useState<"dashboard" | "pending" | TabId>("dashboard");
   const [data, setData] = useState<Record<TabId, Row[]>>({
     profiles: [], user_roles: [], doctors: [], pharmacies: [], drivers: [], homecare_providers: [],
     bookings: [], doctor_appointments: [], pharmacy_appointments: [], homecare_requests: [], orders: [], payments: [],
@@ -394,35 +397,167 @@ function FirebaseAdminPage() {
     );
   }
 
+  const providerTabs = TABS.filter((t) => t.provider);
+  const pendingAll = providerTabs.flatMap((t) => providerRowsFor(t.id, data).filter((r) => r.status === "pending_review").map((r) => ({ ...r, __tab: t.id }) as Row & { __tab: TabId }));
+  const totalProviders = providerTabs.reduce((n, t) => n + providerRowsFor(t.id, data).filter((r) => r.status === "approved").length, 0);
+  const activeOrders = data.orders.filter((o) => !["delivered", "cancelled", "completed", "rejected"].includes(String(o.status ?? ""))).length;
+  const activeHomecare = data.homecare_requests.filter((o) => !["completed", "cancelled", "declined"].includes(String(o.status ?? ""))).length;
+  const paidRevenue = data.payments.filter((p) => ["paid", "success", "verified"].includes(String(p.status ?? p.payment_status ?? ""))).reduce((n, p) => n + (Number(p.amount ?? p.total_amount ?? 0) || 0), 0);
+  const tsOf = (r: Row) => {
+    const v = r.created_at ?? r.createdAt ?? r.updated_at ?? r.updatedAt;
+    if (v && typeof v === "object" && "toDate" in v) { try { return (v as { toDate: () => Date }).toDate().getTime(); } catch { return 0; } }
+    const t = v ? new Date(String(v)).getTime() : 0;
+    return Number.isNaN(t) ? 0 : t;
+  };
+  const activity = ([
+    ...pendingAll.map((r) => ({ r, label: "New provider registration" })),
+    ...data.orders.map((r) => ({ r, label: `Medication order ${String(r.status ?? "")}` })),
+    ...data.doctor_appointments.map((r) => ({ r, label: `Doctor appointment ${String(r.status ?? "")}` })),
+    ...data.homecare_requests.map((r) => ({ r, label: `Home care request ${String(r.status ?? "")}` })),
+  ]).sort((a, b) => tsOf(b.r) - tsOf(a.r)).slice(0, 6);
+
+  const NAV: { id: "dashboard" | "pending" | TabId; label: string; icon: typeof ShieldCheck; badge?: number }[] = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "pending", label: "Pending approvals", icon: ClipboardCheck, badge: pendingAll.length },
+    { id: "doctors", label: "Doctors", icon: Stethoscope },
+    { id: "pharmacies", label: "Pharmacies", icon: Pill },
+    { id: "homecare_providers", label: "Home care providers", icon: HomeIcon },
+    { id: "drivers", label: "Drivers", icon: Truck },
+    { id: "orders", label: "Medication orders", icon: Package },
+    { id: "doctor_appointments", label: "Appointments", icon: CalendarDays },
+    { id: "pharmacy_appointments", label: "Pharmacy bookings", icon: CalendarDays },
+    { id: "bookings", label: "Other bookings", icon: CalendarDays },
+    { id: "homecare_requests", label: "Home care requests", icon: HeartHandshake },
+    { id: "payments", label: "Payments & reports", icon: BarChart3 },
+    { id: "profiles", label: "Users", icon: Users },
+    { id: "user_roles", label: "Roles", icon: ShieldCheck },
+  ];
+  const go = (id: typeof view) => { setView(id); if (id !== "dashboard" && id !== "pending") setTab(id); setSearch(""); };
+  const currentLabel = NAV.find((n) => n.id === view)?.label ?? "";
+
   return (
-    <div className="container-narrow px-4 py-6 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Admin Control Centre</h1>
-          <p className="text-sm text-muted-foreground">Signed in as {adminEmail} · live database</p>
+    <div className="min-h-screen bg-muted/30 md:flex">
+      <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col bg-emerald-900 text-emerald-50">
+        <div className="rounded-b-xl bg-background px-4 py-4"><Brand compact /></div>
+        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+          {NAV.map((n) => (
+            <button key={n.id} type="button" onClick={() => go(n.id)}
+              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${view === n.id ? "bg-emerald-700 font-semibold" : "hover:bg-emerald-800"}`}>
+              <n.icon className="h-4 w-4 shrink-0" />
+              <span className="flex-1 truncate">{n.label}</span>
+              {n.badge ? <span className="rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">{n.badge}</span> : null}
+            </button>
+          ))}
+        </nav>
+        <button type="button" onClick={signOut} className="m-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-emerald-800"><LogOut className="h-4 w-4" /> Sign out</button>
+      </aside>
+
+      <div className="min-w-0 flex-1">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
+          <div className="md:hidden"><Brand compact /></div>
+          <h1 className="hidden text-lg font-bold md:block">{currentLabel}</h1>
+          <div className="flex items-center gap-2">
+            <div className="hidden text-right sm:block">
+              <div className="text-sm font-semibold">Admin</div>
+              <div className="max-w-[180px] truncate text-xs text-muted-foreground">{adminEmail}</div>
+            </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-800"><ShieldCheck className="h-4 w-4" /></div>
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={signOut} aria-label="Sign out"><LogOut className="h-4 w-4" /></Button>
+          </div>
+        </header>
+        <div className="flex gap-2 overflow-x-auto border-b border-border bg-background px-3 py-2 md:hidden">
+          {NAV.map((n) => (
+            <button key={n.id} type="button" onClick={() => go(n.id)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs ${view === n.id ? "border-emerald-700 bg-emerald-700 text-emerald-50" : "border-border bg-card"}`}>
+              <n.icon className="h-3.5 w-3.5" />{n.label}{n.badge ? ` (${n.badge})` : ""}
+            </button>
+          ))}
         </div>
-        <Button variant="outline" size="sm" onClick={signOut} className="gap-1"><LogOut className="h-4 w-4" /> Sign out</Button>
+
+        <main className="space-y-5 p-4 md:p-6">
+      {view === "dashboard" && (
+        <>
+          <div className="rounded-2xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-700 p-5 text-emerald-50">
+            <h2 className="text-xl font-bold">Welcome back, Admin</h2>
+            <p className="text-sm opacity-90">Here's what's happening with HealthReachCare today · live data</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[
+              { label: "Approved providers", value: totalProviders, icon: Users, go: "doctors" as const },
+              { label: "Pending approvals", value: pendingAll.length, icon: ClipboardCheck, go: "pending" as const, alert: pendingAll.length > 0 },
+              { label: "Active orders", value: activeOrders, icon: Package, go: "orders" as const },
+              { label: "Home care requests", value: activeHomecare, icon: HeartHandshake, go: "homecare_requests" as const },
+            ].map((m) => (
+              <button key={m.label} type="button" onClick={() => go(m.go)} className="rounded-xl border border-border bg-card p-4 text-left shadow-sm hover:border-emerald-600">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-800"><m.icon className="h-4 w-4" /></div>
+                <div className="mt-2 text-xs text-muted-foreground">{m.label}</div>
+                <div className="text-2xl font-bold">{m.value}</div>
+                {m.alert && <div className="text-xs font-semibold text-destructive">Needs review</div>}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+              <h3 className="mb-3 font-semibold">Recent activity</h3>
+              {activity.length === 0 ? <p className="text-sm text-muted-foreground">No activity yet.</p> : (
+                <ul className="space-y-3">
+                  {activity.map(({ r, label }) => (
+                    <li key={label + r.id} className="flex items-start gap-3 text-sm">
+                      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800"><CheckCircle className="h-3.5 w-3.5" /></div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium">{label}</div>
+                        <div className="truncate text-xs text-muted-foreground">{str(r.name ?? r.full_name ?? r.business_name ?? r.service_type ?? r.email ?? r.id)}</div>
+                      </div>
+                      {tsOf(r) ? <span className="shrink-0 text-xs text-muted-foreground">{new Date(tsOf(r)).toLocaleDateString()}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+              <h3 className="mb-3 font-semibold">Platform overview</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {TABS.map((t) => (
+                  <button key={t.id} type="button" onClick={() => go(t.id)} className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 hover:bg-emerald-50">
+                    <span className="truncate text-muted-foreground">{t.label}</span>
+                    <strong>{providerRowsFor(t.id, data).length}</strong>
+                  </button>
+                ))}
+                <div className="col-span-2 flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 text-emerald-900">
+                  <span>Verified payments</span><strong>R{paidRevenue.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {view === "pending" && (
+        <div className="rounded-xl border border-border bg-card shadow-sm">
+          <div className="border-b border-border p-4"><h3 className="font-semibold">Pending provider approvals</h3></div>
+          {pendingAll.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">Nothing waiting for review.</p> : (
+            <ul className="divide-y divide-border">
+              {pendingAll.map((r) => (
+                <li key={String(r.__tab) + r.id} className="flex flex-wrap items-center gap-3 p-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{str(r.name ?? r.full_name ?? r.fullName ?? r.business_name ?? r.email ?? r.id)}</div>
+                    <div className="text-xs text-muted-foreground">{TABS.find((t) => t.id === r.__tab)?.label}</div>
+                  </div>
+                  <Badge variant="secondary">Pending</Badge>
+                  <Button size="sm" variant="outline" onClick={() => { go(r.__tab as TabId); setSearch(String(r.email ?? r.id)); }}>Review</Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {view !== "dashboard" && view !== "pending" && (<>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input placeholder="Search records…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm bg-background" />
+        <span className="text-xs text-muted-foreground">{rows.length} record{rows.length === 1 ? "" : "s"}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {TABS.map((t) => {
-          const list = providerRowsFor(t.id, data);
-          const pending = t.provider ? list.filter((r) => r.status === "pending_review").length : 0;
-          return (
-            <Button variant="outline"
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`h-auto flex-col items-start rounded-lg border p-3 text-left transition-colors ${tab === t.id ? "border-primary bg-accent" : "border-border bg-card hover:bg-accent/50"}`}
-            >
-              <div className="text-sm text-muted-foreground">{t.label}</div>
-              <div className="text-2xl font-semibold">{list.length}</div>
-              {pending > 0 && <div className="text-xs font-semibold text-primary">{pending} pending</div>}
-            </Button>
-          );
-        })}
-      </div>
-
-      <Input placeholder="Search records…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
 
       {errors[tab] && <p className="text-sm text-destructive">{errors[tab]}</p>}
 
@@ -432,7 +567,7 @@ function FirebaseAdminPage() {
           const isExpanded = expandedDocs[r.id];
 
           return (
-            <div key={r.id} className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-3">
+            <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-semibold text-base truncate">
@@ -500,6 +635,9 @@ function FirebaseAdminPage() {
             </div>
           );
         })}
+      </div>
+      </>)}
+        </main>
       </div>
     </div>
   );
