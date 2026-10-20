@@ -27,7 +27,7 @@ export function PatientAddressHeader({ embedded = false }: { embedded?: boolean 
   const [saving, setSaving] = useState(false);
   const [placeName, setPlaceName] = useState("");
   const [expanded, setExpanded] = useState(false);
-  const isCoords = (value?: string | null) => !!value && /^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(value.trim());
+  const isCoords = (value?: string | null) => !!value && /^(?:Live location\s*·\s*)?-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(value.trim());
   const displayAddress = active?.address && !isCoords(active.address) ? active.address : placeName;
 
   // Turn saved coordinates into a real place name.
@@ -37,7 +37,7 @@ export function PatientAddressHeader({ embedded = false }: { embedded?: boolean 
     let lat = active.lat ?? null;
     let lng = active.lng ?? null;
     if ((lat == null || lng == null) && isCoords(active.address)) {
-      const [a, b] = active.address.split(",").map((part) => Number(part.trim()));
+      const [a, b] = active.address.replace(/^Live location\s*·\s*/, "").split(",").map((part) => Number(part.trim()));
       lat = a; lng = b;
     }
     if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;

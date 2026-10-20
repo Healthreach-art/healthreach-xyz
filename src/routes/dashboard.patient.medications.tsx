@@ -179,7 +179,12 @@ function MedicationMarketplace() {
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((medication) => {
+            {[...filtered].sort((a, b) => {
+              if (!patientCoords) return 0;
+              const da = a.latitude != null && a.longitude != null ? distanceKm(patientCoords.lat, patientCoords.lng, a.latitude, a.longitude) : 9e9;
+              const db = b.latitude != null && b.longitude != null ? distanceKm(patientCoords.lat, patientCoords.lng, b.latitude, b.longitude) : 9e9;
+              return da - db;
+            }).map((medication) => {
               const pharmacy = pharmacies.find((entry) => entry.user_id === medication.pharmacy_id);
               const distance = patientCoords
                 && medication.latitude != null

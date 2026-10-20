@@ -262,49 +262,60 @@ export function PharmacyTerminal() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="border-b border-border bg-card px-4 py-4 sm:px-6">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Brand />
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pharmacy terminal</p>
-                <h1 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">{pharmacyName}</h1>
-                <p className="mt-1 text-xs text-muted-foreground">SAPC premises registration: {metadata?.premises_license_number || metadata?.license_number || "Not provided"}</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${primaryBranch?.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
-                <span className={`h-2 w-2 rounded-full ${primaryBranch?.is_active ? "animate-pulse bg-emerald-500" : "bg-slate-400"}`} />
-                {primaryBranch?.is_active ? `Open · ${metadata?.opening_hours || "08:00 - 20:00"}` : "Closed"}
-              </span>
-              <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${approvalStatus === "approved" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
-                {approvalStatus === "approved" ? <ShieldCheck className="mr-1 inline h-3.5 w-3.5" /> : <Clock className="mr-1 inline h-3.5 w-3.5" />}
-                {approvalStatus === "approved" ? "Verified" : "Pending Verification"}
-              </span>
-              <button
-                type="button"
-                disabled={statusBusy}
-                onClick={toggleOpen}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-60 ${primaryBranch?.is_active ? "border-healthcare-green/30 bg-healthcare-green/10 text-healthcare-green" : "border-slate-400/30 bg-slate-500/10 text-slate-600 dark:text-slate-300"}`}
-              >
-                {statusBusy ? "Updating…" : primaryBranch?.is_active ? "Update status" : "Open pharmacy"}
-              </button>
-              <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /> Settings</Button>
-              <Button variant="ghost" size="sm" onClick={signOut}>Sign out</Button>
+    <div className="min-h-screen bg-slate-50 pb-20 md:pb-8">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <Brand compact />
+            <span className="hidden h-6 w-px bg-slate-200 sm:block" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">{pharmacyName}</p>
+              <p className="truncate text-[11px] text-muted-foreground">SAPC: {metadata?.premises_license_number || metadata?.license_number || "Not provided"}</p>
             </div>
           </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              disabled={statusBusy}
+              onClick={toggleOpen}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-60 ${primaryBranch?.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-100 text-slate-600"}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${primaryBranch?.is_active ? "animate-pulse bg-emerald-500" : "bg-slate-400"}`} />
+              {statusBusy ? "Updating…" : primaryBranch?.is_active ? "Open" : "Closed"}
+            </button>
+            <Button variant="ghost" size="icon" aria-label="Settings" onClick={() => setSettingsOpen(true)}><Settings className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={signOut}>Sign out</Button>
+          </div>
         </div>
+        <nav aria-label="Pharmacy sections" className="mx-auto hidden max-w-7xl gap-1 overflow-x-auto px-4 sm:px-6 md:flex">
+          {([
+            ["home", "Overview"], ["orders", "Orders"], ["rx", "Prescriptions"], ["inventory", "Inventory"],
+            ["branch", "Branches"], ["finance", "Finance"], ["profile", "Account"],
+          ] as const).map(([id, label]) => (
+            <button key={id} type="button" onClick={() => setActiveTab(id)}
+              className={`relative whitespace-nowrap px-3 py-3 text-sm font-medium transition ${activeTab === id ? "text-emerald-700" : "text-slate-500 hover:text-slate-900"}`}>
+              {label}{id === "orders" && pendingCount > 0 && <span className="ml-1.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{pendingCount}</span>}
+              {activeTab === id && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-t bg-emerald-600" />}
+            </button>
+          ))}
+        </nav>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-4 px-4 py-5 sm:px-6">
+      <main className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 sm:py-8">
         {activeTab === "home" && (
           <div className="space-y-5">
-            <section className="rounded-2xl bg-emerald-700 p-5 text-white shadow-sm sm:p-7">
-              <p className="text-sm font-medium text-emerald-50">{greeting}, {profile?.organization_name || "Pharmacy Team"}</p>
-              <h2 className="mt-1 text-2xl font-bold">Here is what’s happening at your pharmacy today.</h2>
-              <p className="mt-2 text-sm text-emerald-50">Live order, inventory and prescription activity from your pharmacy.</p>
+            <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-700 p-6 text-white shadow-lg sm:p-8">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-emerald-100">{greeting}, {profile?.organization_name || "Pharmacy Team"}</p>
+                  <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Today at your pharmacy</h2>
+                  <p className="mt-2 max-w-xl text-sm text-emerald-100">Live orders, payments, prescriptions and stock in one place.</p>
+                </div>
+                <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${approvalStatus === "approved" ? "bg-white/15 text-white" : "bg-amber-300 text-amber-950"}`}>
+                  {approvalStatus === "approved" ? <ShieldCheck className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
+                  {approvalStatus === "approved" ? "Verified pharmacy" : "Pending verification"}
+                </span>
+              </div>
             </section>
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Metric label="Pending Orders" value={pendingCount} />
@@ -473,14 +484,14 @@ export function PharmacyTerminal() {
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {
-  return <div className="rounded-xl border border-border/60 bg-white p-4 shadow-sm"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 truncate text-2xl font-bold text-slate-900">{value}</p></div>;
+  return <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 truncate text-3xl font-bold text-slate-900">{value}</p></div>;
 }
 
 function QuickAction({ icon: Icon, title, detail, onClick }: { icon: LucideIcon; title: string; detail: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="flex min-h-28 items-start gap-3 rounded-xl border border-border/60 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <span className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><Icon className="h-5 w-5" /></span>
-      <span><span className="block font-semibold text-slate-900">{title}</span><span className="mt-1 block text-xs text-muted-foreground">{detail}</span></span>
+    <button type="button" onClick={onClick} className="group flex min-h-24 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-emerald-300 hover:shadow-md">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700 transition group-hover:bg-emerald-600 group-hover:text-white"><Icon className="h-5 w-5" /></span>
+      <span className="min-w-0"><span className="block font-semibold text-slate-900">{title}</span><span className="mt-0.5 block text-xs text-muted-foreground">{detail}</span></span>
     </button>
   );
 }

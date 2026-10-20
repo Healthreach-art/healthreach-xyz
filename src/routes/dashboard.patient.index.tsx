@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { usePatientLocationBroadcaster } from "@/hooks/usePatientLocationBroadcaster";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
 import { firestoreClient } from "@/lib/firestore-client";
@@ -52,7 +51,6 @@ function PatientDashboard() {
   const navigate = useNavigate();
   const userId = user?.id;
   const firstName = profile?.full_name?.split(" ")[0] || "";
-  usePatientLocationBroadcaster({ userId });
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [pharmaciesById, setPharmaciesById] = useState<Record<string, string>>({});
   const [driverName, setDriverName] = useState<string>("");
