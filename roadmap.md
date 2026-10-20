@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Replace new home care quotation flow with configured upfront prices, payment and verified service confirmation; preserve legacy records.
+- [ ] Verify live home care upfront payment (blocked on Firebase function deployment, a patient account, and approved caregivers with saved services, rates, areas and hours).
+
 - [x] Use consistent logo/name across booking screens and all shared page endings; public mobile/desktop branding verified.
 - [x] Preserve doctor-set prices, remove invented consultation defaults, and validate saved charges; no live prices overwritten.
 - [x] Add Paystack test-payment and confirmation for homecare quotations, with exact amount/reference checks and duplicate protection; live check blocked on deployment and real patient access.

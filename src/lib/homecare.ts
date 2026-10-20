@@ -54,6 +54,8 @@ export const ASSIGNMENT_LABEL: Record<string, string> = {
 };
 
 export const REQUEST_LABEL: Record<string, string> = {
+  awaiting_payment: "Awaiting payment",
+  payment_review: "Payment recorded — support review required",
   pending_review: "Request received — awaiting coordinator review",
   quote_pending: "Quote ready — awaiting patient response",
   quote_accepted: "Quote accepted — coordinator confirming next steps",
@@ -116,9 +118,9 @@ export function filterHomecareRequestsForCoordinator<T extends { status: string 
     case "incoming":
       return requests.filter((request) => request.status === "pending_review");
     case "awaiting_patient":
-      return requests.filter((request) => request.status === "quote_pending");
+      return requests.filter((request) => ["quote_pending", "awaiting_payment"].includes(request.status));
     case "awaiting_coordinator":
-      return requests.filter((request) => request.status === "quote_accepted");
+      return requests.filter((request) => ["quote_accepted", "payment_review"].includes(request.status));
     case "confirmed":
       return requests.filter((request) => ["confirmed", "assigned", "accepted", "scheduled", "in_progress"].includes(request.status));
     case "active":
@@ -137,8 +139,8 @@ export function filterHomecareRequestsForCoordinator<T extends { status: string 
 export function getHomecareStatusSummary<T extends { status: string }>(requests: T[]) {
   return {
     incoming: requests.filter((request) => request.status === "pending_review").length,
-    awaitingPatient: requests.filter((request) => request.status === "quote_pending").length,
-    awaitingCoordinator: requests.filter((request) => request.status === "quote_accepted").length,
+    awaitingPatient: requests.filter((request) => ["quote_pending", "awaiting_payment"].includes(request.status)).length,
+    awaitingCoordinator: requests.filter((request) => ["quote_accepted", "payment_review"].includes(request.status)).length,
     confirmed: requests.filter((request) => ["confirmed", "assigned", "accepted", "scheduled", "in_progress"].includes(request.status)).length,
     active: requests.filter((request) => ["assigned", "accepted", "scheduled", "in_progress"].includes(request.status)).length,
     completed: requests.filter((request) => request.status === "completed").length,

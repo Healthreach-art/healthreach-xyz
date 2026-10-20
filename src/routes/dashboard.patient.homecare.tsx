@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { PATIENT_ADDRESS_CHANGED, readPatientAddress, type PatientAddress } from "@/lib/patient-address";
 import { useServerFn } from "@tanstack/react-start";
-import { reorderCompletedHomecare, respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
+import { listHomecareServicePrices, respondToHomecareQuote, submitHomecareRequest } from "@/lib/homecare.functions";
 import { HomecareServiceChat } from "@/components/HomecareServiceChat";
 import { MarketplacePayment } from "@/components/MarketplacePayment";
 import { REQUEST_LABEL } from "@/lib/homecare";
@@ -36,6 +36,9 @@ interface HomecareRequest {
   quote_currency: string | null;
   quote_details: string | null;
   quote_issued_at: string | null;
+  pricing_mode?: string;
+  total_amount?: number;
+  payment_verified_at?: string;
   payment_status?: string;
   payment_reference?: string;
   homecare_assignments: Array<{
@@ -93,9 +96,9 @@ export const Route = createFileRoute("/dashboard/patient/homecare")({
   head: () => ({
     meta: [
       { title: "Home Care Requests — HealthReachCare" },
-      { name: "description", content: "Request trusted homecare services and track quotations from HealthReachCare." },
+      { name: "description", content: "Request trusted homecare services and pay upfront and track confirmed visits through HealthReachCare." },
       { property: "og:title", content: "Home Care Requests — HealthReachCare" },
-      { property: "og:description", content: "Homecare quotations, secure payment and visit coordination." },
+      { property: "og:description", content: "Upfront homecare prices, secure payment and visit confirmation." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -117,7 +120,9 @@ function referenceFor(request: HomecareRequest) {
 }
 
 function statusLabel(status: string) {
-  if (status === "pending_review" || status === "quote_pending") return "Pending Quotes";
+  if (["pending_review", "quote_pending", "awaiting_payment"].includes(status)) return "Awaiting payment";
+  if (status === "scheduled") return "Service confirmed";
+  if (status === "payment_review") return "Payment needs support review";
   if (status === "quote_accepted" || status === "assigned" || status === "accepted" || status === "scheduled" || status === "in_progress") return "Accepted";
   if (status === "completed" || status === "confirmed") return "Completed";
   if (status === "cancelled" || status === "rejected" || status === "quote_declined") return "Cancelled";
@@ -135,7 +140,11 @@ function PatientHomecarePage() {
   const { user, profile } = useAuth();
   const createRequest = useServerFn(submitHomecareRequest);
   const respondToQuote = useServerFn(respondToHomecareQuote);
-  const reorderRequest = useServerFn(reorderCompletedHomecare);
+  const listPrices = useServerFn(listHomecareServicePrices);
+  const [services, setServices] = useState<Array<{ name: string; hourlyRateCents: number }>>([]);
+  const [priceError, setPriceError] = useState("");
+  const [paymentTarget, setPaymentTarget] = useState("");
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [requests, setRequests] = useState<HomecareRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [serviceType, setServiceType] = useState("");
@@ -177,6 +186,10 @@ function PatientHomecarePage() {
   }, [user]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void listPrices().then(result => { setServices(result.services); setPriceError(""); }).catch(() => setPriceError("Service prices could not be loaded. Please try again or contact support.")); }, [listPrices]);
+  const hourlyRateCents = services.find(service => service.name === serviceType)?.hourlyRateCents;
+  const totalCents = hourlyRateCents === undefined ? null : hourlyRateCents * Number(hours);
+
 
   useEffect(() => {
     if (!user?.id) return;
@@ -217,8 +230,9 @@ function PatientHomecarePage() {
     try {
       const result = await createRequest({
         data: {
+          expectedAmountCents: totalCents ?? 0,
           serviceType,
-          description: instructions.trim(),
+          description: description.slice(0, 5000),
           address: visitAddress.trim(),
           latitude: locationMode === "different" ? address?.lat ?? null : address?.address === homeAddress ? address.lat : null,
           longitude: locationMode === "different" ? address?.lng ?? null : address?.address === homeAddress ? address.lng : null,
@@ -227,6 +241,8 @@ function PatientHomecarePage() {
         },
       });
       setReferenceNumber(result.referenceNumber);
+      setPaymentTarget(result.id);
+      setBookingConfirmed(false);
       setStep(4);
       void load();
     } catch (error) {
@@ -252,17 +268,11 @@ function PatientHomecarePage() {
     }
   };
 
-  const reorder = async (request: HomecareRequest, assignmentId: string) => {
-    setReordering(request.id);
-    try {
-      await reorderRequest({ data: { requestId: request.id, assignmentId } });
-      toast.success("A new request was created from your completed service.");
-      await load();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not reorder this service.");
-    } finally {
-      setReordering(null);
-    }
+  const reorder = async (request: HomecareRequest, _assignmentId: string) => {
+    setServiceType(request.service_type);
+    setInstructions(request.description ?? "");
+    setDateKey(""); setTime(""); setStep(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const latestAssignment = (request: HomecareRequest) => (request.homecare_assignments ?? [])
@@ -321,7 +331,9 @@ function PatientHomecarePage() {
     <main className="min-h-screen space-y-8 bg-emerald-50/60 px-4 py-6 pb-28">
       {step === 0 && <><StepLabel n={1} label="Choose a Service" /><BookingScreen backTo="/dashboard/patient">
         <ScreenTitle title="Book Home Care" sub="Professional care and support in the comfort of your home." />
-        {SERVICES.map((service) => <ServiceRow key={service.title} icon={service.icon} title={service.title} sub={service.description} selected={serviceType === service.title} onClick={() => { setServiceType(service.title); setStep(1); }} />)}
+        {priceError && <p role="alert" className="text-sm text-destructive">{priceError}</p>}
+        {!priceError && services.length === 0 && <p className="text-sm text-muted-foreground">No priced home care services are currently available.</p>}
+        {services.map((service) => <ServiceRow key={service.name} icon={HeartHandshake} title={service.name} sub={`R${(service.hourlyRateCents / 100).toFixed(2)} per hour`} selected={serviceType === service.name} onClick={() => { setServiceType(service.name); setStep(1); }} />)}
       </BookingScreen></>}
 
       {step === 1 && <><StepLabel n={2} label="Tell Us What You Need" /><BookingScreen onBack={() => setStep(0)}>
@@ -331,11 +343,11 @@ function PatientHomecarePage() {
         <p className="mt-1 text-sm text-slate-600">{SERVICES.find((x) => x.title === serviceType)?.description}. Compassionate, professional support arranged by the HealthReachCare care team.</p>
         <p className="mt-4 text-sm font-bold text-emerald-950">Service includes</p>
         <ul className="mt-2 space-y-2">{(INCLUDES[serviceType] ?? []).map((item) => <li key={item} className="flex items-center gap-2 text-sm text-slate-700"><Check className="h-4 w-4 text-emerald-600" />{item}</li>)}</ul>
-        <p className="mt-4 text-sm font-semibold text-emerald-900">Price set by quotation after review</p>
+        <p className="mt-4 text-sm font-semibold text-emerald-900">{hourlyRateCents !== undefined ? `R${(hourlyRateCents / 100).toFixed(2)} per hour · Pay upfront to confirm` : "Price unavailable — choose an available service"}</p>
         <Button type="button" className="mt-4 h-12 w-full rounded-xl bg-emerald-700 text-base hover:bg-emerald-800" onClick={() => setStep(2)}>Continue</Button>
       </BookingScreen></>}
 
-      {step === 2 && <><StepLabel n={3} label="Review & Submit" /><BookingScreen onBack={() => setStep(1)}>
+      {step === 2 && <><StepLabel n={3} label="Review & Pay" /><BookingScreen onBack={() => setStep(1)}>
         <ScreenTitle title="Your Requirements" />
         <div className="space-y-3 text-sm">
           <label className="block font-semibold text-emerald-950">Preferred Date
@@ -356,27 +368,32 @@ function PatientHomecarePage() {
           <label className="block font-semibold text-emerald-950">Additional Needs <span className="font-normal text-slate-500">(Optional)</span>
             <Textarea value={specialRequirements} onChange={(e) => setSpecialRequirements(e.target.value)} maxLength={1500} rows={2} className="mt-1 rounded-xl border-0 bg-emerald-50 font-normal" placeholder="Please bring any necessary equipment." /></label>
         </div>
-        <Button type="button" disabled={saving} className="mt-4 h-12 w-full rounded-xl bg-emerald-700 text-base hover:bg-emerald-800" onClick={() => { if (!dateKey || !time || new Date(preferredAt).getTime() <= Date.now()) { toast.error("Choose a date and time in the future."); return; } if (!visitAddress.trim()) { toast.error("Add the address for the care visit."); return; } if (!instructions.trim()) { toast.error("Please describe the care you need."); return; } void submit(); }}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</> : "Continue"}</Button>
+        <p className="mt-4 flex justify-between font-semibold text-primary"><span>Total for {hours} hours</span><span>{totalCents !== null ? `R${(totalCents / 100).toFixed(2)}` : "Unavailable"}</span></p>
+        <Button type="button" disabled={saving || totalCents === null} className="mt-4 h-12 w-full rounded-xl bg-emerald-700 text-base hover:bg-emerald-800" onClick={() => { if (!dateKey || !time || new Date(preferredAt).getTime() <= Date.now()) { toast.error("Choose a date and time in the future."); return; } if (!visitAddress.trim()) { toast.error("Add the address for the care visit."); return; } if (!instructions.trim()) { toast.error("Please describe the care you need."); return; } void submit(); }}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Preparing payment…</> : "Continue to payment"}</Button>
       </BookingScreen></>}
 
-      {step === 4 && <><StepLabel n={4} label="Receive Quotation" /><BookingScreen onBack={() => setStep(0)}>
+      {step === 4 && <><StepLabel n={4} label={bookingConfirmed ? "Service Confirmed" : "Secure Payment"} /><BookingScreen onBack={() => setStep(0)}>
         <div className="pt-4 text-center">
-          <Clock3 className="mx-auto h-14 w-14 text-emerald-600" />
-          <h1 className="mt-3 text-xl font-bold text-emerald-950">Request Submitted</h1>
-          <p className="mt-1 text-sm text-slate-600">Your request has been sent to our support team. We will review your requirements and send you a quotation shortly.</p>
-          {referenceNumber && <button type="button" onClick={() => void copyReference()} className="mt-3 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-mono text-xs text-emerald-800"><Copy className="h-3 w-3" />{copied ? "Copied" : referenceNumber}</button>}
+          {bookingConfirmed ? <CheckCircle2 className="mx-auto h-14 w-14 text-primary" /> : <ShieldCheck className="mx-auto h-14 w-14 text-primary" />}
+          <h1 className="mt-3 text-xl font-bold">{bookingConfirmed ? "Your service is confirmed" : "Pay for your care visit"}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{serviceType}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{dateKey} · {time} · {hours} hours</p>
+          <p className="mt-2 break-words text-sm">{visitAddress}</p>
+          <p className="mt-3 text-xl font-bold text-primary">{totalCents !== null ? `R${(totalCents / 100).toFixed(2)}` : ""}</p>
+          <p className="mt-2 break-all font-mono text-xs">{referenceNumber}</p>
         </div>
-        <div className="mt-5 rounded-2xl bg-emerald-50 p-4">
-          <p className="font-bold text-emerald-950">What happens next?</p>
-          {[["Support reviews your request", "We check details and match the right caregiver"], ["Receive a quotation", "You'll get a detailed price and service plan"], ["Review and accept", "Accept or decline the quotation here"], ["Service booked", "We will confirm the schedule with you"]].map(([t, d], i) => (
-            <div key={t} className="mt-3 flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">{i + 1}</span><div><p className="text-sm font-semibold text-emerald-950">{t}</p><p className="text-xs text-slate-600">{d}</p></div></div>
-          ))}
-        </div>
-        <Button type="button" variant="outline" className="mt-4 h-11 w-full rounded-xl border-emerald-600 text-emerald-700" onClick={() => { setStep(0); setServiceType(""); setInstructions(""); setSpecialRequirements(""); setDateKey(""); setTime(""); }}>Make another request</Button>
+        {paymentTarget && <MarketplacePayment kind="homecare" targetId={paymentTarget} onPaid={() => {
+          void load();
+          void firestoreClient.from("homecare_requests").select("status, payment_verified_at").eq("id", paymentTarget).eq("patient_id", user?.id).maybeSingle().then(result => {
+            if (result.data?.status === "scheduled" && result.data.payment_verified_at) setBookingConfirmed(true);
+            else toast.info("Payment recorded. Support must resolve your visit availability before service confirmation.");
+          });
+        }} />}
+        <Button type="button" variant="outline" className="mt-4 w-full" onClick={() => { setStep(0); setServiceType(""); setDateKey(""); setTime(""); }}>Book another service</Button>
       </BookingScreen></>}
 
       <div className="space-y-3">
-        <div><h2 className="text-lg font-semibold text-emerald-950">My active requests</h2><p className="text-sm text-muted-foreground">Track quotations and care coordination updates here.</p></div>
+        <div><h2 className="text-lg font-semibold text-emerald-950">My active requests</h2><p className="text-sm text-muted-foreground">Track payments, confirmed visits and care updates here.</p></div>
         {loading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
         {!loading && requests.length === 0 && <div className="rounded-2xl border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground">You have no homecare requests yet. Use the guided form above to tell us what support you need.</div>}
         {!loading && requests.length > 0 && activeRequests.length === 0 && <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">There are no active requests right now.</p>}
@@ -392,29 +409,31 @@ function PatientHomecarePage() {
                 </div>
                 <Badge variant={r.status === "confirmed" || r.status === "completed" ? "default" : "secondary"}>{REQUEST_LABEL[r.status] ?? r.status}</Badge>
               </div>
-              {r.quote_amount != null && (
+              {(r.total_amount != null || r.quote_amount != null) && (
                 <div className="space-y-3">
-                  <p className="text-lg font-bold text-emerald-950">Quotation from Support</p>
-                  <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3"><ShieldCheck className="h-6 w-6 text-emerald-700" /><div><p className="text-sm font-semibold text-emerald-950">HealthReachCare Support</p><p className="text-xs text-slate-600">Service Quotation</p></div></div>
+                  <p className="text-lg font-bold text-emerald-950">Service summary</p>
+                  <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3"><ShieldCheck className="h-6 w-6 text-emerald-700" /><div><p className="text-sm font-semibold text-emerald-950">HealthReachCare Support</p><p className="text-xs text-slate-600">Home care booking</p></div></div>
                   <dl className="grid grid-cols-[6rem_1fr] gap-y-2 text-sm">
                     <dt className="text-slate-500">Service</dt><dd className="font-medium text-emerald-950">{r.service_type}</dd>
                     <dt className="text-slate-500">Date</dt><dd className="font-medium text-emerald-950">{r.preferred_at ? new Date(r.preferred_at).toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Johannesburg" }) : "To be confirmed"}</dd>
                     <dt className="text-slate-500">Time</dt><dd className="font-medium text-emerald-950">{r.preferred_at ? new Date(r.preferred_at).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" }) : "To be confirmed"}</dd>
-                    <dt className="text-slate-500">Caregiver</dt><dd className="font-medium text-emerald-950">{r.homecare_providers?.business_name || r.homecare_providers?.full_name || "Assigned after acceptance"}</dd>
+                    <dt className="text-slate-500">Caregiver</dt><dd className="font-medium text-emerald-950">{r.homecare_providers?.business_name || r.homecare_providers?.full_name || "Caregiver reserved for payment"}</dd>
                   </dl>
                   {r.quote_details && <p className="text-xs text-slate-600">{r.quote_details}</p>}
-                  <div className="flex items-center justify-between border-t border-slate-100 pt-3"><span className="font-bold text-emerald-950">Total Price</span><span className="text-xl font-bold text-emerald-950">{r.quote_currency === "ZAR" || !r.quote_currency ? "R" : `${r.quote_currency} `}{Number(r.quote_amount).toFixed(2)}</span></div>
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-3"><span className="font-bold text-emerald-950">Total Price</span><span className="text-xl font-bold text-emerald-950">{r.quote_currency === "ZAR" || !r.quote_currency ? "R" : `${r.quote_currency} `}{Number(r.total_amount ?? r.quote_amount).toFixed(2)}</span></div>
                   <Button type="button" variant="outline" className="h-10 w-full rounded-xl" onClick={() => setSelectedRequest(r)}>View Full Details</Button>
                 </div>
               )}
-              {r.status === "quote_pending" && (
+              {["awaiting_payment", "quote_pending"].includes(r.status) && (
                 <div className="space-y-2">
                   <MarketplacePayment kind="homecare" targetId={r.id} reference={r.payment_reference} paid={r.payment_status === "paid"} onPaid={() => { setSelectedRequest(null); void load(); }} />
-                  <Button variant="outline" className="h-12 w-full rounded-xl border-emerald-600 text-emerald-700" disabled={respondingTo === r.id || !!r.payment_reference} onClick={() => answerQuote(r.id, "decline")}>Decline</Button>
+                  {r.pricing_mode !== "upfront" && <Button variant="outline" disabled={respondingTo === r.id || !!r.payment_reference} onClick={() => answerQuote(r.id, "decline")}>Decline legacy quote</Button>}
                 </div>
               )}
               {["quote_accepted", "assigned"].includes(r.status) && <ServiceProgress status={assignment?.status ?? r.status} />}
               {r.payment_status === "paid" && <MarketplacePayment kind="homecare" targetId={r.id} reference={r.payment_reference} paid onPaid={() => void load()} />}
+              {r.status === "scheduled" && <p className="text-sm font-semibold text-primary">Payment verified — service confirmed</p>}
+              {r.status === "payment_review" && <p className="text-sm text-destructive">Payment recorded — contact support to resolve visit availability before service confirmation.</p>}
               {r.status === "quote_accepted" && (
                 <p className="text-xs text-muted-foreground">Your quotation payment is confirmed. The coordinator will confirm provider availability and the visit schedule separately.</p>
               )}
@@ -494,7 +513,7 @@ function PatientHomecarePage() {
 }
 
 function ServiceProgress({ status }: { status: string }) {
-  const steps = [["accepted", "Quotation accepted"], ["scheduled", "Caregiver assigned & scheduled"], ["in_progress", "Service in progress"], ["completed", "Service completed"]] as const;
+  const steps = [["accepted", "Payment verified"], ["scheduled", "Caregiver assigned & scheduled"], ["in_progress", "Service in progress"], ["completed", "Service completed"]] as const;
   const order = ["quote_accepted", "assigned", "accepted", "scheduled", "in_progress", "completed"];
   const reached = (key: string) => order.indexOf(status) >= order.indexOf(key === "accepted" ? "quote_accepted" : key);
   return <div className="rounded-2xl bg-emerald-50 p-4">
@@ -534,7 +553,7 @@ function RequestDetails({ request, onPaid }: {
 }) {
   const requestRef = referenceFor(request);
   const providerName = request.homecare_providers?.business_name || request.homecare_providers?.full_name;
-  const canRespond = request.status === "quote_pending" && request.quote_amount != null;
+  const canRespond = ["quote_pending", "awaiting_payment"].includes(request.status);
   return <div className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div><p className="font-semibold text-slate-900">{request.service_type}</p><p className="font-mono text-xs text-muted-foreground">{requestRef}</p></div>
@@ -556,7 +575,7 @@ function RequestDetails({ request, onPaid }: {
       ><Mail className="mr-2 h-4 w-4" />Email support</a></Button>
     </div>
 
-    {request.quote_amount != null ? (
+    {(request.total_amount != null || request.quote_amount != null) ? (
       <>
         <section className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
           <div className="flex items-start gap-3">
@@ -568,10 +587,10 @@ function RequestDetails({ request, onPaid }: {
             </div>
           </div>
           <div className="rounded-xl bg-white p-4">
-            <p className="text-xs text-muted-foreground">Visit quotation</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{request.quote_currency === "ZAR" || !request.quote_currency ? "R" : `${request.quote_currency} `}{Number(request.quote_amount).toFixed(2)} <span className="text-sm font-medium text-muted-foreground">per visit</span></p>
+            <p className="text-xs text-muted-foreground">Service total</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{request.quote_currency === "ZAR" || !request.quote_currency ? "R" : `${request.quote_currency} `}{Number(request.total_amount ?? request.quote_amount).toFixed(2)} <span className="text-sm font-medium text-muted-foreground">per visit</span></p>
             {request.quote_details && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{request.quote_details}</p>}
-            {request.quote_issued_at && <p className="mt-2 text-xs text-muted-foreground">Quotation issued {new Date(request.quote_issued_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</p>}
+            {request.quote_issued_at && <p className="mt-2 text-xs text-muted-foreground">Legacy quotation issued {new Date(request.quote_issued_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}</p>}
           </div>
         </section>
         {canRespond && <MarketplacePayment kind="homecare" targetId={request.id} reference={request.payment_reference} onPaid={onPaid} />}
@@ -579,7 +598,7 @@ function RequestDetails({ request, onPaid }: {
       </>
     ) : (
       <div className="rounded-xl border border-dashed border-border bg-slate-50 p-4 text-sm text-muted-foreground">
-        Your request is with the HealthReachCare homecare coordination team. The verified team will share the visit quotation here when it is ready.
+        No payable service price is saved on this older request. Choose a service with an upfront price to book.
       </div>
     )}
   </div>;
