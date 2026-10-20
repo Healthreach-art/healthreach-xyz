@@ -70,3 +70,10 @@ test("service entries must be valid before they are made active in the catalogue
   assert.equal(isHomecareServicePriceValid(-12), false);
   assert.equal(isHomecareServicePriceValid("250"), false);
 });
+
+test("upfront payment and confirmation appear in the coordinator queues", () => {
+  const requests = [{ status: "awaiting_payment" }, { status: "scheduled" }, { status: "payment_review" }];
+  assert.deepEqual(filterHomecareRequestsForCoordinator(requests, "awaiting_patient"), [requests[0]]);
+  assert.deepEqual(filterHomecareRequestsForCoordinator(requests, "confirmed"), [requests[1]]);
+  assert.deepEqual(filterHomecareRequestsForCoordinator(requests, "awaiting_coordinator"), [requests[2]]);
+});

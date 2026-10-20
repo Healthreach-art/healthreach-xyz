@@ -92,19 +92,6 @@ export const reorderCompletedHomecare = createServerFn({ method: "POST" })
     }
 
     throw new Error("Choose the service again to review its current price and visit time before paying.");
-    const { data: created, error } = await firestoreAdmin.rpc("create_homecare_request", {
-      _service_type: request.service_type,
-      _description: request.description ?? "",
-      _address: request.address,
-      _latitude: request.latitude ?? null,
-      _longitude: request.longitude ?? null,
-      _preferred_at: null,
-      _duration_hours: request.duration_hours ?? null,
-    });
-    if (error) throw new Error(error.message);
-    const result = created as { id?: unknown } | null;
-    if (typeof result?.id !== "string") throw new Error("A new home care request could not be created.");
-    return { id: result.id };
   });
 
 export const listHomecareOperationsRequests = createServerFn({ method: "GET" })
