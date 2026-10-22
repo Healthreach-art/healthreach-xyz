@@ -89,7 +89,7 @@ export default function App({initialEntry='',initialReturnTo='',initialPartner=f
     finally {
         setBusy(false);
     } }
-    const nav = (p) => { if (!s) {
+    const nav = (p) => { if(s?.realAccount&&role==='Admin'&&p==='Account'){window.location.replace('/account');return;} if (!s) {
         showEntry();
         return;
     } let target = role==='Patient'&&['Messages','Inbox'].includes(p)?'Notifications':p === 'Home' ? homePage(role) : role === 'Pharmacy' && p === 'Prescriptions' ? 'Orders' : p;if(s.applications?.some(a=>a.accountId===s.session.accountId&&a.status!=='Approved')&&!['Account','Onboarding','Payouts','Privacy','Security','Inbox','Messages','Notifications','Finances','Support'].includes(target)){target='Onboarding';setToast('Complete the application review before opening operational tools');} previousPage.current=page;setPage(target); setModal(null); setSearch(''); setFilter('All'); setCategory('All'); setLanding(false); window.history.pushState({}, '', dashboardPath(role, target)); };
