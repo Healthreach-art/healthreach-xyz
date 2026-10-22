@@ -1,0 +1,42 @@
+name: Validate HealthReachCare replacement
+on:
+  pull_request:
+    paths:
+      - 'replacement/healthreachcare/**'
+      - '.github/workflows/validate-replacement.yml'
+      - 'deployment/**'
+      - 'package.json'
+permissions:
+  contents: read
+concurrency:
+  group: replacement-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: replacement/healthreachcare
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install replacement dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund --package-lock=false
+      - name: Lint
+        run: npm run lint
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Isolated workflow and authorization tests
+        run: npm test
+      - name: Build replacement
+        run: npm run build
+      - name: Prepare existing Cloudflare bindings
+        run: node deployment/prepare-cloudflare.mjs --repository-root
+      - name: Validate package without deploying
+        run: npx wrangler deploy --config ../../wrangler.jsonc --dry-run
