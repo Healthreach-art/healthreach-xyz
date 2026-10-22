@@ -1,3 +1,4 @@
+import {firebaseWorkspaceGET,firebaseWorkspacePOST} from '../../../lib/firebase-workspace.mjs';
 import {validateAcceptedHomecareQuote} from '../../../lib/homecare-quotations.mjs';
 import {maintainAccountWorkspace,publicAccountWorkspace,handleAccountWorkspace} from '../../../lib/account-workspace.mjs';
 import {maintainDoctorOperations,publicDoctorOperations,handleDoctorOperations} from '../../../lib/doctor-operations.mjs';
@@ -118,7 +119,7 @@ function canAccess(r, session, s) { if (session.role === 'Admin')
     return r.type === 'Homecare' && r.providerId === session.accountId; return false; }
 async function sessionFor(req, s) { const token = req.headers.get('x-demo-session'); if (!token)
     return null; const hash = await tokenHash(token); return s.sessions.find((x) => x.hash === hash && x.expires > Date.now()) || null; }
-function publicState(s, session) {
+export function publicState(s, session) {
     const out = structuredClone(s);
     out.serverTime=Date.now();
     delete out.sessions;
@@ -178,7 +179,7 @@ async function workspace(uid) { for (let tries = 0; tries < 4; tries++) {
     if (result.meta.changes)
         return { s, raw };
 } throw Error('Workspace is busy. Please refresh.'); }
-export async function GET(req) { const u = await getChatGPTUser(); if (!u)
+export async function GET(req) { if(req.headers.get('authorization')?.startsWith('Bearer '))return firebaseWorkspaceGET(req,env,publicState);if(env.HRC_DEMO_ENABLED==='false')return fail('Sign in to HealthReachCare to continue.',401);const u = await getChatGPTUser(); if (!u)
     return fail('Sign in with ChatGPT to open your private demo.', 401); try {
     const { s } = await workspace(u.userId);
     const session = await sessionFor(req, s);
@@ -191,6 +192,8 @@ catch (e) {
     return fail(e.message, 503);
 } }
 export async function POST(req) {
+    if(req.headers.get('authorization')?.startsWith('Bearer '))return firebaseWorkspacePOST(req,env,publicState);
+    if(env.HRC_DEMO_ENABLED==='false')return fail('Sign in to HealthReachCare to continue.',401);
     const u = await getChatGPTUser();
     if (!u)
         return fail('Authentication required', 401);
