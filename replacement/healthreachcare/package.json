@@ -17,7 +17,8 @@
     "test:views": "node tests/views.mjs",
     "test:interactions": "node tests/interactions.mjs",
     "test:logout": "node tests/logout.mjs",
-    "test": "npm run test:api && npm run test:navigation && npm run test:views && npm run test:logout && npm run test:interactions"
+    "test": "npm run test:api && npm run test:navigation && npm run test:views && npm run test:logout && npm run test:interactions && npm run test:accounts",
+    "test:accounts": "node tests/firebase-connection.mjs && node tests/real-account.mjs && node tests/real-account-api.mjs && node tests/firebase-workspace.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
