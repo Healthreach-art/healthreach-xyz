@@ -1,5 +1,6 @@
 'use client';
 import {doctorSupportCategories} from '../lib/doctor-config.mjs';
+import {firebaseWorkspaceHeaders} from '../lib/firebase-client.mjs';
 import {notifyBinaryVersion} from '../lib/workspace-client.mjs';
 import {DoctorBooking} from './doctor-booking';
 import {SupportEvidence} from './support-evidence';
@@ -21,7 +22,7 @@ export function PrivateDocuments({ s, act, busy, role, record }) {
         setUploadStatus('');setError(e.message||'Document upload failed. Please retry.');
     }finally{setUploading(false);} }
     async function view(d) { setError(''); const purpose = role === 'Admin' ? window.prompt('Reason for audited document access') : undefined; if (role === 'Admin' && !purpose)
-        return; const r = await fetch('/api/workspace', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-demo-session': sessionStorage.getItem('hrc-demo-session') || '' }, body: JSON.stringify({ action: 'viewDocument', payload: { documentId: d.id, purpose }, version: s.version }) }); if (!r.ok) {
+        return; const r = await fetch('/api/workspace', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(s.realAccount?await firebaseWorkspaceHeaders():{'x-demo-session': sessionStorage.getItem('hrc-demo-session') || ''}) }, body: JSON.stringify({ action: 'viewDocument', payload: { documentId: d.id, purpose }, version: s.version }) }); if (!r.ok) {
         setError((await r.json()).error);
         return;
     } notifyBinaryVersion(r);const url = URL.createObjectURL(await r.blob()); window.open(url, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(url), 60000); await act('refresh', {}, 'Document access recorded'); }
