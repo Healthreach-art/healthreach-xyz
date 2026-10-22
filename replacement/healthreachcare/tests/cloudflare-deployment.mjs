@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {configureDeployment} from '../deployment/prepare-cloudflare.mjs';
+const original={main:'index.js',assets:{directory:'../client'},vars:{KEEP:'value'}};
+const config=configureDeployment(original);
+assert.equal(config.name,'healthreachcare');
+assert.equal(config.d1_databases[0].database_id,'aa78a384-cc38-4141-b550-fda0f34fb3a2');
+assert.deepEqual(config.r2_buckets.map(v=>v.binding),['BUCKET','DOCUMENTS_BUCKET']);
+assert.deepEqual(config.assets,original.assets);
+assert.equal(config.vars.KEEP,'value');
+assert.equal(config.vars.HRC_DEMO_ENABLED,'false');
+assert.equal(config.vars.FIREBASE_AUTH_ENABLED,'true');
+assert.equal(config.vars.FIREBASE_GOOGLE_ENABLED,'true');
+assert.equal(JSON.parse(config.vars.FIREBASE_WEB_CONFIG).projectId,'gen-lang-client-0810450473');
+assert.equal(original.name,undefined);
+assert.throws(()=>configureDeployment({main:'index.js'}));
+console.log('11 Cloudflare deployment configuration assertions passed. No deployment performed.');
