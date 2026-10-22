@@ -1,19 +1,13 @@
-# HealthReachCare replacement source
+# Current HealthReachCare app
 
-This directory contains the full current Sites application from source commit `2c11d69`, including its prior UI and workflow changes. The existing production application remains at the repository root.
+`replacement/healthreachcare` contains the current OpenAI Sites app, including Firebase authentication and private R2 uploads. The proposed root build command selects it and emits the root Wrangler configuration used by both the existing Cloudflare Builds command and GitHub Actions. No DNS change or database reset is needed. The existing root `src/` is retained; `npm run build:legacy` and the rollback branch preserve the former application.
 
-## Deployment boundary
+## Do not merge before the integration checks
 
-This is a source handoff branch, not a completed production replacement. Do not merge and deploy expecting the root Worker to run this app. Its current runtime expects Sites identity, a D1 `DB` binding and an R2 `BUCKET` binding. Production uses Firebase/Firestore and `DOCUMENTS_BUCKET` for `healthreachcare-documents`.
+This branch prepares replacement; it does not connect the old Firestore service history to the new D1 account workspace. See `replacement/healthreachcare/reports/healthreachcare-firebase-cutover-2026-10-22.md`. Booking, payments, dispatch and messaging are fail-closed for real accounts until integrated. The former app remains live until this branch is reviewed and deployed. Existing users in the old Firebase project have not been migrated. Existing R2 objects and database records are not deleted or copied.
 
-Firebase client/server integration helpers are prepared but remain off by default and are not yet wired into the login screen or production account mapping. Live payments and payouts remain unavailable. Existing Firebase users, Firestore records and R2 objects must be preserved. Do not reseed or copy demo records into the production backend.
+Required production checks: confirm existing-record adapter and project choice; add healthreachcare.co.za and the Worker hostname to the selected Firebase authorized domains; test Google sign-in, verification/reset email delivery and real uploads; verify existing signed admin claims/roles; execute a Cloudflare preview build and smoke test. Do not enable live payments or claim regulatory verification as part of this deployment.
 
-Before the production swap: adapt the UI to the existing canonical Firestore data/action interfaces, verify real account roles and approval restrictions, preserve private-document access and email verification, test all service flows, then review an exact deployment and rollback. Main's automatic deployment workflow has not been changed or paused.
+## Rollback
 
-## Checks already run
-
-- Existing application: complete API, navigation, rendering, logout and UI interaction suites passed; lint, TypeScript and production build passed.
-- Firebase preparation: 20 local generated-token/mocked-account checks passed, no real users contacted.
-- Existing production repository: 12 available policy tests passed.
-
-No production deployment, data changes or billing changes were performed for this source handoff.
+Remote branch `archive/before-current-app-2026-10-22` retains the exact former main commit `b3d85ec56a5dc42381ed16fc6f5cd1ed5b894787`. Restore a prior Cloudflare deployment for immediate rollback and revert this activation PR to restore automated builds. Do not delete R2 objects or D1 tables. Data written to the new app remains separate and is not automatically imported into the old app.
