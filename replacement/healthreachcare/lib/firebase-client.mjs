@@ -25,3 +25,12 @@ export async function accountRequest(action,values={}){const {auth}=await fireba
 export async function setAccountPassword(password){if(!validPassword(password))throw Error(passwordHelp);const {auth,sdk}=await firebaseClient();if(!auth.currentUser?.email)throw Error('Sign in to continue');if(auth.currentUser.providerData.some(p=>p.providerId==='password'))throw Error('A password is already set. Use password recovery to change it.');await sdk.linkWithCredential(auth.currentUser,sdk.EmailAuthProvider.credential(auth.currentUser.email,password));}
 
 export async function firebaseWorkspaceHeaders(){const {auth}=await firebaseClient();await auth.authStateReady();return auth.currentUser?{Authorization:'Bearer '+await auth.currentUser.getIdToken()}:{};}
+
+export async function reauthenticateAdministrator(password=''){
+ const {auth,sdk}=await firebaseClient();await auth.authStateReady();const user=auth.currentUser;if(!user)throw Error('Sign in first.');
+ if(password){if(!user.email)throw Error('An account email is required.');await sdk.reauthenticateWithCredential(user,sdk.EmailAuthProvider.credential(user.email,password));}
+ else if(user.providerData.some(p=>p.providerId==='google.com')){const provider=new sdk.GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});await sdk.reauthenticateWithPopup(user,provider);}
+ else throw Error('Enter your current account password to confirm sign-in.');
+ await user.getIdToken(true);
+}
+export async function administratorRequest(input){const headers=await firebaseWorkspaceHeaders();const r=await fetch('/api/admin/access',{method:input?'POST':'GET',cache:'no-store',signal:AbortSignal.timeout(20000),headers:{...headers,...(input?{'Content-Type':'application/json'}:{})},...(input?{body:JSON.stringify(input)}:{})});const data=await r.json();if(!r.ok)throw Error(data.error||'Unable to load administrator settings.');return data;}
