@@ -3,15 +3,15 @@ import {generateKeyPair,SignJWT} from 'jose';
 import {firebaseConnection,safeAuthError} from '../lib/firebase-connection.mjs';
 import {verifyFirebaseIdentity} from '../lib/firebase-server.mjs';
 let checks=0;const check=(v)=>{assert(v);checks++;};
-check(!firebaseConnection({}).enabled);
+check(!firebaseConnection({}).enabled);check(!firebaseConnection({FIREBASE_AUTH_ENABLED:'true',FIREBASE_WEB_CONFIG:'{}'}).enabled);
 check(!firebaseConnection({FIREBASE_AUTH_ENABLED:'true',FIREBASE_WEB_CONFIG:'broken'}).enabled);
-const env={FIREBASE_AUTH_ENABLED:'true'};const config=firebaseConnection(env);check(config.enabled);check(config.config.projectId==='healthreachcare-prod');check(!config.googleEnabled);check(!config.registrationEnabled);
+const fixture={apiKey:'fictional-public-key',authDomain:'fictional-project.firebaseapp.com',projectId:'fictional-project',appId:'fictional-app-id'};const env={FIREBASE_AUTH_ENABLED:'true',FIREBASE_WEB_CONFIG:JSON.stringify(fixture)};const config=firebaseConnection(env);check(config.enabled);check(config.config.projectId==='fictional-project');check(!config.googleEnabled);check(!config.registrationEnabled);
 const secret=firebaseConnection({...env,FIREBASE_WEB_CONFIG:JSON.stringify({...config.config,private_key:'must-not-leak'})});check(!JSON.stringify(secret).includes('must-not-leak'));
 check(!safeAuthError({message:'private detail'}).includes('private detail'));
 check(safeAuthError({code:'auth/user-disabled'})===safeAuthError({code:'auth/wrong-password'}));
 const {publicKey,privateKey}=await generateKeyPair('RS256');let requests=0;
 const request=async()=>{requests++;return Response.json({users:[{localId:'fictional-test-uid',email:'fixture@example.test',emailVerified:true,validSince:'1'}]});};
-const jwt=(overrides={})=>new SignJWT({auth_time:Math.floor(Date.now()/1000)-1,...overrides}).setProtectedHeader({alg:'RS256'}).setSubject('fictional-test-uid').setIssuedAt().setExpirationTime('5m').setIssuer('https://securetoken.google.com/healthreachcare-prod').setAudience('healthreachcare-prod').sign(privateKey);
+const jwt=(overrides={})=>new SignJWT({auth_time:Math.floor(Date.now()/1000)-1,...overrides}).setProtectedHeader({alg:'RS256'}).setSubject('fictional-test-uid').setIssuedAt().setExpirationTime('5m').setIssuer('https://securetoken.google.com/fictional-project').setAudience('fictional-project').sign(privateKey);
 const token=await jwt();const identity=await verifyFirebaseIdentity(token,env,{keySet:publicKey,request});check(identity.uid==='fictional-test-uid');check(identity.emailVerified);check(!('role' in identity));check(!('permissions' in identity));
 await assert.rejects(()=>verifyFirebaseIdentity(token,{}, {keySet:publicKey,request}));checks++;
 await assert.rejects(()=>verifyFirebaseIdentity('forged',env,{keySet:publicKey,request}));checks++;
@@ -20,4 +20,7 @@ await assert.rejects(()=>verifyFirebaseIdentity(token,env,{keySet:publicKey,requ
 await assert.rejects(()=>verifyFirebaseIdentity(token,env,{keySet:publicKey,request:async()=>Response.json({users:[{localId:'fictional-test-uid',validSince:String(Math.floor(Date.now()/1000)+10)}]})}));checks++;
 await assert.rejects(async()=>verifyFirebaseIdentity(await jwt({auth_time:Date.now()/1000+9999}),env,{keySet:publicKey,request}));checks++;
 check(requests===1);
+
+const claimed=await jwt({admin:true});const trustedAdmin=await verifyFirebaseIdentity(claimed,env,{keySet:publicKey,request:async()=>Response.json({users:[{localId:'fictional-test-uid',emailVerified:true,displayName:'Fixture Admin',providerUserInfo:[{providerId:'password'}]}]})});check(trustedAdmin.admin);check(trustedAdmin.hasPassword);check(trustedAdmin.displayName==='Fixture Admin');
+const unverifiedClaim=await verifyFirebaseIdentity(claimed,env,{keySet:publicKey,request:async()=>Response.json({users:[{localId:'fictional-test-uid',emailVerified:false}]})});check(!unverifiedClaim.admin);check(identity.admin===false);
 console.log(`${checks} Firebase preparation checks passed using generated local tokens and mocked account responses; no live accounts contacted.`);
