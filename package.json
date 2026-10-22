@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "node deployment/build-current-app.mjs",
     "functions:build": "npm run build --prefix functions",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test src/lib/patient-prescription-policy.test.ts src/lib/auth-session-policy.test.ts src/lib/homecare-policy.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/patient-prescription-policy.test.ts src/lib/auth-session-policy.test.ts src/lib/homecare-policy.test.ts",
+    "build:legacy": "vite build"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
