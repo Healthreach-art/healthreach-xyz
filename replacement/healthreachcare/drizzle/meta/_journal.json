@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792602250354,
+      "tag": "0000_wonderful_argent",
+      "breakpoints": true
+    }
+  ]
+}
