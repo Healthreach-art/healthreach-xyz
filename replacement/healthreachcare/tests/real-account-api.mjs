@@ -1,10 +1,11 @@
 import fs from 'node:fs';import ts from 'typescript';import assert from 'node:assert/strict';
-import * as store from '../lib/account-store.mjs';import * as rules from '../lib/real-account.mjs';
+import * as store from '../lib/account-store.mjs';import * as adminRules from '../lib/admin-access.mjs';
+import * as rules from '../lib/real-account.mjs';
 let checks=0;const check=v=>{assert(v);checks++;};const records=new Map(),objects=new Map();
 const env={FIREBASE_AUTH_ENABLED:'true',FIREBASE_WEB_CONFIG:JSON.stringify({projectId:'fictional-project',apiKey:'fictional',authDomain:'fictional-project.firebaseapp.com',appId:'fictional'}),DB:{prepare(sql){return {bind(...values){return {async first(){const data=records.get(values[0]);return data?{data}:null;},async all(){return {results:[...records].filter(([k])=>k.startsWith(values[0].slice(0,-1))).map(([,data])=>({data}))};},async run(){let changes=0;if(sql.startsWith('INSERT')){if(!records.has(values[0])){records.set(values[0],values[1]);changes=1;}}else if(records.get(values[2])===values[3]){records.set(values[2],values[0]);changes=1;}return {meta:{changes}};}};}};}},BUCKET:{async put(key,bytes){objects.set(key,bytes);},async get(key){return objects.has(key)?{body:objects.get(key)}:null;},async delete(key){objects.delete(key);}}};
-const identities={patient:{uid:'fixture-patient',email:'patient@example.test',emailVerified:true,hasPassword:true,admin:false,displayName:'Fixture Patient'},provider:{uid:'fixture-provider',email:'provider@example.test',emailVerified:true,admin:false,displayName:'Fixture Provider'},outsider:{uid:'unrelated-provider',emailVerified:true,admin:false},unverified:{uid:'unverified',emailVerified:false,admin:false},admin:{uid:'fixture-admin',email:'admin@example.test',emailVerified:true,admin:true}};
+const identities={patient:{uid:'fixture-patient',email:'patient@example.test',emailVerified:true,hasPassword:true,admin:false,displayName:'Fixture Patient'},provider:{uid:'fixture-provider',email:'provider@example.test',emailVerified:true,admin:false,displayName:'Fixture Provider'},outsider:{uid:'unrelated-provider',emailVerified:true,admin:false},unverified:{uid:'unverified',emailVerified:false,admin:false},admin:{authTime:Math.floor(Date.now()/1000),uid:'fixture-admin',email:'admin@example.test',emailVerified:true,admin:true}};
 async function accountIdentity(req){const id=identities[req.headers.get('authorization')?.replace('Bearer ','')];if(!id)throw Error('Denied');return id;}
-function load(file){const loaded={exports:{}};const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;new Function('require','module','exports',code)(name=>name==='cloudflare:workers'?{env}:name.endsWith('account-store.mjs')?{...store,accountIdentity}:name.endsWith('real-account.mjs')?rules:(()=>{throw Error(name);})(),loaded,loaded.exports);return loaded.exports;}
+function load(file){const loaded={exports:{}};const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;new Function('require','module','exports',code)(name=>name==='cloudflare:workers'?{env}:name.endsWith('account-store.mjs')?{...store,accountIdentity}:name.endsWith('real-account.mjs')?rules:name.endsWith('admin-access.mjs')?adminRules:(()=>{throw Error(name);})(),loaded,loaded.exports);return loaded.exports;}
 const api=load('app/api/account/route.js'),documents=load('app/api/account/documents/route.js');
 function req(identity,body){return new Request('https://fixture.example.test/api/account',{method:body?'POST':'GET',headers:{...(identity?{Authorization:'Bearer '+identity}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});}
 async function post(id,body,status=200){const response=await api.POST(req(id,body));assert.equal(response.status,status);checks++;return response.json();}
@@ -26,3 +27,18 @@ const stale=await store.readAccount(env,'fixture-patient');await post('patient',
 // An R2 write is rolled back if its metadata cannot be committed.
 await post('outsider',{action:'register',role:'Doctor',fullName:'Fixture Outsider'});const original=env.DB.prepare;env.DB.prepare=function(sql){if(sql.startsWith('UPDATE'))return {bind(){return {async run(){return {meta:{changes:0}};}};}};return original(sql);};response=await upload('outsider',new File(['%PDF-rollback-fixture'],'rollback.pdf',{type:'application/pdf'}));check(response.status===400);check(objects.size===1);env.DB.prepare=original;
 console.log(`${checks} real-account API, persistence, admin review, document ownership and rollback assertions passed with isolated in-memory D1/R2 and mocked identities. No live accounts or storage were changed.`);
+
+// Exercise the protected administrator-management HTTP boundary.
+env.HRC_MAIN_ADMIN_UID='fixture-admin';identities.admin.mainAdmin=true;
+const adminAPI=load('app/api/admin/access/route.js');
+let accessResponse=await adminAPI.GET(req('admin'));check(accessResponse.status===200);let access=await accessResponse.json();check(access.mainUid==='fixture-admin');
+check((await adminAPI.GET(req('patient'))).status===403);
+check((await adminAPI.POST(req('patient',{action:'grant',targetUid:'fixture-provider'}))).status===403);
+check((await adminAPI.POST(req('admin',{action:'grant',targetUid:'fixture-provider'}))).status===200);
+identities.provider.admin=true;identities.provider.authTime=Math.floor(Date.now()/1000);identities.provider.mainAdmin=false;
+check((await adminAPI.POST(req('provider',{action:'revoke',targetUid:'fixture-admin'}))).status===400);
+check((await adminAPI.POST(req('admin',{action:'revoke',targetUid:'fixture-admin'}))).status===400);
+identities.admin.authTime=0;check((await adminAPI.GET(req('admin'))).status===403);identities.admin.authTime=Math.floor(Date.now()/1000);
+check((await adminAPI.POST(req('admin',{action:'revoke',targetUid:'fixture-provider'}))).status===200);
+access=await (await adminAPI.GET(req('admin'))).json();check(access.members['fixture-provider'].active===false);check(access.audit.length===3);
+console.log('11 administrator HTTP authorization, main-owner protection, recent-sign-in and persisted audit checks passed with isolated state.');
