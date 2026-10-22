@@ -36,7 +36,7 @@ jobs:
           import { readFileSync } from "node:fs";
 
           const config = JSON.parse(
-            readFileSync(".output/server/wrangler.json", "utf8"),
+            readFileSync("wrangler.jsonc", "utf8"),
           );
           const documentsBucket = config.r2_buckets?.find(
             (bucket) => bucket.binding === "DOCUMENTS_BUCKET",
@@ -51,13 +51,13 @@ jobs:
           NODE
 
       - name: Dry-run Worker deployment
-        run: npx wrangler deploy --config .output/server/wrangler.json --dry-run
+        run: npx wrangler deploy --config wrangler.jsonc --dry-run
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Worker
-        run: npx wrangler deploy --config .output/server/wrangler.json
+        run: npx wrangler deploy --config wrangler.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
