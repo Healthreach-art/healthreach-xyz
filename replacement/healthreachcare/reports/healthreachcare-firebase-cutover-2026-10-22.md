@@ -1,0 +1,17 @@
+# Firebase authentication, documents and GitHub cutover
+
+Authentication continues using gen-lang-client-0810450473. Existing Firebase email/password, Google, verification and password reset APIs are retained; the recovery UI directly invokes the same Firebase reset service. No account or Firebase project is reset or migrated.
+
+Real Firebase patient accounts can now save PDF/PNG/JPEG prescription documents through the existing authenticated workspace API and private R2 binding. Viewing sends the Firebase bearer rather than a demo cookie. Ownership, email verification, explicit upload consent, type signatures, size, active-order eligibility, expiration and the 20-active-document limit are checked server-side. CAS failures delete newly uploaded orphan objects. Read responses are private/no-store and sandboxed. Upload alone does not create or submit an order or change order totals, quantities or addresses. Provider onboarding documents continue using the separate authenticated multipart endpoint (PDF/JPEG/PNG/WebP, 10 MB, maximum 8).
+
+Cloudflare preparation pins the actual DB and two R2 binding names, preserves asset paths and extra variables, supplies the selected public Firebase configuration and disables demo header-based API entry on external hosting. It does not deploy or change DNS. The old product-image route also rejects external demo access. Existing R2 objects and D1 rows are not migrated or deleted.
+
+## Validation
+
+Full npm test passed: 1255 API workflow assertions, navigation/rendering/logout/interaction suites, password-recovery UI mocks, 109 account-state assertions, 42 private account/document API assertions, 76 Firebase workspace assertions and 12 dashboard handoff checks. The new real prescription upload/download/isolation tests use in-memory D1/R2 and mocked Firebase identities; no real medical data was uploaded and no password-reset email was sent. Eleven deployment configuration assertions passed. Lint, TypeScript and production build results are reported in the conversation after execution.
+
+## Remaining production dependencies
+
+The old application's canonical Firestore collection/actions, historical records and approval mappings are not connected to this app's new D1 workspace. Existing Firebase users in a different project cannot authenticate automatically against the selected Gemini project. Live booking/payment/dispatch/service-message actions remain fail-closed; no simulated success is substituted. A signed administrator claim must be provisioned by an authorized project administrator; an email or login does not grant it. Firebase-managed verification/reset email delivery, real Google sign-in and actual R2 uploads require a user browser end-to-end test. Document signature validation is not malware scanning. Retention expiry blocks reads but is not a guaranteed deletion scheduler.
+
+For the former developer: provide schema and trusted action contracts (paths, IDs, authorization and status transitions) for existing users/roles/approvals, medications_public, prescriptions, doctor_appointments, homecare bookings, payments/refunds, deliveries, messages and private R2 document metadata. Provide the names of required environment variables and existing webhook endpoints, never secret values. Confirm which Firebase project owns the records to be retained and accessed. This is needed before replacing the production app without losing access to existing workflows.
