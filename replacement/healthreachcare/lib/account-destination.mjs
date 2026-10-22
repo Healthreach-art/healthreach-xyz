@@ -1,0 +1,2 @@
+const homes={Patient:'/dashboard/patient/home',Pharmacy:'/dashboard/pharmacy/overview',Doctor:'/dashboard/doctor/overview',Homecare:'/dashboard/homecare/overview',Driver:'/dashboard/driver/overview'};
+export function accountDestination(account,identity){if(!identity?.emailVerified||!account?.fullName)return null;if(identity.admin)return null;if(account.role==='Patient')return identity.hasPassword?homes.Patient:null;return account.status==='Approved'?homes[account.role]||null:null;}
