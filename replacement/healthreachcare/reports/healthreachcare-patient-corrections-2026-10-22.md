@@ -1,0 +1,16 @@
+# Patient screen corrections — 22 October 2026
+
+- Patient bottom navigation is now Home, Activities, Notifications and Account. Messages has no separate patient tab. Old patient inbox/messages URLs lead to Notifications; transaction-linked conversations remain accessible from their permitted order context. Provider navigation is unchanged.
+- Patient home hero uses exactly the public landing brand token, #13A673, with readable text and an address control. The four distinct patient service-card colours are retained.
+- Large Back to Home buttons are replaced by icon-only 44px controls with accessible labels. Doctor booking, account navigation and pharmacy stock back controls use the same icon treatment. Forward/submit actions are preserved.
+- Homecare once again shows Personal care, Elderly care, Mobility assistance and Post-surgery care as request categories, even before a provider publishes inventory. Category selection with no published provider shows a clear availability message and does not fabricate a provider, price, booking or payment. Published provider services still use their saved data and existing booking links. No homecare quotation/payment backend rule was changed.
+- Prescription submission component, validation and saved order selections were not changed. The previous Firebase handoff release also did not edit the Homecare marketplace or prescription component; the apparent loss of services came from switching from sample inventory to the separate real-account data source.
+- Added an interactive OpenStreetMap embed on patient Home, after Reminders and before Recent Orders. It supports pan/zoom, an optional permitted device location, a genuine saved-coordinate location and an active driver's actual saved location when available. It never invents an address, provider, route or ETA. Initial map loading is explicit and explains that the map provider receives the displayed area. GPS is requested only on the user's location-button action and does not change the saved delivery address. Ended driver tracking has no continuing active marker. A larger-map link and error/permission fallback are present. There is no new paid map API or key.
+
+## Verification
+
+npm test passed, including 505 navigation checks plus 290 route-table assertions, the existing 1,255 workflow checks, existing account/authentication/isolation tests, nine new map-control handler checks and ten new homecare/hero/navigation/back-control rendering checks. GPS and account identities in automated tests are mocked. Lint and TypeScript passed. The packaging workflow runs the production build. No live credentials, real booking, payment, message or document were submitted for these tests. Third-party map tile availability and a live user's GPS permission have not been independently tested in the hosted app.
+
+## External setup
+
+Cloudflare's actual dashboard opened successfully and requires sign-in. No Cloudflare deployment, DNS, billing or old app change has yet been performed. Secure sign-in is needed before inspecting that account's deployment/bindings. Firebase Google authorization, trusted administration and live transaction/provider integration remain separate outstanding setup work; none is claimed complete by these UI corrections.
