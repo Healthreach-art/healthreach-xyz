@@ -12,7 +12,10 @@ async function post(id,body,status=200){const response=await api.POST(req(id,bod
 check((await api.GET(req())).status===401);await post('unverified',{action:'profile'},403);await post('patient',{action:'register',role:'Admin'},400);
 let result=await post('patient',{action:'register',fullName:'Fixture Patient'});check(result.account.role==='Patient');check(!result.ready);
 await post('patient',{action:'profile',fullName:'Fixture Patient',address:'Fixture address'});result=await (await api.GET(req('patient'))).json();check(result.ready);check(result.account.address==='Fixture address');check(result.applications.length===0);
-await post('provider',{action:'register',role:'Pharmacy',fullName:'Fixture Provider'});await post('outsider',{action:'profile',uid:'fixture-provider',fullName:'Attacker',address:'Attacker address'},403);await post('provider',{action:'profile',fullName:'Fixture Provider',address:'Fictional practice'});
+await post('provider',{action:'register',role:'Pharmacy',fullName:'Fixture Provider'});
+// Existing incomplete applications retain their optional document/submission flow.
+{const key='firebase-account:fictional-project:fixture-provider';const value=JSON.parse(records.get(key));value.status='Incomplete';records.set(key,JSON.stringify(value));}
+await post('outsider',{action:'profile',uid:'fixture-provider',fullName:'Attacker',address:'Attacker address'},403);await post('provider',{action:'profile',fullName:'Fixture Provider',address:'Fictional practice'});
 async function upload(identity,file){const body=new FormData();body.set('file',file);return documents.POST(new Request('https://fixture.example.test/api/account/documents',{method:'POST',headers:{Authorization:'Bearer '+identity},body}));}
 check((await upload('provider',new File(['<script>bad</script>'],'bad.pdf',{type:'application/pdf'}))).status===400);check(objects.size===0);check((await upload('patient',new File(['%PDF-fixture'],'fixture.pdf',{type:'application/pdf'}))).status===400);
 let response=await upload('provider',new File(['%PDF-fixture-only'],'fixture.pdf',{type:'application/pdf'}));check(response.status===200);const uploaded=await response.json(),doc=uploaded.account.documents[0];check(objects.size===1);

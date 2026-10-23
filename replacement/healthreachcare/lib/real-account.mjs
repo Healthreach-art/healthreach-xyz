@@ -10,7 +10,7 @@ export function changeAccount(current,input,identity,now=new Date().toISOString(
   if(current)return current;
   const role=input.role||'Patient';if(!accountRoles.includes(role))throw new AccountValidationError('Choose a supported account type.');
   const phone=typeof input.phone==='string'?input.phone.trim():'';if(phone&&!/^[+0-9() .-]{7,40}$/.test(phone))throw new AccountValidationError('Enter a valid mobile number.');
-  next={phone,uid:identity.uid,email:identity.email,fullName:required(input.fullName||identity.displayName,'Full name',120),role,status:role==='Patient'?'Active':'Incomplete',address:'',application:{},documents:[],audit:[],createdAt:now};
+  next={phone,uid:identity.uid,email:identity.email,fullName:required(input.fullName||identity.displayName,'Full name',120),role,status:role==='Patient'?'Active':'Pending verification',address:'',application:{},documents:[],audit:[],createdAt:now};
  }else{
   if(!current)throw new AccountValidationError('Complete your account setup first.');
   if(action==='profile'){
@@ -25,12 +25,13 @@ export function changeAccount(current,input,identity,now=new Date().toISOString(
    if(!providerRoles.includes(current.role)||['Pending verification','Approved'].includes(current.status))throw new AccountValidationError('Documents can be added while completing or correcting your application.');
    if(current.documents.length>=8)throw new AccountValidationError('A maximum of 8 supporting documents can be stored.');
    if(!input.document?.key||!input.document?.name)throw new AccountValidationError('The document could not be stored.');next.documents.push(input.document);
+  }else if(action==='requestReview'){if(!providerRoles.includes(current.role)||!['Rejected','Incomplete'].includes(current.status))throw new AccountValidationError('Only a rejected or incomplete partner account can request another review.');next.status='Pending verification';next.submittedAt=now;next.rejectionReason='';next.statusReason='';
   }else if(action==='review'){
    if(!identity.admin)throw new AccountValidationError('Verified administrator permission required.');
-   if(current.status!=='Pending verification')throw new AccountValidationError('This application is not awaiting review.');
-   if(!['Approved','Rejected'].includes(input.decision))throw new AccountValidationError('Choose approve or reject.');
+   if(!providerRoles.includes(current.role))throw new AccountValidationError('Choose a partner account.');
+   if(!['Approved','Rejected','Suspended','On hold','Deleted'].includes(input.decision))throw new AccountValidationError('Choose a supported account status.');
    if(input.decision==='Approved'&&input.reviewed!==true)throw new AccountValidationError('Confirm that the required checks have been completed before approval.');
-   next.status=input.decision;next.rejectionReason=input.decision==='Rejected'?required(input.reason,'Rejection reason',1200):'';next.reviewedAt=now;next.reviewedBy=identity.uid;
+   next.status=input.decision;next.rejectionReason=input.decision!=='Approved'?required(input.reason,'Reason',1200):'';next.reviewedAt=now;next.reviewedBy=identity.uid;next.statusReason=next.rejectionReason;if(input.decision==='Deleted')next.deletedAt=now;else delete next.deletedAt;
   }else throw new AccountValidationError('Unsupported account action.');
  }
  next.updatedAt=now;next.audit.push({action,actor:identity.uid,at:now,...(action==='review'?{decision:next.status,reason:next.rejectionReason}:{})});return next;

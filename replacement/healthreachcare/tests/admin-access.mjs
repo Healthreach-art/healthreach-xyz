@@ -17,3 +17,9 @@ const records=new Map();const env={FIREBASE_AUTH_ENABLED:'true',HRC_MAIN_ADMIN_U
 let resolved=await resolveAdministrator({...other,admin:false},env);check(!resolved.admin);resolved=await resolveAdministrator({...root,admin:false},env);check(resolved.admin&&resolved.mainAdmin);resolved=await resolveAdministrator({...root,emailVerified:false},env);check(!resolved.admin);
 records.set([...records.keys()][0],JSON.stringify(registry));resolved=await resolveAdministrator(root,env);check(!resolved.admin);resolved=await resolveAdministrator({...other,admin:false},env);check(resolved.mainAdmin);check(registry.mainUid!==env.HRC_MAIN_ADMIN_UID);
 console.log(`${checks} main-admin bootstrap, no-public-first-user escalation, delegation, recent-auth, ownership-transfer and revocation assertions passed with fictional records.`);
+
+// Exact, server-configured Homebase policy supersedes legacy UID/claims/delegation.
+env.HRC_HOMEBASE_ALLOWLIST='true';
+for(const email of ['hlawulekanimalunagani12@gmail.com','support@healthreachcare.co.za']){const identity=await resolveAdministrator({uid:'fixture-'+email,email,emailVerified:true,admin:false},env);check(identity.admin);check(identity.homebaseRestricted);check(!identity.mainAdmin);const unverified=await resolveAdministrator({...identity,emailVerified:false},env);check(!unverified.admin);}
+for(const email of ['admin@healthreachcare.co.za','pityhygiene@gmail.com','support@healthreachcare.co.za.attacker.test','other@example.test']){const identity=await resolveAdministrator({...root,email,admin:true},env);check(!identity.admin);check(!identity.mainAdmin);}
+console.log('16 exact-email Homebase allowlist, verified-email requirement, old-owner revocation and forged-admin-claim rejection checks passed. No real sign-in was performed.');

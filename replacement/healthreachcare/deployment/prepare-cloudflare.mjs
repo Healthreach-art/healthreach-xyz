@@ -10,7 +10,7 @@ export function configureDeployment(config) {
     name: 'healthreachcare',
     topLevelName: 'healthreachcare',
     keep_vars: true,
-    vars:{...config.vars,FIREBASE_AUTH_ENABLED:'true',FIREBASE_REGISTRATION_ENABLED:'true',FIREBASE_GOOGLE_ENABLED:'true',HRC_DEMO_ENABLED:'false',HRC_SIMULATED_PAYMENTS_ENABLED:'true',FIREBASE_WEB_CONFIG:JSON.stringify(firebaseConfig)},
+    vars:{...config.vars,FIREBASE_AUTH_ENABLED:'true',FIREBASE_REGISTRATION_ENABLED:'true',FIREBASE_GOOGLE_ENABLED:'true',HRC_DEMO_ENABLED:'false',HRC_HOMEBASE_ALLOWLIST:'true',HRC_SIMULATED_PAYMENTS_ENABLED:'true',FIREBASE_WEB_CONFIG:JSON.stringify(firebaseConfig)},
     d1_databases: [{ binding: 'DB', database_name: 'healthreachcare-app', database_id: 'aa78a384-cc38-4141-b550-fda0f34fb3a2' }],
     r2_buckets: [
       { binding: 'BUCKET', bucket_name: 'healthreachcare-documents' },
