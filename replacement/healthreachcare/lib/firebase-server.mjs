@@ -11,5 +11,5 @@ export async function verifyFirebaseIdentity(token,env,{keySet=keys,request=fetc
  const response=await request('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key='+encodeURIComponent(connection.config.apiKey),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:token}),signal:AbortSignal.timeout(10000)});
  if(!response.ok)throw Error('Identity confirmation failed');const data=await response.json();const user=data.users?.find(u=>u.localId===payload.sub);
  if(!user||user.disabled||Number(user.validSince||0)>payload.auth_time)throw Error('Account unavailable');
- return {uid:payload.sub,email:typeof user.email==='string'?user.email:null,emailVerified:user.emailVerified===true};
+ return {authTime:payload.auth_time,uid:payload.sub,email:typeof user.email==='string'?user.email:null,emailVerified:user.emailVerified===true,displayName:typeof user.displayName==='string'?user.displayName:'',hasPassword:user.providerUserInfo?.some(p=>p.providerId==='password')===true,admin:payload.admin===true&&user.emailVerified===true};
 }

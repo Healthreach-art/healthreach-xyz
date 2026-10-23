@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {adminDirectory} from '../lib/admin-directory.mjs';
+const accounts=Array.from({length:29},(_,i)=>({uid:'fixture-'+String(i).padStart(2,'0'),fullName:'Fixture '+i,email:'fixture'+i+'@example.test',role:i%2?'Doctor':'Patient',status:i%2?'Pending verification':'Active',createdAt:'2026-10-23T00:00:00Z',application:{serviceArea:'Fixture area'},documents:[{key:'private-file'}],bankAccount:'sensitive-fixture',audit:[{private:'must-not-leak'}]}));
+let queries=0;const env={FIREBASE_AUTH_ENABLED:'true',DB:{prepare(sql){queries++;return {bind(...args){let rows=accounts.slice(),index=1;if(sql.includes("$.role")){const role=args[index++];rows=rows.filter(a=>a.role===role);}if(sql.includes('instr(')){const query=args[index].toLowerCase();rows=rows.filter(a=>[a.fullName,a.email].some(v=>v.toLowerCase().includes(query)));index+=2;}return {first:async()=>({total:rows.length}),all:async()=>({results:rows.slice(args[index+1],args[index+1]+args[index]).map(a=>({data:JSON.stringify(a)}))})};}};}}};
+const identify=async req=>{const token=req.headers.get('authorization');if(!token)throw Error();return {uid:'fixture-admin',admin:token==='admin',emailVerified:token!=='unverified'};};
+const get=(query='',auth='admin')=>adminDirectory(new Request('https://fixture.example.test/api/admin/directory'+query,{headers:auth?{Authorization:auth}:{}}),env,identify);
+let checks=0;const check=v=>{assert(v);checks++;};
+check((await get('',null)).status===401);check((await get('','patient')).status===403);check((await get('','unverified')).status===403);check(queries===0);
+for(const q of ['?role=Admin','?page=-1','?page=abc','?page=10001'])check((await get(q)).status===400);
+let response=await get();check(response.headers.get('cache-control')==='no-store');let data=await response.json();check(data.total===29);check(data.accounts.length===25);check(!JSON.stringify(data).includes('private-file'));check(!JSON.stringify(data).includes('bankAccount'));check(!JSON.stringify(data).includes('must-not-leak'));
+data=await (await get('?page=1')).json();check(data.accounts.length===4);data=await (await get('?role=Doctor')).json();check(data.accounts.every(a=>a.role==='Doctor'));check(data.total===14);data=await (await get('?search=Fixture%2028')).json();check(data.total===1);data=await (await get('?search=%25')).json();check(data.total===0);
+console.log(`${checks} admin directory authentication, pagination, literal-search and private-data exclusion checks passed with isolated records.`);

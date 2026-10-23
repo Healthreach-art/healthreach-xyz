@@ -1,3 +1,4 @@
+import * as firebaseWorkspace from '../lib/firebase-workspace.mjs';
 import {validateAcceptedHomecareQuote} from '../lib/homecare-quotations.mjs';
 import {publicPayoutProfile} from '../lib/payout-banking.mjs';
 import * as accountWorkspace from '../lib/account-workspace.mjs';
@@ -19,6 +20,7 @@ const bucketFiles=new Map();const env={BUCKET:{async put(k,b){bucketFiles.set(k,
 globalThis.__experience=experience;globalThis.__demoAccess=demoAccess;globalThis.__market=market;globalThis.__matching=matching;
 globalThis.__validateAcceptedHomecareQuote=validateAcceptedHomecareQuote;
 let source=fs.readFileSync('app/api/workspace/route.js','utf8').replace(/import \{validateAcceptedHomecareQuote\} from '[^']+homecare-quotations.mjs';/,'const validateAcceptedHomecareQuote=globalThis.__validateAcceptedHomecareQuote;').replace(/import \{\s*env\s*\} from 'cloudflare:workers';/,'const env=globalThis.__env;').replace(/import \{\s*getChatGPTUser\s*\} from '..\/..\/chatgpt-auth';/,'const getChatGPTUser=globalThis.__user;');
+source=source.replace(/import \{[^}]+\} from '[^']+firebase-workspace.mjs';/,'const {firebaseWorkspaceGET,firebaseWorkspacePOST}=globalThis.__firebaseWorkspace;');globalThis.__firebaseWorkspace=firebaseWorkspace;
 source=source.replace(/import \{[^}]+\} from '[^']+account-workspace.mjs';/,'const {maintainAccountWorkspace,publicAccountWorkspace,handleAccountWorkspace}=globalThis.__accountWorkspace;');globalThis.__accountWorkspace=accountWorkspace;
 source=source.replace(/import \{[^}]+\} from '[^']+doctor-operations.mjs';/,'const {maintainDoctorOperations,publicDoctorOperations,handleDoctorOperations}=globalThis.__doctorOperations;');globalThis.__doctorOperations=doctorOperations;
 source=source.replace(/import \{[^}]+\} from '[^']+patient-experience.mjs';/,'const {maintainPatientExperience,publicPatientExperience,handlePatientExperience,routineStatuses,validateTransactionAddress,ticketAllowed}=globalThis.__patientExperience;');globalThis.__patientExperience=patientExperience;

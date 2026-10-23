@@ -18,6 +18,7 @@ export function safeAuthError(error){
  if(code==='auth/popup-blocked')return 'Your browser blocked the sign-in window. Allow it and try again.';
  if(code==='auth/unauthorized-domain')return 'Sign-in is not yet enabled for this website address. Contact support.';
  if(code==='auth/operation-not-allowed')return 'This sign-in method is not enabled. Contact support.';
+ if(code==='auth/requires-recent-login')return 'For your security, sign out and sign in again before changing your password.';
  if(code==='auth/network-request-failed')return 'Unable to connect. Check your connection and try again.';
  return 'The request could not be completed. Please try again or contact support.';
 }
