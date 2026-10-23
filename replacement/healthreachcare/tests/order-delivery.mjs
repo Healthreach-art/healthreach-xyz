@@ -16,3 +16,11 @@ for(const variation of [{payment:'Unpaid'},{type:'Prescription',prescriptionAppr
 record.status='Delivered';check(deliveryProgress(record,task,tracking,now).point===null);check(deliveryProgress(record,task,tracking,now).index===4);maintainRealTracking(s,now);check(Object.keys(s.deliveryLocations).length===0);
 record.status='Processing';record.fulfilment='Collection';check(deliveryProgress(record,task,tracking,now).collection);check(deliveryProgress({...record,type:'Doctor'},task,tracking,now)===null);
 console.log(`${checks} order progress, genuine-coordinate freshness, driver estimate, ownership and fulfilment guard assertions passed with fictional local records.`);
+// Administrator map snapshots use only eligible records and genuinely saved, fresh positions.
+s.providers=[];s.audit=[];record.fulfilment='Delivery';record.status='Processing';record.payment='Paid';
+const adminContext={...context,session:{role:'Admin',accountId:'fixture-admin'},action:'deliveryOperations',p:{purpose:'Fixture operational review'},extra:{}};
+for(const role of ['Patient','Doctor','Pharmacy','Homecare','Driver'])assert.throws(()=>handleRealTracking({...adminContext,session:{role,accountId:'outsider'}}));
+assert.throws(()=>handleRealTracking({...adminContext,p:{purpose:''}}));handleRealTracking({...context,action:'shareDriverLocation',p:{taskId:task.id,latitude:-33.9,longitude:18.4,accuracy:12,consent:true}});handleRealTracking(adminContext);assert.equal(adminContext.extra.deliveryOperations.length,1);assert.equal(adminContext.extra.deliveryOperations[0].tracking.latitude,-33.9);assert.equal(s.audit.at(-1).action,'delivery-location-access');
+const expired={...adminContext,extra:{},now:new Date(now+120001).toISOString()};handleRealTracking(expired);assert.equal(expired.extra.deliveryOperations[0].tracking,null);
+record.payment='Unpaid';handleRealTracking(adminContext);assert.equal(adminContext.extra.deliveryOperations.length,0);record.payment='Paid';record.status='Delivered';handleRealTracking(adminContext);assert.equal(adminContext.extra.deliveryOperations.length,0);
+console.log('12 administrator map permission, purpose, freshness, unpaid/ended exclusion and audit checks passed.');
