@@ -1,63 +1,50 @@
-name: Deploy to Cloudflare Workers
-
+name: Deploy HealthReachCare replacement to Cloudflare
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
+concurrency:
+  group: healthreachcare-production
+  cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: replacement/healthreachcare
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-        env:
-          NPM_CONFIG_LEGACY_PEER_DEPS: true
-
-      - name: Build application
+          node-version: '22'
+      - name: Install replacement dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund --package-lock=false
+      - name: Validate replacement
+        run: |
+          npm run lint
+          npx tsc --noEmit
+          npm test
+      - name: Build replacement
         run: npm run build
-
-      - name: Verify generated Worker config and R2 binding
+      - name: Configure existing production Worker, D1, R2, Firebase and demo payments
+        run: node deployment/prepare-cloudflare.mjs --repository-root
+      - name: Verify production configuration
         run: |
           node --input-type=module <<'NODE'
-          import { readFileSync } from "node:fs";
-
-          const config = JSON.parse(
-            readFileSync("wrangler.jsonc", "utf8"),
-          );
-          const documentsBucket = config.r2_buckets?.find(
-            (bucket) => bucket.binding === "DOCUMENTS_BUCKET",
-          );
-
-          if (config.name !== "healthreachcare") {
-            throw new Error("Generated Worker config has an unexpected name.");
-          }
-          if (documentsBucket?.bucket_name !== "healthreachcare-documents") {
-            throw new Error("Generated Worker config is missing the expected R2 binding.");
-          }
+          import { readFileSync } from 'node:fs';
+          const c=JSON.parse(readFileSync('../../wrangler.jsonc','utf8'));
+          if(c.name!=='healthreachcare'||c.vars?.HRC_SIMULATED_PAYMENTS_ENABLED!=='true'||c.vars?.HRC_DEMO_ENABLED!=='false')throw Error('Unexpected production/demo config');
+          if(!c.d1_databases?.some(x=>x.binding==='DB'&&x.database_id==='aa78a384-cc38-4141-b550-fda0f34fb3a2'))throw Error('Missing existing D1');
+          if(!c.r2_buckets?.some(x=>x.binding==='DOCUMENTS_BUCKET'&&x.bucket_name==='healthreachcare-documents'))throw Error('Missing documents bucket');
           NODE
-
-      - name: Dry-run Worker deployment
-        run: npx wrangler deploy --config wrangler.jsonc --dry-run
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy Worker
-        run: npx wrangler deploy --config wrangler.jsonc
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Dry run
+        run: npx wrangler deploy --config ../../wrangler.jsonc --dry-run
+      - name: Deploy replacement to existing domain Worker
+        run: npx wrangler deploy --config ../../wrangler.jsonc
