@@ -16,7 +16,7 @@ for(const [role,slug] of [['Patient','patient'],['Pharmacy','pharmacy'],['Doctor
  eq(signInDestination(verified,account,{returnTo:'/dashboard/admin/overview'}),home);
  eq(signInDestination(verified,account,{adminOnly:true}),null);
  eq(signInDestination({...verified,emailVerified:false},account),null);
- if(role!=='Patient')for(const status of ['Incomplete','Pending verification','Rejected'])eq(signInDestination(verified,{...account,status}),'/account');
+ if(role!=='Patient')for(const status of ['Incomplete','Pending verification','Rejected'])eq(signInDestination(verified,{...account,status}),home);
 }
 eq(signInDestination({...verified,admin:true},{},{adminOnly:true}),'/dashboard/admin/overview');
 eq(signInDestination({...verified,hasPassword:false},{role:'Patient',fullName:'Fixture'}),'/account');

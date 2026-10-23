@@ -10,14 +10,14 @@ export function driverAreaEligible(s, t, d) { const r = s.records.find(r => r.id
 export function driverProximity(s, t, d) { const point = s.driverLocations?.[d.id], r = s.records.find(r => r.id === t.recordId), pickup = s.providers.find(p => p.id === r?.providerId)?.coordinates; return point?.consented && point.expires > Date.now() ? kmBetween(point, pickup) : null; }
 export function maintainExperience(s) { let changed = false; for(const [key,value] of [['deliveryLocations',{}],['driverLocations',{}],['messageAssets',[]]])if(!s[key]){s[key]=value;changed=true;} for (const [taskId, point] of Object.entries(s.deliveryLocations)) {
     const task = s.deliveryTasks.find(t => t.id === taskId), r = s.records.find(r => r.id === task?.recordId);
-    if (!task || !r || !s.drivers[point.driverId]?.online || s.drivers[point.driverId]?.status!=='Approved' || completed(r) || task.driverId !== point.driverId || !s.sessions.some(v => v.hash === point.sessionHash && v.expires > Date.now()) || point.expires <= Date.now()) {
+    if (!task || !r || !s.drivers[point.driverId]?.online || s.drivers[point.driverId]?.status!=='Approved' || completed(r) || task.driverId !== point.driverId || !s.connectedAccounts&&!s.sessions.some(v => v.hash === point.sessionHash && v.expires > Date.now()) || point.expires <= Date.now()) {
         if (task)
             task.lastLocationAt = point.at;
         delete s.deliveryLocations[taskId];
         changed = true;
     }
 } for (const [id, point] of Object.entries(s.driverLocations))
-    if (point.expires <= Date.now() || point.taskId && (!s.deliveryTasks.some(t=>t.id===point.taskId&&t.driverId===id)||completed(s.records.find(r => r.id === s.deliveryTasks.find(t => t.id === point.taskId)?.recordId))) || !s.drivers[id]?.online || !s.sessions.some(v => v.hash === point.sessionHash && v.expires > Date.now())) {
+    if (point.expires <= Date.now() || point.taskId && (!s.deliveryTasks.some(t=>t.id===point.taskId&&t.driverId===id)||completed(s.records.find(r => r.id === s.deliveryTasks.find(t => t.id === point.taskId)?.recordId))) || !s.drivers[id]?.online || !s.connectedAccounts&&!s.sessions.some(v => v.hash === point.sessionHash && v.expires > Date.now())) {
         delete s.driverLocations[id];
         changed = true;
     } return changed; }
