@@ -1,0 +1,1 @@
+export function platformDeliveryFee(s,provider){const fee=s.platformDelivery?.fee??provider.fee;if(typeof fee!=='number'||!Number.isFinite(fee)||fee<0)throw Error('Delivery pricing is not configured. Choose collection where offered or contact support.');return fee;}

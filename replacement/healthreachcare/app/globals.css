@@ -135,3 +135,6 @@ main.public-landing-main{max-width:none;width:100%;padding:0;margin:0}
 button:focus-visible,a:focus-visible{outline:2px solid #163c59;outline-offset:3px;box-shadow:none}
 button:focus:not(:focus-visible){outline:none}
 .notification-settings{margin:18px 0;display:grid;gap:14px}.notification-settings .toolbar{margin:0;justify-content:flex-start}.notification-settings p{max-width:65ch}
+
+/* Daily provider availability and multi-product entry. */
+.weekly-hours-row{display:grid;grid-template-columns:minmax(95px,1fr) auto auto minmax(210px,2fr);align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid #d3e8de}.daily-time{display:flex;gap:12px}.daily-time label{flex:1;min-width:0}.weekly-hours-row .checkbox{margin:0;white-space:nowrap}.product-entry-row{border:1px solid #d3e8de;border-radius:12px;padding:18px;display:grid;gap:14px}.product-entry-row legend{font-weight:700;padding:0 8px}.product-entry-row input[type=file]{max-width:100%}@media(max-width:650px){.weekly-hours-row{grid-template-columns:1fr auto auto;gap:10px}.daily-time{grid-column:1/-1}.product-entry-row{padding:12px}}

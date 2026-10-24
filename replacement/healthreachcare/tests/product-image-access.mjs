@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import ts from 'typescript';
+import assert from 'node:assert/strict';
+const id='11111111-1111-4111-8111-111111111111',bytes=fs.readFileSync('tests/fixtures/product.png');
+const market={productAssets:[{id,ownerId:'fictional-owner',kind:'product',key:'fictional-image',mime:'image/png'}],providers:[{id:'fictional-owner',publication:{status:'Draft'}}],products:[]};
+globalThis.__imageEnv={FIREBASE_AUTH_ENABLED:'true',FIREBASE_WEB_CONFIG:JSON.stringify({projectId:'fixture-project',apiKey:'fixture',authDomain:'fixture.firebaseapp.com',appId:'fixture'}),DB:{prepare(){return {bind(key){return {async first(){return key.startsWith('firebase-market:')?{data:JSON.stringify(market)}:{data:JSON.stringify({status:'Approved'})};}};}};}},BUCKET:{async get(){return {body:bytes};}}};
+globalThis.__imageIdentity=async req=>{const uid=req.headers.get('authorization');if(!uid)throw Error('Denied');return {uid,admin:uid==='fictional-admin'};};
+let source=fs.readFileSync('app/api/product-image/[id]/route.ts','utf8').replace(/import \{accountIdentity\} from '[^']+';/,'const accountIdentity=globalThis.__imageIdentity;').replace("'../../../../lib/firebase-connection.mjs'",JSON.stringify(new URL('../lib/firebase-connection.mjs',import.meta.url).href)).replace(/import \{env\} from 'cloudflare:workers';/,'const env=globalThis.__imageEnv;').replace(/import \{getChatGPTUser\} from '[^']+';/,'const getChatGPTUser=async()=>null;');
+const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText,{GET}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const get=(preview,who)=>GET(new Request('https://fixture.example.test/api/product-image/'+id+(preview?'?preview=1':''),{headers:who?{Authorization:who}:{}}),{params:Promise.resolve({id})});
+assert.equal((await get(false)).status,404);assert.equal((await get(true)).status,401);assert.equal((await get(true,'fictional-other')).status,404);let response=await get(true,'fictional-owner');assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');assert.equal((await response.arrayBuffer()).byteLength,bytes.length);assert.equal((await get(true,'fictional-admin')).status,200);
+market.providers[0].publication.status='Published';market.products.push({ownerId:'fictional-owner',active:true,imageIds:[id]});assert.equal((await get(false)).status,200);market.products[0].active=false;assert.equal((await get(false)).status,404);
+delete globalThis.__imageEnv;delete globalThis.__imageIdentity;console.log('9 product image preview, ownership, no-cache and publication access checks passed');

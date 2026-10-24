@@ -342,7 +342,7 @@ export async function POST(req) {
         else if (action === 'pharmacySettings') {
             check(['Pharmacy']);
             const ph = s.providers.find((x) => x.id === session.pharmacyId);
-            ph.fee = round(num(p.fee));
+            if(p.fee!==undefined)throw Error('Only the platform manages delivery charges.');
             ph.collection = !!p.collection;
             if (typeof p.acceptingOrders === 'boolean')
                 ph.acceptingOrders = p.acceptingOrders;
