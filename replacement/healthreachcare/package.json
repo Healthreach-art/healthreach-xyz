@@ -17,8 +17,9 @@
     "test:views": "node tests/views.mjs",
     "test:interactions": "node tests/interactions.mjs",
     "test:logout": "node tests/logout.mjs",
-    "test": "npm run test:api && npm run test:navigation && npm run test:views && npm run test:logout && npm run test:interactions && npm run test:accounts",
-    "test:accounts": "node tests/firebase-connection.mjs && node tests/real-account.mjs && node tests/real-account-api.mjs && node tests/firebase-workspace.mjs && node tests/order-delivery.mjs && node tests/admin-access.mjs && node tests/auth-entry.mjs && node tests/admin-directory.mjs && node tests/auth-email-action.mjs && node tests/notification-delivery.mjs && node tests/notification-serviceworker.mjs && node tests/pharmacy-improvements.mjs && node tests/product-image-access.mjs && node tests/address-geocoding.mjs"
+    "test": "npm run test:doctor && npm run test:api && npm run test:navigation && npm run test:views && npm run test:logout && npm run test:interactions && npm run test:accounts",
+    "test:accounts": "node tests/firebase-connection.mjs && node tests/real-account.mjs && node tests/real-account-api.mjs && node tests/firebase-workspace.mjs && node tests/order-delivery.mjs && node tests/admin-access.mjs && node tests/auth-entry.mjs && node tests/admin-directory.mjs && node tests/auth-email-action.mjs && node tests/notification-delivery.mjs && node tests/notification-serviceworker.mjs && node tests/pharmacy-improvements.mjs && node tests/product-image-access.mjs && node tests/address-geocoding.mjs",
+    "test:doctor": "node tests/doctor-discovery.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
