@@ -88,7 +88,7 @@ export function publicMarket(out, s, session) { if (session.role === 'Patient') 
         if (!catalogue.has(key))
             catalogue.set(key, p);
     }
-    out.products = [...catalogue.values()];
+    if(!s.connectedAccounts)out.products = [...catalogue.values()];
 } delete out.payoutChallenges; out.refunds = s.refunds.filter(v => session.role === 'Admin' || out.records.some(r => r.id === v.recordId)); out.payoutProfiles = Object.values(s.payoutProfiles).filter(v => session.role === 'Admin' || v.accountId === session.accountId).map(publicPayoutProfile); out.settlementBatches = s.settlementBatches.map(b => session.role === 'Admin' ? b : { ...b, items: b.items.filter(i => i.account === accountFor(s, session.accountId)) }).filter(b => session.role === 'Admin' || b.items.length); return out; }
 export function settlementBalance(s, account, start, end) { return Math.max(0, s.ledger.reduce((n, e) => { const r = s.records.find(r => r.id === e.recordId); const eligible = r && (r.payment === 'Refunded' || closed(r) && r.payment === 'Paid' && !r.disputeOpen && !r.refundHold && Date.parse(r.updated) <= Date.now() - s.marketPolicy.clearanceHours * 3600000 && r.updated >= start && r.updated <= end); return n + (e.credit === account && (eligible || !e.recordId && e.type === 'Failed') ? e.amountMinor : 0) - (e.debit === account ? e.amountMinor : 0); }, 0)); }
 export async function handleMarket(c) {
