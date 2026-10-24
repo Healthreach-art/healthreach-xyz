@@ -1,3 +1,4 @@
+import {validateSlot} from '../lib/completion.mjs';
 import assert from 'node:assert/strict';
 import {handleConnectedCommerce} from '../lib/connected-commerce.mjs';
 import {validateHours,withinHours} from '../lib/provider-hours.mjs';
@@ -15,3 +16,5 @@ const before=JSON.stringify(s.products);fails(()=>handleConnectedCommerce(ctx('p
 fails(()=>handleConnectedCommerce(ctx('pharmacySettings',{fee:99})));ok(provider.fee===27);const savedOrder={total:123,deliveryFee:27,items:[{name:'Confirmed pack',price:96}]};const snapshot=JSON.stringify(savedOrder);handleConnectedCommerce(ctx('product',{...product,id:s.products[0].id,price:40}));ok(s.products[0].price===40);ok(JSON.stringify(savedOrder)===snapshot);
 c=ctx('savePayoutBusiness',{business:{legalName:'Fictional Pharmacy Ltd',contactEmail:'pharmacy@example.test',businessAddress:'Fictional Road'}});ok(handleConnectedCommerce(c));ok(c.extra.businessSaved===true);ok(provider.business.legalName==='Fictional Pharmacy Ltd');ok(!('accountNumber' in provider.business));fails(()=>handleConnectedCommerce(ctx('savePayoutBusiness',{business:{contactEmail:'invalid'}})));fails(()=>handleConnectedCommerce(ctx('savePayoutBusiness',{business:{}},{role:'Patient',accountId:'fictional-patient'})));
 console.log(checks+' pharmacy product, daily hours, price snapshot, company and permission checks passed');
+
+const doctor={id:'fictional-doctor',type:'Doctor',status:'Approved',professionalVerified:true,acceptingOrders:true,publication:{status:'Published'},durationMinutes:30,slots:['03:00','10:00','22:00'],openTime:'09:00',closeTime:'17:00',weekdays:[1],weeklyHours:weekly};const appointments={providers:[doctor],records:[]};ok(validateSlot(appointments,doctor.id,'2026-10-26','22:00')===doctor);doctor.weeklyHours=hours;ok(validateSlot(appointments,doctor.id,'2026-10-27','03:00')===doctor);fails(()=>validateSlot(appointments,doctor.id,'2026-10-27','10:00'));console.log('3 doctor booking guards respect 24-hour, overnight and closed daily schedules');
