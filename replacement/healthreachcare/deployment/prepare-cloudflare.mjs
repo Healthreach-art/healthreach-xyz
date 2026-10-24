@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const pushConfig=JSON.parse(readFileSync(new URL('../config/web-push.json',import.meta.url),'utf8'));
 const firebaseConfig=JSON.parse(readFileSync(new URL('../config/firebase-web.json',import.meta.url),'utf8'));
 export function configureDeployment(config) {
   if (!config.main || !config.assets?.directory) throw new Error('Expected a complete built Worker with client assets. Run the production build first.');
@@ -10,7 +11,7 @@ export function configureDeployment(config) {
     name: 'healthreachcare',
     topLevelName: 'healthreachcare',
     keep_vars: true,
-    vars:{...config.vars,FIREBASE_AUTH_ENABLED:'true',FIREBASE_REGISTRATION_ENABLED:'true',FIREBASE_GOOGLE_ENABLED:'true',HRC_DEMO_ENABLED:'false',HRC_HOMEBASE_ALLOWLIST:'true',HRC_SIMULATED_PAYMENTS_ENABLED:'true',FIREBASE_WEB_CONFIG:JSON.stringify(firebaseConfig)},
+    vars:{...config.vars,FIREBASE_AUTH_ENABLED:'true',FIREBASE_REGISTRATION_ENABLED:'true',FIREBASE_GOOGLE_ENABLED:'true',HRC_DEMO_ENABLED:'false',HRC_WEB_PUSH_PUBLIC_KEY:pushConfig.publicKey,HRC_HOMEBASE_ALLOWLIST:'true',HRC_SIMULATED_PAYMENTS_ENABLED:'true',FIREBASE_WEB_CONFIG:JSON.stringify(firebaseConfig)},
     d1_databases: [{ binding: 'DB', database_name: 'healthreachcare-app', database_id: 'aa78a384-cc38-4141-b550-fda0f34fb3a2' }],
     r2_buckets: [
       { binding: 'BUCKET', bucket_name: 'healthreachcare-documents' },

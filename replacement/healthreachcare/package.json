@@ -18,7 +18,7 @@
     "test:interactions": "node tests/interactions.mjs",
     "test:logout": "node tests/logout.mjs",
     "test": "npm run test:api && npm run test:navigation && npm run test:views && npm run test:logout && npm run test:interactions && npm run test:accounts",
-    "test:accounts": "node tests/firebase-connection.mjs && node tests/real-account.mjs && node tests/real-account-api.mjs && node tests/firebase-workspace.mjs && node tests/order-delivery.mjs && node tests/admin-access.mjs && node tests/auth-entry.mjs && node tests/admin-directory.mjs && node tests/auth-email-action.mjs"
+    "test:accounts": "node tests/firebase-connection.mjs && node tests/real-account.mjs && node tests/real-account-api.mjs && node tests/firebase-workspace.mjs && node tests/order-delivery.mjs && node tests/admin-access.mjs && node tests/auth-entry.mjs && node tests/admin-directory.mjs && node tests/auth-email-action.mjs && node tests/notification-delivery.mjs && node tests/notification-serviceworker.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -46,6 +46,7 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "3.6.0",
     "vaul": "^1.1.2",
+    "web-push": "^3.6.7",
     "zod": "^3.25.76"
   },
   "devDependencies": {
