@@ -1,5 +1,4 @@
 import {firebaseWorkspaceGET,firebaseWorkspacePOST} from '../../../lib/firebase-workspace.mjs';
-import {validateAcceptedHomecareQuote} from '../../../lib/homecare-quotations.mjs';
 import {maintainAccountWorkspace,publicAccountWorkspace,handleAccountWorkspace} from '../../../lib/account-workspace.mjs';
 import {maintainDoctorOperations,publicDoctorOperations,handleDoctorOperations} from '../../../lib/doctor-operations.mjs';
 import {maintainPatientExperience,publicPatientExperience,handlePatientExperience,routineStatuses,validateTransactionAddress,ticketAllowed} from '../../../lib/patient-experience.mjs';
@@ -15,12 +14,49 @@ export const dynamic = 'force-dynamic';
 const pharmacyRecord = (r) => ['Order', 'Prescription'].includes(r.type);
 const terminal = (r) => ['Delivered', 'Collected', 'Completed', 'Cancelled', 'Declined', 'Rejected'].includes(r.status);
 const round = (n) => Math.round(n * 100) / 100;
-export function initial() { return { workflowVersion: 2, version: 0, profile: { name: 'Thandi Mokoena', address: '123 Demo Street, Cape Town', email: 'thandi@example.test', preferences: true }, products: [{ id: 'med1', name: 'Paracetamol 500mg', description: '20 tablets · Demo product', category: 'Pain relief', price: 45, stock: 40, active: true, requiresPrescription: false, image: '' }, { id: 'med2', name: 'Vitamin C 1000mg', description: '30 tablets · Demo product', category: 'Vitamins', price: 85, stock: 25, active: true, requiresPrescription: false, image: '' }, { id: 'med3', name: 'Daily care cream', description: '100 ml · Demo product', category: 'Skin care', price: 65, stock: 18, active: true, requiresPrescription: false, image: '' }], providers: [{ id: 'pharmacy', name: 'HealthPlus Pharmacy', type: 'Pharmacy', status: 'Approved', fee: 40, collection: true }, { id: 'doctor', name: 'Dr Sarah Mokoena', type: 'Doctor', status: 'Approved', fee: 450, speciality: 'General practitioner', slots: ['09:00', '10:00', '11:30', '14:00'] }, { id: 'homecare', name: 'HealthReach Homecare', type: 'Homecare', status: 'Approved', fee: 250, services:[{id:'personal',name:'Personal care',description:'Fictional daily-care service',rate:250},{id:'elderly',name:'Elderly care',description:'Fictional companionship service',rate:250},{id:'mobility',name:'Mobility assistance',description:'Fictional mobility assistance',rate:250},{id:'recovery',name:'Post-surgery care',description:'Fictional recovery support',rate:250}] }], checkouts: [], deliveryTasks: [], records: [], payments: [], notifications: [], audit: [], tickets: [], legacyAudit: [] }; }
+export function initial() { return { workflowVersion: 3, version: 0, profile: { name: 'Thandi Mokoena', address: '123 Demo Street, Cape Town', email: 'thandi@example.test', preferences: true }, products: [{ id: 'med1', name: 'Paracetamol 500mg', description: '20 tablets · Demo product', category: 'Pain relief', price: 45, stock: 40, active: true, requiresPrescription: false, image: '' }, { id: 'med2', name: 'Vitamin C 1000mg', description: '30 tablets · Demo product', category: 'Vitamins', price: 85, stock: 25, active: true, requiresPrescription: false, image: '' }, { id: 'med3', name: 'Daily care cream', description: '100 ml · Demo product', category: 'Skin care', price: 65, stock: 18, active: true, requiresPrescription: false, image: '' }], providers: [{ id: 'pharmacy', name: 'HealthPlus Pharmacy', type: 'Pharmacy', status: 'Approved', fee: 40, collection: true }, { id: 'doctor', name: 'Dr Sarah Mokoena', type: 'Doctor', status: 'Approved', fee: 450, speciality: 'General practitioner', slots: ['09:00', '10:00', '11:30', '14:00'] }, { id: 'homecare', name: 'HealthReach Homecare', type: 'Homecare', status: 'Approved', fee: 250, services:[{id:'personal',name:'Personal care',description:'Fictional daily-care service',rate:250},{id:'elderly',name:'Elderly care',description:'Fictional companionship service',rate:250},{id:'mobility',name:'Mobility assistance',description:'Fictional mobility assistance',rate:250},{id:'recovery',name:'Post-surgery care',description:'Fictional recovery support',rate:250}] }], checkouts: [], deliveryTasks: [], records: [], payments: [], notifications: [], audit: [], tickets: [], legacyAudit: [] }; }
 // Versioned, idempotent data upgrade. Old events remain archived, never treated as approvals/payments.
+function migrateHomecarePricing(s, at) {
+    s.legacyAudit ??= [];
+    let changed = false;
+    for (const r of s.records.filter(r => r.type === 'Homecare' && (r.pricingMode === 'quotation' || r.homecareQuote || r.quoteHistory?.length || /quot/i.test(r.status)))) {
+        const historic = (r.history || []).filter(h => /quot/i.test((h.status || '') + ' ' + (h.note || '')));
+        s.legacyAudit.push({ recordId: r.id, at, kind: 'Archived homecare pricing workflow', data: { pricingMode: r.pricingMode, quote: r.quote, homecareQuote: r.homecareQuote, quoteHistory: r.quoteHistory, quoteRequestKey: r.quoteRequestKey, history: historic } });
+        r.history = (r.history || []).filter(h => !/quot/i.test((h.status || '') + ' ' + (h.note || '')));
+        const unpaid = r.payment !== 'Paid' && !terminal(r);
+        if (unpaid) {
+            r.status = 'Booking review required';
+            r.total = null;
+            delete r.priceSnapshot;
+            delete r.holdExpires;
+            r.reservationActive = false;
+            r.updated = at;
+            r.history.push({ status: 'Booking review required', note: 'Previous price workflow archived. Review current published provider pricing before payment; no payment or approval was created.', at, actor: 'System', role: 'System' });
+        }
+        delete r.pricingMode;
+        delete r.quote;
+        delete r.homecareQuote;
+        delete r.quoteHistory;
+        delete r.quoteRequestKey;
+        changed = true;
+    }
+    if (changed) {
+        s.notifications = (s.notifications || []).filter(n => !s.records.some(r => r.type === 'Homecare' && r.id === n.recordId && /quot/i.test((n.title || '') + ' ' + (n.message || ''))));
+        s.audit ??= [];
+        s.audit.unshift({ id: crypto.randomUUID(), action: 'homecare-fixed-price-migration', role: 'System', at });
+    }
+    return changed;
+}
 export function migrate(s) {
-    if (s.workflowVersion === 2)
+    if (s.workflowVersion === 3)
         return false;
     const at = new Date().toISOString();
+    if (s.workflowVersion === 2) {
+        migrateHomecarePricing(s, at);
+        s.workflowVersion = 3;
+        s.version++;
+        return true;
+    }
     s.checkouts ??= [];
     s.deliveryTasks ??= [];
     s.legacyAudit ??= [];
@@ -86,7 +122,8 @@ export function migrate(s) {
     s.records = s.records.filter((r) => !removed.has(r.id));
     const pharmacyIds = new Set(s.records.filter(pharmacyRecord).map((r) => r.id));
     s.notifications = s.notifications.filter((n) => !removed.has(n.recordId) && !(pharmacyIds.has(n.recordId) && /quot/i.test(n.title + ' ' + n.message)));
-    s.workflowVersion = 2;
+    migrateHomecarePricing(s, at);
+    s.workflowVersion = 3;
     s.version++;
     s.audit.unshift({ id: crypto.randomUUID(), action: 'pharmacy-direct-checkout-migration', role: 'System', at });
     return true;
@@ -228,7 +265,8 @@ export async function POST(req) {
         requireLegal(s, session, action,p);
         if(s.accountControls[session.accountId]?.status==='Suspended'&&!['endDemoSession','privacyRequest','supportCase','supportReply','acceptLegal','refresh','read','readNotification'].includes(action))throw Error('This demo account is suspended. Use Support or privacy assistance');
         if(role==='Patient'&&['checkout','prescriptionDraft','request','appointmentAvailability','discoverDoctors','appointmentAlternatives'].includes(action))validateTransactionAddress(p);
-        if(action==='requestHomecareQuote'){p.type='Homecare';validateTransactionAddress(p);prepareMatch(s,session,'request',p);}else prepareMatch(s,session,action,p);
+        if(['requestHomecareQuote','issueHomecareQuote','acceptHomecareQuote','declineHomecareQuote'].includes(action))return fail('Homecare uses the provider’s published fixed price and direct booking checkout.',410);
+        prepareMatch(s,session,action,p);
         if(role==='Patient'&&['prescriptionDraft','submitPrescription','request','checkout','checkoutPay','pay','rescheduleAppointment','rescheduleHomecare','reviewHomecarePrice'].includes(action)){const target=s.records.find(r=>r.id===p.id)?.providerId||s.rxDrafts.find(r=>r.id===p.id)?.providerId||s.checkouts.find(r=>r.id===p.id)?.providerId||p.providerId||p.doctorId||s.products.find(m=>p.items?.some(i=>i.id===m.id))?.ownerId||(p.type==='Doctor'?'doctor':p.type==='Homecare'?'homecare':'pharmacy');if(!applicationEligible(s,target)||!marketAvailable(s,target))throw Error('Provider onboarding or credential renewal is required');}
         if (!applicationEligible(s, session.accountId) && ['product', 'removeProduct', 'pharmacySettings', 'prescriptionReview', 'identityReview', 'transition', 'claimDelivery', 'driverProgress', 'verifyHandoverCode','issueHandoverCode','saveCareNote','uploadProductImage','productImages','rescheduleAppointment','rescheduleHomecare','uploadCareDocument'].includes(action))
             throw Error('Complete provider onboarding or renewal before operational actions');
@@ -312,7 +350,7 @@ export async function POST(req) {
         else if (await handleMarket(completionContext)) { }
         else if (await handleBusiness(completionContext)) { }
         else if (await handleCompletion(completionContext)) { }
-        else if(action==='reviewHomecarePrice'){check(['Patient']);const r=s.records.find(r=>r.id===p.id&&r.type==='Homecare'&&canAccess(r,session,s));if(r?.pricingMode==='quotation')throw Error('Ask the provider to revise the quotation; an accepted quotation cannot become fixed-price checkout');if(!r||r.payment==='Paid'||!['Booking review required','Awaiting payment'].includes(r.status))throw Error('Choose an unpaid active homecare booking');const prov=provider('Homecare');const price=careBookingPrice(s,prov,{service:r.title,serviceId:r.serviceId,date:r.date,time:r.time,duration:r.duration},r.id);r.total=price.total;r.priceSnapshot={...price,confirmedAt:now};r.serviceId=price.serviceId;r.holdExpires=Date.now()+600000;r.reservationActive=true;event(r,'Awaiting payment');}
+        else if(action==='reviewHomecarePrice'){check(['Patient']);const r=s.records.find(r=>r.id===p.id&&r.type==='Homecare'&&canAccess(r,session,s));if(!r||r.payment==='Paid'||!['Booking review required','Awaiting payment'].includes(r.status))throw Error('Choose an unpaid active homecare booking');const prov=provider('Homecare');const price=careBookingPrice(s,prov,{service:r.title,serviceId:r.serviceId,date:r.date,time:r.time,duration:r.duration},r.id);r.total=price.total;r.priceSnapshot={...price,confirmedAt:now};r.serviceId=price.serviceId;r.holdExpires=Date.now()+600000;r.reservationActive=true;event(r,'Awaiting payment');}
         else if (action === 'product') {
             check(['Pharmacy']);
             const prod = p.id ? s.products.find((x) => x.id === p.id && x.ownerId===session.pharmacyId && !x.removed) : null;
@@ -648,7 +686,7 @@ export async function POST(req) {
                             throw Error('Prescription product requirements changed. Pharmacy must review again.');
                     }
                 }
-                if(r.type==='Homecare'&&r.pricingMode==='quotation'){provider('Homecare');validateAcceptedHomecareQuote(s,r,p);}else if(r.type==='Homecare'){const prov=provider('Homecare');if(!r.holdExpires||r.holdExpires<=Date.now())throw Error('Booking hold expired. Review the service price and availability again');careBookingPrice(s,prov,{serviceId:r.serviceId,service:r.title,date:r.date,time:r.time,duration:r.duration},r.id);if(p.expectedTotal!==undefined&&p.expectedTotal!==r.total)throw Error('Review the saved homecare total before payment');}
+                if(r.type==='Homecare'){const prov=provider('Homecare');if(!r.holdExpires||r.holdExpires<=Date.now())throw Error('Booking hold expired. Review the service price and availability again');careBookingPrice(s,prov,{serviceId:r.serviceId,service:r.title,date:r.date,time:r.time,duration:r.duration},r.id);if(p.expectedTotal!==undefined&&p.expectedTotal!==r.total)throw Error('Review the saved homecare total before payment');}
                 if (r.type === 'Doctor') {
                     validateSlot(s, r.providerId, r.date, r.time, r.id,r.mode);
                     if (r.holdExpires && r.holdExpires < Date.now() && r.payment !== 'Paid')

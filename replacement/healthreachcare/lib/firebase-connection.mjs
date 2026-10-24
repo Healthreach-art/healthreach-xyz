@@ -10,7 +10,7 @@ export function firebaseConnection(env={}) {
 export function safeAuthError(error){
  const code=error?.code||'';
  if(['auth/invalid-email','auth/missing-email'].includes(code))return 'Enter a valid email address.';
- if(['auth/invalid-credential','auth/user-not-found','auth/wrong-password','auth/user-disabled'].includes(code))return 'Sign-in failed. Check your details or contact support.';
+ if(['auth/invalid-credential','auth/user-not-found','auth/wrong-password','auth/user-disabled'].includes(code))return 'Sign-in failed. Check your email and password, or use Forgot password? to reset access.';
  if(code==='auth/email-already-in-use')return 'An account may already use this email. Try signing in or resetting your password.';
  if(['auth/weak-password','auth/password-does-not-meet-requirements'].includes(code))return 'Choose a stronger password that meets the account security requirements.';
  if(code==='auth/too-many-requests')return 'Too many attempts. Please wait before trying again.';

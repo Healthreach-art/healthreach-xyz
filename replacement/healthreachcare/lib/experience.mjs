@@ -1,6 +1,5 @@
 import {handleRealTracking} from './real-delivery-tracking.mjs';
 import {executionContext,operationalReadiness} from './execution-readiness.mjs';
-import {handleHomecareQuotations} from './homecare-quotations.mjs';
 export {enforceExecutionBoundary} from './execution-readiness.mjs';
 import {candidateTimes} from './appointment-calendar.mjs';
 import { validateSlot, digest } from './completion.mjs';
@@ -44,7 +43,6 @@ const words = (v, max = 300) => { if (typeof v !== 'string' || !v.trim() || v.le
 export async function handleExperience(c) {
     if(c.action==='saveDeliveryEta')return handleRealTracking(c);
  if(c.action==='operationalReadiness'){c.check(['Admin']);c.extra.operationalReadiness=operationalReadiness(c.s,c.bucket);return true;}
- if(handleHomecareQuotations(c))return true;
     const { s, p, session, action, id, now, check, bucket } = c;
     if (action === 'appointmentAvailability') {
         check(['Patient','Doctor']);
