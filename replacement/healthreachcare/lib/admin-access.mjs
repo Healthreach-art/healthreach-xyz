@@ -11,7 +11,7 @@ export async function adminRegistry(env){
  if(!row){const now=new Date().toISOString(),data={mainUid:env.HRC_MAIN_ADMIN_UID,members:{},pendingTransfer:null,audit:[{action:'bootstrap',actor:'Server configuration',target:env.HRC_MAIN_ADMIN_UID,at:now}]};await env.DB.prepare('INSERT OR IGNORE INTO workspaces (id,data,updated) VALUES (?,?,?)').bind(key,JSON.stringify(data),now).run();row=await env.DB.prepare('SELECT data FROM workspaces WHERE id=?').bind(key).first();}
  if(!row)throw new AdminAccessError('Administrator access is unavailable.');return {key,raw:row.data,data:JSON.parse(row.data)};
 }
-export const homebaseEmails=Object.freeze(['hlawulekanimalunagani12@gmail.com','support@healthreachcare.co.za']);
+export const homebaseEmails=Object.freeze(['hlawumal@gmail.com','support@healthreachcare.co.za']);
 export async function resolveAdministrator(identity,env){if(env.HRC_HOMEBASE_ALLOWLIST==='true'){const admin=identity.emailVerified===true&&homebaseEmails.includes(String(identity.email||'').toLowerCase());return {...identity,admin,mainAdmin:false,homebaseRestricted:true};}const row=await adminRegistry(env);if(!row)return {...identity,mainAdmin:false};const mainAdmin=identity.emailVerified===true&&row.data.mainUid===identity.uid;return {...identity,admin:identity.emailVerified===true&&(mainAdmin||row.data.members[identity.uid]?.active===true),mainAdmin};}
 export function changeAdminAccess(current,input,identity,targetAccount,now=new Date().toISOString()){
  requireFreshAdmin(identity);const next=structuredClone(current),main=current.mainUid===identity.uid;
