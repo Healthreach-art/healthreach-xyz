@@ -9,7 +9,7 @@ const ended=r=>!r||['Completed','Delivered','Collected','Cancelled','Rejected','
 const text=(v,max=300)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw Error('Complete the required fields.');return v.trim();};
 const minor=v=>{if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>1000000)throw Error('Invalid saved price.');return Math.round(v*100);};
 const sequence={Order:{'Order confirmed':['Accepted','Declined'],Accepted:['Processing'],Processing:['Prepared'],Prepared:['Ready for dispatch','Ready for collection'],'Ready for collection':['Collected']},Doctor:{Confirmed:['Accepted','In consultation','Declined'],Accepted:['In consultation'], 'In consultation':['Completed']},Homecare:{'Paid — scheduling':['Scheduled','Declined'],Accepted:['Scheduled'],Scheduled:['Assigned'],Assigned:['On the way'],'On the way':['Arrived'],Arrived:['In progress'],'In progress':['Completed']}};
-export const commerceActions=['platformDeliverySettings','updateCheckoutAddress','checkout','checkoutPay','request','pay','transition','cancel','requestCareAvailability','assignCareProvider','saveHomecareCaregivers','publishConnectedProvider','providerProfile','pharmacySettings','product','productBulk','savePayoutBusiness','removeProduct','appointmentAvailability','openConversation','message','sendMessage'];
+export const commerceActions=['platformDeliverySettings','updateCheckoutAddress','checkout','checkoutPay','request','pay','transition','cancel','requestCareAvailability','assignCareProvider','saveHomecareCaregivers','verifyHomecareCaregiver','publishConnectedProvider','providerProfile','pharmacySettings','product','productBulk','savePayoutBusiness','removeProduct','appointmentAvailability','openConversation','message','sendMessage'];
 export function providerAvailable(s,id,type){const d=s.providers.find(d=>d.id===id&&(!type||d.type===type));if(!d||d.status!=='Approved'||d.acceptingOrders!==true||d.publication?.status!=='Published'||type==='Doctor'&&!d.professionalVerified)throw Error('This provider is not available for new bookings.');return d;}
 function checkArea(d,address){if(d.matchingEnabled&&!serves(d,address))throw Error('This address is outside the provider service area.');}
 export function handleConnectedCommerce(c){
@@ -34,6 +34,19 @@ export function handleConnectedCommerce(c){
   if(p.categories!==undefined){const names=(session.role==='Doctor'?doctorServiceCategories:homecareServiceCategories).map(v=>v.name);if(!Array.isArray(p.categories)||!p.categories.length||p.categories.some(v=>!names.includes(v)))throw Error('Choose the existing patient service categories.');d.categories=[...new Set(p.categories)];}
   if(session.role==='Doctor'){d.services=Array.isArray(p.services)?p.services.map(v=>({name:text(v.name,80),description:text(v.description,300)})):d.services;d.speciality=text(p.speciality,100);d.fee=minor(p.fee)/100;if(d.fee<=0)throw Error('Enter a positive consultation fee.');d.qualifications=text(p.qualifications,300);d.registration=text(p.registration,100);d.durationMinutes=Number(p.durationMinutes);if(!Number.isInteger(d.durationMinutes)||d.durationMinutes<10||d.durationMinutes>240)throw Error('Choose a valid appointment duration.');d.modes=(p.modes||[]).filter(m=>['In-person','Online demo'].includes(m));if(!d.modes.length)throw Error('Select a consultation type.');if(typeof p.slots==='string'){d.slots=p.slots.split(',').map(v=>v.trim());if(d.slots.some(v=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(v)))throw Error('Enter valid HH:MM slots.');}d.professionalVerified=false;}
   if(p.coordinates!==undefined){if(!validMapPoint(p.coordinates))throw Error('Enter valid business premises coordinates.');d.coordinates={latitude:p.coordinates.latitude,longitude:p.coordinates.longitude};}if(p.business!==undefined)d.business=companyDetails(p.business);refreshConnectedPublication(d);return true;
+ }
+ if(action==='verifyHomecareCaregiver'){
+  check(['Admin']);
+  const d=s.providers.find(v=>v.id===p.providerId&&v.type==='Homecare');
+  const caregiver=d?.caregivers?.find(v=>v.id===p.caregiverId);
+  if(!caregiver)throw Error('Caregiver not found.');
+  const reason=text(p.reason,300);
+  if(!reason.trim())throw Error('Record the verification review reason.');
+  caregiver.verified=p.verified===true;
+  caregiver.verifiedAt=now;
+  caregiver.verificationReason=reason;
+  caregiver.verifiedBy=session.accountId;
+  return true;
  }
  if(action==='saveHomecareCaregivers'){
   check(['Homecare']);
