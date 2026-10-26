@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {companyCarePrice,handleCompanyCare,publicCompanyCare,canAccessCompanyCare} from '../lib/company-homecare.mjs';
+import {companyCareActions,companyCarePrice,handleCompanyCare,publicCompanyCare,canAccessCompanyCare} from '../lib/company-homecare.mjs';
+assert(['acceptCompanyHomecareBooking','declineCompanyHomecareBooking','assignHomecareStaff','respondHomecareAssignment','companyHomecareProgress'].every(action=>companyCareActions.includes(action)));
 const manager={id:'fixture-manager',type:'Homecare',status:'Approved',services:[]},staff={id:'fixture-staff',type:'Homecare',status:'Approved',name:'Fixture care worker'},s={providers:[manager,staff],records:[],payments:[],notifications:[],profiles:{patient:{name:'Fixture Patient'}},marketPolicy:{commissionBps:0,processingBps:0}};
 const admin={role:'Admin',accountId:'admin'},owner={role:'Homecare',accountId:manager.id},patient={role:'Patient',accountId:'patient'};
 function run(action,p,session=admin){const c={s,p,action,session,now:new Date().toISOString(),id:crypto.randomUUID(),demoPayments:true,extra:{},adminRecipientIds:['admin'],check:roles=>assert(roles.includes(session.role),'Permission denied'),canAccess:r=>session.role==='Admin'||r.patientId===session.accountId||canAccessCompanyCare(s,session,r),event:(r,status,note)=>{r.status=status;r.history.push({status,note});}};assert(handleCompanyCare(c));return c.extra;}
