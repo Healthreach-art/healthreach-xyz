@@ -15,6 +15,15 @@ run('companyHomecarePay',{id:bookingId,expectedTotal:630,scenario:'Success'},pat
 run('assignHomecareStaff',{id:bookingId,staffId:staff.id},owner);assert(canAccessCompanyCare(s,{role:'Homecare',accountId:staff.id},record));assert(!canAccessCompanyCare(s,{role:'Homecare',accountId:'unrelated'},record));
 const second=run('companyHomecareBook',{...payload,requestKey:'fixture-second'},patient).bookingId;run('companyHomecarePay',{id:second,expectedTotal:630,scenario:'Success'},patient);assert.throws(()=>run('assignHomecareStaff',{id:second,staffId:staff.id},owner),/already has/);
 run('companyHomecareProgress',{id:bookingId,status:'Care visit underway'},owner);run('companyHomecareProgress',{id:bookingId,status:'Completed'},owner);assert.equal(record.status,'Completed');assert.equal(record.staffPayableMinor,44000);
+assert.throws(()=>run('recordHomecarePayout',{id:bookingId,amountMinor:44000,reference:'BANK-001',evidence:'Bank receipt checked',confirmedTransfer:true},owner),/simulated/);
+assert.equal(record.payout,undefined);
+record.simulated=false;record.paymentMode='Verified bank receipt';
+assert.throws(()=>run('recordHomecarePayout',{id:bookingId,amountMinor:44000,reference:'BANK-001',evidence:'Bank receipt checked',confirmedTransfer:true},patient));
+assert.throws(()=>run('recordHomecarePayout',{id:bookingId,amountMinor:43999,reference:'BANK-001',evidence:'Bank receipt checked',confirmedTransfer:true},owner),/amount/);
+assert.throws(()=>run('recordHomecarePayout',{id:bookingId,amountMinor:44000,reference:'BANK-001',evidence:'Bank receipt checked',confirmedTransfer:false},owner),/Confirm/);
+run('recordHomecarePayout',{id:bookingId,amountMinor:44000,reference:'BANK-001',evidence:'Bank receipt checked',confirmedTransfer:true},owner);
+assert.equal(record.payout.status,'Paid');assert.equal(record.payout.amountMinor,44000);assert.equal(record.payout.recordedBy,owner.accountId);
+assert.throws(()=>run('recordHomecarePayout',{id:bookingId,amountMinor:44000,reference:'BANK-001',evidence:'Bank receipt checked',confirmedTransfer:true},owner),/already/);
 const snapshot=JSON.stringify(record.priceSnapshot);run('archiveHomecareService',{id:ids[0]},owner);assert.equal(JSON.stringify(record.priceSnapshot),snapshot);assert.throws(()=>companyCarePrice(s,{serviceIds:ids.slice(0,2),duration:1}),/not published/);
 const out=publicCompanyCare({providers:structuredClone(s.providers),records:structuredClone(s.records)},s,patient);assert(!JSON.stringify(out).includes('staffRate'));assert(!JSON.stringify(out).includes('staffPayableMinor'));assert.equal(out.companyHomecareServices.length,2);
 console.log('Company Homecare: permissions, fixed multiple-service prices, discounts/margin guards, coverage, payment failure/cancel/retry/idempotency, assignment conflict, completion, archival and private staff-fee projection passed.');
