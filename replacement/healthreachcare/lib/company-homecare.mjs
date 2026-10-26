@@ -1,7 +1,7 @@
 import {kmBetween} from './matching.mjs';
 import {validMapPoint} from './map-location.mjs';
 import {homecareServiceCategories} from './service-categories.mjs';
-export const companyCareActions=['saveHomecareDiscounts','saveHomecarePolicy','saveHomecareService','archiveHomecareService','companyHomecareBook','companyHomecarePay','assignHomecareStaff','companyHomecareProgress'];
+export const companyCareActions=['saveHomecareDiscounts','saveHomecarePolicy','saveHomecareService','archiveHomecareService','companyHomecareBook','companyHomecarePay','assignHomecareStaff','companyHomecareProgress','recordHomecarePayout'];
 export const carePolicy=s=>s.homecarePolicy||{mode:'company',managerId:null,centre:null,radiusKm:60,twoDiscountBps:0,threeDiscountBps:0};
 export const companyStaff=(s,id)=>s.providers.some(d=>d.id===id&&d.type==='Homecare'&&d.status==='Approved');
 const text=(v,max=500)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw Error('Complete the required information.');return v.trim();};
@@ -36,6 +36,23 @@ export function handleCompanyCare(c){
   check(['Patient']);if(!c.demoPayments||r.patientId!==session.accountId)throw Error('Payment is not available.');if(r.payment==='Paid'){c.extra.bookingId=r.id;return true;}if(r.status!=='Awaiting payment'||r.holdExpires<=Date.now())throw Error('Booking review expired. Review the care details again.');companyManager(s);schedule(s,r);if(p.expectedTotal!==r.total||!['Success','Failure','Cancel'].includes(p.scenario))throw Error('Review the saved total and payment outcome.');
   s.payments.unshift({id,recordId:r.id,amount:r.total,amountMinor:Math.round(r.total*100),currency:'ZAR',status:p.scenario==='Success'?'Paid':p.scenario==='Failure'?'Failed':'Cancelled',simulated:true,environment:'demo-payment',provider:'internal-simulator',reference:'DEMO-'+id,at:now});
   if(p.scenario==='Success'){r.payment='Paid';r.simulated=true;r.paymentMode='Demo payment';r.staffPayableMinor=r.priceSnapshot.staffPayableMinor;event(r,'Booking confirmed','Demo payment successful; no real charge.');notify(r,'Homecare booking confirmed');}c.extra.bookingId=r.id;return true;
+ }
+ if(action==='recordHomecarePayout'){
+  management();
+  if(r.payment!=='Paid'||r.simulated===true||r.paymentMode==='Demo payment')throw Error('Cannot record a real payout against a simulated or unpaid customer transaction.');
+  if(r.status!=='Completed')throw Error('Complete the care visit before recording its payout.');
+  if(!r.careStaffId)throw Error('Assign an approved caregiver before recording payout.');
+  if(r.payout?.status==='Paid')throw Error('This booking already has a recorded payout. Review the existing reference.');
+  const amountMinor=r.staffPayableMinor??r.priceSnapshot?.staffPayableMinor;
+  if(!Number.isSafeInteger(amountMinor)||amountMinor<=0)throw Error('An agreed caregiver fee snapshot is required.');
+  if(p.amountMinor!==amountMinor)throw Error('The transfer amount must match the agreed caregiver fee.');
+  const reference=text(p.reference,100),evidence=text(p.evidence,300);
+  if((s.records||[]).some(x=>x.id!==r.id&&x.payout?.reference===reference))throw Error('This transfer reference is already used on another booking.');
+  if(p.confirmedTransfer!==true)throw Error('Confirm that the bank transfer actually occurred.');
+  r.payout={id,recordId:r.id,recipientId:r.careStaffId,amountMinor,currency:'ZAR',status:'Paid',reference,evidence,paidAt:now,recordedBy:session.accountId,method:'External bank transfer recorded manually',verification:'Administrator attestation; not independently bank-verified'};
+  r.payoutStatus='Paid';r.updated=now;
+  r.history??=[];r.history.push({status:'Caregiver payout recorded',at:now,actorId:session.accountId,detail:'Manual transfer recorded with reference '+reference});
+  return true;
  }
  if(action!=='companyHomecareProgress'||session.accountId!==r.careStaffId)management();else{check(['Homecare']);if(!companyStaff(s,session.accountId))throw Error('Approved staff required.');}if(r.payment!=='Paid'||['Completed','Cancelled','Declined'].includes(r.status))throw Error('Choose a paid active booking.');
  if(action==='assignHomecareStaff'){if(!['Booking confirmed','Care team preparing'].includes(r.status))throw Error('A visit already underway cannot be reassigned here.');if(!companyStaff(s,p.staffId))throw Error('Choose approved Homecare staff.');const start=Date.parse(r.date+'T'+r.time+':00+02:00'),end=start+r.duration*3600000;if(s.records.some(v=>v.id!==r.id&&v.careStaffId===p.staffId&&v.payment==='Paid'&&!['Completed','Cancelled','Declined'].includes(v.status)&&start<Date.parse(v.date+'T'+v.time+':00+02:00')+v.duration*3600000&&end>Date.parse(v.date+'T'+v.time+':00+02:00')))throw Error('This staff member already has a visit at that time.');r.careStaffId=p.staffId;r.caregiver=s.providers.find(d=>d.id===p.staffId).name;event(r,'Care team preparing','Approved care staff assigned.');}
