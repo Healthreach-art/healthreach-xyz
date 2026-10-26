@@ -4,7 +4,7 @@ export type Destination={label:string;page:string;slug:string;icon:'home'|'activ
 const shared:Destination[]=[{label:'Messages',page:'Messages',slug:'messages',icon:'messages'},{label:'Notifications',page:'Notifications',slug:'notifications',icon:'notifications'},{label:'Account',page:'Account',slug:'account',icon:'account'}];
 export const dashboardDestinations:Record<DashboardRole,Destination[]>={
  Patient:[{label:'Home',page:'Home',slug:'home',icon:'home'},{label:'Activities',page:'Activities',slug:'activities',icon:'activity'},...shared.filter(d=>d.page!=='Messages')],
- Pharmacy:[{label:'Home',page:'Overview',slug:'home',icon:'home'},{label:'Orders',page:'Orders',slug:'orders',icon:'orders'},...shared],
+ Pharmacy:[{label:'Home',page:'Overview',slug:'home',icon:'home'},{label:'Orders',page:'Orders',slug:'orders',icon:'orders'},{label:'Products',page:'Catalogue',slug:'products',icon:'orders'},{label:'Payments',page:'Payments',slug:'payments',icon:'finances'},{label:'Account',page:'Account',slug:'account',icon:'account'}],
  Doctor:[{label:'Home',page:'Overview',slug:'home',icon:'home'},{label:'Appointments',page:'Appointments',slug:'appointments',icon:'appointments'},...shared],
  Homecare:[{label:'Home',page:'Overview',slug:'home',icon:'home'},{label:'Bookings',page:'Bookings',slug:'bookings',icon:'bookings'},{label:'Caregivers',page:'Caregivers',slug:'caregivers',icon:'caregivers'},{label:'Payments',page:'Payments',slug:'payments',icon:'finances'},{label:'Account',page:'Account',slug:'account',icon:'account'}],
  Driver:[{label:'Home',page:'Overview',slug:'home',icon:'home'},{label:'Deliveries',page:'Deliveries',slug:'deliveries',icon:'deliveries'},...shared],Admin:[]};
