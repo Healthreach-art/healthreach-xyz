@@ -4,10 +4,25 @@ export function CareAssignment({s,record,act,busy}){if(record.type!=='Homecare'|
 
 export function HomecareContractorRoster({s,act,busy}){
  const provider=s.providers.find(d=>d.type==='Homecare'&&d.id===s.session?.accountId);
- if(!provider)return null;
+ if(!provider)return <section className="panel padded"><h2>Caregiver directory</h2><p>No Homecare provider profile is linked to this account.</p></section>;
  const caregivers=provider.caregivers||[];
- return <section className="panel padded section"><h2>Independent caregiver roster</h2><p>Caregivers are independent contractors. Contract payment terms are not entered here. Only administrators may verify credentials before a caregiver becomes assignable.</p>
- <div className="records">{caregivers.map(c=><div className="record" key={c.id}><span className="record-text"><strong>{c.name}</strong><small>{c.role} · {c.verified?'Verified':'Verification required'} · {c.active?'Active':'Inactive'}</small></span><button type="button" className="outline" disabled={busy} onClick={()=>void act('saveHomecareCaregivers',{caregivers:caregivers.map(x=>({...x,active:x.id===c.id?!x.active:x.active}))},'Caregiver availability updated')}>{c.active?'Deactivate':'Activate'}</button></div>)}</div>
- <form className="form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void act('saveHomecareCaregivers',{caregivers:[...caregivers,{name:f.get('name'),role:f.get('role'),active:false}]},'Independent caregiver added for verification');e.currentTarget.reset();}}>
- <h3>Add contractor for verification</h3><label>Caregiver name<input name="name" maxLength={120} required/></label><label>Professional role<input name="role" maxLength={100} required/></label><button disabled={busy}>Add caregiver</button></form></section>;
+ const save=next=>void act('saveHomecareCaregivers',{caregivers:next},'Caregiver directory updated');
+ return <section className="panel padded section"><h2>Caregiver directory</h2><p>Manage independent caregivers, contact details and availability. An administrator must verify credentials before assignment.</p>
+ <div className="records">{caregivers.map(c=><details className="record" key={c.id} style={{display:'block',padding:14,marginBottom:10,border:'1px solid #dce9e4',borderRadius:12}}><summary style={{cursor:'pointer',fontWeight:700,color:'#086b4c'}}>{c.name} · {c.role} <small style={{float:'right'}}>{c.verified?'Verified':'Verification pending'} · {c.active?'Active':'Unavailable'}</small></summary>
+ <p>{c.phone||'No contact number saved'} · {c.skills||'No skills listed'}</p>
+ <form className="form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);save(caregivers.map(x=>x.id===c.id?{...x,name:String(f.get('name')).trim(),role:String(f.get('role')).trim(),phone:String(f.get('phone')).trim(),skills:String(f.get('skills')).trim(),availability:String(f.get('availability')).trim(),active:f.get('active')==='on'}:x));}}>
+ <label>Full name<input name="name" defaultValue={c.name} maxLength={120} required/></label>
+ <label>Care role<input name="role" defaultValue={c.role} maxLength={100} required/></label>
+ <label>Phone number<input name="phone" type="tel" defaultValue={c.phone||''} maxLength={30}/></label>
+ <label>Skills and qualifications<input name="skills" defaultValue={c.skills||''} maxLength={300}/></label>
+ <label>Availability<input name="availability" defaultValue={c.availability||''} placeholder="e.g. Mon–Fri, 08:00–17:00" maxLength={150}/></label>
+ <label className="checkbox"><input type="checkbox" name="active" defaultChecked={c.active}/> Available for assignment</label>
+ <button disabled={busy}>Save caregiver profile</button>
+ {c.phone&&<a className="outline" href={'https://wa.me/'+c.phone.replace(/[^0-9]/g,'').replace(/^0/,'27')} target="_blank" rel="noopener noreferrer">Message caregiver on WhatsApp</a>}
+ </form></details>)}</div>
+ {!caregivers.length&&<p>No caregivers have been added yet. Add a contractor below to start the verification process.</p>}
+ <form className="form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);save([...caregivers,{name:String(f.get('name')).trim(),role:String(f.get('role')).trim(),phone:String(f.get('phone')).trim(),skills:String(f.get('skills')).trim(),availability:String(f.get('availability')).trim(),active:false}]);e.currentTarget.reset();}}>
+ <h3>Add caregiver for verification</h3>
+ <label>Full name<input name="name" maxLength={120} required/></label><label>Professional role<input name="role" maxLength={100} required/></label><label>Contact number<input name="phone" type="tel" maxLength={30}/></label><label>Skills and qualifications<input name="skills" maxLength={300}/></label><label>Availability<input name="availability" maxLength={150}/></label>
+ <p>New caregivers start unavailable until an administrator verifies them.</p><button disabled={busy}>Add caregiver</button></form></section>;
 }
