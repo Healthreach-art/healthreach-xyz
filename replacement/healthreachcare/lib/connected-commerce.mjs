@@ -10,7 +10,7 @@ const ended=r=>!r||['Completed','Delivered','Collected','Cancelled','Rejected','
 const text=(v,max=300)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw Error('Complete the required fields.');return v.trim();};
 const minor=v=>{if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>1000000)throw Error('Invalid saved price.');return Math.round(v*100);};
 const sequence={Order:{'Order confirmed':['Accepted','Declined'],Accepted:['Processing'],Processing:['Prepared'],Prepared:['Ready for dispatch','Ready for collection'],'Ready for collection':['Collected']},Doctor:{Confirmed:['Accepted','In consultation','Declined'],Accepted:['In consultation'], 'In consultation':['Completed']},Homecare:{'Paid — scheduling':['Accepted','Scheduled','Declined'],Accepted:['Scheduled'],Scheduled:['Assigned'],Assigned:['On the way'],'On the way':['Arrived'],Arrived:['In progress'],'In progress':['Completed']}};
-export const commerceActions=['platformDeliverySettings','updateCheckoutAddress','checkout','checkoutPay','request','pay','transition','cancel','requestCareAvailability','assignCareProvider','publishConnectedProvider','providerProfile','pharmacySettings','product','productBulk','savePayoutBusiness','removeProduct','appointmentAvailability','openConversation','message','sendMessage'];
+export const commerceActions=['platformDeliverySettings','updateCheckoutAddress','checkout','checkoutPay','request','pay','transition','cancel','requestCareAvailability','assignCareProvider','publishConnectedProvider','providerProfile','homecareServices','pharmacySettings','product','productBulk','savePayoutBusiness','removeProduct','appointmentAvailability','openConversation','message','sendMessage'];
 export function providerAvailable(s,id,type){const d=s.providers.find(d=>d.id===id&&(!type||d.type===type));if(!d||d.status!=='Approved'||d.acceptingOrders!==true||d.publication?.status!=='Published'||type==='Doctor'&&!d.professionalVerified)throw Error('This provider is not available for new bookings.');return d;}
 function checkArea(d,address){if(d.matchingEnabled&&!serves(d,address))throw Error('This address is outside the provider service area.');}
 export function handleConnectedCommerce(c){
@@ -29,6 +29,35 @@ export function handleConnectedCommerce(c){
   if(d.type==='Homecare'&&!d.services?.some(v=>v.active!==false&&minor(v.rate)>0))throw Error('Save at least one priced homecare service.');
   if(d.type==='Doctor'&&(!d.qualifications||!d.registration||!d.modes?.length||!d.slots?.length&&!d.calendar?.rules?.length||!Number.isFinite(d.fee)||d.fee<=0))throw Error('Complete doctor credentials, price and appointment availability.');
   d.publication={manuallyHidden:p.publish===false,status:p.publish===false?'Draft':'Published',reviewedBy:session.accountId,reviewedAt:now,note:text(p.reason,600)};if(d.type==='Doctor')d.professionalVerified=p.publish!==false;notify(d.id,null,'Service listing reviewed',d.publication.status);return true;
+ }
+ if(action==='homecareServices'){
+  check(['Homecare']);
+  const d=s.providers.find(v=>v.id===session.accountId&&v.type==='Homecare');
+  if(!d||d.status!=='Approved')throw Error('An approved Homecare account is required to manage published services.');
+  if(!Array.isArray(p.services)||p.services.length>80)throw Error('Review the service list and try again.');
+  const ids=new Set();
+  const nextServices=(p.services).map(v=>{
+   if(!v||typeof v!=='object')throw Error('Review each service before saving.');
+   const serviceId=typeof v.id==='string'&&v.id.length<=160?v.id:crypto.randomUUID();
+   if(ids.has(serviceId))throw Error('Each service must have a unique identifier.');ids.add(serviceId);
+   const name=text(v.name,80),description=text(v.description,500),parentId=typeof v.parentId==='string'?v.parentId.slice(0,160):'';
+   const category=homecareServiceCategories.some(c=>c.name===v.category)?v.category:'';
+   if(!category)throw Error('Choose a supported Homecare category.');
+   const pricingModel=['hourly','per-visit','daily','fixed-package'].includes(v.pricingModel)?v.pricingModel:'hourly';
+   const rateMinor=minor(v.rate);if(rateMinor<=0)throw Error('Enter a service price greater than zero.');
+   const minDuration=Number(v.minDuration??1),maxDuration=Number(v.maxDuration??8);
+   if(!Number.isInteger(minDuration)||!Number.isInteger(maxDuration)||minDuration<1||maxDuration<minDuration||maxDuration>24)throw Error('Choose a valid minimum and maximum visit duration.');
+   const noticeHours=Number(v.noticeHours??0);if(!Number.isInteger(noticeHours)||noticeHours<0||noticeHours>720)throw Error('Booking notice must be from 0 to 720 hours.');
+   const serviceAreas=Array.isArray(v.serviceAreas)?v.serviceAreas.filter(x=>typeof x==='string').map(x=>x.trim()).filter(Boolean).slice(0,30):[];
+   const availability=Array.isArray(v.availability)?v.availability.filter(x=>x&&Number.isInteger(x.weekday)&&x.weekday>=0&&x.weekday<=6&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(x.start)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(x.end)).slice(0,7):[];
+   return {id:serviceId,name,description,category,parentId,rate:rateMinor/100,pricingModel,minDuration,maxDuration,qualificationRequirements:typeof v.qualificationRequirements==='string'?v.qualificationRequirements.trim().slice(0,500):'',serviceAreas,availability,noticeHours,image:typeof v.image==='string'&&/^https:\/\//.test(v.image)?v.image.slice(0,2000):'',active:v.active===true,updatedAt:now};
+  });
+  const servicesById=new Map(nextServices.map(v=>[v.id,v]));
+  if(nextServices.some(v=>v.parentId&&(!servicesById.has(v.parentId)||servicesById.get(v.parentId).parentId||servicesById.get(v.parentId).category!==v.category)))throw Error('A sub-service must refer to a main service in the same category.');
+  d.services=nextServices;
+  d.availabilityConfigured=d.availabilityConfigured===true;
+  d.serviceCatalogueUpdatedAt=now;
+  return true;
  }
  if(action==='providerProfile'&&session.role==='Homecare'&&s.connectedAccounts&&p.services!==undefined)throw Error('Manage company services from Homecare service management.');
  if(action==='providerProfile'){
