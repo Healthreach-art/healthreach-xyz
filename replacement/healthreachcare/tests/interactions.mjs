@@ -153,3 +153,8 @@ h=harness('components/provider-hours.jsx');tree=h.render('ProviderHours',{provid
  button(tree,'Continue').props.onClick();tree=h.render('CompanyHomecareBooking',props);assert(text(tree).includes('Care details'));assert(text(tree).includes('R 315.00'));button(tree,'Choose or change address').props.onClick();tree=h.render('CompanyHomecareBooking',props);assert(text(tree).includes('Back to care details'));button(tree,'Back to care details').props.onClick();tree=h.render('CompanyHomecareBooking',props);assert(text(tree).includes('R 315.00'));
  console.log('Company Homecare multi-selection, displayed discount and address-navigation state preservation UI passed.');
 }
+
+{
+ const h=harness('components/appointment-messages.jsx'),record={id:'appointment-message-fixture',type:'Doctor',providerId:'doctor-fixture',patientId:'patient-fixture',patientName:'Fixture patient',title:'General consultation',status:'Confirmed',date:'2026-11-01',time:'09:30'},s={session:{accountId:'patient-fixture'},providers:[{id:'doctor-fixture',name:'Dr Fixture'}],conversations:[]},opened=[];
+ let tree=h.render('AppointmentMessages',{s,role:'Patient',records:[record],onOpen:r=>opened.push(r.id)});button(tree,'Message').props.onClick();assert.deepEqual(opened,['appointment-message-fixture']);tree=h.render('AppointmentMessages',{s:{...s,session:{accountId:'doctor-fixture'}},role:'Doctor',records:[record],onOpen:r=>opened.push(r.id)});button(tree,'Message').props.onClick();assert.deepEqual(opened,['appointment-message-fixture','appointment-message-fixture']);checks+=2;
+}
