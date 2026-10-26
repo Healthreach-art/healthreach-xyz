@@ -20,6 +20,6 @@ console.log(`${checks} main-admin bootstrap, no-public-first-user escalation, de
 
 // Exact, server-configured Homebase policy supersedes legacy UID/claims/delegation.
 env.HRC_HOMEBASE_ALLOWLIST='true';
-for(const email of ['hlawulekanimalunagani12@gmail.com','support@healthreachcare.co.za']){const identity=await resolveAdministrator({uid:'fixture-'+email,email,emailVerified:true,admin:false},env);check(identity.admin);check(identity.homebaseRestricted);check(!identity.mainAdmin);const unverified=await resolveAdministrator({...identity,emailVerified:false},env);check(!unverified.admin);}
-for(const email of ['admin@healthreachcare.co.za','pityhygiene@gmail.com','support@healthreachcare.co.za.attacker.test','other@example.test']){const identity=await resolveAdministrator({...root,email,admin:true},env);check(!identity.admin);check(!identity.mainAdmin);}
+for(const email of ['middlema12@gmail.com','support@healthreachcare.co.za']){const identity=await resolveAdministrator({uid:'fixture-'+email,email,emailVerified:true,admin:false},env);check(identity.admin);check(identity.homebaseRestricted);check(!identity.mainAdmin);const unverified=await resolveAdministrator({...identity,emailVerified:false},env);check(!unverified.admin);}
+for(const email of ['admin@healthreachcare.co.za','pityhygiene@gmail.com','hlawulekanimalunagani12@gmail.com','support@healthreachcare.co.za.attacker.test','other@example.test']){const identity=await resolveAdministrator({...root,email,admin:true},env);check(!identity.admin);check(!identity.mainAdmin);}
 console.log('16 exact-email Homebase allowlist, verified-email requirement, old-owner revocation and forged-admin-claim rejection checks passed. No real sign-in was performed.');

@@ -10,7 +10,7 @@ rejects(()=>changeAccount(null,{action:'register',role:'Admin'},patient),/suppor
 let account=changeAccount(null,{action:'register',role:'Patient'},patient);check(account.role==='Patient');check(account.status==='Active');check(!accountReady(account,patient));
 account=changeAccount(account,{action:'profile',fullName:'Fixture Updated',address:'Fictional test address'},patient);check(accountReady(account,patient));check(!accountReady(account,{...patient,hasPassword:false}));check(account.audit.length===2);check(account.fullName==='Fixture Updated');
 const rejoin=changeAccount(account,{action:'register',role:'Pharmacy'},patient);check(rejoin.role==='Patient');check(accountKey('test-project',patient.uid).startsWith('firebase-account:test-project:'));rejects(()=>changeAccount(account,{action:'application'},patient),/Provider account/);
-for(const role of providerRoles){
+for(const role of providerRoles.filter(r=>r!=='Homecare')){
  const owner={...patient,uid:'fixture-'+role};let provider=changeAccount(null,{action:'register',role,fullName:'Fixture '+role},owner);check(provider.status==='Pending verification');check(provider.role===role);provider.status='Incomplete';
  const application={action:'application',businessName:'Fictional practice',registration:'TEST-REG-ONLY',phone:'+27 00 000 0000',serviceArea:'Fictional service area',experience:'Fictional service qualifications'};
  rejects(()=>changeAccount(provider,application,owner),/address/);provider=changeAccount(provider,{action:'profile',fullName:provider.fullName,address:'Fictional business location'},owner);
@@ -34,3 +34,9 @@ const admin={...patient,uid:'fixture-admin',admin:true};let controlled=changeAcc
 check(controlled.status==='Pending verification');check(controlled.documents.length===0);
 for(const decision of ['Approved','Suspended','On hold','Rejected','Approved','Deleted']){const before=structuredClone(controlled);rejects(()=>changeAccount(controlled,{action:'review',decision,reason:'Fixture reason',reviewed:true},patient),/administrator/);controlled=changeAccount(controlled,{action:'review',decision,reason:'Fixture reason',reviewed:true},admin);check(controlled.status===decision);check(controlled.uid===before.uid);check(controlled.documents.length===before.documents.length);if(decision==='Deleted')check(!!controlled.deletedAt);}
 rejects(()=>changeAccount(controlled,{action:'review',decision:'On hold',reviewed:true},admin),/Reason/);check(controlled.audit.length===7);console.log('29 additional fast partner registration, administrator control, reason and soft-delete preservation assertions passed.');
+
+rejects(()=>changeAccount(null,{action:'register',role:'Homecare'},patient),/administrators/);
+rejects(()=>changeAccount({...account,emailVerifiedAt:'fixture'},{action:'homecareStaff',decision:'Approved',reason:'Fixture'},patient),/verified patient/);
+const staff=changeAccount({...account,emailVerifiedAt:'fixture'},{action:'homecareStaff',decision:'Approved',reason:'Fixture staff approval'},admin);check(staff.role==='Homecare');check(staff.uid===account.uid);check(staff.companyStaff);check(staff.status==='Approved');
+const suspended=changeAccount(staff,{action:'homecareStaff',decision:'Suspended',reason:'Fixture pause'},admin);check(suspended.status==='Suspended');check(suspended.audit.length===staff.audit.length+1);
+console.log('Homecare public signup denial and admin-only staff provisioning checks passed');

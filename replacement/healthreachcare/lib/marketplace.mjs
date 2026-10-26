@@ -81,7 +81,7 @@ export function publicMarket(out, s, session) { if (session.role === 'Patient') 
     out.providers = out.providers.filter(d => marketAvailable(s, d.id));
     const address = addressFor(s, session.accountId);
     out.providers = out.providers.map(d => ({ ...d, distanceKm: kmBetween(d.coordinates, address), servesLocation: d.matchingEnabled ? serves(d, address) : null })).sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
-    out.products = out.products.filter(p => marketAvailable(s, p.ownerId) && (!s.providers.find(d => d.id === p.ownerId)?.matchingEnabled || serves(s.providers.find(d => d.id === p.ownerId), address))).sort((a, b) => (out.providers.findIndex(d => d.id === a.ownerId)) - (out.providers.findIndex(d => d.id === b.ownerId)));
+    out.products = out.products.filter(p => marketAvailable(s, p.ownerId)).sort((a, b) => (out.providers.findIndex(d => d.id === a.ownerId)) - (out.providers.findIndex(d => d.id === b.ownerId)));
     const catalogue = new Map();
     for (const p of out.products) {
         const key = productKey(p) + '|' + p.price;

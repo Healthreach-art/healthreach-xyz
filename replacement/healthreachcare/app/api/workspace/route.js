@@ -1,3 +1,4 @@
+import {canAccessCompanyCare} from '../../../lib/company-homecare.mjs';
 import {firebaseWorkspaceGET,firebaseWorkspacePOST} from '../../../lib/firebase-workspace.mjs';
 import {maintainAccountWorkspace,publicAccountWorkspace,handleAccountWorkspace} from '../../../lib/account-workspace.mjs';
 import {maintainDoctorOperations,publicDoctorOperations,handleDoctorOperations} from '../../../lib/doctor-operations.mjs';
@@ -147,7 +148,7 @@ function upgradeNavigation(s) { if (s.navigationSchema === 1)
     c.channel ??= 'pharmacy';
     c.participants ??= [c.patientId, 'pharmacy'];
 } s.version++; return true; }
-function canAccess(r, session, s) { if (session.role === 'Admin')
+function canAccess(r, session, s) { if(canAccessCompanyCare(s,session,r))return true; if (session.role === 'Admin')
     return true; if (session.role === 'Driver')
     return !!s.deliveryTasks.find((t) => t.recordId === r.id && t.driverId === session.accountId); if (session.role === 'Patient')
     return r.patientId === session.accountId; if (session.role === 'Pharmacy')

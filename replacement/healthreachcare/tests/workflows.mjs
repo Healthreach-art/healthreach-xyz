@@ -1,3 +1,4 @@
+import * as companyCare from '../lib/company-homecare.mjs';
 import * as firebaseWorkspace from '../lib/firebase-workspace.mjs';
 import {publicPayoutProfile} from '../lib/payout-banking.mjs';
 import * as accountWorkspace from '../lib/account-workspace.mjs';
@@ -27,6 +28,7 @@ source=source.replace(/import \{[^}]+\} from '[^']+demo-access.mjs';/,'const {de
 source=source.replace(/import \{[^}]+\} from '[^']+matching.mjs';/,'const {prepareMatch,maintainMatching,handleMatching,careBookingPrice}=globalThis.__matching;');
 source=source.replace(/import \{[^}]+\} from '[^']+marketplace.mjs';/,'const {upgradeMarket,maintainMarket,publicMarket,handleMarket,marketAvailable}=globalThis.__market;');
 source=source.replace(/import \{[^}]+\} from '[^']+completion.mjs';/,'const {upgradeCompletion,publicCompletion,handleCompletion,validateSlot}=globalThis.__completion;');source=source.replace(/import \{[^}]+\} from '[^']+business.mjs';/,'const {upgradeBusiness,maintainBusiness,publicBusiness,handleBusiness,requireLegal,applicationEligible,offerEligible}=globalThis.__business;');globalThis.__business=business;globalThis.__completion=completion;globalThis.__env=env;globalThis.__user=async()=>user?{userId:user,email:'qa@example.test',permissions:!verifiedAdmin||user==='nonadmin-entry-qa'?[]:['healthreachcare:admin']}:null;
+globalThis.__companyCare=companyCare;source=source.replace(/import \{[^}]+\} from '[^']+company-homecare.mjs';/, 'const {canAccessCompanyCare}=globalThis.__companyCare;');
 const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const api=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 let s,count=0;

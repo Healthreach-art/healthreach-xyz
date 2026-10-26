@@ -8,12 +8,16 @@ export function changeAccount(current,input,identity,now=new Date().toISOString(
  const action=input.action;let next=structuredClone(current);
  if(action==='register'){
   if(current)return current;
-  const role=input.role||'Patient';if(!accountRoles.includes(role))throw new AccountValidationError('Choose a supported account type.');
+  const role=input.role||'Patient';if(role==='Homecare')throw new AccountValidationError('Homecare staff accounts are managed by HealthReachCare administrators. Use partner login for an existing account.');if(!accountRoles.includes(role))throw new AccountValidationError('Choose a supported account type.');
   const phone=typeof input.phone==='string'?input.phone.trim():'';if(phone&&!/^[+0-9() .-]{7,40}$/.test(phone))throw new AccountValidationError('Enter a valid mobile number.');
   next={phone,uid:identity.uid,email:identity.email,fullName:required(input.fullName||identity.displayName,'Full name',120),role,status:role==='Patient'?'Active':'Pending verification',address:'',application:{},documents:[],audit:[],createdAt:now};
  }else{
   if(!current)throw new AccountValidationError('Complete your account setup first.');
-  if(action==='profile'){
+  if(action==='homecareStaff'){
+   if(!identity.admin||!current.emailVerifiedAt||!['Patient','Homecare'].includes(current.role))throw new AccountValidationError('Choose a verified patient or existing Homecare staff account.');
+   if(!['Approved','Suspended','On hold'].includes(input.decision))throw new AccountValidationError('Choose a valid staff status.');
+   next.role='Homecare';next.status=input.decision;next.statusReason=required(input.reason,'Reason',1200);next.companyStaff=true;next.reviewedAt=now;next.reviewedBy=identity.uid;
+  }else if(action==='profile'){
    next.fullName=required(input.fullName,'Full name',120);next.address=required(input.address,'Address',600);
   }else if(action==='application'){
    if(!providerRoles.includes(current.role))throw new AccountValidationError('Provider account required.');
