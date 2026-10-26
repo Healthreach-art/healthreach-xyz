@@ -1,4 +1,4 @@
-export const accountPages=['AccountProfile','AccountSettings','AccountSafety','TrustedContacts','Communication','AccountLanguage','AccountCalendar','SavedPlaces','AccountLegal','HelpArticles','AccountCases','AccountAbout'] as const;
+export const accountPages=['AccountProfile','AccountSettings','AccountSafety','TrustedContacts','Communication','AccountLanguage','AccountCalendar','SavedPlaces','AccountLegal','HelpArticles','AccountCases','AccountAbout','StaffPermissions'] as const;
 export type DashboardRole='Patient'|'Pharmacy'|'Doctor'|'Homecare'|'Driver'|'Admin';
 export type Destination={label:string;page:string;slug:string;icon:'home'|'activity'|'messages'|'notifications'|'account'|'orders'|'appointments'|'bookings'|'deliveries'|'inbox'|'finances'|'caregivers'|'services'};
 const shared:Destination[]=[{label:'Messages',page:'Messages',slug:'messages',icon:'messages'},{label:'Notifications',page:'Notifications',slug:'notifications',icon:'notifications'},{label:'Account',page:'Account',slug:'account',icon:'account'}];

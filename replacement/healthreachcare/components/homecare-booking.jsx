@@ -4,10 +4,11 @@ import {CheckoutConsent} from './checkout-consent';
 import {HomecareAvailability} from './homecare-availability';
 import {ArrowLeft,MapPin,ShieldCheck,CalendarDays,Clock3,HeartHandshake} from 'lucide-react';
 const money=v=>'R '+Number(v||0).toFixed(2);
-export function HomecareBooking({s,service,providerId,address,act,busy,onAddress,onBooked}){
- const candidates=s.providers.filter(d=>d.type==='Homecare'&&d.status==='Approved'&&d.acceptingOrders!==false&&d.services?.some(v=>v.name===service&&v.active!==false&&v.rate>0));
+export function HomecareBooking({s,service,serviceId,providerId,address,act,busy,onAddress,onBooked}){
+ const offeringFor=d=>d.services?.find(v=>(serviceId?v.id===serviceId:v.name===service)&&v.active!==false&&v.rate>0);
+ const candidates=s.providers.filter(d=>d.type==='Homecare'&&d.status==='Approved'&&d.acceptingOrders===true&&d.publication?.status==='Published'&&offeringFor(d));
  const [selected]=useState(providerId||candidates[0]?.id||''),[duration,setDuration]=useState(2),[review,setReview]=useState(false),[draft,setDraft]=useState(null),[saved,setSaved]=useState(null),[scenario,setScenario]=useState('Success'),[message,setMessage]=useState('');
- const paying=useRef(false),bookingKey=useRef(''),provider=candidates.find(d=>d.id===selected),offering=provider?.services.find(v=>v.name===service);
+ const paying=useRef(false),bookingKey=useRef(''),provider=candidates.find(d=>d.id===selected),offering=provider&&offeringFor(provider);
  const pricingModel=offering?.pricingModel||'hourly',minDuration=Number(offering?.minDuration||1),maxDuration=Number(offering?.maxDuration||24),visitDuration=Math.max(minDuration,Math.min(duration,maxDuration));
  const total=Math.round((offering?.rate||0)*(pricingModel==='hourly'?visitDuration:1)*100)/100,record=s.records?.find(r=>r.id===saved?.id)||saved;
  const priceLabel=pricingModel==='hourly'?'/ hour':pricingModel==='per-visit'?'/ visit':pricingModel==='daily'?'/ day':'/ package';
