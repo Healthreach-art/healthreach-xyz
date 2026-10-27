@@ -8,8 +8,8 @@ export const companyCareActions=['saveHomecareDiscounts','saveHomecarePolicy','s
 export const carePolicy=s=>{
  const approved=(s.providers||[]).filter(d=>d.type==='Homecare'&&d.status==='Approved');
  const saved=s.homecarePolicy||{};
- const inferredManager=s.homecarePolicy?null:approved.length===1?approved[0].id:null;
- const defaultCentre=s.homecarePolicy?null:{latitude:-33.9249,longitude:18.4241};
+ const inferredManager=saved.managerId?null:approved.length===1?approved[0].id:null;
+ const defaultCentre=saved.centre?null:{latitude:-33.9249,longitude:18.4241};
  return {...saved,mode:'company',managerId:saved.managerId||inferredManager,centre:saved.centre||defaultCentre,radiusKm:60,twoDiscountBps:saved.twoDiscountBps||0,threeDiscountBps:saved.threeDiscountBps||0};
 };
 export const companyStaff=(s,id)=>s.providers.some(d=>d.id===id&&d.type==='Homecare'&&d.status==='Approved');
@@ -19,7 +19,7 @@ export function companyManager(s){const d=s.providers.find(d=>d.id===carePolicy(
 export function companyCarePrice(s,p){
  const d=companyManager(s),ids=p.serviceIds;if(!Array.isArray(ids)||!ids.length||ids.length>20||new Set(ids).size!==ids.length)throw Error('Select one or more different care services.');
  const duration=Number(p.duration);if(![1,2,4,8].includes(duration))throw Error('Select 1, 2, 4 or 8 hours.');
- const items=ids.map(id=>{const v=d.services?.find(x=>x.id===id&&x.active!==false&&!x.archived);if(!v||!Number.isFinite(v.staffRate)||v.rate<=0)throw Error('A selected service is not published with an approved price and staff fee.');return {id:v.id,name:v.name,rateMinor:cents(v.rate),staffRateMinor:cents(v.staffRate),duration};});
+ const items=ids.map(id=>{const v=d.services?.find(x=>x.id===id&&x.active!==false&&!x.archived),staffRate=v?.staffRate??v?.caregiverFee;if(!v||!Number.isFinite(staffRate)||staffRate<=0||v.rate<=0)throw Error('A selected service is not published with an approved price and agreed staff fee.');return {id:v.id,name:v.name,rateMinor:cents(v.rate),staffRateMinor:cents(staffRate),duration};});
  const subtotalMinor=items.reduce((n,v)=>n+v.rateMinor*duration,0),staffPayableMinor=items.reduce((n,v)=>n+v.staffRateMinor*duration,0),policy=carePolicy(s),bps=ids.length>=3?policy.threeDiscountBps:ids.length===2?policy.twoDiscountBps:0;
  const discountMinor=Math.round(subtotalMinor*bps/10000),totalMinor=subtotalMinor-discountMinor;
  // Existing platform/processor fees also come out of the company margin.
