@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const landing=fs.readFileSync('components/public-landing.jsx','utf8');
+const app=fs.readFileSync('app/page.jsx','utf8');
+const auth=fs.readFileSync('components/demo-entry.jsx','utf8');
+const authRoutes=fs.readFileSync('lib/auth-entry.mjs','utf8');
+const roleLogin=fs.readFileSync('app/partners/login/page.jsx','utf8');
+const roleSignup=fs.readFileSync('app/partners/signup/page.jsx','utf8');
+assert.match(landing,/href=\"\/partners\"/);
+assert.match(landing,/export function PartnerAccessHub/);
+for(const role of ['Pharmacy','Doctor','Driver']){assert(landing.includes(`/partners/login?role=${role}`));assert(landing.includes(`/partners/signup?role=${role}`));}
+assert(landing.includes("href:'/homecare/login'"));
+assert(!landing.includes("role:'Homecare',href:'/partners/login"));
+assert.match(landing,/Open Partner Access/);
+assert.match(app,/partnerHub\?<PartnerAccessHub\/>/);
+assert.match(auth,/partner\?\(signup\?'\/partners\/login':'\/partners\/signup'\)/);
+assert.match(roleLogin,/query\?\.role/);
+assert.match(roleSignup,/query\?\.role/);
+assert.match(authRoutes,/\['\/login','\/signup','\/partners\/login','\/partners\/signup'/);
+assert(!authRoutes.includes("'/partners',"));
+console.log('Partner access assertions passed: single hub, tailored partner entry routes, company Homecare staff login, and no public Homecare signup.');

@@ -2,16 +2,7 @@ import {kmBetween} from './matching.mjs';
 import {validMapPoint} from './map-location.mjs';
 import {homecareServiceCategories} from './service-categories.mjs';
 export const companyCareActions=['saveHomecareDiscounts','saveHomecarePolicy','saveHomecareService','archiveHomecareService','saveHomecareCaregivers','verifyHomecareCaregiver','companyHomecareBook','companyHomecarePay','acceptCompanyHomecareBooking','declineCompanyHomecareBooking','assignHomecareStaff','respondHomecareAssignment','companyHomecareProgress','recordHomecarePayout'];
-// Company Homecare has one operational manager. Older connected workspaces may
-// not yet have an explicit manager pointer; only infer it when there is exactly
-// one already-approved Homecare account. Never promote a pending account.
-export const carePolicy=s=>{
- const approved=(s.providers||[]).filter(d=>d.type==='Homecare'&&d.status==='Approved');
- const saved=s.homecarePolicy||{};
- const inferredManager=s.homecarePolicy?null:approved.length===1?approved[0].id:null;
- const defaultCentre=s.homecarePolicy?null:{latitude:-33.9249,longitude:18.4241};
- return {...saved,mode:'company',managerId:saved.managerId||inferredManager,centre:saved.centre||defaultCentre,radiusKm:60,twoDiscountBps:saved.twoDiscountBps||0,threeDiscountBps:saved.threeDiscountBps||0};
-};
+export const carePolicy=s=>s.homecarePolicy||{mode:'company',managerId:null,centre:null,radiusKm:60,twoDiscountBps:0,threeDiscountBps:0};
 export const companyStaff=(s,id)=>s.providers.some(d=>d.id===id&&d.type==='Homecare'&&d.status==='Approved');
 const text=(v,max=500)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw Error('Complete the required information.');return v.trim();};
 const cents=v=>{if(!Number.isFinite(v)||v<0||v>1000000)throw Error('Enter a valid amount.');return Math.round(v*100);};

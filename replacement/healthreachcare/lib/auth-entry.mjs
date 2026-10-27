@@ -2,8 +2,8 @@ import {safeReturnTo} from './demo-access.mjs';
 import {accountDestination} from './account-destination.mjs';
 
 // Entry pages own their Firebase session. Workspace polling must not replace them.
-export function isAuthEntry(pathname){return ['/login','/signup','/partners','/partners/login','/admin/login','/homecare/login'].includes(pathname);}
-export function authEntryMode(pathname){return isAuthEntry(pathname)?(['/signup','/partners'].includes(pathname)?'signup':'login'):'';}
+export function isAuthEntry(pathname){return ['/login','/signup','/partners/login','/partners/signup','/admin/login','/homecare/login'].includes(pathname);}
+export function authEntryMode(pathname){return isAuthEntry(pathname)?(['/signup','/partners/signup'].includes(pathname)?'signup':'login'):'';}
 export function signInDestination(identity,account,{adminOnly=false,homecareOnly=false,returnTo=''}={}){
  if(!identity?.emailVerified)return null;
  if(adminOnly&&!identity.admin)return null;
