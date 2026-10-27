@@ -6,11 +6,12 @@ import {doctorServiceCategories,homecareServiceCategories,refreshConnectedPublic
 import {validateSlot} from './completion.mjs';
 import {candidateTimes} from './appointment-calendar.mjs';
 import {careBookingPrice,serves,openNow} from './matching.mjs';
+import {homecareCatalogueForState,homecareMasterIdForService,normalizeHomecareCatalogueUpdate} from './homecare-catalogue.mjs';
 const ended=r=>!r||['Completed','Delivered','Collected','Cancelled','Rejected','Declined'].includes(r.status);
 const text=(v,max=300)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw Error('Complete the required fields.');return v.trim();};
 const minor=v=>{if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>1000000)throw Error('Invalid saved price.');return Math.round(v*100);};
 const sequence={Order:{'Order confirmed':['Accepted','Declined'],Accepted:['Processing'],Processing:['Prepared'],Prepared:['Ready for dispatch','Ready for collection'],'Ready for collection':['Collected']},Doctor:{Confirmed:['Accepted','In consultation','Declined'],Accepted:['In consultation'], 'In consultation':['Completed']},Homecare:{'Paid — scheduling':['Accepted','Scheduled','Declined'],Accepted:['Scheduled'],Scheduled:['Assigned'],Assigned:['On the way'],'On the way':['Arrived'],Arrived:['In progress'],'In progress':['Completed']}};
-export const commerceActions=['platformDeliverySettings','updateCheckoutAddress','checkout','checkoutPay','request','pay','transition','assignHomecareCaregiver','unassignHomecareCaregiver','cancel','requestCareAvailability','assignCareProvider','publishConnectedProvider','providerProfile','homecareServices','pharmacySettings','product','productBulk','savePayoutBusiness','removeProduct','appointmentAvailability','openConversation','message','sendMessage'];
+export const commerceActions=['platformDeliverySettings','updateCheckoutAddress','checkout','checkoutPay','request','pay','transition','assignHomecareCaregiver','unassignHomecareCaregiver','cancel','requestCareAvailability','assignCareProvider','publishConnectedProvider','providerProfile','homecareServices','homecareCatalogue','pharmacySettings','product','productBulk','savePayoutBusiness','removeProduct','appointmentAvailability','openConversation','message','sendMessage'];
 export function providerAvailable(s,id,type){const d=s.providers.find(d=>d.id===id&&(!type||d.type===type));if(!d||d.status!=='Approved'||d.acceptingOrders!==true||d.publication?.status!=='Published'||type==='Doctor'&&!d.professionalVerified)throw Error('This provider is not available for new bookings.');return d;}
 function checkArea(d,address){if(d.matchingEnabled&&!serves(d,address))throw Error('This address is outside the provider service area.');}
 export function handleConnectedCommerce(c){
@@ -31,40 +32,55 @@ export function handleConnectedCommerce(c){
   if(d.type==='Doctor'&&(!d.qualifications||!d.registration||!d.modes?.length||!d.slots?.length&&!d.calendar?.rules?.length||!Number.isFinite(d.fee)||d.fee<=0))throw Error('Complete doctor credentials, price and appointment availability.');
   d.publication={manuallyHidden:p.publish===false,status:p.publish===false?'Draft':'Published',reviewedBy:session.accountId,reviewedAt:now,note:text(p.reason,600)};if(d.type==='Doctor')d.professionalVerified=p.publish!==false;notify(d.id,null,'Service listing reviewed',d.publication.status);return true;
  }
+ if(action==='homecareCatalogue'){
+  check(['Admin']);
+  const current=s.homecareCatalogue||[],next=normalizeHomecareCatalogueUpdate(p.services,current,now),incoming=new Set(next.map(value=>value.id));
+  s.homecareCatalogue=[...next,...current.filter(value=>!incoming.has(value.id)).map(value=>({...value,active:false,archived:true,updatedAt:now}))];
+  const catalogue=homecareCatalogueForState({...s,homecareCatalogue:current});
+  for(const provider of s.providers.filter(value=>value.type==='Homecare'))for(const offer of provider.services||[]){
+   const masterId=homecareMasterIdForService(offer,catalogue),definition=next.find(value=>value.id===masterId);
+   if(definition){offer.masterServiceId=definition.id;offer.name=definition.name;offer.description=definition.description;offer.category=definition.category;offer.parentId=definition.parentId;}
+   else if(masterId&&!masterId.startsWith('homecare-main-'))offer.active=false;
+  }
+  s.audit??=[];s.audit.unshift({id,action:'homecare-master-catalogue-updated',actorId:session.accountId,at:now,serviceCount:next.length});
+  return true;
+ }
  if(action==='homecareServices'){
   check(['Homecare']);
   const d=s.providers.find(v=>v.id===session.accountId&&v.type==='Homecare');
   if(!d||d.status!=='Approved')throw Error('An approved Homecare account is required to manage published services.');
-  if(!Array.isArray(p.services)||p.services.length>80)throw Error('Review the service list and try again.');
-  const ids=new Set();
-  const nextServices=(p.services).map(v=>{
+  if(!Array.isArray(p.services)||p.services.length>240)throw Error('Review the service list and try again.');
+  const catalogue=homecareCatalogueForState(s),ids=new Set(),masterIds=new Set();
+  const nextServices=p.services.map(v=>{
    if(!v||typeof v!=='object')throw Error('Review each service before saving.');
-   const serviceId=typeof v.id==='string'&&v.id.length<=160?v.id:crypto.randomUUID();
+   const masterId=homecareMasterIdForService(v,catalogue),definition=catalogue.categories.find(item=>item.id===masterId)||catalogue.services.find(item=>item.id===masterId);
+   if(!definition)throw Error('Choose a service from the shared Homecare catalogue. Providers cannot create duplicate service definitions.');
+   if(masterIds.has(masterId))throw Error('Each shared catalogue service can appear only once.');masterIds.add(masterId);
+   const prior=d.services?.find(item=>homecareMasterIdForService(item,catalogue)===masterId),serviceId=masterId.startsWith('homecare-main-')?masterId:typeof v.id==='string'&&v.id.length<=160?v.id:prior?.id||crypto.randomUUID();
    if(ids.has(serviceId))throw Error('Each service must have a unique identifier.');ids.add(serviceId);
-   const name=text(v.name,80),description=text(v.description,500),parentId=typeof v.parentId==='string'?v.parentId.slice(0,160):'';
-   const category=homecareServiceCategories.some(c=>c.name===v.category)?v.category:'';
-   if(!category)throw Error('Choose a supported Homecare category.');
-   const pricingModel=['hourly','per-visit','daily','fixed-package'].includes(v.pricingModel)?v.pricingModel:'hourly';
-   const rateMinor=minor(v.rate);if(rateMinor<=0&&parentId)throw Error('Enter a sub-service price greater than zero.');
-   const minDuration=Number(v.minDuration??1),maxDuration=Number(v.maxDuration??8);
+   const root=masterId.startsWith('homecare-main-'),pricingModel=['hourly','per-visit','daily','fixed-package'].includes(v.pricingModel)?v.pricingModel:'hourly',rateMinor=minor(v.rate);
+   if(root&&rateMinor>0)throw Error('Set prices on shared sub-services, not on a main category.');
+   if(!root&&v.active===true&&(definition.active===false||definition.archived))throw Error('This service is hidden from the Patient catalogue. Ask an administrator to restore it first.');
+   if(!root&&v.active===true&&rateMinor<=0)throw Error('Enter a valid price before publishing this service.');
+   const minDuration=Number(v.minDuration??definition.minDuration??1),maxDuration=Number(v.maxDuration??definition.maxDuration??8);
    if(!Number.isInteger(minDuration)||!Number.isInteger(maxDuration)||minDuration<1||maxDuration<minDuration||maxDuration>24)throw Error('Choose a valid minimum and maximum visit duration.');
    const noticeHours=Number(v.noticeHours??0);if(!Number.isInteger(noticeHours)||noticeHours<0||noticeHours>720)throw Error('Booking notice must be from 0 to 720 hours.');
    const serviceAreas=Array.isArray(v.serviceAreas)?v.serviceAreas.filter(x=>typeof x==='string').map(x=>x.trim()).filter(Boolean).slice(0,30):[];
-   const availability=Array.isArray(v.availability)?v.availability.filter(x=>x&&Number.isInteger(x.weekday)&&x.weekday>=0&&x.weekday<=6&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(x.start)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(x.end)).slice(0,7):[];
-   const prior=d.services?.find(item=>item.id===serviceId),caregiverFee=v.caregiverFee===''||v.caregiverFee===undefined?prior?.caregiverFee:Number(v.caregiverFee);if(caregiverFee!==undefined&&(!Number.isFinite(caregiverFee)||caregiverFee<0||caregiverFee>rateMinor/100))throw Error('Caregiver fee must be a valid amount no higher than the patient price.');
-   return {id:serviceId,name,description,category,parentId,rate:rateMinor/100,pricingModel,minDuration,maxDuration,qualificationRequirements:typeof v.qualificationRequirements==='string'?v.qualificationRequirements.trim().slice(0,500):'',serviceAreas,availability,noticeHours,image:typeof v.image==='string'&&/^https:\/\//.test(v.image)?v.image.slice(0,2000):'',active:v.active===true,caregiverFee,updatedAt:now};
+   const availability=Array.isArray(v.availability)?v.availability.filter(x=>x&&Number.isInteger(x.weekday)&&x.weekday>=0&&x.weekday<=6&&/^([01]\d|2[0-3]):[0-5]\d$/.test(x.start)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(x.end)&&x.start<x.end).slice(0,7):[];
+   if(!root&&v.active===true&&!availability.length)throw Error('Choose at least one available day and time before publishing.');
+   const caregiverFee=v.caregiverFee===''||v.caregiverFee===undefined?(prior?.caregiverFee??prior?.staffRate):Number(v.caregiverFee);if(caregiverFee!==undefined&&(!Number.isFinite(caregiverFee)||caregiverFee<0||caregiverFee>rateMinor/100))throw Error('Caregiver fee must be a valid amount no higher than the patient price.');if(!root&&v.active===true&&carePolicy(s).mode==='company'&&!Number.isFinite(caregiverFee))throw Error('Set the agreed caregiver fee before publishing this company-managed service.');
+   return {id:serviceId,masterServiceId:definition.id,name:definition.name,description:definition.description,category:definition.category,parentId:definition.parentId||'',rate:rateMinor/100,pricingModel,minDuration,maxDuration,qualificationRequirements:typeof v.qualificationRequirements==='string'?v.qualificationRequirements.trim().slice(0,500):prior?.qualificationRequirements||'',serviceAreas,availability,noticeHours,image:typeof v.image==='string'&&/^https:\/\//.test(v.image)?v.image.slice(0,2000):'',active:!root&&definition.active!==false&&!definition.archived&&v.active===true,caregiverFee,updatedAt:now};
   });
-  const servicesById=new Map(nextServices.map(v=>[v.id,v]));
-  if(nextServices.some(v=>v.parentId&&(!servicesById.has(v.parentId)||servicesById.get(v.parentId).parentId||servicesById.get(v.parentId).category!==v.category))||nextServices.some(v=>!v.parentId&&v.active&&v.rate===0&&!nextServices.some(child=>child.parentId===v.id&&child.active)))throw Error('A sub-service must refer to a valid main service; an active unpriced main service needs an active priced sub-service or a price greater than zero.');
-  d.services=nextServices;
-  d.availabilityConfigured=d.availabilityConfigured===true;
-  d.serviceCatalogueUpdatedAt=now;
-  return true;
+  for(const category of catalogue.categories){if(!nextServices.some(value=>value.masterServiceId===category.id))nextServices.push({id:category.id,masterServiceId:category.id,name:category.name,description:category.description,category:category.name,parentId:'',rate:0,pricingModel:'hourly',minDuration:1,maxDuration:8,availability:[],active:false});}
+  const servicesById=new Map(nextServices.map(value=>[value.id,value]));
+  for(const category of catalogue.categories){const root=nextServices.find(value=>value.masterServiceId===category.id);if(root)root.active=nextServices.some(value=>value.parentId===category.id&&value.active&&value.rate>0);}
+  if(nextServices.some(value=>value.parentId&&(!servicesById.has(value.parentId)||servicesById.get(value.parentId).parentId||servicesById.get(value.parentId).category!==value.category)))throw Error('A sub-service must refer to a valid main service in the shared catalogue.');
+  d.services=nextServices;d.serviceCatalogueUpdatedAt=now;refreshConnectedPublication(d);return true;
  }
- if(action==='providerProfile'&&session.role==='Homecare'&&s.connectedAccounts&&p.services!==undefined)throw Error('Manage company services from Homecare service management.');
+ if(action==='providerProfile'&&session.role==='Homecare'&&p.services!==undefined)throw Error('Homecare services are managed from the shared Services & Pricing catalogue.');
  if(action==='providerProfile'){
   check(['Pharmacy','Doctor','Homecare']);const d=s.providers.find(d=>d.id===session.accountId);if(!d)throw Error('Provider profile unavailable.');d.name=text(p.name,100);d.description=text(p.description,1000);d.location=text(p.location,250);d.acceptingOrders=p.acceptingOrders===true;if(p.serviceAreas!==undefined){d.serviceAreas=text(p.serviceAreas,600).split(',').map(v=>v.trim()).filter(Boolean);if(d.serviceAreas.length>20)throw Error('Choose up to twenty service areas.');d.matchingEnabled=true;}d.operatingHours=text(p.operatingHours||'By saved availability',150);if(p.weeklyHours!==undefined){d.weeklyHours=validateHours(p.weeklyHours);d.weekdays=d.weeklyHours.filter(v=>!v.closed).map(v=>v.day);}else{if(!Array.isArray(p.weekdays)||!p.weekdays.length||p.weekdays.some(v=>!Number.isInteger(v)||v<0||v>6)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(p.openTime||'')||!/^([01]\d|2[0-3]):[0-5]\d$/.test(p.closeTime||'')||p.openTime>=p.closeTime)throw Error('Save valid service days and opening hours.');d.weekdays=[...new Set(p.weekdays)];d.openTime=p.openTime;d.closeTime=p.closeTime;}d.availabilityConfigured=true;
-  if(session.role==='Homecare'){if(!Array.isArray(p.services)||!p.services.length||p.services.length>12)throw Error('Configure at least one service.');d.services=p.services.map(v=>({id:v.id||d.services?.find(x=>x.name===v.name)?.id||crypto.randomUUID(),name:text(v.name,80),category:homecareServiceCategories.some(c=>c.name===v.category)?v.category:homecareServiceCategories.some(c=>c.name===v.name)?v.name:d.categories?.[0]||'',description:text(v.description,300),rate:minor(v.rate)/100,active:v.active!==false}));}
+  if(session.role==='Homecare'&&p.services!==undefined)throw Error('Homecare services are managed from the shared Services & Pricing catalogue.');
   if(p.categories!==undefined){const names=(session.role==='Doctor'?doctorServiceCategories:homecareServiceCategories).map(v=>v.name);if(!Array.isArray(p.categories)||!p.categories.length||p.categories.some(v=>!names.includes(v)))throw Error('Choose the existing patient service categories.');d.categories=[...new Set(p.categories)];}
   if(session.role==='Doctor'){d.services=Array.isArray(p.services)?p.services.map(v=>({name:text(v.name,80),description:text(v.description,300)})):d.services;d.speciality=text(p.speciality,100);d.fee=minor(p.fee)/100;if(d.fee<=0)throw Error('Enter a positive consultation fee.');d.qualifications=text(p.qualifications,300);d.registration=text(p.registration,100);d.durationMinutes=Number(p.durationMinutes);if(!Number.isInteger(d.durationMinutes)||d.durationMinutes<10||d.durationMinutes>240)throw Error('Choose a valid appointment duration.');d.modes=(p.modes||[]).filter(m=>['In-person','Online demo'].includes(m));if(!d.modes.length)throw Error('Select a consultation type.');if(typeof p.slots==='string'){d.slots=p.slots.split(',').map(v=>v.trim());if(d.slots.some(v=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(v)))throw Error('Enter valid HH:MM slots.');}d.professionalVerified=false;}
   if(p.coordinates!==undefined){if(!validMapPoint(p.coordinates))throw Error('Enter valid business premises coordinates.');d.coordinates={latitude:p.coordinates.latitude,longitude:p.coordinates.longitude};}if(p.business!==undefined)d.business=companyDetails(p.business);refreshConnectedPublication(d);return true;
