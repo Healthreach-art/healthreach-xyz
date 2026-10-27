@@ -56,4 +56,13 @@ assert.equal(provider.services.find(value=>value.masterServiceId==='master-bathi
 assert.equal(homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(s.providers),homecareCatalogue:structuredClone(s.homecareCatalogue)},s,'Patient')).entries.length,0);
 assert.equal(savedRecord.priceSnapshot.total,360);
 assert.equal(homecareCatalogueForState(s).services.find(value=>value.id==='master-bathing').archived,true);
+assert(commerceActions.includes('requestHomecareService'));
+assert(commerceActions.includes('reviewHomecareServiceRequest'));
+const request=act('requestHomecareService',{category:'Mobility assistance',name:'Supported transfer session',description:'Assistance with safe transfers at home.',rate:240,pricingModel:'hourly',minDuration:1,maxDuration:4,availability:[{weekday,start:'08:00',end:'17:00'}]});
+assert.equal(s.homecareServiceRequests[0].status,'Pending');
+act('reviewHomecareServiceRequest',{id:request.requestId,status:'Approved',reason:'Shared service definition reviewed.'},admin);
+const approvedRequest=s.homecareServiceRequests.find(value=>value.id===request.requestId),newDefinition=homecareCatalogueForState(s).services.find(value=>value.name==='Supported transfer session');
+assert.equal(approvedRequest.status,'Approved');assert(newDefinition);assert.equal(provider.services.find(value=>value.masterServiceId===newDefinition.id).active,false);assert.equal(provider.services.find(value=>value.masterServiceId===newDefinition.id).rate,240);
+assert.throws(()=>act('requestHomecareService',{category:'Unsupported category',name:'Bad service',description:'Invalid',rate:100,pricingModel:'hourly',minDuration:1,maxDuration:1,availability:[{weekday,start:'08:00',end:'09:00'}]}),/four existing Homecare categories/);
+assert.throws(()=>act('reviewHomecareServiceRequest',{id:request.requestId,status:'Rejected',reason:'Second decision'},admin),/no longer pending/);
 console.log('Shared Homecare catalogue: four fixed categories, saved sub-service migration, provider price publishing, patient visibility, future price updates, immutable booking snapshots, permission checks and safe catalogue retirement passed.');
