@@ -9,6 +9,7 @@ const provider={id:'provider-fixture',type:'Homecare',name:'Existing provider fi
 const s={providers:[provider],records:[],notifications:[],payments:[],products:[],profiles:{},connectedAccounts:true,homecarePolicy:{mode:'marketplace'},marketPolicy:{commissionBps:0,processingBps:0}};
 const owner={role:'Homecare',accountId:provider.id,name:'Provider fixture'},admin={role:'Admin',accountId:'admin-fixture',name:'Admin fixture'};
 function act(action,payload,as=owner){const context={s,p:payload,session:as,action,now:new Date().toISOString(),id:crypto.randomUUID(),demoPayments:true,extra:{},check:roles=>{if(!roles.includes(as.role))throw Error('Permission denied');},canAccess:record=>as.role==='Admin'||record.patientId===as.accountId||record.providerId===as.accountId,event:(record,status,note)=>{record.status=status;record.updated=context.now;record.history??=[];record.history.push({status,note,at:context.now});}};assert.equal(handleConnectedCommerce(context),true);return context.extra;}
+function actIn(state,action,payload,as){const context={s:state,p:payload,session:as,action,now:new Date().toISOString(),id:crypto.randomUUID(),demoPayments:true,extra:{},check:roles=>{if(!roles.includes(as.role))throw Error('Permission denied');},canAccess:record=>as.role==='Admin'||record.patientId===as.accountId||record.providerId===as.accountId,event:(record,status,note)=>{record.status=status;record.updated=context.now;record.history??=[];record.history.push({status,note,at:context.now});}};assert.equal(handleConnectedCommerce(context),true);return context.extra;}
 assert(commerceActions.includes('homecareServices'));
 assert.deepEqual(homecareServiceCategories.map(value=>value.name),['Personal care','Elderly care','Mobility assistance','Post-surgery care']);
 
@@ -47,6 +48,18 @@ assert.throws(()=>act('providerProfile',{services:[{name:'Another service'}]}),/
 assert.throws(()=>act('homecareServices',{services:provider.services.map(value=>value.masterServiceId==='master-bathing'?{...value,rate:0,active:true}:value)}),/valid price before publishing/);
 assert.throws(()=>act('homecareServices',{services:provider.services.map(value=>value.masterServiceId==='master-bathing'?{...value,availability:[],active:true}:value)}),/available day and time/);
 assert.throws(()=>act('homecareServices',{services:provider.services},{role:'Patient',accountId:'patient-fixture'}),/Permission denied/);
+
+// Pending Homecare accounts can persist drafts, but the backend keeps them
+// unpublished regardless of a client-supplied active flag.
+const pendingState=structuredClone(s),pendingProvider={...structuredClone(provider),id:'provider-pending-fixture',status:'Pending verification',services:[]};pendingState.providers=[pendingProvider];
+const pendingOffers=homecareProviderOfferList(pendingProvider,homecareCatalogueForState(pendingState));
+const pendingSession={role:'Homecare',accountId:pendingProvider.id,name:'Pending provider fixture'},draft={id:'provider-offer-pending-fixture-draft',providerDefined:true,category:'Personal care',name:'Pending draft service',description:'Saved before account approval.',rate:175,pricingModel:'hourly',minDuration:1,maxDuration:4,availability:[{weekday:1,start:'08:00',end:'17:00'}],active:false};
+actIn(pendingState,'homecareServices',{services:[...pendingOffers,draft]},pendingSession);
+assert(pendingProvider.services.some(value=>value.id===draft.id&&!value.active),'Pending providers can save a sub-service draft.');
+actIn(pendingState,'homecareServices',{services:pendingProvider.services.map(value=>value.id===draft.id?{...value,active:true}:value)},pendingSession);
+assert.equal(pendingProvider.services.find(value=>value.id===draft.id).active,false,'Pending provider status prevents publishing even if the client sends active=true.');
+assert(!homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(pendingState.providers),homecareCatalogue:structuredClone(pendingState.homecareCatalogue)},pendingState,'Patient')).entries.some(value=>value.service.id===draft.id));
+assert.throws(()=>actIn(pendingState,'homecareServices',{services:pendingProvider.services}, {...pendingSession,role:'Patient'}),/Permission denied/);
 
 // An admin can hide/remove a master service from new patient booking without
 // deleting its definition or changing a confirmed booking.
