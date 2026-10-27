@@ -10,8 +10,8 @@ export function companyManager(s){const d=s.providers.find(d=>d.id===carePolicy(
 export function companyCarePrice(s,p){
  const d=companyManager(s),ids=p.serviceIds;if(!Array.isArray(ids)||!ids.length||ids.length>20||new Set(ids).size!==ids.length)throw Error('Select one or more different care services.');
  const duration=Number(p.duration);if(![1,2,4,8].includes(duration))throw Error('Select 1, 2, 4 or 8 hours.');
- const items=ids.map(id=>{const v=d.services?.find(x=>x.id===id&&x.active!==false&&!x.archived);if(!v||!Number.isFinite(v.staffRate)||v.rate<=0)throw Error('A selected service is not published with an approved price and staff fee.');return {id:v.id,name:v.name,rateMinor:cents(v.rate),staffRateMinor:cents(v.staffRate),duration};});
- const subtotalMinor=items.reduce((n,v)=>n+v.rateMinor*duration,0),staffPayableMinor=items.reduce((n,v)=>n+v.staffRateMinor*duration,0),policy=carePolicy(s),bps=ids.length>=3?policy.threeDiscountBps:ids.length===2?policy.twoDiscountBps:0;
+ const items=ids.map(id=>{const v=d.services?.find(x=>x.id===id&&x.active!==false&&!x.archived),staffRate=v?.staffRate??v?.caregiverFee,model=v?.pricingModel||'hourly';if(!v||!Number.isFinite(staffRate)||v.rate<=0)throw Error('A selected service is not published with an approved price and staff fee.');const multiplier=model==='hourly'||model==='daily'?duration:1;return {id:v.id,name:v.name,rateMinor:cents(v.rate),staffRateMinor:cents(staffRate),duration,pricingModel:model,multiplier};});
+ const subtotalMinor=items.reduce((n,v)=>n+v.rateMinor*v.multiplier,0),staffPayableMinor=items.reduce((n,v)=>n+v.staffRateMinor*v.multiplier,0),policy=carePolicy(s),bps=ids.length>=3?policy.threeDiscountBps:ids.length===2?policy.twoDiscountBps:0;
  const discountMinor=Math.round(subtotalMinor*bps/10000),totalMinor=subtotalMinor-discountMinor;
  // Existing platform/processor fees also come out of the company margin.
  const costs=Math.round(subtotalMinor*(s.marketPolicy?.commissionBps||0)/10000)+Math.round(totalMinor*(s.marketPolicy?.processingBps||0)/10000)+(s.marketPolicy?.processingFixedMinor||0);

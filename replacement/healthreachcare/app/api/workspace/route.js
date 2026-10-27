@@ -1,4 +1,5 @@
 import {canAccessCompanyCare} from '../../../lib/company-homecare.mjs';
+import {projectHomecareCatalogue} from '../../../lib/homecare-catalogue.mjs';
 import {firebaseWorkspaceGET,firebaseWorkspacePOST} from '../../../lib/firebase-workspace.mjs';
 import {maintainAccountWorkspace,publicAccountWorkspace,handleAccountWorkspace} from '../../../lib/account-workspace.mjs';
 import {maintainDoctorOperations,publicDoctorOperations,handleDoctorOperations} from '../../../lib/doctor-operations.mjs';
@@ -187,7 +188,7 @@ export function publicState(s, session) {
     }
     out.session = { accountId: session.accountId, role: session.role, name: session.name };
     out.demoAccounts = allAccounts(s).filter(a=>session.role==='Admin'||a.id===session.accountId).map(({id,name,role})=>({id,name,role}));delete out.registeredAccounts;
-    return publicAccountWorkspace(publicDoctorOperations(publicPatientExperience(publicExperience(publicMarket(publicBusiness(publicCompletion(out, s, session), s, session),s,session),s,session),s,session),s,session),s,session);
+    return projectHomecareCatalogue(publicAccountWorkspace(publicDoctorOperations(publicPatientExperience(publicExperience(publicMarket(publicBusiness(publicCompletion(out, s, session), s, session),s,session),s,session),s,session),s,session),s,session),s,session,session.role);
 }
 function fail(message, status = 400) { return Response.json({ error: message }, { status,headers:{'Cache-Control':'no-store'} }); }
 async function workspace(uid) { for (let tries = 0; tries < 4; tries++) {
