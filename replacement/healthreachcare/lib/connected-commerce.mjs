@@ -34,7 +34,7 @@ export function handleConnectedCommerce(c){
  if(action==='homecareServices'){
   check(['Homecare']);
   const d=s.providers.find(v=>v.id===session.accountId&&v.type==='Homecare');
-  if(!d||d.status!=='Approved'||d.id!==carePolicy(s).managerId)throw Error('The authorized HealthReachCare Homecare manager account is required to manage this shared catalogue.');
+  if(!d||d.status!=='Approved')throw Error('An approved Homecare account is required to manage published services.');
   if(!Array.isArray(p.services)||p.services.length>80)throw Error('Review the service list and try again.');
   const ids=new Set();
   const nextServices=(p.services).map(v=>{
@@ -51,11 +51,11 @@ export function handleConnectedCommerce(c){
    const noticeHours=Number(v.noticeHours??0);if(!Number.isInteger(noticeHours)||noticeHours<0||noticeHours>720)throw Error('Booking notice must be from 0 to 720 hours.');
    const serviceAreas=Array.isArray(v.serviceAreas)?v.serviceAreas.filter(x=>typeof x==='string').map(x=>x.trim()).filter(Boolean).slice(0,30):[];
    const availability=Array.isArray(v.availability)?v.availability.filter(x=>x&&Number.isInteger(x.weekday)&&x.weekday>=0&&x.weekday<=6&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(x.start)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(x.end)).slice(0,7):[];
-   const prior=d.services?.find(item=>item.id===serviceId),feeInput=v.staffRate??v.caregiverFee,caregiverFee=feeInput===''||feeInput===undefined?prior?.caregiverFee??prior?.staffRate:Number(feeInput);if(caregiverFee!==undefined&&(!Number.isFinite(caregiverFee)||caregiverFee<0||caregiverFee>rateMinor/100))throw Error('Agreed caregiver fee must be a valid amount no higher than the patient price.');if(parentId&&v.active===true&&(!Number.isFinite(caregiverFee)||caregiverFee<=0))throw Error('Enter the agreed caregiver fee before publishing a bookable sub-service.');
-   return {id:serviceId,name,description,category,parentId,rate:rateMinor/100,pricingModel,minDuration,maxDuration,qualificationRequirements:typeof v.qualificationRequirements==='string'?v.qualificationRequirements.trim().slice(0,500):'',serviceAreas,availability,noticeHours,image:typeof v.image==='string'&&/^https:\/\//.test(v.image)?v.image.slice(0,2000):'',active:v.active===true,archived:v.archived===true,caregiverFee,staffRate:caregiverFee,updatedAt:now};
+   const prior=d.services?.find(item=>item.id===serviceId),caregiverFee=v.caregiverFee===''||v.caregiverFee===undefined?prior?.caregiverFee:Number(v.caregiverFee);if(caregiverFee!==undefined&&(!Number.isFinite(caregiverFee)||caregiverFee<0||caregiverFee>rateMinor/100))throw Error('Caregiver fee must be a valid amount no higher than the patient price.');
+   return {id:serviceId,name,description,category,parentId,rate:rateMinor/100,pricingModel,minDuration,maxDuration,qualificationRequirements:typeof v.qualificationRequirements==='string'?v.qualificationRequirements.trim().slice(0,500):'',serviceAreas,availability,noticeHours,image:typeof v.image==='string'&&/^https:\/\//.test(v.image)?v.image.slice(0,2000):'',active:v.active===true,caregiverFee,updatedAt:now};
   });
   const servicesById=new Map(nextServices.map(v=>[v.id,v]));
-  if(nextServices.some(v=>v.parentId&&(!servicesById.has(v.parentId)||servicesById.get(v.parentId).parentId||servicesById.get(v.parentId).category!==v.category)))throw Error('A sub-service must refer to a valid main service in the same patient category.');
+  if(nextServices.some(v=>v.parentId&&(!servicesById.has(v.parentId)||servicesById.get(v.parentId).parentId||servicesById.get(v.parentId).category!==v.category))||nextServices.some(v=>!v.parentId&&v.active&&v.rate===0&&!nextServices.some(child=>child.parentId===v.id&&child.active)))throw Error('A sub-service must refer to a valid main service; an active unpriced main service needs an active priced sub-service or a price greater than zero.');
   d.services=nextServices;
   d.availabilityConfigured=d.availabilityConfigured===true;
   d.serviceCatalogueUpdatedAt=now;

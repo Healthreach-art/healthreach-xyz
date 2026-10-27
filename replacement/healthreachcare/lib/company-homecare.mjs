@@ -2,16 +2,7 @@ import {kmBetween} from './matching.mjs';
 import {validMapPoint} from './map-location.mjs';
 import {homecareServiceCategories} from './service-categories.mjs';
 export const companyCareActions=['saveHomecareDiscounts','saveHomecarePolicy','saveHomecareService','archiveHomecareService','saveHomecareCaregivers','verifyHomecareCaregiver','companyHomecareBook','companyHomecarePay','acceptCompanyHomecareBooking','declineCompanyHomecareBooking','assignHomecareStaff','respondHomecareAssignment','companyHomecareProgress','recordHomecarePayout'];
-// Company Homecare has one operational manager. Older connected workspaces may
-// not yet have an explicit manager pointer; only infer it when there is exactly
-// one already-approved Homecare account. Never promote a pending account.
-export const carePolicy=s=>{
- const approved=(s.providers||[]).filter(d=>d.type==='Homecare'&&d.status==='Approved');
- const saved=s.homecarePolicy||{};
- const inferredManager=saved.managerId?null:approved.length===1?approved[0].id:null;
- const defaultCentre=saved.centre?null:{latitude:-33.9249,longitude:18.4241};
- return {...saved,mode:'company',managerId:saved.managerId||inferredManager,centre:saved.centre||defaultCentre,radiusKm:60,twoDiscountBps:saved.twoDiscountBps||0,threeDiscountBps:saved.threeDiscountBps||0};
-};
+export const carePolicy=s=>s.homecarePolicy||{mode:'company',managerId:null,centre:null,radiusKm:60,twoDiscountBps:0,threeDiscountBps:0};
 export const companyStaff=(s,id)=>s.providers.some(d=>d.id===id&&d.type==='Homecare'&&d.status==='Approved');
 const text=(v,max=500)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw Error('Complete the required information.');return v.trim();};
 const cents=v=>{if(!Number.isFinite(v)||v<0||v>1000000)throw Error('Enter a valid amount.');return Math.round(v*100);};
@@ -19,7 +10,7 @@ export function companyManager(s){const d=s.providers.find(d=>d.id===carePolicy(
 export function companyCarePrice(s,p){
  const d=companyManager(s),ids=p.serviceIds;if(!Array.isArray(ids)||!ids.length||ids.length>20||new Set(ids).size!==ids.length)throw Error('Select one or more different care services.');
  const duration=Number(p.duration);if(![1,2,4,8].includes(duration))throw Error('Select 1, 2, 4 or 8 hours.');
- const items=ids.map(id=>{const v=d.services?.find(x=>x.id===id&&x.active!==false&&!x.archived),staffRate=v?.staffRate??v?.caregiverFee;if(!v||!Number.isFinite(staffRate)||staffRate<=0||v.rate<=0)throw Error('A selected service is not published with an approved price and agreed staff fee.');return {id:v.id,name:v.name,rateMinor:cents(v.rate),staffRateMinor:cents(staffRate),duration};});
+ const items=ids.map(id=>{const v=d.services?.find(x=>x.id===id&&x.active!==false&&!x.archived);if(!v||!Number.isFinite(v.staffRate)||v.rate<=0)throw Error('A selected service is not published with an approved price and staff fee.');return {id:v.id,name:v.name,rateMinor:cents(v.rate),staffRateMinor:cents(v.staffRate),duration};});
  const subtotalMinor=items.reduce((n,v)=>n+v.rateMinor*duration,0),staffPayableMinor=items.reduce((n,v)=>n+v.staffRateMinor*duration,0),policy=carePolicy(s),bps=ids.length>=3?policy.threeDiscountBps:ids.length===2?policy.twoDiscountBps:0;
  const discountMinor=Math.round(subtotalMinor*bps/10000),totalMinor=subtotalMinor-discountMinor;
  // Existing platform/processor fees also come out of the company margin.
