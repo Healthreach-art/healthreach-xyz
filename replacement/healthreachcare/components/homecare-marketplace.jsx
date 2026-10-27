@@ -1,16 +1,11 @@
 'use client';
 import {useState} from 'react';
 import {Search,ChevronRight,UserRound,Heart,Activity,Accessibility,Pill,Stethoscope,HeartHandshake,ArrowLeft} from 'lucide-react';
+import {homecareMarketplaceEntries} from '../lib/homecare-marketplace.mjs';
 
 export function HomecareMarketplace({s,busy,onChoose}){
  const [query,setQuery]=useState(''),[selected,setSelected]=useState(null);
- const providers=(s.providers||[]).filter(d=>d.type==='Homecare'&&d.status==='Approved'&&d.acceptingOrders===true&&d.publication?.status==='Published');
- if(s.realAccount&&s.homecarePolicy?.managerId&&!providers.some(d=>d.id===s.homecarePolicy.managerId)){
-  const manager=(s.providers||[]).find(d=>d.id===s.homecarePolicy.managerId);
-  if(manager?.status==='Approved'&&manager.acceptingOrders===true)providers.push({...manager,services:s.companyHomecareServices||manager.services||[]});
- }
- const entries=providers.flatMap(provider=>(provider.services||[]).filter(service=>service.active!==false&&!service.archived).map(service=>({provider,service})));
- const main=entries.filter(({service,provider})=>!service.parentId&&(Number(service.rate)>0||entries.some(v=>v.provider.id===provider.id&&v.service.parentId===service.id)));
+ const {entries,main}=homecareMarketplaceEntries(s);
  const visible=main.filter(({service,provider})=>[service.name,service.category,service.description,provider.name].join(' ').toLowerCase().includes(query.toLowerCase()));
  function iconFor(name){if(/elder|compan/i.test(name))return Heart;if(/surg|recover/i.test(name))return Activity;if(/mobil/i.test(name))return Accessibility;if(/medic/i.test(name))return Pill;if(/special/i.test(name))return Stethoscope;return UserRound;}
  const money=n=>'R '+Number(n||0).toFixed(2),priceLabel=v=>v.pricingModel==='hourly'?'/ hour':v.pricingModel==='per-visit'?'/ visit':v.pricingModel==='daily'?'/ day':'/ package';
