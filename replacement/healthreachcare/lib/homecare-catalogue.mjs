@@ -84,6 +84,7 @@ export function projectHomecareCatalogue(out,s,role){
  const fullCatalogue=homecareCatalogueForState(s,{includeInactive:true});
  const catalogue={categories:fullCatalogue.categories,services:fullCatalogue.services.filter(item=>role!=='Patient'||item.active&&!item.archived)};
  out.homecareCatalogue=catalogue;
+ out.homecareServiceRequests=(s.homecareServiceRequests||[]).filter(item=>role==='Admin'||item.providerId===s.session?.accountId).map(item=>({...item}));
  const projectOffer=service=>{
   const masterId=homecareMasterIdForService(service,fullCatalogue);
   const definition=masterId?.startsWith('homecare-main-')?fullCatalogue.categories.find(item=>item.id===masterId):fullCatalogue.services.find(item=>item.id===masterId);

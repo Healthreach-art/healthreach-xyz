@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {handleBusiness} from '../lib/business.mjs';
+import {handleCompanyCare} from '../lib/company-homecare.mjs';
+
+const image=fs.readFileSync(new URL('./fixtures/product.png',import.meta.url));
+const owner={role:'Homecare',accountId:'provider-homecare-photo',name:'Care provider'},provider={id:owner.accountId,type:'Homecare',status:'Approved',caregivers:[],services:[]},state={providers:[provider],productAssets:[],notifications:[],documents:[],homecareCatalogue:[],records:[],homecarePolicy:{mode:'marketplace'}};
+let savedKey='';
+const make=(action,payload,session=owner)=>({s:state,p:payload,action,session,now:'2026-10-27T12:00:00.000Z',id:'11111111-1111-4111-8111-111111111111',bucket:{async put(key,_bytes,metadata){savedKey=key;assert.equal(metadata.httpMetadata.contentType,'image/png');}},extra:{},check:roles=>{if(!roles.includes(session.role))throw Error('Permission denied.');}});
+const bytes=Buffer.from(image).toString('base64'),caregiverId='22222222-2222-4222-8222-222222222222';
+assert.equal(await handleBusiness(make('uploadHomecareCaregiverPhoto',{caregiverId,base64:bytes,consent:true})),true);
+assert.equal(state.productAssets[0].ownerId,owner.accountId);assert.equal(state.productAssets[0].caregiverId,caregiverId);assert.equal(state.productAssets[0].kind,'homecare-caregiver');assert.match(savedKey,/homecare-caregivers/);
+await assert.rejects(()=>handleBusiness(make('uploadHomecareCaregiverPhoto',{caregiverId,base64:bytes,consent:false})),/permission/);
+await assert.rejects(()=>handleBusiness(make('uploadHomecareCaregiverPhoto',{caregiverId,base64:Buffer.from('not an image').toString('base64'),consent:true})),/valid JPG, PNG or WebP/);
+await assert.rejects(()=>handleBusiness(make('uploadHomecareCaregiverPhoto',{caregiverId,base64:bytes,consent:true},{role:'Patient',accountId:'patient'})),/Permission denied/);
+const serviceState={...state,homecareCatalogue:[]};
+const rosterContext={s:serviceState,p:{caregivers:[{id:caregiverId,name:'Caregiver fixture',phone:'+27 82 000 0000',photoId:state.productAssets[0].id,serviceIds:[],weeklySchedule:[],active:true}]},action:'saveHomecareCaregivers',session:owner,now:'2026-10-27T12:01:00.000Z',id:'roster-save',check:roles=>{if(!roles.includes(owner.role))throw Error('Permission denied.')}};
+assert.equal(handleCompanyCare(rosterContext),true);assert.equal(provider.caregivers[0].photo,'/api/product-image/'+state.productAssets[0].id);assert.deepEqual(provider.caregivers[0].serviceIds,[]);
+assert.throws(()=>handleCompanyCare({...rosterContext,p:{caregivers:[{id:caregiverId,name:'Forged photo',phone:'+27 82 000 0000',photoId:'33333333-3333-4333-8333-333333333333',serviceIds:[],weeklySchedule:[],active:true}]}}),/uploaded to this provider account/);
+console.log('Caregiver photo R2 ownership, PNG validation, upload authorization, consent, roster attachment, and selected service-ID persistence passed.');
