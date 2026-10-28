@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {handleConnectedCommerce,commerceActions} from '../lib/connected-commerce.mjs';
 import {careBookingPrice} from '../lib/matching.mjs';
-import {homecareCatalogueForState,homecareProviderOfferList,projectHomecareCatalogue} from '../lib/homecare-catalogue.mjs';
+import {homecareCatalogueForState,homecareCategoryIdFromForm,homecareCaregiverServiceOptions,homecareProviderOfferList,projectHomecareCatalogue} from '../lib/homecare-catalogue.mjs';
 import {homecareMarketplaceEntries} from '../lib/homecare-marketplace.mjs';
 import {homecareServiceCategories} from '../lib/service-categories.mjs';
 
@@ -12,6 +12,12 @@ function act(action,payload,as=owner){const context={s,p:payload,session:as,acti
 function actIn(state,action,payload,as){const context={s:state,p:payload,session:as,action,now:new Date().toISOString(),id:crypto.randomUUID(),demoPayments:true,extra:{},check:roles=>{if(!roles.includes(as.role))throw Error('Permission denied');},canAccess:record=>as.role==='Admin'||record.patientId===as.accountId||record.providerId===as.accountId,event:(record,status,note)=>{record.status=status;record.updated=context.now;record.history??=[];record.history.push({status,note,at:context.now});}};assert.equal(handleConnectedCommerce(context),true);return context.extra;}
 assert(commerceActions.includes('homecareServices'));
 assert.deepEqual(homecareServiceCategories.map(value=>value.name),['Personal care','Elderly care','Mobility assistance','Post-surgery care']);
+assert.equal(homecareCategoryIdFromForm({get:name=>name==='categoryId'?null:null},'homecare-main-personal-care'),'homecare-main-personal-care','The in-category form inherits the category it was opened from.');
+assert.equal(homecareCategoryIdFromForm({get:name=>name==='categoryId'?'homecare-main-elderly-care':null},'homecare-main-personal-care'),'homecare-main-elderly-care','An explicit category picker takes precedence.');
+const caregiverCatalogue=homecareCaregiverServiceOptions({providers:[{id:'provider-a',type:'Homecare',services:[{id:'offer-1',providerDefined:true,category:'Personal care',name:'Bathing assistance',description:'Saved patient-facing service',catalogueActive:true}]},{id:'provider-b',type:'Homecare',services:[{id:'offer-other',providerDefined:true,category:'Personal care',name:'Private other-provider service',description:'Must not leak',catalogueActive:true}]}]},'provider-a');
+assert(caregiverCatalogue.categories.some(value=>value.name==='Personal care'));
+assert(caregiverCatalogue.services.some(value=>value.name==='Bathing assistance'));
+assert(!caregiverCatalogue.services.some(value=>value.name==='Private other-provider service'));
 
 // The master catalogue begins with actual saved definitions; admins can add an
 // existing catalogue sub-service once and every provider gets it automatically.
