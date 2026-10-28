@@ -171,5 +171,26 @@ button:focus:not(:focus-visible){outline:none}
 @media(max-width:640px){.partner-portal{padding:0 16px 36px}.partner-portal-grid{grid-template-columns:1fr;gap:12px}.partner-portal-card{padding:15px;border-radius:15px}.partner-gateway{grid-template-columns:44px minmax(0,1fr);gap:12px;padding:19px}.partner-gateway>.public-button{grid-column:1/-1;justify-self:stretch;text-align:center}.partner-portal-footer{flex-wrap:wrap;font-size:13px}}
 @media(prefers-reduced-motion:reduce){.public-hero-copy{animation:none}}
 
+/* Keep patient Homecare cards readable when a provider-supplied name or description is long. */
+.homecare-marketplace .journey-service{max-width:100%;box-sizing:border-box;align-items:flex-start}
+.homecare-marketplace .journey-service>span:nth-child(2){flex:1;min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+.homecare-marketplace .journey-service small,.homecare-marketplace .journey-service b{max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+.homecare-marketplace .journey-service-icon,.homecare-marketplace .journey-service>svg{flex:0 0 auto}
+.homecare-marketplace .journey-service-price{color:#08754e;font-weight:700}
+.homecare-marketplace .homecare-back{display:inline-flex;align-items:center;justify-content:flex-start;align-self:flex-start;gap:7px;width:auto;min-height:32px!important;margin:0 0 12px;padding:4px 2px;border:0;border-radius:0;background:transparent;color:#08754e;font-size:13px;font-weight:650;box-shadow:none}
+.homecare-marketplace .homecare-back:hover,.homecare-marketplace .homecare-back:focus-visible{background:transparent;text-decoration:underline;text-underline-offset:3px}
+.homecare-direct-checkout{min-width:0;overflow-wrap:anywhere}
+.homecare-checkout-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;list-style:none;margin:8px 0 18px;padding:0}
+.homecare-checkout-steps li{display:flex;align-items:center;gap:7px;min-width:0;color:var(--muted)}
+.homecare-checkout-steps li>span{display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;border-radius:50%;background:#e8efeb;font-size:11px;font-weight:700}
+.homecare-checkout-steps li.current{color:var(--green);font-weight:700}
+.homecare-checkout-steps li.current>span,.homecare-checkout-steps li.complete>span{background:var(--green);color:#fff}
+.homecare-checkout-steps small{font-size:10px;line-height:1.2}
+.homecare-payment-test{padding:12px 0;color:var(--muted);font-size:12px}
+.homecare-payment-test summary{cursor:pointer;font-weight:650;color:var(--green)}
+.homecare-payment-test label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px}
+.homecare-payment-test select{min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+.homecare-direct-checkout .appointment-detail-list dd{min-width:0;overflow-wrap:anywhere}
+
 @keyframes hero-copy-enter{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.public-hero-copy{animation:none}}

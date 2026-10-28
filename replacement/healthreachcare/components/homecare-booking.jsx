@@ -2,34 +2,83 @@
 import {useRef,useState} from 'react';
 import {CheckoutConsent} from './checkout-consent';
 import {HomecareAvailability} from './homecare-availability';
-import {ArrowLeft,MapPin,ShieldCheck,CalendarDays,Clock3,HeartHandshake} from 'lucide-react';
-const money=v=>'R '+Number(v||0).toFixed(2);
+import {ArrowLeft,MapPin,ShieldCheck,CalendarDays,Clock3,HeartHandshake,Check} from 'lucide-react';
+
+const money=value=>'R '+Number(value||0).toFixed(2);
+const phases=['Care details','Review','Payment'];
+
 export function HomecareBooking({s,service,serviceId,providerId,address,act,busy,onAddress,onBooked}){
- const offeringFor=d=>d.services?.find(v=>(serviceId?v.id===serviceId:v.name===service)&&v.active!==false&&v.rate>0);
- const candidates=s.providers.filter(d=>d.type==='Homecare'&&d.status==='Approved'&&d.acceptingOrders===true&&d.publication?.status==='Published'&&offeringFor(d));
- const [selected]=useState(providerId||candidates[0]?.id||''),[duration,setDuration]=useState(2),[review,setReview]=useState(false),[draft,setDraft]=useState(null),[saved,setSaved]=useState(null),[scenario,setScenario]=useState('Success'),[message,setMessage]=useState('');
- const paying=useRef(false),bookingKey=useRef(''),provider=candidates.find(d=>d.id===selected),offering=provider&&offeringFor(provider);
+ const offeringFor=provider=>provider.services?.find(value=>(serviceId?value.id===serviceId:value.name===service)&&value.active!==false&&Number(value.rate)>0);
+ const candidates=s.providers.filter(provider=>provider.type==='Homecare'&&provider.status==='Approved'&&provider.acceptingOrders===true&&provider.publication?.status==='Published'&&offeringFor(provider));
+ const [selected]=useState(providerId||candidates[0]?.id||''),[duration,setDuration]=useState(2),[step,setStep]=useState(0),[draft,setDraft]=useState(null),[saved,setSaved]=useState(null),[scenario,setScenario]=useState('Success'),[message,setMessage]=useState('');
+ const paying=useRef(false),bookingKey=useRef(''),provider=candidates.find(value=>value.id===selected),offering=provider&&offeringFor(provider);
  const pricingModel=offering?.pricingModel||'hourly',minDuration=Number(offering?.minDuration||1),maxDuration=Number(offering?.maxDuration||24),visitDuration=Math.max(minDuration,Math.min(duration,maxDuration));
- const total=Math.round((offering?.rate||0)*(pricingModel==='hourly'?visitDuration:1)*100)/100,record=s.records?.find(r=>r.id===saved?.id)||saved;
+ const total=Math.round((offering?.rate||0)*(pricingModel==='hourly'?visitDuration:1)*100)/100,record=s.records?.find(value=>value.id===saved?.id)||saved;
  const priceLabel=pricingModel==='hourly'?'/ hour':pricingModel==='per-visit'?'/ visit':pricingModel==='daily'?'/ day':'/ package';
- async function bookAndPay(){if(paying.current)return;paying.current=true;setMessage('');try{if(!bookingKey.current)bookingKey.current=crypto.randomUUID();let booking=record;if(!booking){const result=await act('request',{...draft,type:'Homecare',providerId:selected,service,serviceId:offering.id,duration:visitDuration,requestKey:bookingKey.current,expectedTotal:total,address:address?.formatted||s.profile.address,addressDetails:address||undefined},'Homecare time reserved; payment pending');if(!result?.bookingId)return;booking=result.records?.find(r=>r.id===result.bookingId);if(!booking){setMessage('Reservation saved. Open Activities to continue payment.');return;}setSaved(booking);}const result=await act('pay',{id:booking.id,expectedTotal:booking.total,scenario},'Homecare payment attempt saved');if(result){const confirmed=result.records?.find(r=>r.id===booking.id);if(confirmed?.payment==='Paid'){onBooked(confirmed.id);}else setMessage('Payment did not succeed. Your booking is unpaid; no service has been confirmed. Retry payment or open the saved booking in Activities.');}}finally{paying.current=false;}}
+ const serviceAddress=address?.formatted||s.profile?.address||'';
+ const canDemoPay=!s.realAccount||s.executionContext?.demoPayments===true;
+
+ async function reserveBooking(){
+  if(paying.current||record)return;
+  paying.current=true;setMessage('');
+  try{
+   if(!bookingKey.current)bookingKey.current=crypto.randomUUID();
+   const result=await act('request',{...draft,type:'Homecare',providerId:selected,service,serviceId:offering.id,duration:visitDuration,requestKey:bookingKey.current,expectedTotal:total,address:serviceAddress,addressDetails:address||undefined},'Homecare time reserved; payment pending');
+   const id=result?.bookingId,booking=result?.records?.find(value=>value.id===id);
+   if(!id||!booking){setMessage('We could not reserve this visit. Please review the date, time, address and published price, then try again.');return;}
+   setSaved(booking);setStep(2);
+  }catch(error){setMessage(error?.message||'We could not reserve this visit. Please try again.');}
+  finally{paying.current=false;}
+ }
+
+ async function payAndConfirm(){
+  if(paying.current||!record||!canDemoPay)return;
+  paying.current=true;setMessage('');
+  try{
+   const result=await act('pay',{id:record.id,expectedTotal:record.total,scenario},'Homecare payment attempt saved');
+   const updated=result?.records?.find(value=>value.id===record.id);
+   if(updated?.payment==='Paid')onBooked(updated.id);
+   else setMessage('Payment did not succeed. The booking remains unpaid and is not confirmed. Retry the payment or open the saved booking in Activities.');
+  }catch(error){setMessage(error?.message||'Payment did not complete. The booking remains unpaid. Please retry.');}
+  finally{paying.current=false;}
+ }
+
  if(!provider||!offering)return <HomecareAvailability s={s} service={service} address={address} act={act} busy={busy} onAddress={onAddress} onBooked={onBooked}/>;
- return <div className="form homecare-direct-checkout"><div className="eyebrow">HEALTHREACHCARE HOMECARE</div><h2>{review?'Review your homecare booking':service}</h2>
- {!review?<form className="form" onSubmit={e=>{e.preventDefault();setDraft(Object.fromEntries(new FormData(e.currentTarget)));setReview(true);}}>
-  <div className="notice"><HeartHandshake size={18}/><span>Coordinated by the HealthReachCare Homecare team</span></div><p>{offering.description}</p>
-  <p className="journey-intro">Published fixed price: <strong>{money(offering.rate)} {priceLabel}</strong></p>
-  <label><CalendarDays size={15}/> Preferred date<input name="date" type="date" min={new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(s.serverTime))} defaultValue={draft?.date} required/></label>
-  <label><Clock3 size={15}/> Start time (South Africa)<input name="time" type="time" defaultValue={draft?.time} required/></label>
-  <label>Care duration<select value={visitDuration} onChange={e=>setDuration(Number(e.target.value))}>{Array.from({length:maxDuration-minDuration+1},(_,i)=>minDuration+i).map(h=><option key={h} value={h}>{h} {h===1?'hour':'hours'}</option>)}</select></label>
-  <label>Care requirements<textarea name="requirements" required maxLength={1000} defaultValue={draft?.requirements} placeholder="Only information relevant to this service"/></label>
-  <div className="notice"><MapPin size={16}/> {address?.formatted||s.profile.address||'Choose a service address'}</div><button type="button" className="outline" onClick={onAddress}>Change service address</button>
-  <div className="summary-line"><span>{pricingModel==='hourly'?money(offering.rate)+' × '+visitDuration+' hours':money(offering.rate)+' fixed '+(pricingModel==='per-visit'?'per visit':pricingModel==='daily'?'per day':'package')}</span><b>{money(total)}</b></div>
-  <div className="summary-line total"><span>Final total</span><b>{money(total)}</b></div><button disabled={busy||!visitDuration||!total||!(address?.formatted||s.profile.address)}>Review booking</button>
- </form>:<>
-  <p>{service} · HealthReachCare coordinated homecare</p><dl className="appointment-detail-list"><dt>Date & time</dt><dd>{draft.date} at {draft.time}</dd><dt>Duration</dt><dd>{visitDuration} hours</dd><dt>Address</dt><dd>{address?.formatted||s.profile.address}</dd><dt>Published price</dt><dd>{money(record?.priceSnapshot?.rate??offering.rate)} {priceLabel}</dd></dl>
-  <div className="summary-line total"><span>Final total</span><b>{money(record?.total??total)}</b></div><p className="notice"><ShieldCheck size={17}/> {s.realAccount&&!s.executionContext?.demoPayments?'Payment processing is not connected yet. No payment or booking confirmation will be created.':'Demo payment only. No real money is collected. The provider receives the booking after the simulated payment is saved.'}</p>
-  {(!s.realAccount||s.executionContext?.demoPayments)&&<details><summary>Test payment outcome</summary><label>Outcome<select value={scenario} onChange={e=>setScenario(e.target.value)}><option>Success</option><option value="Failure">Declined</option><option value="Cancel">Cancelled</option></select></label></details>}
-  <CheckoutConsent s={s} act={act} busy={busy}/><button disabled={s.realAccount&&!s.executionContext?.demoPayments||busy||record?.payment==='Paid'} onClick={bookAndPay}>Book & pay (demo) {money(record?.total??total)}</button>
-  {!record&&<button className="outline" disabled={busy} onClick={()=>setReview(false)}><ArrowLeft size={16}/> Edit booking</button>}{record&&<p>Reservation saved in Activities. A failed or cancelled payment never confirms the service.</p>}
- </>}{message&&<p role="status">{message}</p>}</div>;
+ return <div className="form homecare-direct-checkout">
+  <div className="eyebrow">HEALTHREACHCARE HOMECARE</div>
+  <h2>{step===0?service:step===1?'Review your homecare booking':'Payment'}</h2>
+  <ol className="homecare-checkout-steps" aria-label="Homecare booking progress">{phases.map((phase,index)=><li key={phase} className={index===step?'current':index<step?'complete':''} aria-current={index===step?'step':undefined}><span>{index<step?<Check size={14}/>:index+1}</span><small>{phase}</small></li>)}</ol>
+
+  {step===0&&<form className="form" onSubmit={event=>{event.preventDefault();setDraft(Object.fromEntries(new FormData(event.currentTarget)));setMessage('');setStep(1);}}>
+   <div className="notice"><HeartHandshake size={18}/><span>Coordinated by the HealthReachCare Homecare team</span></div>
+   <p>{offering.description}</p><p className="journey-intro">Published price: <strong>{money(offering.rate)} {priceLabel}</strong></p>
+   <label><CalendarDays size={15}/> Preferred date<input name="date" type="date" min={new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(s.serverTime))} defaultValue={draft?.date} required/></label>
+   <label><Clock3 size={15}/> Start time (South Africa)<input name="time" type="time" defaultValue={draft?.time} required/></label>
+   <label>Care duration<select value={visitDuration} onChange={event=>setDuration(Number(event.target.value))}>{Array.from({length:maxDuration-minDuration+1},(_,index)=>minDuration+index).map(hours=><option key={hours} value={hours}>{hours} {hours===1?'hour':'hours'}</option>)}</select></label>
+   <label>Care requirements<textarea name="requirements" maxLength={1000} defaultValue={draft?.requirements} placeholder="Share only information relevant to this service"/></label>
+   <div className="notice"><MapPin size={16}/><span>{serviceAddress||'Choose a service address'}</span></div>
+   <button type="button" className="outline" onClick={onAddress}>Change service address</button>
+   <div className="summary-line"><span>{pricingModel==='hourly'?money(offering.rate)+' × '+visitDuration+' hours':money(offering.rate)+' fixed '+(pricingModel==='per-visit'?'per visit':pricingModel==='daily'?'per day':'package')}</span><b>{money(total)}</b></div>
+   <div className="summary-line total"><span>Final total</span><b>{money(total)}</b></div>
+   <button disabled={busy||!visitDuration||!total||!serviceAddress}>Review booking</button>
+  </form>}
+
+  {step===1&&draft&&<>
+   <p>Confirm your selected service, schedule and total before continuing.</p>
+   <dl className="appointment-detail-list"><dt>Care service</dt><dd>{service}</dd><dt>Date & time</dt><dd>{draft.date} at {draft.time}</dd><dt>Duration</dt><dd>{visitDuration} hours</dd><dt>Address</dt><dd>{serviceAddress}</dd>{draft.requirements&&<><dt>Care requirements</dt><dd>{draft.requirements}</dd></>}<dt>Published price</dt><dd>{money(offering.rate)} {priceLabel}</dd></dl>
+   <div className="summary-line total"><span>Final total</span><b>{money(total)}</b></div>
+   <p className="notice"><ShieldCheck size={17}/> The date and time are checked against the saved service availability before a temporary payment reservation is created.</p>
+   <button className="homecare-checkout-primary" disabled={busy} onClick={()=>setStep(0)}><ArrowLeft size={16}/> Edit care details</button>
+   <button disabled={busy||!canDemoPay} onClick={()=>void reserveBooking()}>{busy?'Saving…':'Continue to payment'}</button>
+   {!canDemoPay&&<p role="status" className="muted">Payment processing is not connected. No payment or booking confirmation will be created.</p>}
+  </>}
+
+  {step===2&&record&&<>
+   <p>Review the reserved visit and choose the available payment step.</p>
+   <dl className="appointment-detail-list"><dt>Care service</dt><dd>{record.title||service}</dd><dt>Date & time</dt><dd>{record.date} at {record.time}</dd><dt>Duration</dt><dd>{record.duration} hours</dd><dt>Address</dt><dd>{record.address||serviceAddress}</dd><dt>Payment status</dt><dd>{record.payment==='Paid'?'Paid · Demo':'Awaiting payment'}</dd></dl>
+   <div className="summary-line total"><span>Amount due</span><b>{money(record.total)}</b></div>
+   {canDemoPay?<><p className="notice"><ShieldCheck size={17}/> Demo payment only. No real money is collected. The booking is sent to Homecare after the payment is successfully saved.</p><details className="homecare-payment-test"><summary>Test payment outcome</summary><label>Outcome<select value={scenario} onChange={event=>setScenario(event.target.value)}><option value="Success">Successful</option><option value="Failure">Declined</option><option value="Cancel">Cancelled</option></select></label></details><CheckoutConsent s={s} act={act} busy={busy}/><button disabled={busy||record.payment==='Paid'} onClick={()=>void payAndConfirm()}>{busy?'Processing…':`Pay now (demo) ${money(record.total)}`}</button><p className="muted">A declined or cancelled payment leaves this booking unpaid. You can retry from this screen or Activities.</p></>:<p role="status" className="notice">Payment processing is not connected. This reservation is not confirmed.</p>}
+  </>}
+  {message&&<p role="status" aria-live="polite">{message}</p>}
+ </div>;
 }
