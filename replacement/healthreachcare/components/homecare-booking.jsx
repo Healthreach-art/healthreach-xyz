@@ -1,15 +1,15 @@
 'use client';
 import {useRef,useState} from 'react';
 import {CheckoutConsent} from './checkout-consent';
-import {HomecareAvailability} from './homecare-availability';
 import {ArrowLeft,MapPin,ShieldCheck,CalendarDays,Clock3,HeartHandshake,Check} from 'lucide-react';
+import {hasPatientBookableHomecareOffer} from '../lib/homecare-marketplace.mjs';
 
 const money=value=>'R '+Number(value||0).toFixed(2);
 const phases=['Care details','Review','Payment'];
 
 export function HomecareBooking({s,service,serviceId,providerId,address,act,busy,onAddress,onBooked}){
  const offeringFor=provider=>provider.services?.find(value=>(serviceId?value.id===serviceId:value.name===service)&&value.active!==false&&Number(value.rate)>0);
- const candidates=s.providers.filter(provider=>provider.type==='Homecare'&&provider.status==='Approved'&&provider.acceptingOrders===true&&provider.publication?.status==='Published'&&offeringFor(provider));
+ const candidates=s.providers.filter(provider=>provider.type==='Homecare'&&provider.status==='Approved'&&hasPatientBookableHomecareOffer(provider)&&offeringFor(provider));
  const [selected]=useState(providerId||candidates[0]?.id||''),[duration,setDuration]=useState(2),[step,setStep]=useState(0),[draft,setDraft]=useState(null),[saved,setSaved]=useState(null),[scenario,setScenario]=useState('Success'),[message,setMessage]=useState('');
  const paying=useRef(false),bookingKey=useRef(''),provider=candidates.find(value=>value.id===selected),offering=provider&&offeringFor(provider);
  const pricingModel=offering?.pricingModel||'hourly',minDuration=Number(offering?.minDuration||1),maxDuration=Number(offering?.maxDuration||24),visitDuration=Math.max(minDuration,Math.min(duration,maxDuration));
@@ -43,7 +43,7 @@ export function HomecareBooking({s,service,serviceId,providerId,address,act,busy
   finally{paying.current=false;}
  }
 
- if(!provider||!offering)return <HomecareAvailability s={s} service={service} address={address} act={act} busy={busy} onAddress={onAddress} onBooked={onBooked}/>;
+ if(!provider||!offering)return <div className="form homecare-direct-checkout" role="status"><h2>Service booking unavailable</h2><p>This published service could not be matched to its saved provider price. Please return to Homecare and try again, or contact support. No request or payment was created.</p></div>;
  return <div className="form homecare-direct-checkout">
   <div className="eyebrow">HEALTHREACHCARE HOMECARE</div>
   <h2>{step===0?service:step===1?'Review your homecare booking':'Payment'}</h2>

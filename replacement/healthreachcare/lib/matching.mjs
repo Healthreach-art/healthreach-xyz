@@ -27,16 +27,9 @@ export function prepareMatch(s, session, action, p) {
         p.address = address.formatted;
         p.matching = { state: 'Offered', excluded: [], attempts: [], distanceKm: result.distanceKm, keys: result.items.map(i => i.productKey) };
     }
-    if (action === 'request' && p.type === 'Homecare' && s.providers.some(d => d.type === 'Homecare' && d.matchingEnabled)) {
-        if (!address)
-            throw Error('Select your service address first');
-        const candidates = s.providers.filter(d => d.type === 'Homecare' && d.matchingEnabled && available(s, d) && serves(d, address) && (!p.providerId || d.id === p.providerId) && d.services?.some(v => p.serviceId ? v.id === p.serviceId : v.name === p.service)).sort((a, b) => (kmBetween(a.coordinates, address) ?? 1e9) - (kmBetween(b.coordinates, address) ?? 1e9));
-        const d = candidates.find(d => careAvailable(s, d, p.date, p.time, p.duration));
-        if (!d)
-            throw Error('No qualified provider is currently available for this service, address and schedule');
-        p.providerId = d.id;
-        p.address = address.formatted;
-    }
+    // Homecare is centrally coordinated, not a location-matched provider marketplace.
+    // The selected approved offer and its saved schedule are validated by the booking action.
+    // Address coordinates and legacy matchingEnabled flags do not gate browsing or booking.
     if(action==='request'&&p.type==='Doctor'){const d=s.providers.find(d=>d.id===(p.doctorId||'doctor'));if(d?.matchingEnabled&&p.mode==='In-person'&&!serves(d,address))throw Error('No in-person service is available for this saved location. Choose an eligible practice or a supported online consultation.');}
     if (action === 'rescheduleHomecare') {
         const r = s.records.find(r => r.id === p.id);
