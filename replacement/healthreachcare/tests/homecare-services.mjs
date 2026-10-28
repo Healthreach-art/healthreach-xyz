@@ -122,24 +122,25 @@ act('archiveHomecareMainService',{id:extraCategory.id},admin);
 assert.equal(homecareCatalogueForState(s).categories.find(value=>value.id===extraCategory.id).archived,true);
 const patientAfterArchive=projectHomecareCatalogue({providers:structuredClone(s.providers)},s,'Patient');assert(!patientAfterArchive.homecareCatalogue.categories.some(value=>value.id===extraCategory.id));assert.equal(customBooking.priceSnapshot.total,310);
 assert.throws(()=>act('archiveHomecareMainService',{id:'homecare-main-personal-care'},admin),/Only additional Homecare categories/);
-// Real Homecare listings require an approved provider to opt into bookings and
-// save a service location/area. Publishing a priced service alone must not
-// make an unready provider appear to patients.
+// Publishing a valid priced service is the single opt-in to the Patient
+// catalogue; no separate provider-wide listing setup or location is required.
 const listingProvider={...provider,id:'provider-listing-fixture',name:'Listing provider fixture',location:'',acceptingOrders:false,availabilityConfigured:false,publication:{status:'Draft'},services:[]};
 const listingState={providers:[listingProvider],homecareCatalogue:[{id:'listing-service',category:'Personal care',name:'Bathing support',description:'Published bathing support.',pricingModel:'hourly',minDuration:1,maxDuration:4,active:true}],records:[],homecarePolicy:{mode:'marketplace'}};
 const listingCatalogue=homecareCatalogueForState(listingState),listingOffer=homecareProviderOfferList(listingProvider,listingCatalogue).find(value=>value.masterServiceId==='listing-service');
 const listingSession={role:'Homecare',accountId:listingProvider.id,name:'Listing provider fixture'};
 listingOffer.rate=199.93;listingOffer.availability=[{weekday:1,start:'08:00',end:'18:00'}];listingOffer.active=true;
 actIn(listingState,'homecareServices',{services:[listingOffer]},listingSession);
-assert.equal(listingProvider.publication.status,'Draft','A service stays hidden until the provider is accepting bookings with a location.');
-assert.equal(homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(listingState.providers)},listingState,'Patient')).entries.length,0);
-actIn(listingState,'homecareListingSettings',{location:'Parow, Cape Town',serviceAreas:'Cape Town, Parow',acceptingOrders:true},listingSession);
+assert.equal(listingProvider.acceptingOrders,true,'Publishing a valid service opts the approved provider into new bookings.');
 assert.equal(listingProvider.availabilityConfigured,true,'Published service availability supplies provider availability.');
-assert.equal(listingProvider.publication.status,'Published');
+assert.equal(listingProvider.publication.status,'Published','The provider listing publishes with the priced service.');
 const listingResult=homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(listingState.providers)},listingState,'Patient'));
-assert.equal(listingResult.entries.length,1,'Once the approved provider opts in and saves location, the patient catalogue receives the offer.');
+assert.equal(listingResult.entries.length,1,'The patient catalogue receives the offer immediately after Save & publish.');
 assert.equal(listingResult.entries[0].service.rate,199.93);
-assert.throws(()=>actIn(listingState,'homecareListingSettings',{location:'Parow',serviceAreas:'',acceptingOrders:true},listingSession),/at least one service area/);
+const staleListingState={...listingState,providers:[{...listingProvider,acceptingOrders:false,publication:{status:'Draft'},services:[{...listingOffer,active:true}]}]};
+assert.equal(homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(staleListingState.providers)},staleListingState,'Patient')).entries.length,1,'Existing approved providers with a saved active priced offer are visible even if old listing metadata is stale.');
+actIn(listingState,'homecareServices',{services:[{...listingOffer,active:false}]},listingSession);
+assert.equal(listingProvider.publication.status,'Draft','Unpublishing the last offer removes it from the patient catalogue.');
+assert.equal(homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(listingState.providers)},listingState,'Patient')).entries.length,0);
 // Existing provider data can contain same-name draft offers (for example
 // duplicate legacy entries with different prices). A full-form save must not
 // fail merely because both old entries are posted together, but only one may
