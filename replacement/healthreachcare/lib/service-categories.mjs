@@ -9,7 +9,7 @@ export function doctorHasSavedAvailability(d){
 }
 export function refreshConnectedPublication(d){
  if(d.type==='Doctor')d.availabilityConfigured=doctorHasSavedAvailability(d);
- const ready=d.status==='Approved'&&!!d.name&&!!d.location&&d.acceptingOrders===true&&(d.type!=='Homecare'||d.availabilityConfigured===true);
+ const ready=d.status==='Approved'&&!!d.name&&(d.type==='Homecare'?d.acceptingOrders===true&&d.availabilityConfigured===true:!!d.location&&d.acceptingOrders===true);
  // Publish a verified doctor's profile even before the calendar has bookable slots.
  // Discovery can then show the real profile, while slot validation still blocks booking.
  const services=d.type==='Homecare'?d.services?.some(v=>v.active!==false&&Number.isFinite(v.rate)&&v.rate>0):d.type==='Doctor'?d.professionalVerified===true&&!!d.qualifications&&!!d.registration&&d.fee>0&&d.modes?.length>0:true;
