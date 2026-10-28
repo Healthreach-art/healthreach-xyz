@@ -5,7 +5,7 @@ export function homecareMarketplaceEntries(s) {
   // Workspace API responses expose a projected catalogue object, while the
   // authenticated store keeps the canonical service definitions as an array.
   const catalogue=Array.isArray(s.homecareCatalogue?.services)?s.homecareCatalogue:homecareCatalogueForState(s,{includeInactive:false});
-  const definitions=new Map((catalogue.services||[]).map(item=>[item.id,item]));
+  const definitions=new Map([...(catalogue.categories||[]),...(catalogue.services||[])].map(item=>[item.id,item]));
   const providers = (s.providers || []).filter((provider) =>
     provider.type === 'Homecare' && provider.status === 'Approved' &&
     provider.acceptingOrders === true && provider.publication?.status === 'Published'
@@ -18,10 +18,10 @@ export function homecareMarketplaceEntries(s) {
   }
   const entries = providers.flatMap((provider) => (provider.services || [])
     .map((service) => {
-      const masterServiceId=homecareMasterIdForService(service,catalogue),definition=definitions.get(masterServiceId);
-      return {provider,service:definition?{...service,masterServiceId,name:definition.name,description:definition.description,category:definition.category,parentId:definition.parentId}:service,definition};
+      const masterServiceId=homecareMasterIdForService(service,catalogue,provider.id),definition=definitions.get(masterServiceId);
+      return {provider,service:definition?{...service,masterServiceId,name:definition.name,description:definition.id.startsWith('homecare-main-')?service.description:definition.description,category:definition.id.startsWith('homecare-main-')?definition.name:definition.category,parentId:definition.parentId||''}:service,definition};
     })
-    .filter(({service,definition}) => service.active !== false && !service.archived && Number(service.rate)>0 && (!definition||definition.active!==false&&!definition.archived)));
+    .filter(({service,definition}) => !!definition && service.active !== false && !service.archived && Number(service.rate)>0 && definition.active!==false&&!definition.archived));
   // A category may intentionally have no direct price: its published sub-services
   // carry the prices. Keep that parent visible while at least one child is bookable.
   const main = providers.flatMap((provider) => (provider.services || [])

@@ -81,13 +81,18 @@ export function normalizeHomecareCatalogueUpdate(input,current,now,categoryList=
  });
 }
 
-export function homecareMasterIdForService(service,catalogue){
+export function homecareMasterIdForService(service,catalogue,ownerId=''){
  if(typeof service?.masterServiceId==='string'&&catalogue.services.some(item=>item.id===service.masterServiceId))return service.masterServiceId;
  if(typeof service?.id==='string'&&catalogue.services.some(item=>item.id===service.id))return service.id;
  const category=categoryFor(service?.category,catalogue.categories)||categoryFor(service?.name,catalogue.categories);
  if(!category)return null;
  if(!service?.parentId&&categoryFor(service?.name,catalogue.categories))return mainId(category);
- return catalogue.services.find(item=>item.category===category.name&&nameKey(item.name)===nameKey(service?.name)&&(!item.ownerProviderId||item.ownerProviderId===service?.providerId))?.id||null;
+ // Older provider-defined rows did not persist masterServiceId. Their shared
+ // definition is synthesized from both provider ID and offer ID, so include
+ // the provider context when restoring that link. Without it, a published
+ // service could look active in provider settings but be unmatched in Patient.
+ const serviceOwner=ownerId||service?.providerId||service?.ownerProviderId||'';
+ return catalogue.services.find(item=>item.category===category.name&&nameKey(item.name)===nameKey(service?.name)&&(!item.ownerProviderId||item.ownerProviderId===serviceOwner))?.id||null;
 }
 
 /** Provider-specific price/availability rows joined to the shared definitions. */
@@ -97,11 +102,11 @@ export function homecareProviderOfferList(provider,catalogue){
   return {id:definition.id,masterServiceId:definition.id,name:definition.name,description:definition.description,category:definition.name,parentId:'',rate:0,pricingModel:'hourly',minDuration:1,maxDuration:8,availability:[],active:false};
  });
  const services=(catalogue.services||[]).filter(definition=>!definition.ownerProviderId||definition.ownerProviderId===provider?.id).map(definition=>{
-  const old=existing.find(value=>homecareMasterIdForService(value,catalogue)===definition.id);
+  const old=existing.find(value=>homecareMasterIdForService(value,catalogue,provider?.id)===definition.id);
   const inherited=Array.isArray(provider?.weeklyHours)?provider.weeklyHours.filter(day=>!day.closed).map(day=>({weekday:day.day,start:day.allDay?'00:00':day.open||'09:00',end:day.allDay?'23:59':day.close||'17:00'})):(provider?.weekdays||[]).map(weekday=>({weekday,start:provider.openTime||'09:00',end:provider.closeTime||'17:00'}));
   return {...definition,...old,id:old?.id||`offer-${provider?.id||'provider'}-${definition.id}`,masterServiceId:definition.id,name:definition.name,description:definition.description,category:definition.category,parentId:definition.parentId,active:definition.active&&!definition.archived&&old?.active===true,rate:Number(old?.rate)||0,pricingModel:old?.pricingModel||definition.pricingModel,minDuration:old?.minDuration||definition.minDuration,maxDuration:old?.maxDuration||definition.maxDuration,availability:Array.isArray(old?.availability)&&old.availability.length?old.availability:inherited,catalogueArchived:definition.archived,catalogueInactive:definition.active===false};
  });
- const retained=existing.filter(value=>!homecareMasterIdForService(value,catalogue));
+ const retained=existing.filter(value=>!homecareMasterIdForService(value,catalogue,provider?.id));
  return [...categories,...services,...retained.map(value=>({...value,active:false,catalogueArchived:true}))];
 }
 
@@ -110,14 +115,14 @@ export function projectHomecareCatalogue(out,s,role){
  const catalogue={categories:fullCatalogue.categories.filter(item=>role!=='Patient'||item.active&&!item.archived),services:fullCatalogue.services.filter(item=>role==='Homecare'?(!item.ownerProviderId||item.ownerProviderId===s.session?.accountId):role!=='Patient'||item.active&&!item.archived)};
  out.homecareCatalogue=catalogue;
  out.homecareServiceRequests=(s.homecareServiceRequests||[]).filter(item=>role==='Admin'||item.providerId===s.session?.accountId).map(item=>({...item}));
- const projectOffer=service=>{
-  const masterId=homecareMasterIdForService(service,fullCatalogue);
+ const projectOffer=(service,ownerId='')=>{
+  const masterId=homecareMasterIdForService(service,fullCatalogue,ownerId);
   const definition=masterId?.startsWith('homecare-main-')?fullCatalogue.categories.find(item=>item.id===masterId):fullCatalogue.services.find(item=>item.id===masterId);
-  return definition?{...service,masterServiceId:definition.id,name:definition.name,description:definition.description,category:definition.name&&masterId.startsWith('homecare-main-')?definition.name:definition.category,parentId:masterId.startsWith('homecare-main-')?'':definition.parentId,active:service.active!==false&&definition.active!==false&&!definition.archived,catalogueArchived:definition.archived===true,catalogueInactive:definition.active===false}:service;
+  return definition?{...service,masterServiceId:definition.id,name:definition.name,description:masterId.startsWith('homecare-main-')?service.description:definition.description,category:definition.name&&masterId.startsWith('homecare-main-')?definition.name:definition.category,parentId:masterId.startsWith('homecare-main-')?'':definition.parentId,active:service.active!==false&&definition.active!==false&&!definition.archived,catalogueArchived:definition.archived===true,catalogueInactive:definition.active===false}:service;
  };
  out.providers=(out.providers||[]).map(provider=>provider.type!=='Homecare'?provider:role==='Homecare'&&provider.id!==s.session?.accountId?{...provider,services:[]}:{...provider,services:(provider.services||[]).map(service=>{
-  return projectOffer(service);
+  return projectOffer(service,provider.id);
  })});
- if(Array.isArray(out.companyHomecareServices))out.companyHomecareServices=(role!=='Homecare'||s.session?.accountId===s.homecarePolicy?.managerId?out.companyHomecareServices:[]).map(projectOffer);
+ if(Array.isArray(out.companyHomecareServices))out.companyHomecareServices=(role!=='Homecare'||s.session?.accountId===s.homecarePolicy?.managerId?out.companyHomecareServices:[]).map(service=>projectOffer(service,'company'));
  return out;
 }
