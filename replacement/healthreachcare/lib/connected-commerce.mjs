@@ -12,7 +12,7 @@ const text=(v,max=300)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw E
 const slug=value=>String(value||'').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)||crypto.randomUUID();
 const minor=v=>{if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>1000000)throw Error('Invalid saved price.');return Math.round(v*100);};
 const sequence={Order:{'Order confirmed':['Accepted','Declined'],Accepted:['Processing'],Processing:['Prepared'],Prepared:['Ready for dispatch','Ready for collection'],'Ready for collection':['Collected']},Doctor:{Confirmed:['Accepted','In consultation','Declined'],Accepted:['In consultation'], 'In consultation':['Completed']},Homecare:{'Paid — scheduling':['Accepted','Scheduled','Declined'],Accepted:['Scheduled','Assigned'],Scheduled:['Assigned'],Assigned:['On the way'],'On the way':['Arrived'],Arrived:['In progress'],'In progress':['Completed']}};
-export const commerceActions=['platformDeliverySettings','updateCheckoutAddress','checkout','checkoutPay','request','pay','transition','assignHomecareCaregiver','unassignHomecareCaregiver','cancel','requestCareAvailability','assignCareProvider','publishConnectedProvider','providerProfile','homecareServices','homecareCatalogue','saveHomecareMainService','archiveHomecareMainService','deleteHomecareService','requestHomecareService','reviewHomecareServiceRequest','pharmacySettings','product','productBulk','savePayoutBusiness','removeProduct','appointmentAvailability','openConversation','message','sendMessage'];
+export const commerceActions=['platformDeliverySettings','updateCheckoutAddress','checkout','checkoutPay','request','pay','transition','assignHomecareCaregiver','unassignHomecareCaregiver','cancel','requestCareAvailability','assignCareProvider','publishConnectedProvider','providerProfile','homecareListingSettings','homecareServices','homecareCatalogue','saveHomecareMainService','archiveHomecareMainService','deleteHomecareService','requestHomecareService','reviewHomecareServiceRequest','pharmacySettings','product','productBulk','savePayoutBusiness','removeProduct','appointmentAvailability','openConversation','message','sendMessage'];
 export function providerAvailable(s,id,type){const d=s.providers.find(d=>d.id===id&&(!type||d.type===type));if(!d||d.status!=='Approved'||d.acceptingOrders!==true||d.publication?.status!=='Published'||type==='Doctor'&&!d.professionalVerified)throw Error('This provider is not available for new bookings.');return d;}
 function checkArea(d,address){if(d.matchingEnabled&&!serves(d,address))throw Error('This address is outside the provider service area.');}
 export function handleConnectedCommerce(c){
@@ -77,6 +77,17 @@ export function handleConnectedCommerce(c){
   s.audit??=[];s.audit.unshift({id,action:'homecare-master-catalogue-updated',actorId:session.accountId,at:now,serviceCount:next.length});
   return true;
  }
+ if(action==='homecareListingSettings'){
+  check(['Homecare']);
+  const d=s.providers.find(v=>v.id===session.accountId&&v.type==='Homecare');
+  if(!d||d.status!=='Approved')throw Error('Only an approved Homecare account can publish a service listing.');
+  const location=text(p.location,250);if(typeof p.serviceAreas!=='string'||!p.serviceAreas.trim())throw Error('Enter at least one service area, such as Cape Town or your suburbs.');const serviceAreas=text(p.serviceAreas,600).split(',').map(v=>v.trim()).filter(Boolean);
+  if(!serviceAreas.length||serviceAreas.length>20)throw Error('Enter up to twenty service areas, such as Cape Town or your suburbs.');
+  if(typeof p.acceptingOrders!=='boolean')throw Error('Choose whether this provider is accepting new bookings.');
+  d.location=location;d.serviceAreas=serviceAreas;d.matchingEnabled=true;d.acceptingOrders=p.acceptingOrders;
+  d.availabilityConfigured=(d.services||[]).some(value=>value.parentId&&value.active===true&&Number(value.rate)>0&&Array.isArray(value.availability)&&value.availability.length>0);
+  refreshConnectedPublication(d);return true;
+ }
  if(action==='homecareServices'){
   check(['Homecare']);
   const d=s.providers.find(v=>v.id===session.accountId&&v.type==='Homecare');
@@ -109,7 +120,7 @@ export function handleConnectedCommerce(c){
   const servicesById=new Map(nextServices.map(value=>[value.id,value]));
   for(const category of catalogue.categories){const root=nextServices.find(value=>value.masterServiceId===category.id);if(root)root.active=nextServices.some(value=>value.parentId===category.id&&value.active&&value.rate>0);}
   if(nextServices.some(value=>value.parentId&&(!servicesById.has(value.parentId)||servicesById.get(value.parentId).parentId||servicesById.get(value.parentId).category!==value.category)))throw Error('A sub-service must refer to a valid main service in the shared catalogue.');
-  d.services=nextServices;d.serviceCatalogueUpdatedAt=now;refreshConnectedPublication(d);return true;
+  d.services=nextServices;d.availabilityConfigured=nextServices.some(value=>value.parentId&&value.active===true&&Number(value.rate)>0&&value.availability?.length>0);d.serviceCatalogueUpdatedAt=now;refreshConnectedPublication(d);return true;
  }
  if(action==='providerProfile'&&session.role==='Homecare'&&p.services!==undefined)throw Error('Homecare services are managed from the shared Services & Pricing catalogue.');
  if(action==='providerProfile'){

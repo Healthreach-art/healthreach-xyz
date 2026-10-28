@@ -122,4 +122,23 @@ act('archiveHomecareMainService',{id:extraCategory.id},admin);
 assert.equal(homecareCatalogueForState(s).categories.find(value=>value.id===extraCategory.id).archived,true);
 const patientAfterArchive=projectHomecareCatalogue({providers:structuredClone(s.providers)},s,'Patient');assert(!patientAfterArchive.homecareCatalogue.categories.some(value=>value.id===extraCategory.id));assert.equal(customBooking.priceSnapshot.total,310);
 assert.throws(()=>act('archiveHomecareMainService',{id:'homecare-main-personal-care'},admin),/Only additional Homecare categories/);
-console.log('Shared Homecare catalogue: protected standard categories, admin-managed custom categories, provider-owned sub-services, patient visibility, booking price snapshots, permissions and archive behavior passed.');
+// Real Homecare listings require an approved provider to opt into bookings and
+// save a service location/area. Publishing a priced service alone must not
+// make an unready provider appear to patients.
+const listingProvider={...provider,id:'provider-listing-fixture',name:'Listing provider fixture',location:'',acceptingOrders:false,availabilityConfigured:false,publication:{status:'Draft'},services:[]};
+const listingState={providers:[listingProvider],homecareCatalogue:[{id:'listing-service',category:'Personal care',name:'Bathing support',description:'Published bathing support.',pricingModel:'hourly',minDuration:1,maxDuration:4,active:true}],records:[],homecarePolicy:{mode:'marketplace'}};
+const listingCatalogue=homecareCatalogueForState(listingState),listingOffer=homecareProviderOfferList(listingProvider,listingCatalogue).find(value=>value.masterServiceId==='listing-service');
+const listingSession={role:'Homecare',accountId:listingProvider.id,name:'Listing provider fixture'};
+listingOffer.rate=199.93;listingOffer.availability=[{weekday:1,start:'08:00',end:'18:00'}];listingOffer.active=true;
+actIn(listingState,'homecareServices',{services:[listingOffer]},listingSession);
+assert.equal(listingProvider.publication.status,'Draft','A service stays hidden until the provider is accepting bookings with a location.');
+assert.equal(homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(listingState.providers)},listingState,'Patient')).entries.length,0);
+actIn(listingState,'homecareListingSettings',{location:'Parow, Cape Town',serviceAreas:'Cape Town, Parow',acceptingOrders:true},listingSession);
+assert.equal(listingProvider.availabilityConfigured,true,'Published service availability supplies provider availability.');
+assert.equal(listingProvider.publication.status,'Published');
+const listingResult=homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(listingState.providers)},listingState,'Patient'));
+assert.equal(listingResult.entries.length,1,'Once the approved provider opts in and saves location, the patient catalogue receives the offer.');
+assert.equal(listingResult.entries[0].service.rate,199.93);
+assert.throws(()=>actIn(listingState,'homecareListingSettings',{location:'Parow',serviceAreas:'',acceptingOrders:true},listingSession),/at least one service area/);
+
+console.log('Shared Homecare catalogue: protected standard categories, admin-managed custom categories, provider-owned sub-services, patient visibility, booking price snapshots, permissions, listing eligibility and archive behavior passed.');
