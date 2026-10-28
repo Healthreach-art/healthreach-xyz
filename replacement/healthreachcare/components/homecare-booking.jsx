@@ -9,6 +9,9 @@ const phases=['Care details','Review','Payment'];
 
 export function HomecareBooking({s,service,serviceId,providerId,address,act,busy,onAddress,onBooked}){
  const offeringFor=provider=>provider.services?.find(value=>(serviceId?value.id===serviceId:value.name===service)&&value.active!==false&&Number(value.rate)>0);
+ // Patient-bookable status comes from an approved account's saved, active,
+ // priced offer and schedule. Old marketplace flags can be stale and must not
+ // block the same catalogue entry patients just selected.
  const candidates=s.providers.filter(provider=>provider.type==='Homecare'&&provider.status==='Approved'&&hasPatientBookableHomecareOffer(provider)&&offeringFor(provider));
  const [selected]=useState(providerId||candidates[0]?.id||''),[duration,setDuration]=useState(2),[step,setStep]=useState(0),[draft,setDraft]=useState(null),[saved,setSaved]=useState(null),[scenario,setScenario]=useState('Success'),[message,setMessage]=useState('');
  const paying=useRef(false),bookingKey=useRef(''),provider=candidates.find(value=>value.id===selected),offering=provider&&offeringFor(provider);
@@ -67,7 +70,7 @@ export function HomecareBooking({s,service,serviceId,providerId,address,act,busy
    <p>Confirm your selected service, schedule and total before continuing.</p>
    <dl className="appointment-detail-list"><dt>Care service</dt><dd>{service}</dd><dt>Date & time</dt><dd>{draft.date} at {draft.time}</dd><dt>Duration</dt><dd>{visitDuration} hours</dd><dt>Address</dt><dd>{serviceAddress}</dd>{draft.requirements&&<><dt>Care requirements</dt><dd>{draft.requirements}</dd></>}<dt>Published price</dt><dd>{money(offering.rate)} {priceLabel}</dd></dl>
    <div className="summary-line total"><span>Final total</span><b>{money(total)}</b></div>
-   <p className="notice"><ShieldCheck size={17}/> The date and time are checked against the saved service availability before a temporary payment reservation is created.</p>
+   <p className="notice"><ShieldCheck size={17}/> You can request the date, time and area that work for you. The Homecare team will confirm the visit and assign a caregiver after booking.</p>
    <button className="homecare-checkout-primary" disabled={busy} onClick={()=>setStep(0)}><ArrowLeft size={16}/> Edit care details</button>
    <button disabled={busy||!canDemoPay} onClick={()=>void reserveBooking()}>{busy?'Saving…':'Continue to payment'}</button>
    {!canDemoPay&&<p role="status" className="muted">Payment processing is not connected. No payment or booking confirmation will be created.</p>}
@@ -77,7 +80,7 @@ export function HomecareBooking({s,service,serviceId,providerId,address,act,busy
    <p>Review the reserved visit and choose the available payment step.</p>
    <dl className="appointment-detail-list"><dt>Care service</dt><dd>{record.title||service}</dd><dt>Date & time</dt><dd>{record.date} at {record.time}</dd><dt>Duration</dt><dd>{record.duration} hours</dd><dt>Address</dt><dd>{record.address||serviceAddress}</dd><dt>Payment status</dt><dd>{record.payment==='Paid'?'Paid · Demo':'Awaiting payment'}</dd></dl>
    <div className="summary-line total"><span>Amount due</span><b>{money(record.total)}</b></div>
-   {canDemoPay?<><p className="notice"><ShieldCheck size={17}/> Demo payment only. No real money is collected. The booking is sent to Homecare after the payment is successfully saved.</p><details className="homecare-payment-test"><summary>Test payment outcome</summary><label>Outcome<select value={scenario} onChange={event=>setScenario(event.target.value)}><option value="Success">Successful</option><option value="Failure">Declined</option><option value="Cancel">Cancelled</option></select></label></details><CheckoutConsent s={s} act={act} busy={busy}/><button disabled={busy||record.payment==='Paid'} onClick={()=>void payAndConfirm()}>{busy?'Processing…':`Pay now (demo) ${money(record.total)}`}</button><p className="muted">A declined or cancelled payment leaves this booking unpaid. You can retry from this screen or Activities.</p></>:<p role="status" className="notice">Payment processing is not connected. This reservation is not confirmed.</p>}
+   {canDemoPay?<><p className="notice"><ShieldCheck size={17}/> Demo payment only. No real money is collected. The booking is sent to Homecare for confirmation after the payment is successfully saved.</p><details className="homecare-payment-test"><summary>Test payment outcome</summary><label>Outcome<select value={scenario} onChange={event=>setScenario(event.target.value)}><option value="Success">Successful</option><option value="Failure">Declined</option><option value="Cancel">Cancelled</option></select></label></details><CheckoutConsent s={s} act={act} busy={busy} homecare/><button disabled={busy||record.payment==='Paid'} onClick={()=>void payAndConfirm()}>{busy?'Processing…':`Pay now (demo) ${money(record.total)}`}</button><p className="muted">A declined or cancelled payment leaves this booking unpaid. You can retry from this screen or Activities.</p></>:<p role="status" className="notice">Payment processing is not connected. This reservation is not confirmed.</p>}
   </>}
   {message&&<p role="status" aria-live="polite">{message}</p>}
  </div>;
