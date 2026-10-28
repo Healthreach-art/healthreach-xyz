@@ -70,7 +70,7 @@ export function handleConnectedCommerce(c){
   s.homecareCatalogue=[...next,...current.filter(value=>!incoming.has(value.id)).map(value=>({...value,active:false,archived:true,updatedAt:now}))];
   const catalogue=homecareCatalogueForState({...s,homecareCatalogue:current});
   for(const provider of s.providers.filter(value=>value.type==='Homecare'))for(const offer of provider.services||[]){
-   const masterId=homecareMasterIdForService(offer,catalogue),definition=next.find(value=>value.id===masterId);
+   const masterId=homecareMasterIdForService(offer,catalogue,provider.id),definition=next.find(value=>value.id===masterId);
    if(definition){offer.masterServiceId=definition.id;offer.name=definition.name;offer.description=definition.description;offer.category=definition.category;offer.parentId=definition.parentId;}
    else if(masterId&&!masterId.startsWith('homecare-main-')&&!catalogue.services.some(value=>value.id===masterId&&value.ownerProviderId===provider.id))offer.active=false;
   }
@@ -85,12 +85,12 @@ export function handleConnectedCommerce(c){
   const catalogue=homecareCatalogueForState(s),ids=new Set(),masterIds=new Set();
   const nextServices=p.services.map(v=>{
    if(!v||typeof v!=='object')throw Error('Review each service before saving.');
-   let masterId=homecareMasterIdForService(v,catalogue),definition=catalogue.categories.find(item=>item.id===masterId)||catalogue.services.find(item=>item.id===masterId),providerDefined=v.providerDefined===true;
+   let masterId=homecareMasterIdForService(v,catalogue,d.id),definition=catalogue.categories.find(item=>item.id===masterId)||catalogue.services.find(item=>item.id===masterId),providerDefined=v.providerDefined===true;
    if(providerDefined){const category=catalogue.categories.find(item=>item.name===v.category&&item.active&&!item.archived);if(!category)throw Error('Choose an active Homecare main service.');const serviceName=text(v.name,100),serviceDescription=text(v.description,500);masterId=typeof v.masterServiceId==='string'&&v.masterServiceId.startsWith(`provider-service-${slug(session.accountId)}-`)?v.masterServiceId:`provider-service-${slug(session.accountId)}-${slug(v.id||serviceName)}`;definition={id:masterId,category:category.name,parentId:category.id,name:serviceName,description:serviceDescription,pricingModel:v.pricingModel||'hourly',minDuration:v.minDuration||1,maxDuration:v.maxDuration||8,active:true,archived:false,ownerProviderId:session.accountId,providerDefined:true};if((d.services||[]).some(old=>old.id!==v.id&&old.category===category.name&&old.name.toLocaleLowerCase()===serviceName.toLocaleLowerCase()&&!old.archived))throw Error('A sub-service with this name already exists in your category.');}
    if(!definition)throw Error('Choose an active shared Homecare service or create a provider-owned sub-service.');
    if(definition.ownerProviderId&&definition.ownerProviderId!==session.accountId)throw Error('Provider-owned service definitions are private to their owner.');
    if(masterIds.has(masterId))throw Error('Each service can appear only once.');masterIds.add(masterId);
-   const prior=d.services?.find(item=>homecareMasterIdForService(item,catalogue)===masterId),serviceId=masterId.startsWith('homecare-main-')?masterId:typeof v.id==='string'&&v.id.length<=160?v.id:prior?.id||crypto.randomUUID();
+   const prior=d.services?.find(item=>homecareMasterIdForService(item,catalogue,d.id)===masterId),serviceId=masterId.startsWith('homecare-main-')?masterId:typeof v.id==='string'&&v.id.length<=160?v.id:prior?.id||crypto.randomUUID();
    if(ids.has(serviceId))throw Error('Each service must have a unique identifier.');ids.add(serviceId);
    const root=masterId.startsWith('homecare-main-'),pricingModel=['hourly','per-visit','daily','fixed-package'].includes(v.pricingModel)?v.pricingModel:'hourly',rateMinor=minor(v.rate);
    if(root&&rateMinor>0)throw Error('Set prices on shared sub-services, not on a main category.');
