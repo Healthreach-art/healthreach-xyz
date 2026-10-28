@@ -1,6 +1,13 @@
 /** Patient catalogue projection from the same saved provider service records. */
 import {homecareCatalogueForState,homecareMasterIdForService} from './homecare-catalogue.mjs';
 
+// An approved provider's explicitly active, priced service with saved hours is
+// itself the patient-listing opt-in. This also repairs visibility for existing
+// records created before the separate listing-settings form was removed.
+export function hasPatientBookableHomecareOffer(provider){
+  return provider?.type==='Homecare'&&provider.publication?.manuallyHidden!==true&&(provider.services||[]).some(service=>service.parentId&&service.active===true&&!service.archived&&Number.isFinite(Number(service.rate))&&Number(service.rate)>0&&Array.isArray(service.availability)&&service.availability.length>0);
+}
+
 export function homecareMarketplaceEntries(s) {
   // Workspace API responses expose a projected catalogue object, while the
   // authenticated store keeps the canonical service definitions as an array.
@@ -8,7 +15,7 @@ export function homecareMarketplaceEntries(s) {
   const definitions=new Map([...(catalogue.categories||[]),...(catalogue.services||[])].map(item=>[item.id,item]));
   const providers = (s.providers || []).filter((provider) =>
     provider.type === 'Homecare' && provider.status === 'Approved' &&
-    provider.acceptingOrders === true && provider.publication?.status === 'Published'
+    provider.publication?.manuallyHidden!==true && (hasPatientBookableHomecareOffer(provider)||(provider.acceptingOrders === true && provider.publication?.status === 'Published'))
   );
   if (s.realAccount && s.homecarePolicy?.managerId && !providers.some((provider) => provider.id === s.homecarePolicy.managerId)) {
     const manager = (s.providers || []).find((provider) => provider.id === s.homecarePolicy.managerId);
