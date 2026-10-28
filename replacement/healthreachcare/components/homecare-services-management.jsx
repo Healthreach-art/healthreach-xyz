@@ -1,7 +1,7 @@
 'use client';
 import {useMemo,useState} from 'react';
 import {ArrowLeft,BriefcaseBusiness,Save,Eye,EyeOff,Plus,Check,Trash2} from 'lucide-react';
-import {homecareCatalogueForState,homecareProviderOfferList} from '../lib/homecare-catalogue.mjs';
+import {homecareCatalogueForState,homecareCategoryIdFromForm,homecareProviderOfferList} from '../lib/homecare-catalogue.mjs';
 
 const box={background:'#fff',border:'1px solid #dce9e4',borderRadius:14,padding:18};
 const money=n=>'R '+Number(n||0).toFixed(2);
@@ -36,7 +36,7 @@ export function HomecareServicesManagement({provider,act,busy,catalogue:provided
   return {...service,...(service.providerDefined?{name:String(fields.get('name')||'').trim(),description:String(fields.get('description')||'').trim()}:{}),rate,pricingModel:String(fields.get('pricingModel')||'hourly'),minDuration:Number(fields.get('minDuration')||1),maxDuration:Number(fields.get('maxDuration')||8),noticeHours:Number(fields.get('noticeHours')||0),caregiverFee:fields.get('caregiverFee')===''?undefined:Number(fields.get('caregiverFee')),qualificationRequirements:String(fields.get('qualificationRequirements')||'').trim(),serviceAreas:String(fields.get('serviceAreas')||'').split(',').map(value=>value.trim()).filter(Boolean),availability:selected,active:!service.catalogueArchived&&!service.catalogueInactive&&(publish||(!unpublish&&service.active))};
  }
  async function saveCustom(event){
-  event.preventDefault();const form=event.currentTarget,fields=new FormData(form),category=categories.find(value=>value.id===String(fields.get('categoryId')||''));
+  event.preventDefault();const form=event.currentTarget,fields=new FormData(form),category=categories.find(value=>value.id===homecareCategoryIdFromForm(fields,categoryId));
   if(!category){setNotice('Choose an active main service.');return;}
   const selected=weekdays.flatMap((_,weekday)=>fields.get('day-'+weekday)?[{weekday,start:String(fields.get('start-'+weekday)||''),end:String(fields.get('end-'+weekday)||'')}]:[]);
   if(selected.some(value=>!clock.test(value.start)||!clock.test(value.end)||value.start>=value.end)){setNotice('Enter valid availability hours.');return;}

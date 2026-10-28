@@ -5,6 +5,20 @@ const clean=value=>typeof value==='string'?value.trim().slice(0,500):'';
 const nameKey=value=>String(value||'').trim().toLocaleLowerCase();
 const mainId=category=>category.id||`homecare-main-${slug(category.name)}`;
 
+/** Category forms opened inside an existing category do not render a picker. */
+export function homecareCategoryIdFromForm(formData,selectedCategoryId=''){
+ return String(formData?.get?.('categoryId')||selectedCategoryId||'').trim();
+}
+
+/** Saved, eligible catalogue options for one provider's caregiver skills form. */
+export function homecareCaregiverServiceOptions(state,providerId){
+ const catalogue=homecareCatalogueForState(state,{includeInactive:true});
+ return {
+  categories:(catalogue.categories||[]).filter(value=>value.active!==false&&!value.archived),
+  services:(catalogue.services||[]).filter(value=>value.active!==false&&!value.archived&&(!value.ownerProviderId||value.ownerProviderId===providerId)),
+ };
+}
+
 /** The original four categories remain built in; extra shared categories are admin-managed. */
 export function homecareCategoriesForState(s,{includeInactive=true}={}){
  const core=homecareServiceCategories.map(value=>({id:`homecare-main-${slug(value.name)}`,...value,active:true,archived:false,isCore:true}));
