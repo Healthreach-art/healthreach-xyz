@@ -13,7 +13,8 @@ export function HomecareBooking({s,service,serviceId,providerId,address,act,busy
  // priced offer and schedule. Old marketplace flags can be stale and must not
  // block the same catalogue entry patients just selected.
  const candidates=s.providers.filter(provider=>provider.type==='Homecare'&&provider.status==='Approved'&&hasPatientBookableHomecareOffer(provider)&&offeringFor(provider));
- const [selected]=useState(providerId||candidates[0]?.id||''),[duration,setDuration]=useState(2),[step,setStep]=useState(0),[draft,setDraft]=useState(null),[saved,setSaved]=useState(null),[scenario,setScenario]=useState('Success'),[message,setMessage]=useState('');
+ const privacyNotice=s.legalDocuments?.find(document=>document.id==='privacy'),initialPrivacyAcceptance=!s.realAccount||Boolean(privacyNotice&&(s.acceptances||[]).some(acceptance=>acceptance.documentId==='privacy'&&acceptance.version===privacyNotice.version&&acceptance.accepted));
+ const [selected]=useState(providerId||candidates[0]?.id||''),[duration,setDuration]=useState(2),[step,setStep]=useState(0),[draft,setDraft]=useState(null),[saved,setSaved]=useState(null),[scenario,setScenario]=useState('Success'),[message,setMessage]=useState(''),[privacyAccepted,setPrivacyAccepted]=useState(initialPrivacyAcceptance),[showPrivacyPrompt,setShowPrivacyPrompt]=useState(false);
  const paying=useRef(false),bookingKey=useRef(''),provider=candidates.find(value=>value.id===selected),offering=provider&&offeringFor(provider);
  const pricingModel=offering?.pricingModel||'hourly',minDuration=Number(offering?.minDuration||1),maxDuration=Number(offering?.maxDuration||24),visitDuration=Math.max(minDuration,Math.min(duration,maxDuration));
  const total=Math.round((offering?.rate||0)*(pricingModel==='hourly'?visitDuration:1)*100)/100,record=s.records?.find(value=>value.id===saved?.id)||saved;
@@ -46,6 +47,19 @@ export function HomecareBooking({s,service,serviceId,providerId,address,act,busy
   finally{paying.current=false;}
  }
 
+ async function continueToPayment(){
+  if(!privacyAccepted){setShowPrivacyPrompt(true);return;}
+  await reserveBooking();
+ }
+
+ async function acceptPrivacyAndContinue(){
+  if(!privacyNotice){setMessage('The current privacy notice is unavailable. Please contact support.');return;}
+  const accepted=await act('acceptLegal',{documentId:privacyNotice.id,version:privacyNotice.version,accepted:true},'Privacy notice accepted for your account');
+  if(!accepted)return;
+  setPrivacyAccepted(true);setShowPrivacyPrompt(false);
+  await reserveBooking();
+ }
+
  if(!provider||!offering)return <div className="form homecare-direct-checkout" role="status"><h2>Service booking unavailable</h2><p>This published service could not be matched to its saved provider price. Please return to Homecare and try again, or contact support. No request or payment was created.</p></div>;
  return <div className="form homecare-direct-checkout">
   <div className="eyebrow">HEALTHREACHCARE HOMECARE</div>
@@ -72,7 +86,7 @@ export function HomecareBooking({s,service,serviceId,providerId,address,act,busy
    <div className="summary-line total"><span>Final total</span><b>{money(total)}</b></div>
    <p className="notice"><ShieldCheck size={17}/> You can request the date, time and area that work for you. The Homecare team will confirm the visit and assign a caregiver after booking.</p>
    <button className="homecare-checkout-primary" disabled={busy} onClick={()=>setStep(0)}><ArrowLeft size={16}/> Edit care details</button>
-   <button disabled={busy||!canDemoPay} onClick={()=>void reserveBooking()}>{busy?'Saving…':'Continue to payment'}</button>
+   <button disabled={busy||!canDemoPay} onClick={()=>void continueToPayment()}>{busy?'Saving…':'Continue to payment'}</button>
    {!canDemoPay&&<p role="status" className="muted">Payment processing is not connected. No payment or booking confirmation will be created.</p>}
   </>}
 
@@ -82,6 +96,7 @@ export function HomecareBooking({s,service,serviceId,providerId,address,act,busy
    <div className="summary-line total"><span>Amount due</span><b>{money(record.total)}</b></div>
    {canDemoPay?<><p className="notice"><ShieldCheck size={17}/> Demo payment only. No real money is collected. The booking is sent to Homecare for confirmation after the payment is successfully saved.</p><details className="homecare-payment-test"><summary>Test payment outcome</summary><label>Outcome<select value={scenario} onChange={event=>setScenario(event.target.value)}><option value="Success">Successful</option><option value="Failure">Declined</option><option value="Cancel">Cancelled</option></select></label></details><CheckoutConsent s={s} act={act} busy={busy} homecare/><button disabled={busy||record.payment==='Paid'} onClick={()=>void payAndConfirm()}>{busy?'Processing…':`Pay now (demo) ${money(record.total)}`}</button><p className="muted">A declined or cancelled payment leaves this booking unpaid. You can retry from this screen or Activities.</p></>:<p role="status" className="notice">Payment processing is not connected. This reservation is not confirmed.</p>}
   </>}
+  {showPrivacyPrompt&&<div className="homecare-privacy-backdrop"><section className="homecare-privacy-dialog" role="dialog" aria-modal="true" aria-labelledby="homecare-privacy-title"><h3 id="homecare-privacy-title">Privacy notice</h3><p>Please review and accept the current privacy notice before your first Homecare booking. This acceptance is saved to your account and will not be requested again for this version.</p><details><summary>{privacyNotice?.title||'Current privacy notice'}</summary><p>{privacyNotice?.body||privacyNotice?.text||'HealthReachCare uses your booking details to coordinate care with the relevant Homecare team.'}</p></details><div className="toolbar"><button type="button" className="outline" disabled={busy} onClick={()=>setShowPrivacyPrompt(false)}>Not now</button><button type="button" disabled={busy} onClick={()=>void acceptPrivacyAndContinue()}>{busy?'Saving…':'Accept & continue'}</button></div></section></div>}
   {message&&<p role="status" aria-live="polite">{message}</p>}
  </div>;
 }
