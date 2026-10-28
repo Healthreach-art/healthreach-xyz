@@ -4,6 +4,7 @@ import {careBookingPrice} from '../lib/matching.mjs';
 import {homecareCatalogueForState,homecareCategoryIdFromForm,homecareCaregiverServiceOptions,homecareProviderOfferList,projectHomecareCatalogue} from '../lib/homecare-catalogue.mjs';
 import {homecareMarketplaceEntries} from '../lib/homecare-marketplace.mjs';
 import {homecareServiceCategories} from '../lib/service-categories.mjs';
+import {marketAvailable,publicMarket} from '../lib/marketplace.mjs';
 
 const provider={id:'provider-fixture',type:'Homecare',name:'Existing provider fixture',location:'Saved provider area',status:'Approved',acceptingOrders:true,availabilityConfigured:true,publication:{status:'Published'},services:[],weekdays:[0,1,2,3,4,5,6],openTime:'00:00',closeTime:'23:59'};
 const s={providers:[provider],records:[],notifications:[],payments:[],products:[],profiles:{},connectedAccounts:true,homecarePolicy:{mode:'marketplace'},marketPolicy:{commissionBps:0,processingBps:0}};
@@ -138,6 +139,13 @@ assert.equal(listingResult.entries.length,1,'The patient catalogue receives the 
 assert.equal(listingResult.entries[0].service.rate,199.93);
 const staleListingState={...listingState,providers:[{...listingProvider,acceptingOrders:false,publication:{status:'Draft'},services:[{...listingOffer,active:true}]}]};
 assert.equal(homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(staleListingState.providers)},staleListingState,'Patient')).entries.length,1,'Existing approved providers with a saved active priced offer are visible even if old listing metadata is stale.');
+assert.equal(marketAvailable(staleListingState,listingProvider.id),true,'Patient API provider filtering must honor a saved active Homecare offer even when old provider-wide listing flags are stale.');
+const unpublishedListingState={...staleListingState,providers:[{...staleListingState.providers[0],services:[{...listingOffer,active:false}]}]};
+assert.equal(marketAvailable(unpublishedListingState,listingProvider.id),false,'Unpublishing the final Homecare offer removes the provider from patient discovery.');
+const publicListingState={...staleListingState,accountControls:{},applications:{},profiles:{'patient-listing-fixture':{}},products:[],refunds:[],payoutProfiles:{},settlementBatches:[],connectedAccounts:true};
+const publicListing={providers:structuredClone(publicListingState.providers),products:[],records:[]};
+publicMarket(publicListing,publicListingState,{role:'Patient',accountId:'patient-listing-fixture'});
+assert.equal(publicListing.providers.length,1,'The patient API must retain the provider when it projects approved published Homecare services.');
 actIn(listingState,'homecareServices',{services:[{...listingOffer,active:false}]},listingSession);
 assert.equal(listingProvider.publication.status,'Draft','Unpublishing the last offer removes it from the patient catalogue.');
 assert.equal(homecareMarketplaceEntries(projectHomecareCatalogue({providers:structuredClone(listingState.providers)},listingState,'Patient')).entries.length,0);

@@ -3,6 +3,7 @@ import {driverAreaEligible,driverProximity} from './experience.mjs';
 import { kmBetween, addressFor, serves, productKey } from './matching.mjs';
 import { digest } from './completion.mjs';
 import { handleBusiness } from './business.mjs';
+import { hasPatientBookableHomecareOffer } from './homecare-marketplace.mjs';
 const providerRoles = ['Pharmacy', 'Doctor', 'Homecare', 'Driver'];
 const words = (v, max = 200) => { if (typeof v !== 'string' || !v.trim() || v.length > max)
     throw Error('Complete the required information'); return v.trim(); };
@@ -76,7 +77,7 @@ export function maintainMarket(s) { let changed = false; for (const t of s.deliv
         }
     }
 } return changed; }
-export function marketAvailable(s, id) { const d = s.providers.find(v => v.id === id); return !!d && s.accountControls[id]?.status !== 'Suspended' && d.status === 'Approved' && ['Published', 'Sample preview'].includes(d.publication?.status) && (!s.applications[id] || s.applications[id].status === 'Approved' && s.applications[id].checks.every(v => v.result === 'Simulated verified' && v.expiresAt > Date.now())); }
+export function marketAvailable(s, id) { const d = s.providers.find(v => v.id === id), homecareOfferReady=d?.type==='Homecare'&&hasPatientBookableHomecareOffer(d),accountControl=s.accountControls?.[id],application=s.applications?.[id]; return !!d && accountControl?.status !== 'Suspended' && d.status === 'Approved' && (homecareOfferReady || ['Published', 'Sample preview'].includes(d.publication?.status)) && (!application || application.status === 'Approved' && application.checks.every(v => v.result === 'Simulated verified' && v.expiresAt > Date.now())); }
 export function publicMarket(out, s, session) { if (session.role === 'Patient') {
     out.providers = out.providers.filter(d => marketAvailable(s, d.id));
     const address = addressFor(s, session.accountId);
