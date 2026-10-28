@@ -140,5 +140,17 @@ const listingResult=homecareMarketplaceEntries(projectHomecareCatalogue({provide
 assert.equal(listingResult.entries.length,1,'Once the approved provider opts in and saves location, the patient catalogue receives the offer.');
 assert.equal(listingResult.entries[0].service.rate,199.93);
 assert.throws(()=>actIn(listingState,'homecareListingSettings',{location:'Parow',serviceAreas:'',acceptingOrders:true},listingSession),/at least one service area/);
+// Existing provider data can contain same-name draft offers (for example
+// duplicate legacy entries with different prices). A full-form save must not
+// fail merely because both old entries are posted together, but only one may
+// be published to patients at a time.
+const duplicateA={id:'legacy-bucket-199',masterServiceId:'provider-service-provider-listing-fixture-bucket-199',providerDefined:true,category:'Personal care',categoryId:'homecare-main-personal-care',parentId:'homecare-main-personal-care',name:'BUCKET',description:'Legacy draft A.',rate:199.93,pricingModel:'hourly',minDuration:1,maxDuration:8,availability:[{weekday:1,start:'08:00',end:'18:00'}],active:false};
+const duplicateB={...duplicateA,id:'legacy-bucket-300',masterServiceId:'provider-service-provider-listing-fixture-bucket-300',description:'Legacy draft B.',rate:300};
+const duplicateProvider={...listingProvider,id:'provider-duplicate-fixture',services:[duplicateA,duplicateB]};
+const duplicateState={...listingState,providers:[duplicateProvider]};const duplicateSession={...listingSession,accountId:duplicateProvider.id};
+actIn(duplicateState,'homecareServices',{services:[{...duplicateA,active:true},duplicateB]},duplicateSession);
+assert.equal(duplicateProvider.services.find(value=>value.id===duplicateA.id).active,true,'A saved legacy duplicate can be edited and published.');
+assert.equal(duplicateProvider.services.find(value=>value.id===duplicateB.id).active,false,'The other duplicate remains an unpublished draft.');
+assert.throws(()=>actIn(duplicateState,'homecareServices',{services:[{...duplicateA,active:true},{...duplicateB,active:true}]},duplicateSession),/Only one service with the same name/);
 
 console.log('Shared Homecare catalogue: protected standard categories, admin-managed custom categories, provider-owned sub-services, patient visibility, booking price snapshots, permissions, listing eligibility and archive behavior passed.');
