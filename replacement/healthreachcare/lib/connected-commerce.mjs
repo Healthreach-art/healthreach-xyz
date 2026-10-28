@@ -7,13 +7,14 @@ import {validateSlot} from './completion.mjs';
 import {candidateTimes} from './appointment-calendar.mjs';
 import {careBookingPrice,serves,openNow} from './matching.mjs';
 import {homecareCatalogueForState,homecareMasterIdForService,homecareCategoriesForState,normalizeHomecareCatalogueUpdate} from './homecare-catalogue.mjs';
+import {hasPatientBookableHomecareOffer} from './homecare-marketplace.mjs';
 const ended=r=>!r||['Completed','Delivered','Collected','Cancelled','Rejected','Declined'].includes(r.status);
 const text=(v,max=300)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw Error('Complete the required fields.');return v.trim();};
 const slug=value=>String(value||'').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)||crypto.randomUUID();
 const minor=v=>{if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>1000000)throw Error('Invalid saved price.');return Math.round(v*100);};
 const sequence={Order:{'Order confirmed':['Accepted','Declined'],Accepted:['Processing'],Processing:['Prepared'],Prepared:['Ready for dispatch','Ready for collection'],'Ready for collection':['Collected']},Doctor:{Confirmed:['Accepted','In consultation','Declined'],Accepted:['In consultation'], 'In consultation':['Completed']},Homecare:{'Paid — scheduling':['Accepted','Scheduled','Declined'],Accepted:['Scheduled','Assigned'],Scheduled:['Assigned'],Assigned:['On the way'],'On the way':['Arrived'],Arrived:['In progress'],'In progress':['Completed']}};
 export const commerceActions=['platformDeliverySettings','updateCheckoutAddress','checkout','checkoutPay','request','pay','transition','assignHomecareCaregiver','unassignHomecareCaregiver','cancel','requestCareAvailability','assignCareProvider','publishConnectedProvider','providerProfile','homecareListingSettings','homecareServices','homecareCatalogue','saveHomecareMainService','archiveHomecareMainService','deleteHomecareService','requestHomecareService','reviewHomecareServiceRequest','pharmacySettings','product','productBulk','savePayoutBusiness','removeProduct','appointmentAvailability','openConversation','message','sendMessage'];
-export function providerAvailable(s,id,type){const d=s.providers.find(d=>d.id===id&&(!type||d.type===type));if(!d||d.status!=='Approved'||d.acceptingOrders!==true||d.publication?.status!=='Published'||type==='Doctor'&&!d.professionalVerified)throw Error('This provider is not available for new bookings.');return d;}
+export function providerAvailable(s,id,type){const d=s.providers.find(d=>d.id===id&&(!type||d.type===type)),homecareReady=type==='Homecare'&&hasPatientBookableHomecareOffer(d);if(!d||d.status!=='Approved'||(!homecareReady&&(d.acceptingOrders!==true||d.publication?.status!=='Published'))||type==='Doctor'&&!d.professionalVerified)throw Error('This provider is not available for new bookings.');return d;}
 function checkArea(d,address){if(d.matchingEnabled&&!serves(d,address))throw Error('This address is outside the provider service area.');}
 export function handleConnectedCommerce(c){
  const {s,p,session,action,now,id,event,check}=c;if(!commerceActions.includes(action))return false;
@@ -121,7 +122,11 @@ export function handleConnectedCommerce(c){
   for(const category of catalogue.categories){const root=nextServices.find(value=>value.masterServiceId===category.id);if(root)root.active=nextServices.some(value=>value.parentId===category.id&&value.active&&value.rate>0);}
   if(nextServices.some(value=>value.parentId&&(!servicesById.has(value.parentId)||servicesById.get(value.parentId).parentId||servicesById.get(value.parentId).category!==value.category)))throw Error('A sub-service must refer to a valid main service in the shared catalogue.');
   const publishedNames=new Set();for(const value of nextServices.filter(item=>item.providerDefined&&item.active)){const key=value.category.toLocaleLowerCase()+'\u0000'+value.name.toLocaleLowerCase();if(publishedNames.has(key))throw Error('Only one service with the same name can be published in a category. Unpublish or rename the duplicate first.');publishedNames.add(key);}
-  d.services=nextServices;d.availabilityConfigured=nextServices.some(value=>value.parentId&&value.active===true&&Number(value.rate)>0&&value.availability?.length>0);d.serviceCatalogueUpdatedAt=now;refreshConnectedPublication(d);return true;
+  d.services=nextServices;d.availabilityConfigured=nextServices.some(value=>value.parentId&&value.active===true&&Number(value.rate)>0&&value.availability?.length>0);
+  // For an approved Homecare provider, publishing any valid priced offer is the
+  // opt-in to patient listings and bookings. There is no separate listing setup.
+  if(d.status==='Approved'&&d.availabilityConfigured)d.acceptingOrders=true;
+  d.serviceCatalogueUpdatedAt=now;refreshConnectedPublication(d);return true;
  }
  if(action==='providerProfile'&&session.role==='Homecare'&&p.services!==undefined)throw Error('Homecare services are managed from the shared Services & Pricing catalogue.');
  if(action==='providerProfile'){
