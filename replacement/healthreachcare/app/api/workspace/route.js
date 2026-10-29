@@ -175,7 +175,7 @@ export function publicState(s, session) {
     out.tickets = out.tickets.filter((t) => session.role === 'Admin' || ['Patient', 'Driver'].includes(session.role) && t.patientId === session.accountId || session.role === 'Pharmacy' && ids.has(t.recordId) && (!t.team || t.team === 'Pharmacy'));
     out.audit = session.role === 'Admin' ? out.audit : [];
     out.products = out.products.filter((p) => session.role==='Admin'||session.role==='Pharmacy'&&p.ownerId===session.pharmacyId||session.role!=='Pharmacy'&&p.active&&!p.removed);
-    out.profile = session.role === 'Patient' ? s.profiles[session.accountId] : { name: session.name, address: 'Fictional provider workspace', email: session.accountId + '@example.test', preferences: false };
+    out.profile = session.role === 'Patient' ? (s.profiles?.[session.accountId]||{name:session.name||'',address:'',email:'',addresses:[],selectedAddressId:null,preferences:false}) : { name: session.name, address: 'Fictional provider workspace', email: session.accountId + '@example.test', preferences: false };
     out.drivers = Object.values(s.drivers).filter((d) => ['Admin', 'Pharmacy'].includes(session.role) || d.id === session.accountId);
     if (session.role === 'Driver') {
         const driver = s.drivers[session.accountId];

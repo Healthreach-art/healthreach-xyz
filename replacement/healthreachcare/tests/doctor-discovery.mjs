@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {discoverDoctors,handleDoctorOperations} from '../lib/doctor-operations.mjs';
-import {doctorHasSavedAvailability,refreshConnectedPublication} from '../lib/service-categories.mjs';
+import {doctorHasSavedAvailability,doctorServiceCategories,doctorServiceCatalog,refreshConnectedPublication} from '../lib/service-categories.mjs';
+import {handleConnectedCommerce} from '../lib/connected-commerce.mjs';
 
 const tomorrow=new Date(Date.now()+86400000).toISOString().slice(0,10);
 const provider={id:'doctor-fixture',type:'Doctor',status:'Approved',professionalVerified:true,acceptingOrders:true,publication:{status:'Draft'},name:'Dr Fixture',speciality:'GP',qualifications:'Fixture qualification',registration:'TEST-REG',location:'Fixture practice, Cape Town',languages:'English',fee:350,modes:['In-person','Online demo'],durationMinutes:30,matchingEnabled:true,deliveryRadiusKm:20,coordinates:{latitude:-33.9,longitude:18.6},weekdays:[0,1,2,3,4,5,6],slots:['09:00','09:30'],openTime:'09:00',closeTime:'10:00'};
@@ -65,4 +66,20 @@ const discoveryExtra={};
 await handleDoctorOperations({s:state,p:{specialty:'General Consultation',mode:'In-person',date:tomorrow},session:{role:'Patient',accountId:'patient'},action:'discoverDoctors',now:new Date().toISOString(),id:'fixture-id',check(){},extra:discoveryExtra});
 assert.deepEqual(discoveryExtra.doctorDiscoverySummary,{registeredDoctors:1,eligibleDoctors:1,matchingDoctors:1});
 
-console.log('Doctor discovery and publication tests passed: GP matching, no-pin browsing, verified coordinates, profile-only results, approval gates, schedule publication and safe aggregate empty-state counts.');
+
+// Per-service prices drive patient discovery, rather than a single practice-wide fee.
+const priced=structuredClone(state),pricedDoctor=priced.providers[0];pricedDoctor.categories=['doctor-general','doctor-womens-health'];pricedDoctor.servicePrices=[{serviceId:'doctor-general',price:275,active:true},{serviceId:'doctor-womens-health',price:640,active:true}];pricedDoctor.fee=275;pricedDoctor.speciality='Family medicine';
+const women=discoverDoctors(priced,{accountId:'patient'},{specialty:"Women's Health",mode:'In-person',date:tomorrow});assert.equal(women.length,1);assert.equal(women[0].fee,640);assert.equal(women[0].serviceId,'doctor-womens-health');
+const general=discoverDoctors(priced,{accountId:'patient'},{specialty:'General Consultation',mode:'In-person',date:tomorrow});assert.equal(general[0].fee,275);
+const archived=structuredClone(priced);archived.doctorServiceCatalog=doctorServiceCategories.map(v=>({...v,active:v.id!=='doctor-womens-health'}));assert.equal(discoverDoctors(archived,{accountId:'patient'},{specialty:"Women's Health",mode:'In-person',date:tomorrow}).length,0);
+
+// Doctor profile submission saves an independent rand amount for every selected shared service.
+const profileState=structuredClone(priced),profileProvider=profileState.providers[0];await handleConnectedCommerce({s:profileState,p:{name:profileProvider.name,description:'Updated service prices',location:profileProvider.location,acceptingOrders:true,weekdays:[0,1,2,3,4,5,6],openTime:'09:00',closeTime:'17:00',speciality:'Family medicine',qualifications:profileProvider.qualifications,registration:profileProvider.registration,durationMinutes:30,modes:['In-person'],categories:['doctor-general','doctor-womens-health'],servicePrices:[{serviceId:'doctor-general',price:290},{serviceId:'doctor-womens-health',price:675}]},session:{role:'Doctor',accountId:profileProvider.id},action:'providerProfile',now:new Date().toISOString(),id:'doctor-profile-save',check(){},extra:{}});assert.deepEqual(profileProvider.servicePrices.map(v=>v.price),[290,675]);assert.equal(profileProvider.fee,290);
+
+// Admin changes affect the shared catalogue; removing an ID archives it instead of erasing it.
+const adminState=structuredClone(priced),adminExtra={};await handleConnectedCommerce({s:adminState,p:{services:doctorServiceCategories.map(({id,name,description,keywords})=>({id,name,description,keywords,active:id!=='doctor-child-health'}))},session:{role:'Admin',accountId:'admin'},action:'saveDoctorServiceCatalog',now:new Date().toISOString(),id:'catalog-audit',check(){},extra:adminExtra});assert.equal(doctorServiceCatalog(adminState).some(v=>v.id==='doctor-child-health'),false);assert.equal(doctorServiceCatalog(adminState,{includeInactive:true}).some(v=>v.id==='doctor-child-health'),true);
+
+// Reservation stores the selected service and exact saved price in its immutable price snapshot.
+const bookingState=structuredClone(priced),bookingExtra={};await handleConnectedCommerce({s:bookingState,p:{type:'Doctor',doctorId:'doctor-fixture',serviceId:'doctor-womens-health',specialty:"Women's Health",date:tomorrow,time:'09:00',mode:'In-person',expectedFee:640,address:'Parow',addressDetails:{formatted:'15 Williams Street, Parow',latitude:-33.9,longitude:18.6},bookingKey:'service-price-fixture'},session:{role:'Patient',accountId:'patient'},action:'request',now:new Date().toISOString(),id:'appointment-service-price',demoPayments:true,extra:bookingExtra,canAccess:()=>true,event:(record,status,note)=>{record.status=status;record.history.push({status,note});},check(){}});const saved=bookingState.records.find(v=>v.id==='appointment-service-price');assert.equal(saved.title,"Women's Health");assert.equal(saved.total,640);assert.equal(saved.serviceSnapshot.price,640);assert.equal(saved.serviceId,'doctor-womens-health');
+
+console.log('Doctor discovery and pricing tests passed: Cape Town visibility, service-specific prices, admin catalogue archive, profile-only results, and price snapshots.');
