@@ -174,6 +174,20 @@ button:focus:not(:focus-visible){outline:none}
 @media(max-width:640px){.partner-portal{padding:0 16px 36px}.partner-portal-grid{grid-template-columns:1fr;gap:12px}.partner-portal-card{padding:15px;border-radius:15px}.partner-gateway{grid-template-columns:44px minmax(0,1fr);gap:12px;padding:19px}.partner-gateway>.public-button{grid-column:1/-1;justify-self:stretch;text-align:center}.partner-portal-footer{flex-wrap:wrap;font-size:13px}}
 @media(prefers-reduced-motion:reduce){.public-hero-copy{animation:none}}
 
+/* Public landing hero: brand sits beside the logo; the image stays uncropped,
+   with the two entry actions in the green strip immediately beneath it. */
+.public-shell .brand-copy{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15}
+.public-shell .brand-copy small{display:block;margin-top:4px;color:#56736a;font-size:12px;font-weight:600;letter-spacing:0}
+.public-shell .public-hero{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;min-height:0!important;height:auto!important;border-radius:0;background:#f3f8f5;overflow:hidden}
+.public-shell .public-hero:after{display:none}
+.public-shell .public-hero-image{position:relative;width:100%;aspect-ratio:1024/685;background:#f3f8f5}
+.public-shell .public-hero-image img{object-fit:contain!important;object-position:center!important}
+.public-shell .public-hero-copy{width:100%;max-width:none;padding:18px 24px;background:var(--green);color:#fff;animation:none}
+.public-shell .public-hero .public-actions{max-width:560px;margin:0 auto;justify-content:center;gap:12px}
+.public-shell .public-hero .public-actions a{min-width:180px;background:#fff;color:#075b43;border-color:#fff}
+.public-shell .public-hero .public-actions a.secondary{background:transparent;color:#fff;border-color:#ffffffbd}
+@media(max-width:600px){.public-shell .public-hero-copy{padding:14px 16px}.public-shell .public-hero .public-actions{flex-direction:row;gap:10px}.public-shell .public-hero .public-actions a{width:auto;min-width:0;flex:1;padding:12px 8px;font-size:14px}.public-shell .brand-copy small{font-size:11px}}
+
 /* Keep patient Homecare cards readable when a provider-supplied name or description is long. */
 .homecare-marketplace .journey-service{max-width:100%;box-sizing:border-box;align-items:flex-start}
 .homecare-marketplace .journey-service>span:nth-child(2){flex:1;min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
