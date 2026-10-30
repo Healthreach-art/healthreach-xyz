@@ -1,6 +1,6 @@
 import {candidateTimes,calendarDays,validDay} from './appointment-calendar.mjs';
 import {validateSlot,eligibleDoctor} from './completion.mjs';
-import {kmBetween,serves} from './matching.mjs';
+import {kmBetween} from './matching.mjs';
 import {doctorServiceCatalog,refreshConnectedPublication} from './service-categories.mjs';
 const text=(v,max=500)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw Error('Complete required information');return v.trim();};
 const account=id=>'provider:'+id;
@@ -12,7 +12,8 @@ export function publicDoctorOperations(out,s,session){delete out.doctorContacts;
 function validClock(v){return typeof v==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(v);}
 function modes(s,d,mode){if(mode!=='All'&&!(d.modes||[]).includes(mode))throw Error('Choose a configured consultation type');return mode;}
 function doctorEligible(s,d){try{eligibleDoctor(s,d.id);const a=s.applications[d.id];return s.accountControls[d.id]?.status!=='Suspended'&&(!a||a.status==='Approved'&&a.checks.every(v=>v.expiresAt>Date.now()&&v.result==='Simulated verified'));}catch{return false;}}
-function doctorInCapeTown(d){const point=d.coordinates,hasCoords=Number.isFinite(point?.latitude)&&Number.isFinite(point?.longitude);if(hasCoords)return point.latitude>=-34.45&&point.latitude<=-33.45&&point.longitude>=18.15&&point.longitude<=19.15;const value=[d.location,...(Array.isArray(d.serviceAreas)?d.serviceAreas:[d.serviceAreas||''])].filter(Boolean).join(' ').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();return /cape town|parow|bellville|goodwood|milnerton|brackenfell|kuils river|durbanville|somerset west|strand|gordon'?s bay|table view|blouberg|observatory|wynberg|claremont|athlone|khayelitsha|mitchells plain|cape flats/.test(value);}
+function withinCapeTown(point){return Number.isFinite(point?.latitude)&&Number.isFinite(point?.longitude)&&point.latitude>=-34.45&&point.latitude<=-33.45&&point.longitude>=18.15&&point.longitude<=19.15;}
+function doctorInCapeTown(d){const point=d.coordinates,hasCoords=Number.isFinite(point?.latitude)&&Number.isFinite(point?.longitude);if(hasCoords)return withinCapeTown(point);const value=[d.location,...(Array.isArray(d.serviceAreas)?d.serviceAreas:[d.serviceAreas||''])].filter(Boolean).join(' ').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();return /cape town|parow|bellville|goodwood|milnerton|brackenfell|kuils river|durbanville|somerset west|strand|gordon'?s bay|table view|blouberg|observatory|wynberg|claremont|athlone|khayelitsha|mitchells plain|cape flats/.test(value);}
 function servicePrice(d,category){if(!category)return Number.isFinite(d.fee)&&d.fee>0?d.fee:null;const item=(d.servicePrices||[]).find(v=>(v.serviceId===category.id||v.id===category.id||v.name===category.name)&&v.active!==false&&Number.isFinite(v.price)&&v.price>0);if(item)return item.price;const legacy=(d.services||[]).find(v=>v.active!==false&&(v.serviceId===category.id||v.name===category.name||v.category===category.name)&&Number.isFinite(v.rate)&&v.rate>0);if(legacy)return legacy.rate;const legacyText=[d.speciality,d.specialty,d.category,...(d.categories||[])].filter(v=>typeof v==='string').some(v=>category.pattern.test(v));return Number.isFinite(d.fee)&&d.fee>0&&(legacyText||(d.categories||[]).some(v=>v===category.id||v===category.name))?d.fee:null;}
 function doctorSpecialtyMatches(d,specialty,catalog){const value=String(specialty||'').trim().toLowerCase().replace(/[’']/g,'');if(!value)return true;const category=catalog.find(v=>v.name.toLowerCase().replace(/[’']/g,'')===value||v.id===specialty);if(category){const hasPrice=servicePrice(d,category)!==null;const selected=(d.categories||[]).some(v=>v===category.id||v===category.name)||((d.servicePrices||[]).some(v=>v.serviceId===category.id&&v.active!==false&&Number(v.price)>0))||(d.services||[]).some(v=>v.name===category.name||v.category===category.name)||[d.speciality,d.specialty].some(v=>typeof v==='string'&&category.pattern.test(v));return hasPrice&&selected;}const values=[d.speciality,d.specialty,d.category,...(d.categories||[]),...(d.services||[]).flatMap(v=>typeof v==='string'?[v]:[v.name,v.category])].filter(v=>typeof v==='string');return values.some(v=>v.toLowerCase().includes(value));}
 export function discoverDoctors(s,session,p){
@@ -27,10 +28,12 @@ export function discoverDoctors(s,session,p){
   if(d.type!=='Doctor'||!doctorEligible(s,d)||!doctorInCapeTown(d))return false;
   const matchesSpecialty=doctorSpecialtyMatches(d,specialty,catalog);
   const matchesMode=!mode||(d.modes||[]).includes(mode);
-  // Browsing never requires a patient pin. Apply provider service-area matching only
-  // when the patient supplied actual coordinates and explicitly chose in-person care.
-  const matchesArea=!d.matchingEnabled||mode!=='In-person'||!hasCoordinates||serves(d,address);
-  return matchesSpecialty&&matchesMode&&matchesArea;
+  // Cape Town doctors remain visible throughout the metro: their service-radius
+  // setting must not hide a profile from patients in another Cape Town suburb.
+  // A verified patient pin still limits in-person discovery to the Cape Town area;
+  // without a pin, patients can browse profiles and compare actual distances.
+  const matchesPatientCity=mode!=='In-person'||!hasCoordinates||withinCapeTown(address);
+  return matchesSpecialty&&matchesMode&&matchesPatientCity;
  }).map(d=>{
   let next=null;
   for(let i=0;i<14&&!next;i++){

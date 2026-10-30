@@ -4,6 +4,7 @@ export const productKey = p => [p.name, p.strength || '', p.form || '', p.packag
 export function kmBetween(a, b) { if (!a || !b || ![a.latitude, a.longitude, b.latitude, b.longitude].every(Number.isFinite))
     return null; const rad = x => x * Math.PI / 180, lat = rad(b.latitude - a.latitude), lon = rad(b.longitude - a.longitude), h = Math.sin(lat / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(lon / 2) ** 2; return Math.round(12742 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * 100) / 100; }
 export const addressFor = (s, id) => s.profiles[id]?.addresses?.find(a => a.id === s.profiles[id].selectedAddressId);
+const capeTownPoint = p => Number.isFinite(p?.latitude)&&Number.isFinite(p?.longitude)&&p.latitude>=-34.45&&p.latitude<=-33.45&&p.longitude>=18.15&&p.longitude<=19.15;
 export function serves(d, address) { const km = kmBetween(d.coordinates, address); if (km !== null)
     return km <= (d.deliveryRadiusKm || 15); return (d.serviceAreas || []).some(v => [address?.city, address?.suburb, address?.province].filter(Boolean).map(v => v.toLowerCase().trim()).includes(v.toLowerCase().trim())); }
 export function openNow(d,now=Date.now()) { if(d.weeklyHours)return withinHours(d,now);  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Johannesburg', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(Date.now()).map(v => [v.type, v.value])); const time = p.hour + ':' + p.minute; return (d.weekdays || [0, 1, 2, 3, 4, 5, 6]).includes(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday)) && time >= (d.openTime || '00:00') && time <= (d.closeTime || '23:59'); }
@@ -31,7 +32,7 @@ export function prepareMatch(s, session, action, p) {
     // matched provider marketplace. The selected, published offer and its
     // saved schedule are validated by the booking action; patient address and
     // legacy matchingEnabled flags must not hide or reject the offer.
-    if(action==='request'&&p.type==='Doctor'){const d=s.providers.find(d=>d.id===(p.doctorId||'doctor'));if(d?.matchingEnabled&&p.mode==='In-person'&&!serves(d,address))throw Error('No in-person service is available for this saved location. Choose an eligible practice or a supported online consultation.');}
+    if(action==='request'&&p.type==='Doctor'){const d=s.providers.find(d=>d.id===(p.doctorId||'doctor'));if(!d)throw Error('Choose an available doctor');if(Number.isFinite(d.coordinates?.latitude)&&Number.isFinite(d.coordinates?.longitude)&&!capeTownPoint(d.coordinates))throw Error('This doctor is not available in Cape Town.');const patientAddress=p.addressDetails||address;if(p.mode==='In-person'&&Number.isFinite(patientAddress?.latitude)&&Number.isFinite(patientAddress?.longitude)&&!capeTownPoint(patientAddress))throw Error('In-person appointments are currently available in Cape Town.');}
     if (action === 'rescheduleHomecare') {
         const r = s.records.find(r => r.id === p.id);
         const d = s.providers.find(d => d.id === r?.providerId);
