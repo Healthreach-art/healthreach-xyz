@@ -40,7 +40,7 @@ export function DoctorProfileAvatar({ provider, size = 72 }) {
   const source = savedPreview || publishedPhoto;
   const initials = String(provider?.name || 'Doctor').trim().split(/\\s+/).slice(0, 2).map(v => v[0]).join('').toUpperCase();
   return source
-    ? <Image unoptimized src={source} width={size} height={size} alt={pendingPhotoId ? 'Doctor profile photo saved for review' : 'Published doctor profile photo'} style={{ width: size, height: size, objectFit: 'cover', borderRadius: '50%' }}/>
+    ? <Image unoptimized src={source} width={size} height={size} alt={pendingPhotoId ? 'Doctor profile photo' : 'Published doctor profile photo'} style={{ width: size, height: size, objectFit: 'cover', borderRadius: '50%' }}/>
     : <span className="doctor-profile-avatar-placeholder" aria-label="Doctor profile photo placeholder" style={{ width: size, height: size }}>{initials || 'DR'}</span>;
 }
 
@@ -52,7 +52,7 @@ export function ProfilePhotoUpload({ act, busy, provider }) {
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   const displayedPhoto = preview || savedPreview || (!pendingPhotoId ? publishedPhoto : '');
   const photoCaption = preview ? 'Selected photo preview'
-    : pendingPhotoId ? (savedPreview ? 'Profile photo awaiting review' : 'Loading saved profile photo…')
+    : pendingPhotoId ? (savedPreview ? 'Saved public-profile photo awaiting review' : 'Loading saved profile photo…')
     : publishedPhoto ? 'Current patient-visible photo' : '';
 
   async function submit(event) {
@@ -81,7 +81,7 @@ export function ProfilePhotoUpload({ act, busy, provider }) {
     <h2>Profile photo</h2>
     <p>Use one photo for your Public profile and doctor account. A replacement stays private until its review is approved for patients.</p>
     {displayedPhoto && <div className="doctor-profile-photo-preview" role="img" aria-label={photoCaption}>
-      <Image unoptimized src={displayedPhoto} width={120} height={120} alt={pendingPhotoId ? 'Doctor profile photo saved for review' : preview ? 'Selected doctor profile photo preview' : 'Current published doctor profile photo'} style={{ objectFit: 'cover', borderRadius: '50%' }}/>
+      <Image unoptimized src={displayedPhoto} width={120} height={120} alt={pendingPhotoId ? 'Doctor profile photo' : preview ? 'Selected doctor profile photo preview' : 'Current published doctor profile photo'} style={{ objectFit: 'cover', borderRadius: '50%' }}/>
       <span>{photoCaption}</span>
     </div>}
     {pendingPhotoId && !savedPreview && !preview && <p role="status">Loading saved public-profile photo…</p>}
