@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import {SupportContacts} from './support-contacts';
 import {ProviderLocationPin} from './provider-location-pin';
 import {ProviderHours} from './provider-hours';
@@ -54,6 +55,22 @@ export function DeliveryExceptionForm({ task, act, busy }) { return <details><su
 function DoctorProfileEditor({s,act,busy,d}){
  const categories=(s.doctorServiceCatalog||doctorServiceCategories).filter(v=>v.active!==false);
  const profileSnapshot=JSON.stringify([d.name||'',d.description||'',d.location||'',d.serviceAreas||[],!!d.acceptingOrders,d.speciality||'',d.qualifications||'',d.registration||'',d.categories||[],d.servicePrices||[],d.modes||[],d.durationMinutes||30,d.business||{},d.coordinates||null]);
+ const [previewOpen,setPreviewOpen]=useState(false),[previewServiceId,setPreviewServiceId]=useState('');
+ const pricedServices=categories.map(category=>{const saved=(d.servicePrices||[]).find(v=>v.serviceId===category.id&&v.active!==false),legacy=d.categories?.includes(category.name)||d.categories?.includes(category.id),amount=Number(saved?.price??(legacy?d.fee:0));return amount>0?{...category,price:amount}:null;}).filter(Boolean);
+ const hasService=pricedServices.length>0,approved=d.status==='Approved'&&d.professionalVerified===true;
+ const live=approved&&d.acceptingOrders===true&&d.publication?.status==='Published'&&!d.publication?.manuallyHidden;
+ const listingMessage=live
+  ? 'Your public profile is live in patient doctor searches. Patients can view it now; they can book when an available appointment slot is saved.'
+  : d.status!=='Approved'?'Your profile is not visible yet. HealthReachCare approval is still required.'
+  : d.professionalVerified!==true?'Your profile is not visible yet. Professional verification must be completed.'
+  : !d.acceptingOrders?'Your profile is hidden from new patient searches. Turn on “Accept new appointment requests” to list it.'
+  : !d.name||!d.description||!d.location||!d.qualifications||!d.registration||!hasService||!(d.modes||[]).length
+   ? 'Your profile is not visible yet. Complete the required details, add at least one service price, and choose a consultation type.'
+   : d.publication?.manuallyHidden?'Your profile is hidden by an administrator. Contact support if this is unexpected.'
+   : 'Your profile is not live yet. Save your completed profile and prices to update its patient listing.';
+ const previewService=pricedServices.find(v=>v.id===previewServiceId)||pricedServices[0];
+ const patientPhoto=d.photoApproved===true&&d.publication?.status==='Published'&&typeof d.photoURL==='string'&&d.photoURL.startsWith('/api/product-image/');
+ const profileInitials=String(d.name||'Doctor').trim().split(/\s+/).slice(0,2).map(v=>v[0]).join('').toUpperCase();
  return <section className="section panel padded doctor-public-profile">
   <h1>Public profile</h1>
   <p>Manage your public practice details and service prices here. Appointment availability is managed in My working schedule.</p>
@@ -78,6 +95,35 @@ function DoctorProfileEditor({s,act,busy,d}){
    <p>Approved doctors with a complete public profile, at least one priced service and a Cape Town practice can appear to patients. Appointment slots are needed to book. Payment is collected only at the final checkout step.</p>
    <button disabled={busy}>Save doctor profile & prices</button>
   </form>
+  <section className="doctor-listing-status" aria-live="polite">
+   <div className="doctor-listing-status-copy"><span className={'doctor-listing-indicator'+(live?' is-live':'')} aria-hidden="true"/><div><strong>{live?'Online — visible to patients':'Not online yet'}</strong><p>{listingMessage}</p></div></div>
+   <button type="button" className="outline" onClick={()=>{setPreviewServiceId(pricedServices[0]?.id||'');setPreviewOpen(true);}}>Preview patient view</button>
+  </section>
+  {previewOpen&&<div className="journey-profile-backdrop doctor-preview-backdrop" role="presentation" onClick={e=>{if(e.target===e.currentTarget)setPreviewOpen(false);}}>
+   <section className="journey-profile-modal doctor-patient-preview" role="dialog" aria-modal="true" aria-labelledby="doctor-patient-preview-title">
+    <button type="button" className="journey-profile-back" onClick={()=>setPreviewOpen(false)}>← Back to public profile</button>
+    <div className="doctor-preview-label">PATIENT VIEW PREVIEW</div>
+    <h2 id="doctor-patient-preview-title">How patients see your profile</h2>
+    {!live&&<p className="notice">Preview only. Patients cannot see this listing until it is approved and published.</p>}
+    {live&&<p className="doctor-preview-live"><span className="doctor-listing-indicator is-live"/> Live patient listing</p>}
+    <article className="journey-doctor doctor-preview-card">
+     <div className="journey-doctor-main">
+      <div className="journey-profile-select doctor-preview-identity">
+       {patientPhoto?<Image unoptimized src={d.photoURL} width={72} height={72} alt={d.name+' profile photograph'}/>:<span className="journey-avatar doctor-preview-avatar">{profileInitials}</span>}
+       <span><b>{d.name||'Doctor name'}</b><small className="journey-specialty">{d.speciality||'Specialty not added'}</small>{approved&&<small className="journey-verified">Verified profile</small>}<span className="journey-pills">{(d.modes||[]).map(mode=><span key={mode}>{mode==='Online demo'?'Online':mode}</span>)}</span></span>
+      </div>
+      <div className="journey-doctor-price"><b>{previewService?price(previewService.price):'Price not set'}</b><small>{previewService?.name||'Consultation'}</small></div>
+     </div>
+     <div className="journey-doctor-facts">{d.location&&<span>{d.location}</span>}</div>
+     <p>{d.description||'No public description has been added.'}</p>
+     <label>Preview service<select value={previewService?.id||''} onChange={e=>setPreviewServiceId(e.target.value)} disabled={!pricedServices.length}>{pricedServices.length?pricedServices.map(v=><option key={v.id} value={v.id}>{v.name} · {price(v.price)}</option>):<option>No priced services yet</option>}</select></label>
+     <dl className="doctor-preview-details"><dt>Consultation types</dt><dd>{(d.modes||[]).map(mode=>mode==='Online demo'?'Online':mode).join(', ')||'Not added'}</dd><dt>Practice area</dt><dd>{d.location||'Not added'}</dd><dt>Qualifications</dt><dd>{approved?d.qualifications||'Not supplied':'Shown after professional review'}</dd><dt>Professional registration</dt><dd>{approved?d.registration||'Not supplied':'Shown after professional review'}</dd></dl>
+     <p className="journey-profile-availability">{d.availabilityConfigured?'Appointment times appear when saved working hours have available slots.':'No appointment times are available until you save your working schedule.'}</p>
+     <button type="button" className="journey-wide" disabled={!live||!d.availabilityConfigured}>View available dates &amp; times</button>
+     {!d.availabilityConfigured&&<small>Set working hours in My working schedule so patients can book.</small>}
+    </article>
+   </section>
+  </div>}
  </section>;
 }
 export function ProviderProfile(p) { const { s, role, act, busy } = p; const d = s.providers.find((d) => d.id === s.session.accountId); if (!d)
