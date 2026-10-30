@@ -53,11 +53,12 @@ export function HandoverForm({ task, act, busy }) { const purpose = task.status 
 export function DeliveryExceptionForm({ task, act, busy }) { return <details><summary>Report delivery problem</summary><form className="form" onSubmit={e => { e.preventDefault(); act('driverException', { taskId: task.id, ...Object.fromEntries(new FormData(e.currentTarget)) }); }}><label>Issue<select name="kind">{['Patient unavailable', 'Incorrect address', 'Pharmacy not ready', 'Package unavailable', 'Transport problem', 'Safety concern', 'Delivery delayed', 'Other'].map(k => <option key={k}>{k}</option>)}</select></label><label>Details<input name="note" required maxLength={500}/></label><button disabled={busy}>Pause and report problem</button></form></details>; }
 function DoctorProfileEditor({s,act,busy,d}){
  const categories=(s.doctorServiceCatalog||doctorServiceCategories).filter(v=>v.active!==false);
+ const profileSnapshot=JSON.stringify([d.name||'',d.description||'',d.location||'',d.serviceAreas||[],!!d.acceptingOrders,d.speciality||'',d.qualifications||'',d.registration||'',d.categories||[],d.servicePrices||[],d.modes||[],d.durationMinutes||30,d.business||{},d.coordinates||null]);
  return <section className="section panel padded doctor-public-profile">
   <h1>Public profile</h1>
   <p>Manage your public practice details and service prices here. Appointment availability is managed in My working schedule.</p>
   <ProfilePhotoUpload act={act} busy={busy} provider={d}/>
-  <form className="form" onSubmit={e=>{
+  <form key={profileSnapshot} className="form" onSubmit={e=>{
    e.preventDefault();
    const form=e.currentTarget,data=new FormData(form),selected=categories.filter(c=>data.get('doctor-service-'+c.id)==='on');
    const payload={...Object.fromEntries(data),acceptingOrders:data.get('acceptingOrders')==='on',categories:selected.map(c=>c.id),servicePrices:selected.map(c=>({serviceId:c.id,price:Number(data.get('doctor-price-'+c.id))})),durationMinutes:Number(data.get('durationMinutes')),modes:data.getAll('modes'),business:s.realAccount?Object.fromEntries(['legalName','tradingName','registrationNumber','licenceReference','representativeName','representativeRole','contactEmail','contactPhone'].map(k=>[k,data.get('business_'+k)||''])):undefined};
