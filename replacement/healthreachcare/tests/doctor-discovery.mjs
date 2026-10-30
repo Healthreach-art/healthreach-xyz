@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {discoverDoctors,handleDoctorOperations} from '../lib/doctor-operations.mjs';
 import {doctorHasSavedAvailability,doctorServiceCategories,doctorServiceCatalog,refreshConnectedPublication} from '../lib/service-categories.mjs';
 import {handleConnectedCommerce} from '../lib/connected-commerce.mjs';
+import {prepareMatch} from '../lib/matching.mjs';
 
 const tomorrow=new Date(Date.now()+86400000).toISOString().slice(0,10);
 const provider={id:'doctor-fixture',type:'Doctor',status:'Approved',professionalVerified:true,acceptingOrders:true,publication:{status:'Draft'},name:'Dr Fixture',speciality:'GP',qualifications:'Fixture qualification',registration:'TEST-REG',location:'Fixture practice, Cape Town',languages:'English',fee:350,modes:['In-person','Online demo'],durationMinutes:30,matchingEnabled:true,deliveryRadiusKm:20,coordinates:{latitude:-33.9,longitude:18.6},weekdays:[0,1,2,3,4,5,6],slots:['09:00','09:30'],openTime:'09:00',closeTime:'10:00'};
@@ -24,6 +25,16 @@ assert.ok(matches[0].nextAvailable);
 const typed=discoverDoctors(state,{accountId:'patient'}, {specialty:'General Consultation',mode:'In-person',addressDetails:{formatted:'15 Williams Street, Parow'},date:tomorrow});
 assert.equal(typed.length,1);
 assert.equal(typed[0].distanceKm,null);
+
+// A Cape Town patient sees a Cape Town doctor even when the provider's old
+// service-radius setting is narrower than the distance between two metro areas.
+const metro=structuredClone(state);metro.providers[0].deliveryRadiusKm=1;metro.providers[0].serviceAreas=['Parow'];
+const strandAddress={formatted:'Strand, Cape Town',city:'Strand',suburb:'Strand',province:'Western Cape',latitude:-34.05,longitude:18.82};
+const metroDoctors=discoverDoctors(metro,{accountId:'patient'},{specialty:'General Consultation',mode:'In-person',addressDetails:strandAddress,date:tomorrow});
+assert.equal(metroDoctors.length,1);
+assert.ok(metroDoctors[0].distanceKm>1);
+assert.doesNotThrow(()=>prepareMatch({s:metro,session:{accountId:'patient',role:'Patient'},action:'request',p:{type:'Doctor',doctorId:'doctor-fixture',mode:'In-person',addressDetails:strandAddress}}));
+assert.throws(()=>prepareMatch({s:metro,session:{accountId:'patient',role:'Patient'},action:'request',p:{type:'Doctor',doctorId:'doctor-fixture',mode:'In-person',addressDetails:{formatted:'Johannesburg',latitude:-26.2,longitude:28.0}}}),/Cape Town/);
 
 // A genuine coordinate can be used for service-area matching, and online stays independent.
 const outside=discoverDoctors(state,{accountId:'patient'}, {specialty:'General Consultation',mode:'In-person',addressDetails:{formatted:'Fixture address',latitude:-26.2,longitude:28.0},date:tomorrow});
