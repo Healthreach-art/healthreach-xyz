@@ -53,7 +53,7 @@ export function HandoverForm({ task, act, busy }) { const purpose = task.status 
 export function DeliveryExceptionForm({ task, act, busy }) { return <details><summary>Report delivery problem</summary><form className="form" onSubmit={e => { e.preventDefault(); act('driverException', { taskId: task.id, ...Object.fromEntries(new FormData(e.currentTarget)) }); }}><label>Issue<select name="kind">{['Patient unavailable', 'Incorrect address', 'Pharmacy not ready', 'Package unavailable', 'Transport problem', 'Safety concern', 'Delivery delayed', 'Other'].map(k => <option key={k}>{k}</option>)}</select></label><label>Details<input name="note" required maxLength={500}/></label><button disabled={busy}>Pause and report problem</button></form></details>; }
 function DoctorProfileEditor({s,act,busy,d}){
  const categories=(s.doctorServiceCatalog||doctorServiceCategories).filter(v=>v.active!==false);
- return <section className="section panel padded">
+ return <section className="section panel padded doctor-public-profile">
   <h1>Public profile</h1>
   <p>Manage your public practice details and service prices here. Appointment availability is managed in My working schedule.</p>
   <ProfilePhotoUpload act={act} busy={busy} provider={d}/>
