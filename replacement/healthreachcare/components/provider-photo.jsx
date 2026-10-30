@@ -10,9 +10,8 @@ export function useDoctorProfilePhoto(provider) {
     && typeof provider?.photoURL === 'string'
     && provider.photoURL.startsWith('/api/product-image/')
     ? provider.photoURL : '';
-  const [savedPreview, setSavedPreview] = useState('');
+  const [savedPhoto, setSavedPhoto] = useState({ id: '', url: '' });
   useEffect(() => {
-    setSavedPreview('');
     if (!pendingPhotoId) return;
     let active = true, objectUrl = '';
     async function loadSavedPhoto() {
@@ -23,15 +22,16 @@ export function useDoctorProfilePhoto(provider) {
         });
         if (!response.ok) throw new Error('Saved photo preview is unavailable.');
         objectUrl = URL.createObjectURL(await response.blob());
-        if (active) setSavedPreview(objectUrl);
+        if (active) setSavedPhoto({ id: pendingPhotoId, url: objectUrl });
         else URL.revokeObjectURL(objectUrl);
       } catch {
-        if (active) setSavedPreview('');
+        // Keep the last successful state; the ID check below prevents showing an older photo.
       }
     }
     void loadSavedPhoto();
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [pendingPhotoId]);
+  const savedPreview = savedPhoto.id === pendingPhotoId ? savedPhoto.url : '';
   return { pendingPhotoId, savedPreview, publishedPhoto };
 }
 
@@ -52,7 +52,7 @@ export function ProfilePhotoUpload({ act, busy, provider }) {
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   const displayedPhoto = preview || savedPreview || (!pendingPhotoId ? publishedPhoto : '');
   const photoCaption = preview ? 'Selected photo preview'
-    : pendingPhotoId ? (savedPreview ? 'Saved public-profile photo awaiting review' : 'Loading saved public-profile photo…')
+    : pendingPhotoId ? (savedPreview ? 'Profile photo awaiting review' : 'Loading saved profile photo…')
     : publishedPhoto ? 'Current patient-visible photo' : '';
 
   async function submit(event) {
@@ -69,9 +69,7 @@ export function ProfilePhotoUpload({ act, busy, provider }) {
     for (let i = 0; i < bytes.length; i += 8192) raw += String.fromCharCode(...bytes.subarray(i, i + 8192));
     setStatus('Saving photograph securely…');
     const saved = await act('uploadProfilePhoto', { base64: btoa(raw), consent }, 'Photograph saved for publication review');
-    setStatus(saved
-      ? 'Photo saved for review. This single public-profile photo is also used in your doctor account; patients see it after review is approved.'
-      : 'Photo was not saved. Resolve the error shown above and retry.');
+    setStatus(saved ? '' : 'Photo was not saved. Resolve the error shown above and retry.');
     if (saved) {
       setFile(null);
       setPreview('');

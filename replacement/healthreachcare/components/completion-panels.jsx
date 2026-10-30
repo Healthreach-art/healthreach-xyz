@@ -62,7 +62,7 @@ function DoctorProfileEditor({s,act,busy,d}){
  const listingMessage=live
   ? 'Your public profile is live in patient doctor searches. Patients can view it now; they can book when an available appointment slot is saved.'
   : d.status!=='Approved'?'Your profile is not visible yet. HealthReachCare approval is still required.'
-  : d.professionalVerified!==true?'Your profile is not visible yet. Professional verification must be completed.'
+  : d.professionalVerified!==true?'Your profile details are saved, but an administrator must verify your professional registration and qualifications before patients can find you. A completed profile does not verify credentials.'
   : !d.acceptingOrders?'Your profile is hidden from new patient searches. Turn on “Accept new appointment requests” to list it.'
   : !d.name||!d.description||!d.location||!d.qualifications||!d.registration||!hasService||!(d.modes||[]).length
    ? 'Your profile is not visible yet. Complete the required details, add at least one service price, and choose a consultation type.'
