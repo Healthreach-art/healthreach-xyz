@@ -19,7 +19,8 @@ export function PublicProfile({ s, act, busy }) { const d = s.providers.find(v =
     return <div className="notice">Complete your provider onboarding review before preparing a public profile.</div>;
  const profileFieldsComplete=!!(d.name&&d.description&&d.location&&d.languages&&Array.isArray(d.serviceAreas)&&d.serviceAreas.length);
  const pricedService=Array.isArray(d.servicePrices)&&d.servicePrices.some(v=>v.active!==false&&Number.isFinite(v.price)&&v.price>0) || Number.isFinite(d.fee)&&d.fee>0;
- const checksCurrent=(application.checks||[]).every(v=>v.result==='Simulated verified'&&Date.parse(v.expiresAt)>Date.now());
+ const serverNow=typeof s.serverTime==='number'?s.serverTime:Date.parse(String(s.serverTime||''));
+ const checksCurrent=Number.isFinite(serverNow)&&(application.checks||[]).every(v=>v.result==='Simulated verified'&&Date.parse(v.expiresAt)>serverNow);
  const listingOnline=d.type==='Doctor'&&d.status==='Approved'&&d.professionalVerified&&d.acceptingOrders===true&&d.publication?.status==='Published'&&s.accountControls?.[d.id]?.status!=='Suspended'&&checksCurrent;
  const listingRequirements=[];
  if(d.status!=='Approved'||application.status!=='Approved')listingRequirements.push('Administrator account approval');
