@@ -3,8 +3,10 @@ import {discoverDoctors,handleDoctorOperations} from '../lib/doctor-operations.m
 import {doctorHasSavedAvailability,doctorServiceCategories,doctorServiceCatalog,refreshConnectedPublication} from '../lib/service-categories.mjs';
 import {handleConnectedCommerce} from '../lib/connected-commerce.mjs';
 import {prepareMatch} from '../lib/matching.mjs';
+import {candidateTimes} from '../lib/appointment-calendar.mjs';
 
 const tomorrow=new Date(Date.now()+86400000).toISOString().slice(0,10);
+const fullDayDoctor={id:'full-day-doctor',durationMinutes:30,calendar:{rules:[{weekdays:[new Date(tomorrow+'T12:00:00Z').getUTCDay()],mode:'All',start:'00:00',end:'23:59'}],breaks:[],blocks:[]}};assert(candidateTimes(fullDayDoctor,tomorrow,'In-person').includes('23:30'),'24-hour schedules must include the final appointment ending at midnight');
 const provider={id:'doctor-fixture',type:'Doctor',status:'Approved',professionalVerified:true,acceptingOrders:true,publication:{status:'Draft'},name:'Dr Fixture',speciality:'GP',qualifications:'Fixture qualification',registration:'TEST-REG',location:'Fixture practice, Cape Town',languages:'English',fee:350,modes:['In-person','Online demo'],durationMinutes:30,matchingEnabled:true,deliveryRadiusKm:20,coordinates:{latitude:-33.9,longitude:18.6},weekdays:[0,1,2,3,4,5,6],slots:['09:00','09:30'],openTime:'09:00',closeTime:'10:00'};
 const state={providers:[structuredClone(provider)],accountControls:{},applications:{},records:[],profiles:{patient:{address:'15 Williams Street, Parow',addresses:[{id:'typed-address',formatted:'15 Williams Street, Parow',source:'manual',geocodingStatus:'Unverified'}],selectedAddressId:'typed-address'}}};
 
