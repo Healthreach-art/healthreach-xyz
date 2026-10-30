@@ -34,7 +34,7 @@ export function ProfilePhotoUpload({ act, busy, provider }) {
   return <form className="panel padded form section" onSubmit={submit}>
     <h2>Profile photo</h2>
     <p>Upload a clear PNG or JPEG (32–4096 pixels per side, maximum 2 MB). A new photo is private until the profile review is approved.</p>
-    {publishedPhoto && !preview && <div className="doctor-profile-photo-preview">
+    {publishedPhoto && !preview && <div style={{display:"flex",alignItems:"center",gap:14,padding:12,background:"#f2f8f5",borderRadius:12}}>
       <Image unoptimized src={provider.photoURL} width={120} height={120} alt="Current published doctor profile photo" style={{ objectFit: 'cover', borderRadius: '50%' }}/>
       <span>Current patient-visible photo</span>
     </div>}
