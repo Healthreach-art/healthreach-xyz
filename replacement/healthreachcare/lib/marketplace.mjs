@@ -4,6 +4,7 @@ import { kmBetween, addressFor, serves, productKey } from './matching.mjs';
 import { digest } from './completion.mjs';
 import { handleBusiness } from './business.mjs';
 import { hasPatientBookableHomecareOffer } from './homecare-marketplace.mjs';
+import { refreshConnectedPublication } from './service-categories.mjs';
 const providerRoles = ['Pharmacy', 'Doctor', 'Homecare', 'Driver'];
 const words = (v, max = 200) => { if (typeof v !== 'string' || !v.trim() || v.length > max)
     throw Error('Complete the required information'); return v.trim(); };
@@ -228,7 +229,15 @@ export async function handleMarket(c) {
         d.deliveryRadiusKm = Number(p.deliveryRadiusKm || 15);
         if (!Number.isFinite(d.deliveryRadiusKm) || d.deliveryRadiusKm < 1 || d.deliveryRadiusKm > 200)
             throw Error('Enter a radius from 1 to 200 km');
-        d.publication = { status: 'Draft', history: [...(d.publication?.history || []), { status: 'Draft', at: now, actor: owner }] };
+        const previousStatus=d.publication?.status;
+        d.publication = { ...d.publication, status: 'Draft', history: [...(d.publication?.history || []), { status: 'Draft', at: now, actor: owner }] };
+        if(d.type==='Doctor'){
+            refreshConnectedPublication(d);
+            if(d.publication.status==='Published'&&previousStatus!=='Published'){
+                d.publication.history.push({status:'Published',at:now,actor:owner,reason:'Automatically published after account approval and complete professional profile'});
+                notify(d.id,'Doctor profile published after professional approval and profile completion');
+            }
+        }
         return true;
     }
     if (action === 'submitPublicProfile') {
@@ -240,6 +249,11 @@ export async function handleMarket(c) {
             throw Error('Complete name, biography, location and languages');
         if (d.type === 'Doctor' && !d.professionalVerified)
             throw Error('Professional review is required');
+        if(d.type==='Doctor'){
+            refreshConnectedPublication(d);
+            if(d.publication.status!=='Published')throw Error('Complete the approved Cape Town practice profile, enable appointment requests, add a priced service and consultation type. Your profile does not need appointment slots to appear; a valid slot is required to book.');
+            return true;
+        }
         if (d.type === 'Pharmacy' && !s.products.some(v => v.ownerId === owner && v.active && !v.removed))
             throw Error('Add available products before submitting');
         if (d.type === 'Homecare' && !d.services?.length)
