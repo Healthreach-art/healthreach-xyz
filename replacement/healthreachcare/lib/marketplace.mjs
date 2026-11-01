@@ -206,8 +206,8 @@ export async function handleMarket(c) {
         if (!d)
             throw Error('Provider unavailable');
         const a = s.applications[owner];
-        if (!a || a.status !== 'Approved')
-            throw Error('Complete provider approval before preparing your public profile');
+        if (d.type !== 'Pharmacy' && (!a || a.status !== 'Approved'))
+            throw Error('Complete provider approval before preparing this public profile');
         d.name = words(p.name, 100);
         d.description = words(p.description, 1000);
         d.location = words(p.location, 250);
@@ -218,6 +218,11 @@ export async function handleMarket(c) {
         d.closeTime = p.closeTime || '23:59';
         if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(d.openTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(d.closeTime) || d.openTime >= d.closeTime)
             throw Error('Enter opening and closing times on the same day');
+        if(d.type==='Pharmacy'){
+            const latitude=Number(p.latitude),longitude=Number(p.longitude);
+            if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||latitude < -34.45||latitude > -33.45||longitude < 18.15||longitude > 19.15)
+                throw Error('Choose a real Cape Town address suggestion or use current location so the pharmacy can be listed.');
+        }
         if (p.latitude !== undefined && p.latitude !== '' || p.longitude !== undefined && p.longitude !== '') {
             const latitude = Number(p.latitude), longitude = Number(p.longitude);
             if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180)
@@ -230,7 +235,7 @@ export async function handleMarket(c) {
         if (!Number.isFinite(d.deliveryRadiusKm) || d.deliveryRadiusKm < 1 || d.deliveryRadiusKm > 200)
             throw Error('Enter a radius from 1 to 200 km');
         const previousStatus=d.publication?.status;
-        d.publication = { ...d.publication, status: 'Draft', history: [...(d.publication?.history || []), { status: 'Draft', at: now, actor: owner }] };
+        d.publication = { ...d.publication, status: d.type==='Pharmacy'&&a?.status==='Approved'?'Published':'Draft', history: [...(d.publication?.history || []), { status: d.type==='Pharmacy'&&a?.status==='Approved'?'Published':'Draft', at: now, actor: owner }] };
         if(d.type==='Doctor'){
             refreshConnectedPublication(d);
             if(d.publication.status==='Published'&&previousStatus!=='Published'){
