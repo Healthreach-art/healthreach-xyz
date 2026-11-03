@@ -1,6 +1,6 @@
 import {bankingRoles,bankingDetails,completePayoutProfile,missingPayoutEvidence,publicPayoutProfile,payoutEvidenceKinds} from './payout-banking.mjs';
 import {driverAreaEligible,driverProximity} from './experience.mjs';
-import { kmBetween, addressFor, serves, productKey } from './matching.mjs';
+import { kmBetween, addressFor, serves, productKey, openNow } from './matching.mjs';
 import { digest } from './completion.mjs';
 import { handleBusiness } from './business.mjs';
 import { hasPatientBookableHomecareOffer } from './homecare-marketplace.mjs';
@@ -10,11 +10,42 @@ const words = (v, max = 200) => { if (typeof v !== 'string' || !v.trim() || v.le
     throw Error('Complete the required information'); return v.trim(); };
 const closed = r => ['Delivered', 'Collected', 'Completed'].includes(r?.status);
 const accountFor = (s, id) => (s.drivers[id] ? 'driver:' : 'provider:') + id;
-export function upgradeMarket(s) { if (s.marketVersion === 3)
-    return false; s.marketVersion = 3; s.dispatchPolicy.allocation ??= 'Sequential'; s.matchingPolicy ??= { acceptanceMinutes: 5 }; s.promotions ??= []; s.refunds ??= []; s.payoutProfiles ??= {}; s.payoutChallenges ??= {}; s.settlementBatches ??= []; s.marketPolicy ??= { commissionBps: 0, processingBps: 0, processingFixedMinor: 0, payoutDay: 5, clearanceHours: 24, version: 1 }; for (const r of s.records)
-    if (r.payment === 'Paid')
-        r.feeSnapshot ??= { version: 0, commissionMinor: 0, processingMinor: 0, legacy: true }; for (const d of s.providers)
-    d.publication ??= { status: ['pharmacy','doctor','homecare'].includes(d.id)&&!(s.registeredAccounts || []).some(a => a.id === d.id) ? 'Sample preview' : 'Draft', history: [] }; s.version++; return true; }
+export function upgradeMarket(s) {
+    const previous = Number(s.marketVersion) || 0;
+    if (previous >= 5) return false;
+    if (previous < 3) {
+        s.dispatchPolicy.allocation ??= 'Sequential'; s.matchingPolicy ??= { acceptanceMinutes: 5 }; s.promotions ??= []; s.refunds ??= []; s.payoutProfiles ??= {}; s.payoutChallenges ??= {}; s.settlementBatches ??= []; s.marketPolicy ??= { commissionBps: 0, processingBps: 0, processingFixedMinor: 0, payoutDay: 5, clearanceHours: 24, version: 1 };
+        for (const r of s.records) if (r.payment === 'Paid') r.feeSnapshot ??= { version: 0, commissionMinor: 0, processingMinor: 0, legacy: true };
+        for (const d of s.providers) d.publication ??= { status: ['pharmacy','doctor','homecare'].includes(d.id)&&!(s.registeredAccounts || []).some(a => a.id === d.id) ? 'Sample preview' : 'Draft', history: [] };
+    }
+    // Existing listings become one shared app price only where all current
+    // branches agree. Conflicting prices require an administrator decision.
+    s.medicineCatalogue ??= {};
+    const groups = new Map();
+    for (const product of s.products || []) if (!product.removed) { const key=productKey(product); if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(product); }
+    for (const [key, products] of groups) {
+        let shared=s.medicineCatalogue[key];
+        const prices=[...new Set(products.map(v=>Number(v.price)).filter(v=>Number.isFinite(v)&&v>0))];
+        if(!shared){shared=prices.length===1?{productKey:key,name:products[0].name,strength:products[0].strength||'',form:products[0].form||'',packageSize:products[0].packageSize||'',requiresPrescription:products.some(v=>v.requiresPrescription),price:prices[0],status:'Published',createdAt:new Date().toISOString(),history:[]}:{productKey:key,name:products[0].name,strength:products[0].strength||'',form:products[0].form||'',packageSize:products[0].packageSize||'',requiresPrescription:products.some(v=>v.requiresPrescription),price:null,status:'Needs review',createdAt:new Date().toISOString(),history:[]};s.medicineCatalogue[key]=shared;}
+        shared.requiresPrescription=!!shared.requiresPrescription||products.some(v=>v.requiresPrescription);
+        for(const product of products){product.catalogueStatus=shared.status==='Published'?'Published':'Pending review';product.requiresPrescription=shared.requiresPrescription;if(shared.status==='Published')product.price=shared.price;}
+    }
+    s.medications_public ??= {};
+    for (const [key, shared] of Object.entries(s.medicineCatalogue)) {
+        const branches = groups.get(key) || [];
+        if (shared.status !== 'Published' || !Number.isFinite(shared.price) || shared.price <= 0 || !branches.length) continue;
+        const first = branches[0];
+        s.medications_public[key] = {
+            productKey: key, name: shared.name || first.name, strength: shared.strength || first.strength || '',
+            form: shared.form || first.form || '', packageSize: shared.packageSize || first.packageSize || '',
+            description: shared.description || first.description || '', category: shared.category || first.category || 'Other',
+            image: shared.image || first.image || '', price: shared.price,
+            requiresPrescription: !!shared.requiresPrescription || branches.some(v => v.requiresPrescription),
+            status: 'Published', updatedAt: shared.reviewedAt || shared.createdAt || new Date().toISOString()
+        };
+    }
+    s.marketVersion = 5; s.version++; return true;
+}
 export function maintainMarket(s) { let changed = false; for (const t of s.deliveryTasks.filter(t => t.status === 'Ready for assignment' && !t.driverId)) {
     const order = s.records.find(r => r.id === t.recordId);
     if (!order || order.payment !== 'Paid' || order.status !== 'Ready for dispatch' || order.fulfilment !== 'Delivery' || order.cancellationRequested || order.exception?.status === 'Open')
@@ -80,19 +111,56 @@ export function maintainMarket(s) { let changed = false; for (const t of s.deliv
     }
 } return changed; }
 export function marketAvailable(s, id) { const d = s.providers.find(v => v.id === id), homecareOfferReady=d?.type==='Homecare'&&hasPatientBookableHomecareOffer(d),accountControl=s.accountControls?.[id],application=s.applications?.[id]; return !!d && accountControl?.status !== 'Suspended' && d.status === 'Approved' && (homecareOfferReady || ['Published', 'Sample preview'].includes(d.publication?.status)) && (!application || application.status === 'Approved' && application.checks.every(v => v.result === 'Simulated verified' && v.expiresAt > Date.now())); }
-export function publicMarket(out, s, session) { if (session.role === 'Patient') {
+export function publicMarket(out, s, session) {
+    if (['Pharmacy','Admin'].includes(session.role)) { const keys=new Set([...Object.keys(s.medicineCatalogue||{}),...(s.products||[]).filter(p=>!p.removed).map(productKey)]);out.medicineCatalogue=[...keys].map(key=>{const item=s.medicineCatalogue?.[key],branches=(s.products||[]).filter(p=>!p.removed&&productKey(p)===key),suggestions=[...new Set(branches.map(p=>Number(p.suggestedPrice??p.price)).filter(v=>Number.isFinite(v)&&v>0))].sort((a,b)=>a-b);return {productKey:key,name:item?.name||branches[0]?.name||'',strength:item?.strength||branches[0]?.strength||'',form:item?.form||branches[0]?.form||'',packageSize:item?.packageSize||branches[0]?.packageSize||'',category:branches[0]?.category||'Other',price:item?.status==='Published'?item.price:null,status:item?.status||'Needs review',branchCount:branches.length,suggestedMin:session.role==='Admin'?suggestions[0]??null:null,suggestedMax:session.role==='Admin'?suggestions.at(-1)??null:null};}); }
+    if (session.role === 'Patient') {
     out.providers = out.providers.filter(d => marketAvailable(s, d.id));
     const address = addressFor(s, session.accountId);
     out.providers = out.providers.map(d => ({ ...d, distanceKm: kmBetween(d.coordinates, address), servesLocation: d.matchingEnabled ? serves(d, address) : null })).sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
-    out.products = out.products.filter(p => marketAvailable(s, p.ownerId)).sort((a, b) => (out.providers.findIndex(d => d.id === a.ownerId)) - (out.providers.findIndex(d => d.id === b.ownerId)));
-    const catalogue = new Map();
-    for (const p of out.products) {
-        const key = productKey(p) + '|' + p.price;
-        if (!catalogue.has(key))
-            catalogue.set(key, p);
+    if (s.connectedAccounts) {
+        // Patient discovery receives the shared catalogue projection, never branch
+        // inventory rows. Branch stock is used only to determine availability and
+        // to produce a small public location/hours summary.
+        const visibleProviders = new Map(out.providers.filter(d => d.type === 'Pharmacy').map(d => [d.id, d]));
+        const keys = new Set(Object.keys(s.medications_public || {}));
+        out.products = [...keys].flatMap(key => {
+            const shared = s.medications_public?.[key];
+            if (shared?.status !== 'Published' || !Number.isFinite(shared.price) || shared.price <= 0) return [];
+            const rows = (s.products || []).filter(p => productKey(p) === key && p.active && !p.removed && p.stock > 0 && p.catalogueStatus !== 'Pending review' && marketAvailable(s, p.ownerId));
+            const branches = rows.map(p => {
+                const d = visibleProviders.get(p.ownerId);
+                if (!d) return null;
+                return { id: d.id, name: d.name, location: d.location || '', openNow: d.openNow ?? openNow(d, out.serverTime), distanceKm: d.distanceKm, weeklyHours: d.weeklyHours || [], openTime: d.openTime || '', closeTime: d.closeTime || '', collection: d.collection === true, stockAvailable: true };
+            }).filter(Boolean).sort((a, b) => Number(b.openNow === true) - Number(a.openNow === true) || (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9) || a.id.localeCompare(b.id));
+            const canonical = rows[0];
+            if (!canonical || !branches.length) return [];
+            return [{
+                id: `shared-medicine:${key}`, productKey: key, name: shared.name || canonical.name,
+                description: shared.description || canonical.description || '', category: shared.category || canonical.category || 'Other',
+                strength: shared.strength || canonical.strength || '', form: shared.form || canonical.form || '',
+                packageSize: shared.packageSize || canonical.packageSize || '', price: shared.price,
+                active: true, removed: false, availableAtBranch: true, branchCount: branches.length,
+                branches, requiresPrescription: !!shared.requiresPrescription,
+                image: canonical.image || '', imageIds: undefined
+            }];
+        });
+        // Patient records and open checkouts must use the public medicine key too;
+        // never return a pharmacy's private inventory row ID to another account.
+        const publicId = id => {
+            const product = (s.products || []).find(v => v.id === id);
+            return product ? `shared-medicine:${productKey(product)}` : id;
+        };
+        for (const record of out.records || []) if (Array.isArray(record.items)) record.items = record.items.map(item => ({ ...item, id: publicId(item.id) }));
+        for (const checkout of out.checkouts || []) if (Array.isArray(checkout.items)) checkout.items = checkout.items.map(item => ({ ...item, id: publicId(item.id) }));
+    } else {
+        const catalogue = new Map();
+        for (const p of out.products.filter(p => marketAvailable(s, p.ownerId)).sort((a, b) => (out.providers.findIndex(d => d.id === a.ownerId)) - (out.providers.findIndex(d => d.id === b.ownerId)))) {
+            const key = productKey(p);
+            if (!catalogue.has(key)) catalogue.set(key, p);
+        }
+        out.products = [...catalogue.values()];
     }
-    if(!s.connectedAccounts)out.products = [...catalogue.values()];
-} delete out.payoutChallenges; out.refunds = s.refunds.filter(v => session.role === 'Admin' || out.records.some(r => r.id === v.recordId)); out.payoutProfiles = Object.values(s.payoutProfiles).filter(v => session.role === 'Admin' || v.accountId === session.accountId).map(publicPayoutProfile); out.settlementBatches = s.settlementBatches.map(b => session.role === 'Admin' ? b : { ...b, items: b.items.filter(i => i.account === accountFor(s, session.accountId)) }).filter(b => session.role === 'Admin' || b.items.length); return out; }
+} delete out.payoutChallenges; out.refunds = (s.refunds||[]).filter(v => session.role === 'Admin' || (out.records||[]).some(r => r.id === v.recordId)); out.payoutProfiles = Object.values(s.payoutProfiles||{}).filter(v => session.role === 'Admin' || v.accountId === session.accountId).map(publicPayoutProfile); out.settlementBatches = (s.settlementBatches||[]).map(b => session.role === 'Admin' ? b : { ...b, items: b.items.filter(i => i.account === accountFor(s, session.accountId)) }).filter(b => session.role === 'Admin' || b.items.length); return out; }
 export function settlementBalance(s, account, start, end) { return Math.max(0, s.ledger.reduce((n, e) => { const r = s.records.find(r => r.id === e.recordId); const eligible = r && (r.payment === 'Refunded' || closed(r) && r.payment === 'Paid' && !r.disputeOpen && !r.refundHold && Date.parse(r.updated) <= Date.now() - s.marketPolicy.clearanceHours * 3600000 && r.updated >= start && r.updated <= end); return n + (e.credit === account && (eligible || !e.recordId && e.type === 'Failed') ? e.amountMinor : 0) - (e.debit === account ? e.amountMinor : 0); }, 0)); }
 export async function handleMarket(c) {
     const { s, p, session, action, check, now, id } = c, owner = session.accountId;

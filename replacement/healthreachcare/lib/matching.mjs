@@ -1,28 +1,29 @@
 import {withinHours} from './provider-hours.mjs';
 // Matching uses saved coordinates or exact service-area names; it never invents a distance.
-export const productKey = p => [p.name, p.strength || '', p.form || '', p.packageSize || '', p.requiresPrescription ? 'rx' : 'otc'].join('|').toLowerCase().trim();
+// One shared identity per medicine and pack across all branch pharmacies.
+// Prescription handling is a safety flag, not a separate product identity.
+export const productKey = p => [p.name, p.strength || '', p.form || '', p.packageSize || ''].map(v=>String(v).toLowerCase().trim()).join('|');
 export function kmBetween(a, b) { if (!a || !b || ![a.latitude, a.longitude, b.latitude, b.longitude].every(Number.isFinite))
     return null; const rad = x => x * Math.PI / 180, lat = rad(b.latitude - a.latitude), lon = rad(b.longitude - a.longitude), h = Math.sin(lat / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(lon / 2) ** 2; return Math.round(12742 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * 100) / 100; }
 export const addressFor = (s, id) => s.profiles[id]?.addresses?.find(a => a.id === s.profiles[id].selectedAddressId);
 const capeTownPoint = p => Number.isFinite(p?.latitude)&&Number.isFinite(p?.longitude)&&p.latitude>=-34.45&&p.latitude<=-33.45&&p.longitude>=18.15&&p.longitude<=19.15;
 export function serves(d, address) { const km = kmBetween(d.coordinates, address); if (km !== null)
     return km <= (d.deliveryRadiusKm || 15); return (d.serviceAreas || []).some(v => [address?.city, address?.suburb, address?.province].filter(Boolean).map(v => v.toLowerCase().trim()).includes(v.toLowerCase().trim())); }
+export function pharmacyServes(d,address){const km=kmBetween(d.coordinates,address);if(km!==null)return (capeTownPoint(d.coordinates)&&capeTownPoint(address))||km<=(d.deliveryRadiusKm||15);return (d.serviceAreas||[]).some(v=>[address?.city,address?.suburb,address?.province].filter(Boolean).map(x=>String(x).toLowerCase().trim()).includes(String(v).toLowerCase().trim()));}
 export function openNow(d,now=Date.now()) { if(d.weeklyHours)return withinHours(d,now);  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Johannesburg', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(Date.now()).map(v => [v.type, v.value])); const time = p.hour + ':' + p.minute; return (d.weekdays || [0, 1, 2, 3, 4, 5, 6]).includes(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday)) && time >= (d.openTime || '00:00') && time <= (d.closeTime || '23:59'); }
 const available = (s, d) => d.status === 'Approved' && d.acceptingOrders !== false && s.accountControls[d.id]?.status !== 'Suspended' && ['Published', 'Sample preview'].includes(d.publication?.status) && (!s.applications[d.id] || s.applications[d.id].status === 'Approved' && s.applications[d.id].checks.every(v => v.result === 'Simulated verified' && v.expiresAt > Date.now()));
-export function pharmacyMatches(s, items, address, mode, excluded = [], fee) { return s.providers.filter(d => d.type === 'Pharmacy' && d.matchingEnabled && available(s, d) && serves(d, address) && openNow(d) && !excluded.includes(d.id) && (mode !== 'Collection' || d.collection)).map(d => { const lines = items.map(i => { const source = s.products.find(p => p.id === i.id) || i; const product = s.products.find(p => p.ownerId === d.id && p.active && !p.removed && productKey(p) === (i.productKey || productKey(source)) && p.price === (i.price ?? source.price) && p.stock >= i.quantity); return product ? { id: product.id, name: product.name, price: product.price, quantity: i.quantity, requiresPrescription: !!product.requiresPrescription, productKey: productKey(product) } : null; }); return { provider: d, items: lines, fee: mode === 'Collection' ? 0 : (s.platformDelivery?.fee??d.fee), distanceKm: kmBetween(d.coordinates, address) }; }).filter(v => v.items.every(Boolean) && (fee === undefined || v.fee === fee)).sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9) || a.fee - b.fee || a.provider.id.localeCompare(b.provider.id)); }
+export function pharmacyMatches(s, items, address, mode, excluded = [], fee) { return s.providers.filter(d => d.type === 'Pharmacy' && available(s, d) && pharmacyServes(d, address) && openNow(d) && !excluded.includes(d.id) && (mode !== 'Collection' || d.collection)).map(d => { const lines = items.map(i => { const source = s.products.find(p => p.id === i.id) || i, key=i.productKey || productKey(source), shared=s.connectedAccounts?s.medications_public?.[key]:null, expectedPrice=shared?.status==='Published'?shared.price:(i.price ?? source.price); const product = s.products.find(p => p.ownerId === d.id && p.active && !p.removed && (!s.connectedAccounts || p.catalogueStatus !== 'Pending review' && shared?.status === 'Published') && productKey(p) === key && p.price === expectedPrice && p.stock >= i.quantity); return product ? { id: product.id, name: product.name, price: product.price, quantity: i.quantity, requiresPrescription: !!product.requiresPrescription, productKey: productKey(product) } : null; }); return { provider: d, items: lines, fee: mode === 'Collection' ? 0 : (s.platformDelivery?.fee??d.fee), distanceKm: kmBetween(d.coordinates, address) }; }).filter(v => v.items.every(Boolean) && (fee === undefined || v.fee === fee)).sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9) || a.fee - b.fee || a.provider.id.localeCompare(b.provider.id)); }
 export function prepareMatch(s, session, action, p) {
     if (session.role !== 'Patient')
         return;
     const address = p.addressDetails || addressFor(s, session.accountId);
     if (['checkout', 'prescriptionDraft'].includes(action) && Array.isArray(p.items) && p.items.length) {
-        const source = s.providers.find(d => d.id === s.products.find(m => m.id === p.items[0].id)?.ownerId);
-        if (!source?.matchingEnabled)
-            return;
+        if (!s.connectedAccounts && p.fulfilment === 'Collection') return;
         if (!address)
-            throw Error('Save and select a delivery address before matching');
+            { if(s.connectedAccounts&&p.fulfilment!=='Collection')throw Error('Save and select a delivery address before matching'); else return; }
         const result = pharmacyMatches(s, p.items, address, p.fulfilment)[0];
         if (!result)
-            throw Error('No available pharmacy serves this address with the selected products at the displayed prices');
+            { if(s.connectedAccounts)throw Error('No available pharmacy serves this address with the selected products at the displayed prices'); else return; }
         p.items = result.items.map(i => ({ id: i.id, quantity: i.quantity }));
         p.providerId = result.provider.id;
         p.address = address.formatted;
