@@ -2,11 +2,12 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {MapPin} from 'lucide-react';
 import {firebaseWorkspaceHeaders} from '../lib/firebase-client.mjs';
+import {readResponseJson} from '../lib/response-json.mjs';
 
 export function DoctorPracticeAddress({provider,busy}){
  const [address,setAddress]=useState(provider.location||''),[point,setPoint]=useState(provider.coordinates||{}),[suggestions,setSuggestions]=useState([]),[working,setWorking]=useState(false),[message,setMessage]=useState('');
  const request=useRef(0),lastLookup=useRef(''),selectedAddress=useRef(provider.location||'');
- async function lookup(input){const response=await fetch('/api/location',{method:'POST',headers:{'Content-Type':'application/json',...await firebaseWorkspaceHeaders()},body:JSON.stringify({...input,consent:true})});const data=await response.json();if(!response.ok)throw Error(data.error||'Address suggestions are unavailable.');return data.results||[];}
+ async function lookup(input){const response=await fetch('/api/location',{method:'POST',headers:{'Content-Type':'application/json',...await firebaseWorkspaceHeaders()},body:JSON.stringify({...input,consent:true}),cache:'no-store'});const data=await readResponseJson(response,'Address lookup');if(!response.ok)throw Error(data.error||'Address suggestions are unavailable.');return data.results||[];}
  function choose(value){const formatted=value.formatted||'';setAddress(formatted);selectedAddress.current=formatted;setPoint({latitude:Number(value.latitude),longitude:Number(value.longitude)});setSuggestions([]);setMessage('Address selected. Confirm it is the practice location before saving.');}
  const search=useCallback(async(query=address.trim())=>{if(query.length<5||query===lastLookup.current)return;lastLookup.current=query;const token=++request.current;setWorking(true);setMessage('');try{const found=await lookup({mode:'search',address:[query,'Cape Town','South Africa'].filter(Boolean).join(', ')});if(token!==request.current)return;setSuggestions(found);setMessage(found.length?'Choose the matching practice address.':'No matching addresses found. You can keep the entered address and save it.');}catch(error){if(token===request.current)setMessage(error.message.includes('service key')?'Address suggestions are temporarily unavailable. You can still enter the practice address manually.':'Could not load address suggestions. Please continue typing or enter the address manually.');}finally{if(token===request.current)setWorking(false);}},[address]);
  useEffect(()=>{const query=address.trim();if(query.length<5||query===selectedAddress.current)return;const timer=setTimeout(()=>{void search(query);},650);return()=>clearTimeout(timer);},[address,search]);
