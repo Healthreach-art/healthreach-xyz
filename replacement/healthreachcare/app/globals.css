@@ -234,6 +234,6 @@ button:focus:not(:focus-visible){outline:none}
 
 /* Approved doctor photographs fill the existing patient card as a soft backdrop. */
 .booking-journey .journey-doctor{position:relative;isolation:isolate;overflow:hidden}
-.booking-journey .journey-doctor-photo-bg{position:absolute!important;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:.42;pointer-events:none}
-.booking-journey .journey-doctor-has-photo:before{content:"";position:absolute;inset:0;background:rgba(255,255,255,.74);z-index:-1;pointer-events:none}
+.booking-journey .journey-doctor-photo-bg{position:absolute!important;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:.78;pointer-events:none}
+.booking-journey .journey-doctor-has-photo:before{content:"";position:absolute;inset:0;background:rgba(255,255,255,.48);z-index:-1;pointer-events:none}
 .booking-journey .journey-doctor-recommended.journey-doctor-has-photo{background:transparent}
