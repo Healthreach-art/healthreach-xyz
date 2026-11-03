@@ -28,7 +28,8 @@ export function maintainMarket(s) { let changed = false; for (const t of s.deliv
         const candidate = drivers[0];
         if (candidate) {
             t.offeredDriverId = candidate.id;
-            t.offerExpires = Date.now() + s.dispatchPolicy.offerMinutes * 60000;
+            t.offerExpires = Date.now() + 90000;
+            t.offerDurationSeconds = 90;
             candidate.lastOfferAt = Date.now();
             t.offerHistory ??= [];
             t.offerHistory.push({ driverId: candidate.id, at: new Date().toISOString(), expires: t.offerExpires });
