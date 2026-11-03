@@ -231,3 +231,9 @@ button:focus:not(:focus-visible){outline:none}
 @media(max-width:640px){.doctor-listing-status{align-items:stretch}.doctor-listing-status>.outline{width:100%;white-space:normal}.doctor-patient-preview{padding:18px!important}.doctor-preview-details{grid-template-columns:minmax(0,1fr);gap:3px}.doctor-preview-details dd{margin-bottom:8px}.doctor-preview-card .journey-doctor-main{align-items:flex-start;flex-wrap:wrap}}
 
 .doctor-profile-avatar-placeholder{display:inline-grid;place-items:center;flex:0 0 auto;border-radius:50%;background:#e5f5ed;color:#08754e;font-weight:800;line-height:1}
+
+/* Approved doctor photographs fill the existing patient card as a soft backdrop. */
+.booking-journey .journey-doctor{position:relative;isolation:isolate;overflow:hidden}
+.booking-journey .journey-doctor-photo-bg{position:absolute!important;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:.42;pointer-events:none}
+.booking-journey .journey-doctor-has-photo:before{content:"";position:absolute;inset:0;background:rgba(255,255,255,.74);z-index:-1;pointer-events:none}
+.booking-journey .journey-doctor-recommended.journey-doctor-has-photo{background:transparent}
