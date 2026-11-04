@@ -1,6 +1,6 @@
 import {bankingRoles,bankingDetails,completePayoutProfile,missingPayoutEvidence,publicPayoutProfile,payoutEvidenceKinds} from './payout-banking.mjs';
 import {driverAreaEligible,driverProximity} from './experience.mjs';
-import { kmBetween, addressFor, serves, productKey, openNow } from './matching.mjs';
+import { kmBetween, addressFor, serves, productKey, openNow, maximumPharmacistDispensingFee } from './matching.mjs';
 import { digest } from './completion.mjs';
 import { handleBusiness } from './business.mjs';
 import { hasPatientBookableHomecareOffer } from './homecare-marketplace.mjs';
@@ -33,13 +33,13 @@ export function upgradeMarket(s) {
     s.medications_public ??= {};
     for (const [key, shared] of Object.entries(s.medicineCatalogue)) {
         const branches = groups.get(key) || [];
-        if (shared.status !== 'Published' || !Number.isFinite(shared.price) || shared.price <= 0 || !branches.length) continue;
+        if (shared.status !== 'Published' || shared.priceModel !== 'branch' && (!Number.isFinite(shared.price) || shared.price <= 0) || !branches.length) continue;
         const first = branches[0];
         s.medications_public[key] = {
             productKey: key, name: shared.name || first.name, strength: shared.strength || first.strength || '',
             form: shared.form || first.form || '', packageSize: shared.packageSize || first.packageSize || '',
             description: shared.description || first.description || '', category: shared.category || first.category || 'Other',
-            image: shared.image || first.image || '', price: shared.price,
+            image: shared.image || first.image || '', price: shared.price, priceModel:shared.priceModel||'legacy-shared',schedule:shared.schedule||'',activeIngredient:shared.activeIngredient||'',brand:shared.brand||'',registeredProductId:shared.registeredProductId||'',officialSource:shared.officialSource||'',priceDataDate:shared.priceDataDate||'',
             requiresPrescription: !!shared.requiresPrescription || branches.some(v => v.requiresPrescription),
             status: 'Published', updatedAt: shared.reviewedAt || shared.createdAt || new Date().toISOString()
         };
@@ -112,7 +112,7 @@ export function maintainMarket(s) { let changed = false; for (const t of s.deliv
 } return changed; }
 export function marketAvailable(s, id) { const d = s.providers.find(v => v.id === id), homecareOfferReady=d?.type==='Homecare'&&hasPatientBookableHomecareOffer(d),accountControl=s.accountControls?.[id],application=s.applications?.[id]; return !!d && accountControl?.status !== 'Suspended' && d.status === 'Approved' && (homecareOfferReady || ['Published', 'Sample preview'].includes(d.publication?.status)) && (!application || application.status === 'Approved' && application.checks.every(v => v.result === 'Simulated verified' && v.expiresAt > Date.now())); }
 export function publicMarket(out, s, session) {
-    if (['Pharmacy','Admin'].includes(session.role)) { const keys=new Set([...Object.keys(s.medicineCatalogue||{}),...(s.products||[]).filter(p=>!p.removed).map(productKey)]);out.medicineCatalogue=[...keys].map(key=>{const item=s.medicineCatalogue?.[key],branches=(s.products||[]).filter(p=>!p.removed&&productKey(p)===key),suggestions=[...new Set(branches.map(p=>Number(p.suggestedPrice??p.price)).filter(v=>Number.isFinite(v)&&v>0))].sort((a,b)=>a-b);return {productKey:key,name:item?.name||branches[0]?.name||'',strength:item?.strength||branches[0]?.strength||'',form:item?.form||branches[0]?.form||'',packageSize:item?.packageSize||branches[0]?.packageSize||'',category:branches[0]?.category||'Other',price:item?.status==='Published'?item.price:null,status:item?.status||'Needs review',branchCount:branches.length,suggestedMin:session.role==='Admin'?suggestions[0]??null:null,suggestedMax:session.role==='Admin'?suggestions.at(-1)??null:null};}); }
+    if (['Pharmacy','Admin'].includes(session.role)) { const keys=new Set([...Object.keys(s.medicineCatalogue||{}),...(s.products||[]).filter(p=>!p.removed).map(productKey)]);out.medicineCatalogue=[...keys].map(key=>{const item=s.medicineCatalogue?.[key],branches=(s.products||[]).filter(p=>!p.removed&&productKey(p)===key),suggestions=[...new Set(branches.map(p=>Number(p.suggestedPrice??p.price)).filter(v=>Number.isFinite(v)&&v>0))].sort((a,b)=>a-b);return {productKey:key,name:item?.name||branches[0]?.name||'',strength:item?.strength||branches[0]?.strength||'',form:item?.form||branches[0]?.form||'',packageSize:item?.packageSize||branches[0]?.packageSize||'',category:item?.category||branches[0]?.category||'Other',price:item?.status==='Published'?item.price:null,priceModel:item?.priceModel||'shared',schedule:item?.schedule||'',activeIngredient:item?.activeIngredient||'',brand:item?.brand||'',registeredProductId:item?.registeredProductId||'',officialSource:item?.officialSource||'',priceDataDate:item?.priceDataDate||'',status:item?.status||'Needs review',branchCount:branches.length,suggestedMin:session.role==='Admin'?suggestions[0]??null:null,suggestedMax:session.role==='Admin'?suggestions.at(-1)??null:null};}); }
     if (session.role === 'Patient') {
     out.providers = out.providers.filter(d => marketAvailable(s, d.id));
     const address = addressFor(s, session.accountId);
@@ -125,20 +125,21 @@ export function publicMarket(out, s, session) {
         const keys = new Set(Object.keys(s.medications_public || {}));
         out.products = [...keys].flatMap(key => {
             const shared = s.medications_public?.[key];
-            if (shared?.status !== 'Published' || !Number.isFinite(shared.price) || shared.price <= 0) return [];
+            if (shared?.status !== 'Published' || shared.priceModel !== 'branch' && (!Number.isFinite(shared.price) || shared.price <= 0)) return [];
             const rows = (s.products || []).filter(p => productKey(p) === key && p.active && !p.removed && p.stock > 0 && p.catalogueStatus !== 'Pending review' && marketAvailable(s, p.ownerId));
             const branches = rows.map(p => {
                 const d = visibleProviders.get(p.ownerId);
                 if (!d) return null;
-                return { id: d.id, name: d.name, location: d.location || '', openNow: d.openNow ?? openNow(d, out.serverTime), distanceKm: d.distanceKm, weeklyHours: d.weeklyHours || [], openTime: d.openTime || '', closeTime: d.closeTime || '', collection: d.collection === true, stockAvailable: true };
+                return { id: d.id, name: d.name, location: d.location || '', openNow: d.openNow ?? openNow(d, out.serverTime), distanceKm: d.distanceKm, weeklyHours: d.weeklyHours || [], openTime: d.openTime || '', closeTime: d.closeTime || '', collection: d.collection === true, stockAvailable: true, price:p.priceModel==='branch'?p.price:shared.price, dispensingFee:p.priceModel==='SEP'?Number(d.dispensingFee||0):0, dispensingVat:p.priceModel==='SEP'&&d.vatRegistered===true?Math.round(Number(d.dispensingFee||0)*15)/100:0, vatRegistered:d.vatRegistered===true, deliveryFee:d.deliveryFee??s.platformDelivery?.fee??d.fee, stock:p.stock, priceValid:p.priceModel!=='SEP'||Number(d.dispensingFee||0)<=maximumPharmacistDispensingFee(shared.price)+0.0001, requiresPrescription:!!(shared.requiresPrescription||p.requiresPrescription) };
             }).filter(Boolean).sort((a, b) => Number(b.openNow === true) - Number(a.openNow === true) || (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9) || a.id.localeCompare(b.id));
             const canonical = rows[0];
             if (!canonical || !branches.length) return [];
+            const preferred=branches.find(v=>v.openNow&&v.stockAvailable)||branches.find(v=>v.stockAvailable)||branches[0];
             return [{
                 id: `shared-medicine:${key}`, productKey: key, name: shared.name || canonical.name,
                 description: shared.description || canonical.description || '', category: shared.category || canonical.category || 'Other',
                 strength: shared.strength || canonical.strength || '', form: shared.form || canonical.form || '',
-                packageSize: shared.packageSize || canonical.packageSize || '', price: shared.price,
+                packageSize: shared.packageSize || canonical.packageSize || '', price: shared.priceModel==='branch'?preferred.price:shared.price, priceModel:shared.priceModel||'legacy-shared',schedule:shared.schedule||'',activeIngredient:shared.activeIngredient||'',brand:shared.brand||'',registeredProductId:shared.registeredProductId||'',
                 active: true, removed: false, availableAtBranch: true, branchCount: branches.length,
                 branches, requiresPrescription: !!shared.requiresPrescription,
                 image: canonical.image || '', imageIds: undefined
