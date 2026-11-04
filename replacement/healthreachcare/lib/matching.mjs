@@ -3,12 +3,6 @@ import {withinHours} from './provider-hours.mjs';
 // One shared identity per medicine and pack across all branch pharmacies.
 // Prescription handling is a safety flag, not a separate product identity.
 export const productKey = p => [p.name, p.strength || '', p.form || '', p.packageSize || ''].map(v=>String(v).toLowerCase().trim()).join('|');
-export const productKey = p => [p.name,p.strength||'',p.form||'',p.packageSize||''].map(normalizeIdentity).join('|');
-export const productKey = p => {
- const pack=[p.strength||'',p.form||'',p.packageSize||''].map(normalizeIdentity).join('|');
- const registration=normalizeIdentity(p.registeredProductId||p.registrationNumber||'');
- return registration ? 'reg:'+registration+'|'+pack : [p.name,p.strength||'',p.form||'',p.packageSize||''].map(normalizeIdentity).join('|');
-};
 export function kmBetween(a, b) { if (!a || !b || ![a.latitude, a.longitude, b.latitude, b.longitude].every(Number.isFinite))
     return null; const rad = x => x * Math.PI / 180, lat = rad(b.latitude - a.latitude), lon = rad(b.longitude - a.longitude), h = Math.sin(lat / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(lon / 2) ** 2; return Math.round(12742 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * 100) / 100; }
 export const addressFor = (s, id) => s.profiles[id]?.addresses?.find(a => a.id === s.profiles[id].selectedAddressId);
