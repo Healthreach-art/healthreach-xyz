@@ -288,13 +288,14 @@ export async function handleMarket(c) {
         d.closeTime = p.closeTime || '23:59';
         if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(d.openTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(d.closeTime) || d.openTime >= d.closeTime)
             throw Error('Enter opening and closing times on the same day');
+        const submittedLatitude=p.latitude??p.coordinates?.latitude,submittedLongitude=p.longitude??p.coordinates?.longitude;
         if(d.type==='Pharmacy'){
-            const latitude=Number(p.latitude),longitude=Number(p.longitude);
+            const latitude=Number(submittedLatitude),longitude=Number(submittedLongitude);
             if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||latitude < -34.45||latitude > -33.45||longitude < 18.15||longitude > 19.15)
                 throw Error('Choose a real Cape Town address suggestion or use current location so the pharmacy can be listed.');
         }
-        if (p.latitude !== undefined && p.latitude !== '' || p.longitude !== undefined && p.longitude !== '') {
-            const latitude = Number(p.latitude), longitude = Number(p.longitude);
+        if (submittedLatitude !== undefined && submittedLatitude !== '' || submittedLongitude !== undefined && submittedLongitude !== '') {
+            const latitude = Number(submittedLatitude), longitude = Number(submittedLongitude);
             if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180)
                 throw Error('Enter valid provider coordinates');
             d.coordinates = { latitude, longitude };
