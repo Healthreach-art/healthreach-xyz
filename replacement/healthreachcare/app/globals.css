@@ -238,3 +238,15 @@ button:focus:not(:focus-visible){outline:none}
 .booking-journey .journey-doctor-photo-bg{position:absolute!important;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:.78;pointer-events:none}
 .booking-journey .journey-doctor-has-photo:before{content:"";position:absolute;inset:0;background:rgba(255,255,255,.48);z-index:-1;pointer-events:none}
 .booking-journey .journey-doctor-recommended.journey-doctor-has-photo{background:transparent}
+
+/* Pharmacy price transparency: medicine, dispensing and delivery stay distinct. */
+.price-breakdown{display:grid;gap:.35rem;margin-top:.6rem;padding:.75rem;border-radius:14px;background:#f1faf6;color:#254650;font-size:.9rem}
+.price-breakdown>span,.price-breakdown>strong{display:flex;justify-content:space-between;gap:1rem}
+.price-breakdown>strong{border-top:1px solid #cfe4dc;padding-top:.4rem;color:#123e35}
+.branch-comparison{margin-top:.6rem;border-top:1px solid #e4eee9;padding-top:.5rem}
+.branch-comparison summary{display:flex;align-items:center;gap:.35rem;color:#087a5b;cursor:pointer;font-weight:650}
+.branch-option{display:grid;gap:.2rem;padding:.65rem 0;border-bottom:1px solid #e8efec;font-size:.86rem}
+.pharmacy-charge-settings{display:grid;gap:.75rem;margin:1rem 0;padding:1rem}
+.pharmacy-charge-settings small{color:#526b72}
+.shared-medicine-price-form{display:grid;gap:.65rem}
+.shared-medicine-price-form label{display:grid;gap:.25rem}
