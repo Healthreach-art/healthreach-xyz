@@ -194,6 +194,26 @@ function HomecareProviderPage() {
       <Tabs value={navTab} onValueChange={(tab) => setActiveTab(tab as HomecareTerminalTab)}>
         <main className="mx-auto max-w-6xl space-y-4 px-4 py-5 sm:px-6">
           <TabsContent value="overview" className="mt-0 space-y-4">
+            <section className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-800 to-green-600 p-5 text-white shadow-lg sm:p-7">
+              <div className="pointer-events-none absolute -right-8 -top-10 h-48 w-48 rounded-full border-[24px] border-white/10" />
+              <div className="pointer-events-none absolute -bottom-16 right-24 h-40 w-40 rounded-full bg-lime-300/10 blur-2xl" />
+              <div className="relative max-w-2xl">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-emerald-50">
+                  <span className={`h-2 w-2 rounded-full ${provider.is_active && status === "approved" ? "bg-lime-300" : "bg-amber-300"}`} />
+                  {provider.is_active && status === "approved" ? "Ready to receive visits" : status === "approved" ? "Availability paused" : "Provider verification"}
+                </span>
+                <h2 className="mt-4 max-w-xl text-2xl font-bold leading-tight tracking-tight sm:text-3xl">Compassionate care, coordinated in one place.</h2>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-emerald-50/90 sm:text-base">Manage home visits, support your care team, and keep every patient’s next step clear — from the first request through safe completion.</p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Button className="bg-white text-emerald-900 hover:bg-emerald-50" onClick={() => setActiveTab("assignments")}>
+                    <ClipboardList className="mr-2 h-4 w-4" /> View visit assignments
+                  </Button>
+                  <Button variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => setActiveTab("profile")}>
+                    <Building2 className="mr-2 h-4 w-4" /> Provider profile
+                  </Button>
+                </div>
+              </div>
+            </section>
             <section className="rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
               <div className="flex items-start gap-3">
                 <Building2 className="mt-0.5 h-5 w-5 text-primary" />
