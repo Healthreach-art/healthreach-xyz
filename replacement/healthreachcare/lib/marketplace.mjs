@@ -5,14 +5,33 @@ import { digest } from './completion.mjs';
 import { handleBusiness } from './business.mjs';
 import { hasPatientBookableHomecareOffer } from './homecare-marketplace.mjs';
 import { refreshConnectedPublication } from './service-categories.mjs';
+import { medicineStarterCatalogue } from './medicine-starter-catalogue.mjs';
 const providerRoles = ['Pharmacy', 'Doctor', 'Homecare', 'Driver'];
 const words = (v, max = 200) => { if (typeof v !== 'string' || !v.trim() || v.length > max)
     throw Error('Complete the required information'); return v.trim(); };
 const closed = r => ['Delivered', 'Collected', 'Completed'].includes(r?.status);
 const accountFor = (s, id) => (s.drivers[id] ? 'driver:' : 'provider:') + id;
+export const defaultMedicineCategories = Object.freeze([
+    { id: 'pain-relief', name: 'Pain relief', color: 'rose', active: true },
+    { id: 'cold-flu', name: 'Cold & flu', color: 'sky', active: true },
+    { id: 'allergy', name: 'Allergy', color: 'violet', active: true },
+    { id: 'digestive-health', name: 'Digestive health', color: 'amber', active: true },
+    { id: 'vitamins', name: 'Vitamins & supplements', color: 'yellow', active: true },
+    { id: 'skin-care', name: 'Skin care', color: 'pink', active: true },
+    { id: 'first-aid', name: 'First aid', color: 'red', active: true },
+    { id: 'oral-care', name: 'Oral care', color: 'cyan', active: true },
+    { id: 'eye-ear-care', name: 'Eye & ear care', color: 'indigo', active: true },
+    { id: 'baby-family-care', name: 'Baby & family care', color: 'green', active: true },
+    { id: 'womens-health', name: "Women's health", color: 'pink', active: true }
+]);
 export function upgradeMarket(s) {
     const previous = Number(s.marketVersion) || 0;
-    if (previous >= 5) return false;
+    if (previous >= 8) return false;
+    // Add the current patient taxonomy without replacing administrator-created
+    // categories or reactivating categories that an administrator archived.
+    s.medicineCategories ??= [];
+    const knownCategoryIds = new Set(s.medicineCategories.map(category => category.id));
+    for (const category of defaultMedicineCategories) if (!knownCategoryIds.has(category.id)) s.medicineCategories.push(structuredClone(category));
     if (previous < 3) {
         s.dispatchPolicy.allocation ??= 'Sequential'; s.matchingPolicy ??= { acceptanceMinutes: 5 }; s.promotions ??= []; s.refunds ??= []; s.payoutProfiles ??= {}; s.payoutChallenges ??= {}; s.settlementBatches ??= []; s.marketPolicy ??= { commissionBps: 0, processingBps: 0, processingFixedMinor: 0, payoutDay: 5, clearanceHours: 24, version: 1 };
         for (const r of s.records) if (r.payment === 'Paid') r.feeSnapshot ??= { version: 0, commissionMinor: 0, processingMinor: 0, legacy: true };
@@ -21,6 +40,10 @@ export function upgradeMarket(s) {
     // Existing listings become one shared app price only where all current
     // branches agree. Conflicting prices require an administrator decision.
     s.medicineCatalogue ??= {};
+    if (previous < 8) for (const candidate of medicineStarterCatalogue) {
+        const key = productKey(candidate);
+        if (!s.medicineCatalogue[key]) s.medicineCatalogue[key] = { ...candidate, productKey: key, status: 'Needs review', createdAt: new Date().toISOString(), history: [], sourceNote: 'Department of Health price database · review candidate only' };
+    }
     const groups = new Map();
     for (const product of s.products || []) if (!product.removed) { const key=productKey(product); if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(product); }
     for (const [key, products] of groups) {
@@ -44,7 +67,7 @@ export function upgradeMarket(s) {
             status: 'Published', updatedAt: shared.reviewedAt || shared.createdAt || new Date().toISOString()
         };
     }
-    s.marketVersion = 5; s.version++; return true;
+    s.marketVersion = 8; s.version++; return true;
 }
 export function maintainMarket(s) { let changed = false; for (const t of s.deliveryTasks.filter(t => t.status === 'Ready for assignment' && !t.driverId)) {
     const order = s.records.find(r => r.id === t.recordId);
@@ -112,6 +135,10 @@ export function maintainMarket(s) { let changed = false; for (const t of s.deliv
 } return changed; }
 export function marketAvailable(s, id) { const d = s.providers.find(v => v.id === id), homecareOfferReady=d?.type==='Homecare'&&hasPatientBookableHomecareOffer(d),accountControl=s.accountControls?.[id],application=s.applications?.[id]; return !!d && accountControl?.status !== 'Suspended' && d.status === 'Approved' && (homecareOfferReady || ['Published', 'Sample preview'].includes(d.publication?.status)) && (!application || application.status === 'Approved' && application.checks.every(v => v.result === 'Simulated verified' && v.expiresAt > Date.now())); }
 export function publicMarket(out, s, session) {
+    out.medicineCategories = (s.medicineCategories || defaultMedicineCategories)
+        .filter(category => session.role === 'Admin' || category.active !== false && category.status !== 'Pending')
+        .map(category => ({ id: category.id, name: category.name, color: category.color || 'green', active: category.active !== false, status: category.status || 'Published' }));
+    if (session.role === 'Admin') out.medicineCategorySuggestions = (s.medicineCategorySuggestions || []).filter(value => value.status === 'Pending');
     if (['Pharmacy','Admin'].includes(session.role)) { const keys=new Set([...Object.keys(s.medicineCatalogue||{}),...(s.products||[]).filter(p=>!p.removed).map(productKey)]);out.medicineCatalogue=[...keys].map(key=>{const item=s.medicineCatalogue?.[key],branches=(s.products||[]).filter(p=>!p.removed&&productKey(p)===key),suggestions=[...new Set(branches.map(p=>Number(p.suggestedPrice??p.price)).filter(v=>Number.isFinite(v)&&v>0))].sort((a,b)=>a-b);return {productKey:key,name:item?.name||branches[0]?.name||'',strength:item?.strength||branches[0]?.strength||'',form:item?.form||branches[0]?.form||'',packageSize:item?.packageSize||branches[0]?.packageSize||'',category:item?.category||branches[0]?.category||'Other',price:item?.status==='Published'?item.price:null,priceModel:item?.priceModel||'shared',schedule:item?.schedule||'',activeIngredient:item?.activeIngredient||'',brand:item?.brand||'',registeredProductId:item?.registeredProductId||'',officialSource:item?.officialSource||'',priceDataDate:item?.priceDataDate||'',status:item?.status||'Needs review',branchCount:branches.length,suggestedMin:session.role==='Admin'?suggestions[0]??null:null,suggestedMax:session.role==='Admin'?suggestions.at(-1)??null:null};}); }
     if (session.role === 'Patient') {
     out.providers = out.providers.filter(d => marketAvailable(s, d.id));
@@ -142,7 +169,7 @@ export function publicMarket(out, s, session) {
                 packageSize: shared.packageSize || canonical.packageSize || '', price: shared.priceModel==='branch'?preferred.price:shared.price, priceModel:shared.priceModel||'legacy-shared',schedule:shared.schedule||'',activeIngredient:shared.activeIngredient||'',brand:shared.brand||'',registeredProductId:shared.registeredProductId||'',
                 active: true, removed: false, availableAtBranch: true, branchCount: branches.length,
                 branches, requiresPrescription: !!shared.requiresPrescription,
-                image: canonical.image || '', imageIds: undefined
+                image: shared.image || canonical.image || '', imageIds: undefined
             }];
         });
         // Patient records and open checkouts must use the public medicine key too;
