@@ -82,12 +82,12 @@ export function maintainMarket(s) { let changed = false; for (const t of s.deliv
         const candidate = drivers[0];
         if (candidate) {
             t.offeredDriverId = candidate.id;
-            t.offerExpires = Date.now() + 90000;
-            t.offerDurationSeconds = 90;
+            t.offerExpires = Date.now() + 20000;
+            t.offerDurationSeconds = 20;
             candidate.lastOfferAt = Date.now();
             t.offerHistory ??= [];
             t.offerHistory.push({ driverId: candidate.id, at: new Date().toISOString(), expires: t.offerExpires });
-            s.notifications.unshift({ id: crypto.randomUUID(), recipientId: candidate.id, recordId: t.recordId, title: 'Delivery offer', message: 'Review the delivery before this offer expires.', type: 'Orders', at: new Date().toISOString(), read: false });
+            s.notifications.unshift({ id: crypto.randomUUID(), recipientId: candidate.id, recordId: t.recordId, title: 'Delivery offer', message: 'A nearby pharmacy delivery is available. Accept within 20 seconds.', type: 'Orders', at: new Date().toISOString(), read: false });
             changed = true;
         }
         else if (t.offeredDriverId) {
