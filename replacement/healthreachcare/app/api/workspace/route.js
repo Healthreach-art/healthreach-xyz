@@ -10,6 +10,7 @@ import {prepareMatch,maintainMatching,handleMatching,careBookingPrice} from '../
 import {upgradeMarket,maintainMarket,publicMarket,handleMarket,marketAvailable} from '../../../lib/marketplace.mjs';
 import { upgradeBusiness, maintainBusiness, publicBusiness, handleBusiness, requireLegal, applicationEligible, offerEligible } from '../../../lib/business.mjs';
 import { upgradeCompletion, publicCompletion, handleCompletion, validateSlot } from '../../../lib/completion.mjs';
+import {medicineFeeBreakdown} from '../../../lib/medicine-pricing.mjs';
 import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '../../chatgpt-auth';
 export const dynamic = 'force-dynamic';
@@ -392,7 +393,9 @@ export async function POST(req) {
             check(['Patient']);
             const fee = fulfilment(p.fulfilment);
             const lines = items(p.items);
-            s.checkouts.unshift({ id, title: 'Medication checkout',providerId:provider('Pharmacy').id, matching:p.matching,discountMinor:p.discountMinor||0,promotion:p.promotion, patientId: session.accountId, items: lines, address: txt(p.address), addressDetails: structuredClone(p.addressDetails || (p.address===s.profiles[session.accountId].address?s.profiles[session.accountId].addresses?.find(a=>a.id===s.profiles[session.accountId].selectedAddressId):null) || null), fulfilment: p.fulfilment, deliveryFee: fee, total: round(lines.reduce((a, i) => a + i.price * i.quantity, 0) + fee-(p.discountMinor||0)/100), status: 'Awaiting payment', created: now, updated: now });
+            const feeBreakdown = medicineFeeBreakdown(lines, fee, s.medicinePricing);
+            const total = round(feeBreakdown.totalMinor / 100 - (p.discountMinor || 0) / 100);
+            s.checkouts.unshift({ id, title: 'Medication checkout',providerId:provider('Pharmacy').id, matching:p.matching,discountMinor:p.discountMinor||0,promotion:p.promotion, patientId: session.accountId, items: lines, address: txt(p.address), addressDetails: structuredClone(p.addressDetails || (p.address===s.profiles[session.accountId].address?s.profiles[session.accountId].addresses?.find(a=>a.id===s.profiles[session.accountId].selectedAddressId):null) || null), fulfilment: p.fulfilment, deliveryFee: fee, feeBreakdown, total, status: 'Awaiting payment', created: now, updated: now });
         }
         else if (action === 'checkoutPay') {
             check(['Patient']);
@@ -403,13 +406,15 @@ export async function POST(req) {
                 throw Error('Review the final total before payment');
             const fee = fulfilment(c.fulfilment);
             const lines = items(c.items);
-            if (fee !== c.deliveryFee || JSON.stringify(lines) !== JSON.stringify(c.items))
+            const feeBreakdown = medicineFeeBreakdown(lines, fee, s.medicinePricing);
+            const total = round(feeBreakdown.totalMinor / 100 - (c.discountMinor || 0) / 100);
+            if (fee !== c.deliveryFee || JSON.stringify(lines) !== JSON.stringify(c.items) || total !== c.total || JSON.stringify(feeBreakdown) !== JSON.stringify(c.feeBreakdown))
                 throw Error('Product prices or delivery rules changed. Review your basket again before payment.');
             const orderId = crypto.randomUUID();
             attempt(p.scenario === 'Success' ? orderId : '', c.total, p.scenario, c.id);
             if (p.scenario === 'Success') {
                 reserve(lines);
-                const r = { id: orderId, type: 'Order', patientId: session.accountId, patientName: s.profiles[session.accountId].name, patientEmail: s.profiles[session.accountId].email, providerId: c.providerId||'pharmacy',matching:c.matching?structuredClone(c.matching):undefined,discountMinor:c.discountMinor||0,promotion:c.promotion, title: 'Medication order', address: c.address, addressDetails: c.addressDetails, fulfilment: c.fulfilment, deliveryFee: c.deliveryFee, items: structuredClone(c.items), total: c.total, payment: 'Paid', isOrder: true, stockDebited: true, details: c.items.map((x) => x.name + ' × ' + x.quantity).join(', '), history: [], created: now, updated: now, checkoutId: c.id };
+                const r = { id: orderId, type: 'Order', patientId: session.accountId, patientName: s.profiles[session.accountId].name, patientEmail: s.profiles[session.accountId].email, providerId: c.providerId||'pharmacy',matching:c.matching?structuredClone(c.matching):undefined,discountMinor:c.discountMinor||0,promotion:c.promotion, title: 'Medication order', address: c.address, addressDetails: c.addressDetails, fulfilment: c.fulfilment, deliveryFee: c.deliveryFee, feeBreakdown: structuredClone(c.feeBreakdown), items: structuredClone(c.items), total: c.total, payment: 'Paid', isOrder: true, stockDebited: true, details: c.items.map((x) => x.name + ' × ' + x.quantity).join(', '), history: [], created: now, updated: now, checkoutId: c.id };
                 event(r, 'Order confirmed');
                 s.records.unshift(r);
                 c.status = 'Paid';
@@ -648,12 +653,14 @@ export async function POST(req) {
                         throw Error('Confirm required prescription information has been verified');
                     const lines = items(p.items, true);
                     const fee = fulfilment(r.fulfilment);
-                    const total = round(lines.reduce((a, i) => a + i.price * i.quantity, 0) + fee);
+                    const feeBreakdown = medicineFeeBreakdown(lines, fee, s.medicinePricing);
+                    const total = feeBreakdown.totalMinor / 100;
                     if (r.payment === 'Paid' && total !== r.total)
                         throw Error('Historical paid amount differs. Admin must simulate a refund before creating a new submission.');
                     r.items = lines;
                     r.deliveryFee = fee;
                     r.total = total;
+                    r.feeBreakdown = feeBreakdown;
                     r.prescriptionApproved = true;
                     r.verification = { at: now, by: session.name, reviewerId: session.accountId, reason: txt(p.note, 300), documentIds: s.documents.filter((d) => d.recordId === r.id && !d.purged).map((d) => d.id) };
                     r.details = lines.map((i) => i.name + ' × ' + i.quantity).join(', ');
