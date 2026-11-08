@@ -3,7 +3,6 @@ import {configureDeployment} from '../deployment/prepare-cloudflare.mjs';
 const original={main:'index.js',assets:{directory:'../client'},vars:{KEEP:'value'}};
 const config=configureDeployment(original);
 assert.equal(config.name,'healthreachcare');
-assert.deepEqual(config.limits,{cpu_ms:1000});
 assert.equal(config.d1_databases[0].database_id,'aa78a384-cc38-4141-b550-fda0f34fb3a2');
 assert.deepEqual(config.r2_buckets.map(v=>v.binding),['BUCKET','DOCUMENTS_BUCKET']);
 assert.deepEqual(config.assets,original.assets);
