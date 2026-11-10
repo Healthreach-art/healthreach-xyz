@@ -294,3 +294,12 @@ button:focus:not(:focus-visible){outline:none}
 @media(max-width:360px){.medicine-card-grid{grid-template-columns:minmax(0,1fr)}.nearby-medicine-visual{height:190px}}
 .driver-offer-alert{margin:12px 0 16px;padding:12px;border:2px solid #d33;border-radius:14px;background:#fff7f5;animation:delivery-alert-pulse 1.3s ease-in-out infinite;box-shadow:0 0 0 3px #d3313112}
 .driver-offer-alert-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.driver-offer-alert-head>div,.driver-offer-row>span{display:grid;gap:3px;min-width:0}.driver-offer-alert-head small,.driver-offer-row small{font-size:11px;color:#65514d;line-height:1.35}.driver-offer-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding-top:10px;margin-top:10px;border-top:1px solid #f0cdca}.driver-offer-row>span{overflow:hidden}.driver-offer-row>span small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.driver-offer-row>strong{font-variant-numeric:tabular-nums;color:#b11f1f}.driver-offer-alert button{min-height:34px;font-size:12px}@keyframes delivery-alert-pulse{50%{box-shadow:0 0 0 7px #d331311b;border-color:#f06b54}}@media(max-width:520px){.driver-offer-alert-head{align-items:flex-start;flex-direction:column}.driver-offer-row{grid-template-columns:minmax(0,1fr) auto}.driver-offer-row button{grid-column:1/-1;width:100%}}
+
+/* Medicine filters stay in one touch-scrollable row on every screen size. */
+.medicine-category-list{display:flex;flex-wrap:nowrap;gap:8px;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;white-space:nowrap;scrollbar-width:thin;touch-action:pan-x}
+.medicine-category-list .medicine-category-chip{flex:0 0 auto}
+.medication-basket-icon{position:relative;min-width:46px;padding:9px 11px;gap:5px}
+.medication-basket-icon span{font-size:11px;font-weight:750;line-height:1}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.medicine-legacy-tabs{flex-wrap:nowrap;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;white-space:nowrap;scrollbar-width:thin;touch-action:pan-x}
+.medicine-legacy-tabs>button{flex:0 0 auto}
