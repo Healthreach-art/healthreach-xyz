@@ -70,8 +70,8 @@ export function upgradeMarket(s) {
     }
     s.marketVersion = 8; s.version++; return true;
 }
-export function maintainMarket(s) { let changed = false; for (const t of s.deliveryTasks.filter(t => t.status === 'Ready for assignment' && !t.driverId)) {
-    const order = s.records.find(r => r.id === t.recordId);
+export function maintainMarket(s) { let changed = false; const recordsById=new Map(s.records.map(r=>[r.id,r])),ledgerKeys=new Set((s.ledger||[]).map(e=>e.key).filter(Boolean)),promotionsById=new Map((s.promotions||[]).map(p=>[p.id,p])); for (const t of s.deliveryTasks.filter(t => t.status === 'Ready for assignment' && !t.driverId)) {
+    const order = recordsById.get(t.recordId);
     if (!order || order.payment !== 'Paid' || order.status !== 'Ready for dispatch' || order.fulfilment !== 'Delivery' || order.cancellationRequested || order.exception?.status === 'Open')
         continue;
     if (s.dispatchPolicy.allocation === 'Sequential' && (!t.offeredDriverId || t.offerExpires <= Date.now())) {
@@ -98,13 +98,13 @@ export function maintainMarket(s) { let changed = false; for (const t of s.deliv
     }
 } for (const r of s.records) {
     if (r.payment === 'Refunded' && r.feeSnapshot && !r.feeSnapshot.refundManaged) {
-        if (r.discountMinor > 0 && !s.ledger.some(e => e.key === 'promotion-refund:' + r.id)) {
+        if (r.discountMinor > 0 && !ledgerKeys.has('promotion-refund:' + r.id)) {
             s.ledger.push({ id: crypto.randomUUID(), key: 'promotion-refund:' + r.id, debit: 'provider:' + r.providerId, credit: 'platform:promotions', amountMinor: r.discountMinor, currency: 'ZAR', recordId: r.id, at: r.updated, reference: 'PROMO-REFUND-' + r.id.slice(0, 8), type: 'Promotion reversal', simulated: true });
             changed = true;
         }
         for (const [type, amount, debit] of [['Platform commission', r.feeSnapshot.commissionMinor, 'platform:fees'], ['Processing fee', r.feeSnapshot.processingMinor, 'processor:fees']]) {
             const key = 'fee-refund:' + type + ':' + r.id;
-            if (amount > 0 && !s.ledger.some(e => e.key === key)) {
+            if (amount > 0 && !ledgerKeys.has(key)) {
                 s.ledger.push({ id: crypto.randomUUID(), key, debit, credit: 'provider:' + r.providerId, amountMinor: amount, currency: 'ZAR', recordId: r.id, reference: 'FEE-REFUND-' + r.id.slice(0, 8), at: r.updated, type: 'Fee reversal', simulated: true });
                 changed = true;
             }
@@ -112,9 +112,9 @@ export function maintainMarket(s) { let changed = false; for (const t of s.deliv
     }
     if (r.payment !== 'Paid')
         continue;
-    if (r.discountMinor > 0 && !s.ledger.some(e => e.key === 'promotion:' + r.id)) {
+    if (r.discountMinor > 0 && !ledgerKeys.has('promotion:' + r.id)) {
         s.ledger.push({ id: crypto.randomUUID(), key: 'promotion:' + r.id, debit: 'platform:promotions', credit: 'provider:' + r.providerId, amountMinor: r.discountMinor, currency: 'ZAR', recordId: r.id, at: r.updated, reference: r.promotion?.code, type: 'Platform funded promotion', simulated: true });
-        const promotion = s.promotions.find(p => p.id === r.promotion?.id);
+        const promotion = promotionsById.get(r.promotion?.id);
         if (promotion)
             promotion.uses++;
         changed = true;
@@ -129,7 +129,7 @@ export function maintainMarket(s) { let changed = false; for (const t of s.deliv
     }
     for (const [type, amount, credit] of [['Platform commission', r.feeSnapshot.commissionMinor, 'platform:fees'], ['Processing fee', r.feeSnapshot.processingMinor, 'processor:fees']]) {
         const key = type + ':' + r.id;
-        if (amount > 0 && !s.ledger.some(e => e.key === key)) {
+        if (amount > 0 && !ledgerKeys.has(key)) {
             s.ledger.push({ id: crypto.randomUUID(), key, debit: 'provider:' + r.providerId, credit, amountMinor: amount, currency: 'ZAR', recordId: r.id, patientId: r.patientId, reference: 'FEE-' + r.id.slice(0, 8), at: r.updated, type, ruleVersion: r.feeSnapshot.version, simulated: true });
             changed = true;
         }
