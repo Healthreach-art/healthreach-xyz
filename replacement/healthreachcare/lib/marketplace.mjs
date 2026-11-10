@@ -6,6 +6,7 @@ import { handleBusiness } from './business.mjs';
 import { hasPatientBookableHomecareOffer } from './homecare-marketplace.mjs';
 import { refreshConnectedPublication } from './service-categories.mjs';
 import { medicineStarterCatalogue } from './medicine-starter-catalogue.mjs';
+import { platformDeliveryFee } from './platform-delivery-fee.mjs';
 const providerRoles = ['Pharmacy', 'Doctor', 'Homecare', 'Driver'];
 const words = (v, max = 200) => { if (typeof v !== 'string' || !v.trim() || v.length > max)
     throw Error('Complete the required information'); return v.trim(); };
@@ -159,7 +160,8 @@ export function publicMarket(out, s, session) {
             const branches = rows.map(p => {
                 const d = visibleProviders.get(p.ownerId);
                 if (!d) return null;
-                return { id: d.id, name: d.name, location: d.location || '', openNow: d.openNow ?? openNow(d, out.serverTime), distanceKm: d.distanceKm, weeklyHours: d.weeklyHours || [], openTime: d.openTime || '', closeTime: d.closeTime || '', collection: d.collection === true, stockAvailable: true, price:p.priceModel==='branch'?p.price:shared.price, dispensingFee:p.priceModel==='SEP'?Number(d.dispensingFee||0):0, dispensingVat:p.priceModel==='SEP'&&d.vatRegistered===true?Math.round(Number(d.dispensingFee||0)*15)/100:0, vatRegistered:d.vatRegistered===true, deliveryFee:d.deliveryFee??s.platformDelivery?.fee??d.fee, stock:p.stock, priceValid:p.priceModel!=='SEP'||Number(d.dispensingFee||0)<=maximumPharmacistDispensingFee(shared.price)+0.0001, requiresPrescription:!!(shared.requiresPrescription||p.requiresPrescription) };
+                let deliveryFee=null;try{deliveryFee=platformDeliveryFee(s,d,d.distanceKm);}catch{}
+                return { id: d.id, name: d.name, location: d.location || '', openNow: d.openNow ?? openNow(d, out.serverTime), distanceKm: d.distanceKm, weeklyHours: d.weeklyHours || [], openTime: d.openTime || '', closeTime: d.closeTime || '', collection: d.collection === true, collectionInstructions: d.collectionInstructions || '', stockAvailable: true, price:p.priceModel==='branch'?p.price:shared.price, dispensingFee:p.priceModel==='SEP'?Number(d.dispensingFee||0):0, dispensingVat:p.priceModel==='SEP'&&d.vatRegistered===true?Math.round(Number(d.dispensingFee||0)*15)/100:0, vatRegistered:d.vatRegistered===true, deliveryFee, stock:p.stock, priceValid:p.priceModel!=='SEP'||Number(d.dispensingFee||0)<=maximumPharmacistDispensingFee(shared.price)+0.0001, requiresPrescription:!!(shared.requiresPrescription||p.requiresPrescription) };
             }).filter(Boolean).sort((a, b) => Number(b.openNow === true) - Number(a.openNow === true) || (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9) || a.id.localeCompare(b.id));
             const canonical = rows[0];
             if (!canonical || !branches.length) return [];
