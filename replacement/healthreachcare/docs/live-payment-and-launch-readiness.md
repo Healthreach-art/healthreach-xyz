@@ -31,11 +31,14 @@ Provider documentation requires server-side transaction initialization and statu
 - No verified merchant account or sandbox end-to-end test evidence is available.
 - Refunds, chargebacks, payout/settlement, and reconciliation are not connected to a payment provider.
 - Real payments must remain off. Demo mode is intentionally preserved.
+- The source currently calculates a 12% platform fee for medicine orders and adds VAT on that platform fee only when an administrator has marked the platform VAT-registered. Pharmacy dispensing VAT is separately driven by the branch's saved VAT flag. Confirm fee ownership, VAT registration, tax invoice responsibility, and the taxable amount with the accountant before live use; do not treat the demo configuration as tax advice.
 
 ### Pharmacy and medicine ordering
 
 - Obtain specialist South African pharmacy/legal review of the exact app, merchant-of-record, prescription review, pricing, dispensing, collection, and delivery roles before enabling live medicine purchases. SAPC's app guidance describes a pharmacy/group's use of third-party websites/apps for ordering/collection/delivery; the precise fit of HealthReachCare's model must be confirmed with the regulator/professional adviser and participating pharmacy. Do not infer approval from a working demo checkout. [SAPC guidance](https://www.sapc.za.org/Media/Default/Documents/Annexure%20A_%20Guidance%20doc_%20Website%20and%20apps.pdf)
+- Specifically, SAPC's guidance says a third-party app that directs an above-Schedule-0 medicine purchase to a specific pharmacy must not receive that purchase payment. Confirm that HealthReachCare's actual ownership and checkout route comply before selecting the live merchant-of-record or enabling those products. [SAPC guidance, acceptable use and prohibitions](https://www.sapc.za.org/Media/Default/Documents/Annexure%20A_%20Guidance%20doc_%20Website%20and%20apps.pdf)
 - Confirm medicine catalogue and pricing data ownership, dispensing fee rules, product verification, prescription handling, substitutions, cold-chain and delivery controls with the responsible pharmacy/pharmacist.
+- Have an accountant verify the 12% platform-fee base, which party supplies each service, VAT registration and invoice treatment. SARS states standard VAT is 15% on taxable supplies by registered vendors, while some supplies are zero-rated or exempt; the platform's current VAT flag must reflect verified status and actual supply structure. [SARS VAT overview](https://www.sars.gov.za/types-of-tax/value-added-tax/)
 
 ### Operational launch checks still requiring real evidence
 
