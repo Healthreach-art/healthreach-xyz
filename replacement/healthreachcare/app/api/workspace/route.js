@@ -457,8 +457,9 @@ export async function POST(req) {
             const d = s.drivers[session.accountId];
             if (!d)
                 throw Error('Driver profile unavailable');
-            const name=txt(p.name,100),description=txt(p.description,500),vehicle=txt(p.vehicle,80),serviceArea=txt(p.serviceArea,150);
-            d.publicProfile={name,description,vehicle,vehicleColour:typeof p.vehicleColour==='string'?p.vehicleColour.trim().slice(0,50):'',serviceArea,licenceClass:typeof p.licenceClass==='string'?p.licenceClass.trim().slice(0,50):'',updatedAt:now};
+            const name=txt(p.name,100),description=txt(p.description,500),vehicle=txt(p.vehicle,80),plate=txt(p.plate,20).toUpperCase(),serviceArea=txt(p.serviceArea,150);
+            if(plate.length<2||!/^[A-Z0-9][A-Z0-9 -]{0,18}[A-Z0-9]$/.test(plate))throw Error('Enter a valid vehicle number plate (2–20 letters, numbers, spaces or hyphens).');
+            d.publicProfile={name,description,vehicle,plate,vehicleColour:typeof p.vehicleColour==='string'?p.vehicleColour.trim().slice(0,50):'',serviceArea,licenceClass:typeof p.licenceClass==='string'?p.licenceClass.trim().slice(0,50):'',updatedAt:now};
             d.name=name;
             d.serviceArea=serviceArea;
         }
@@ -467,8 +468,8 @@ export async function POST(req) {
             const d = s.drivers[session.accountId];
             if (!d)
                 throw Error('Driver profile unavailable');
-            if (p.online===true && !(d.publicProfile?.name&&d.publicProfile?.description&&d.publicProfile?.vehicle&&d.publicProfile?.serviceArea))
-                throw Error('Complete your Public profile before going online.');
+            if (p.online===true && !(d.publicProfile?.name&&d.publicProfile?.description&&d.publicProfile?.vehicle&&d.publicProfile?.plate&&d.publicProfile?.serviceArea))
+                throw Error('Complete your Public profile, including the vehicle number plate, before going online.');
             d.online = !!p.online;
             d.serviceArea = txt(p.serviceArea, 150);
         }
