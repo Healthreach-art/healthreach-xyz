@@ -46,7 +46,7 @@ export function prepareMatch(s, session, action, p) {
             { if(s.connectedAccounts)throw Error('Save and select a delivery address before matching'); else return; }
         const result = pharmacyMatches(s, p.items, address, p.fulfilment)[0];
         if (!result)
-            { if(s.connectedAccounts)throw Error('No available pharmacy serves this address with the selected products at the displayed prices'); else return; }
+            { if(s.connectedAccounts)throw Error('No matching open pharmacy can currently complete this basket at the displayed prices. Check the delivery address pin, item quantities, stock and pharmacy hours, or choose collection.'); else return; }
         p.items = result.items.map(i => ({ id: i.id, quantity: i.quantity }));
         p.providerId = result.provider.id;
         p.address = address?.formatted || result.provider.location || 'Pharmacy collection';
