@@ -74,6 +74,8 @@ export function maintainMarket(s) { let changed = false; const recordsById=new M
     const order = recordsById.get(t.recordId);
     if (!order || order.payment !== 'Paid' || order.status !== 'Ready for dispatch' || order.fulfilment !== 'Delivery' || order.cancellationRequested || order.exception?.status === 'Open')
         continue;
+    const availableAt=Date.parse(t.availableAt||t.deliverySchedule?.dispatchAfter||'');
+    if(Number.isFinite(availableAt)&&Date.now()<availableAt)continue;
     if (s.dispatchPolicy.allocation === 'Sequential' && (!t.offeredDriverId || t.offerExpires <= Date.now())) {
         if (t.offerExpires <= Date.now() && t.offeredDriverId) {
             t.offerExcluded ??= [];

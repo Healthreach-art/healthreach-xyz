@@ -1,5 +1,6 @@
 import {withinHours} from './provider-hours.mjs';
 import {platformDeliveryFee} from './platform-delivery-fee.mjs';
+import {afterHoursDeliverySchedule} from './after-hours-delivery.mjs';
 // Matching uses saved coordinates or exact service-area names; it never invents a distance.
 // One shared identity per medicine and pack across all branch pharmacies.
 // Prescription handling is a safety flag, not a separate product identity.
@@ -20,8 +21,8 @@ export function maximumPharmacistDispensingFee(sep) {
  if(amount<1551.30)return Math.round((126.20+amount*.15)*100)/100;
  return Math.round((279.85+amount*.05)*100)/100;
 }
-export function pharmacyMatches(s, items, address, mode, excluded = [], fee) {
- return s.providers.filter(d => d.type === 'Pharmacy' && available(s, d) && (mode === 'Collection' || pharmacyServes(d, address)) && openNow(d) && !excluded.includes(d.id) && (mode !== 'Collection' || d.collection)).map(d => {
+export function pharmacyMatches(s, items, address, mode, excluded = [], fee, options = {}) {
+ return s.providers.filter(d => d.type === 'Pharmacy' && available(s, d) && (mode === 'Collection' || pharmacyServes(d, address)) && (options.allowClosed || openNow(d)) && !excluded.includes(d.id) && (mode !== 'Collection' || d.collection)).map(d => {
   const lines = items.map(i => {
    const source = s.products.find(p => p.id === i.id) || i, key=i.productKey || productKey(source), shared=s.connectedAccounts?s.medications_public?.[key]:null, expectedPrice=shared?.status==='Published'?shared.price:(i.price ?? source.price);
    const product = s.products.find(p => p.ownerId === d.id && p.active && !p.removed && (!s.connectedAccounts || p.catalogueStatus !== 'Pending review' && shared?.status === 'Published') && productKey(p) === key && (shared?.priceModel==='branch' ? true : p.price === expectedPrice) && p.stock >= i.quantity);
@@ -36,21 +37,23 @@ export function pharmacyMatches(s, items, address, mode, excluded = [], fee) {
   return {provider:d,items:lines,fee:deliveryFee,dispensingFee:dispensingTotal,distanceKm};
  }).filter(v=>v.items.every(Boolean)&&(mode==='Collection'||Number.isFinite(v.fee))&&(fee===undefined||v.fee===fee)).sort((a,b)=>(a.distanceKm??1e9)-(b.distanceKm??1e9)||(a.fee??0)-(b.fee??0)||a.provider.id.localeCompare(b.provider.id));
 }
-export function prepareMatch(s, session, action, p) {
+export function prepareMatch(s, session, action, p, now = Date.now()) {
     if (session.role !== 'Patient')
         return;
     const address = p.addressDetails || addressFor(s, session.accountId);
     if (['checkout', 'prescriptionDraft'].includes(action) && Array.isArray(p.items) && p.items.length) {
+        const deliverySchedule = afterHoursDeliverySchedule(now);
         if (!s.connectedAccounts && p.fulfilment === 'Collection') return;
         if (!address&&p.fulfilment!=='Collection')
             { if(s.connectedAccounts)throw Error('Save and select a delivery address before matching'); else return; }
-        const result = pharmacyMatches(s, p.items, address, p.fulfilment)[0];
+        const result = pharmacyMatches(s, p.items, address, p.fulfilment, [], undefined, {allowClosed:!!deliverySchedule})[0];
         if (!result)
             { if(s.connectedAccounts)throw Error('No matching open pharmacy can currently complete this basket at the displayed prices. Check the delivery address pin, item quantities, stock and pharmacy hours, or choose collection.'); else return; }
         p.items = result.items.map(i => ({ id: i.id, quantity: i.quantity }));
         p.providerId = result.provider.id;
         p.address = address?.formatted || result.provider.location || 'Pharmacy collection';
         p.matching = { state: 'Offered', excluded: [], attempts: [], distanceKm: result.distanceKm, keys: result.items.map(i => i.productKey) };
+        p.deliverySchedule = deliverySchedule;
     }
     // Homecare is coordinated by the HealthReachCare service, not a location
     // matched provider marketplace. The selected, published offer and its
@@ -72,7 +75,7 @@ export function reroute(s, r, reason, retry = false) { const now = new Date().to
         const p = s.products.find(p => p.id === i.id);
         if (p)
     p.stock += i.quantity;
-    } r.stockReleased = true; const next = pharmacyMatches(s, r.items.map((i, n) => ({ ...i, productKey: r.matching.keys?.[n] || productKey(i) })), r.addressDetails, r.fulfilment, r.matching.excluded)[0]; for (const thread of s.conversations.filter(t => t.recordId === r.id && t.participants?.includes(old))) {
+    } r.stockReleased = true; const next = pharmacyMatches(s, r.items.map((i, n) => ({ ...i, productKey: r.matching.keys?.[n] || productKey(i) })), r.addressDetails, r.fulfilment, r.matching.excluded, undefined, {allowClosed:!!r.deliverySchedule})[0]; for (const thread of s.conversations.filter(t => t.recordId === r.id && t.participants?.includes(old))) {
     thread.archived = true;
     thread.archivedAt = now;
     thread.retention = 'Provider reassignment audit evidence';
