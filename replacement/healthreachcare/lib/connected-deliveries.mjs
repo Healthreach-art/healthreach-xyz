@@ -1,10 +1,31 @@
 import {offerEligible,maintainBusiness} from './business.mjs';
 const text=(value,max)=>{if(typeof value!=='string'||!value.trim()||value.trim().length>max)throw Error('Complete the required public profile fields.');return value.trim();};
 const active=r=>r?.isOrder===true&&r.payment==='Paid'&&!['Cancelled','Delivered','Declined'].includes(r.status)&&!r.cancellationRequested&&r.exception?.status!=='Open'&&(r.type!=='Prescription'||r.prescriptionApproved&&r.verification&&(!r.requiresDocuments||r.identity?.status==='Verified'));
-export const deliveryActions=['driverSettings','saveDriverPublicProfile','claimDelivery','driverProgress','declineDeliveryOffer','issueHandoverCode','verifyHandoverCode'];
+export const deliveryActions=['driverSettings','saveDriverPublicProfile','claimDelivery','driverProgress','adminClaimDelivery','adminDeliveryProgress','declineDeliveryOffer','issueHandoverCode','verifyHandoverCode'];
 export function handleConnectedDelivery(c){
  const {s,p,action,session,now,event,check}=c;
  if(!deliveryActions.includes(action)||['issueHandoverCode','verifyHandoverCode'].includes(action))return false;
+ if(action==='adminClaimDelivery'){
+  check(['Admin']);
+  const t=s.deliveryTasks.find(v=>v.id===p.taskId),r=s.records.find(v=>v.id===t?.recordId);
+  const availableAt=Date.parse(t?.availableAt||t?.deliverySchedule?.dispatchAfter||'');
+  if(!t||!active(r)||r.status!=='Ready for dispatch'||r.fulfilment!=='Delivery'||t.status!=='Ready for assignment'||t.driverId||t.adminId||Number.isFinite(availableAt)&&Date.parse(now)<availableAt)throw Error('This delivery is not available for admin acceptance yet.');
+  t.adminId=session.accountId;t.adminName=session.name||'HealthReachCare administrator';t.status='Assigned';t.updated=now;t.history=[{status:'Assigned',at:now,actor:t.adminName,role:'Admin'}];
+  event(r,'Delivery accepted by admin',t.adminName+' accepted this delivery for fulfilment.');
+  for(const recipientId of [r.patientId,r.providerId])s.notifications.unshift({id:crypto.randomUUID(),recipientId,recordId:r.id,title:'Delivery accepted',message:'A HealthReachCare administrator accepted this delivery.',type:'Orders',at:now,read:false});
+  return true;
+ }
+ if(action==='adminDeliveryProgress'){
+  check(['Admin']);
+  const t=s.deliveryTasks.find(v=>v.id===p.taskId&&v.adminId===session.accountId),r=s.records.find(v=>v.id===t?.recordId);
+  if(!t||!active(r)||r.status==='Delivered'||r.payment!=='Paid')throw Error('This delivery cannot be progressed.');
+  const next={Assigned:'Arrived at pickup',Collected:'En route','En route':'Arrived at destination'};
+  if(next[t.status]!==p.status)throw Error('Use the permitted delivery step and one-time handover verification for pickup and delivery.');
+  t.status=p.status;t.updated=now;t.history??=[];t.history.push({status:t.status,at:now,actor:session.name||'HealthReachCare administrator',role:'Admin'});
+  event(r,t.pickupVerified?'Out for delivery':'Delivery accepted by admin','Admin delivery: '+t.status);
+  for(const recipientId of [r.patientId,r.providerId])s.notifications.unshift({id:crypto.randomUUID(),recipientId,recordId:r.id,title:'Delivery updated',message:t.status,type:'Orders',at:now,read:false});
+  return true;
+ }
  check(['Driver']);const driver=s.drivers[session.accountId];if(!driver||driver.status!=='Approved'&&action!=='saveDriverPublicProfile')throw Error('Only an approved driver can manage delivery availability or tasks.');
  if(action==='driverSettings'){if(typeof p.serviceArea!=='string'||!p.serviceArea.trim()||p.serviceArea.length>150)throw Error('Enter the cities you serve.');const profile=driver.publicProfile;if(p.online===true&&!(profile?.name&&profile?.description&&profile?.vehicle&&profile?.plate&&profile?.serviceArea))throw Error('Complete your Public profile, including the vehicle number plate, before going online.');driver.serviceArea=p.serviceArea.trim();driver.online=p.online===true;if(!driver.online)for(const [taskId,point] of Object.entries(s.deliveryLocations||{}))if(point.driverId===driver.id){delete s.deliveryLocations[taskId];const task=s.deliveryTasks.find(value=>value.id===taskId);if(task)task.lastLocationAt=point.at;}return true;}
  if(action==='saveDriverPublicProfile'){check(['Driver']);const name=text(p.name,100),description=text(p.description,500),vehicle=text(p.vehicle,80),plate=text(p.plate,20).toLocaleUpperCase(),serviceArea=text(p.serviceArea,150),vehicleColour=typeof p.vehicleColour==='string'?p.vehicleColour.trim().slice(0,50):'',licenceClass=typeof p.licenceClass==='string'?p.licenceClass.trim().slice(0,50):'';if(plate.length<2||!/^[A-Z0-9][A-Z0-9 -]{0,18}[A-Z0-9]$/.test(plate))throw Error('Enter a valid vehicle number plate (2–20 letters, numbers, spaces or hyphens).');driver.publicProfile={name,description,vehicle,plate,vehicleColour,serviceArea,licenceClass,updatedAt:now};driver.name=name;driver.serviceArea=serviceArea;if(driver.status==='Approved')driver.online=true;return true;}
