@@ -126,7 +126,7 @@ console.log(`${checks} Firebase-to-dashboard handoff, real projection, persisted
  await action('driver','driverProgress',{taskId:task.id,status:'Arrived at destination'});data=await action('one','issueHandoverCode',{taskId:task.id,purpose:'delivery'});await action('driver','verifyHandoverCode',{taskId:task.id,purpose:'delivery',code:data.issuedCode.value});check((await get('one')).data.records.find(r=>r.id===order.id).status==='Delivered');check(!(await get('one')).data.deliveryTracking.some(t=>t.taskId===task.id&&t.location));
  // Admin fallback takes and completes an order without an online driver.
  data=await action('one','checkout',{items:[{id:patientProduct.id,productKey:pendingEntry.productKey,quantity:1}],fulfilment:'Delivery',address:'Fixture admin delivery address',addressDetails:{formatted:'Fixture admin delivery address',city:'Fixture City',latitude:-33.9,longitude:18.4}});
- const adminCheckout=data.checkouts[0];data=await action('one','checkoutPay',{id:adminCheckout.id,expectedTotal:44,scenario:'Success'});
+ const adminCheckout=data.checkouts[0];data=await action('one','checkoutPay',{id:adminCheckout.id,expectedTotal:adminCheckout.total,scenario:'Success'});
  const adminOrder=data.records.find(r=>r.checkoutId===adminCheckout.id);
  for(const status of ['Accepted','Processing','Prepared'])await action('pharmacy','transition',{id:adminOrder.id,status});
  data=await action('pharmacy','transition',{id:adminOrder.id,status:'Ready for dispatch'});
