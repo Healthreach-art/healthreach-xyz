@@ -5,7 +5,7 @@ const now=Date.parse('2026-10-22T12:00:00Z'),record={id:'fixture-order',type:'Or
 const s={records:[record],deliveryTasks:[task],drivers:{'fixture-driver':{status:'Approved'}},deliveryLocations:{}};
 const context={s,session:{role:'Driver',accountId:'fixture-driver'},now:new Date(now).toISOString()};
 let checks=0;const check=v=>{assert(v);checks++;};
-check(deliveryProgress(record,null,null,now).point===null);check(deliveryProgress(record,null,null,now).arrival==='Arrival estimate not yet confirmed');
+check(deliveryProgress(record,null,null,now).point===null);check(deliveryProgress(record,null,null,now).arrival==='Waiting for a driver or administrator to accept this delivery.');const waiting=deliveryProgress({...record,status:'Ready for dispatch'},{availableAt:new Date(now+3600000).toISOString()},null,now);check(waiting.statusLabel==='Scheduled for delivery');check(waiting.steps[2]==='Scheduled for delivery');const adminProgress=deliveryProgress({...record,status:'Delivery accepted by admin'},{adminAssigned:true,status:'Assigned'},null,now);check(adminProgress.steps[2]==='Delivery accepted');check(adminProgress.arrival==='Delivery accepted by HealthReachCare.');
 handleRealTracking({...context,action:'shareDriverLocation',p:{taskId:task.id,latitude:-33.9,longitude:18.4,accuracy:12,consent:true}});
 let point=s.deliveryLocations[task.id];check(point.latitude===-33.9);check(point.expires===now+120000);
 let tracking={state:'Live',location:point,lastUpdate:point.at};check(deliveryProgress(record,task,tracking,now).point===point);check(deliveryProgress(record,task,tracking,now+120001).point===null);
