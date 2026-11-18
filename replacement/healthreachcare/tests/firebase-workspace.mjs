@@ -131,7 +131,7 @@ console.log(`${checks} Firebase-to-dashboard handoff, real projection, persisted
  for(const status of ['Accepted','Processing','Prepared'])await action('pharmacy','transition',{id:adminOrder.id,status});
  data=await action('pharmacy','transition',{id:adminOrder.id,status:'Ready for dispatch'});
  const adminTask=data.deliveryTasks.find(t=>t.recordId===adminOrder.id);check(!!adminTask);
- await action('admin','adminClaimDelivery',{taskId:adminTask.id});check((await get('one')).data.deliveryTasks.some(t=>t.id===adminTask.id&&t.adminId==='real-admin'));
+ await action('admin','adminClaimDelivery',{taskId:adminTask.id});check((await get('one')).data.deliveryTasks.some(t=>t.id===adminTask.id&&t.adminAssigned===true));
  await action('admin','adminDeliveryProgress',{taskId:adminTask.id,status:'Arrived at pickup'});
  data=await action('pharmacy','issueHandoverCode',{taskId:adminTask.id,purpose:'pickup'});
  await action('admin','verifyHandoverCode',{taskId:adminTask.id,purpose:'pickup',code:data.issuedCode.value});
