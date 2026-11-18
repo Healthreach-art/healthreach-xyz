@@ -1,6 +1,10 @@
 import fs from 'node:fs';import path from 'node:path';import {pathToFileURL} from 'node:url';import assert from 'node:assert/strict';
 import {firebaseWorkspaceGET,firebaseWorkspacePOST,firebaseSession,emptyFirebaseWorkspace} from '../lib/firebase-workspace.mjs';
 import {accountDestination} from '../lib/account-destination.mjs';import {productKey} from '../lib/matching.mjs';
+// Keep dispatch assertions deterministic: the fixture models a daytime order.
+const fixtureNow=Date.parse('2026-11-18T10:00:00.000Z'),NativeDate=Date;
+// @ts-ignore
+ globalThis.Date=class extends NativeDate{constructor(...args){super(...(args.length?args:[fixtureNow]));}static now(){return fixtureNow;}};
 let checks=0;const check=v=>{assert(v);checks++;},records=new Map();
 const env={FIREBASE_AUTH_ENABLED:'true',FIREBASE_WEB_CONFIG:JSON.stringify({projectId:'fixture-project',apiKey:'fictional',authDomain:'fixture-project.firebaseapp.com',appId:'fictional'}),DB:{prepare(sql){return {bind(...v){return {async all(){return {results:[...records].filter(([key])=>key.startsWith(v[0].slice(0,-1))).map(([,data])=>({data}))};},async first(){return records.has(v[0])?{data:records.get(v[0])}:null;},async run(){let changes=0;if(sql.startsWith('INSERT')){if(!records.has(v[0])){records.set(v[0],v[1]);changes=1;}}else if(records.get(v[2])===v[3]){records.set(v[2],v[0]);changes=1;}return {meta:{changes}};}};}};}}};
 const identities={one:{uid:'patient-one',email:'one@example.test',emailVerified:true,hasPassword:true,admin:false},two:{uid:'patient-two',email:'two@example.test',emailVerified:true,hasPassword:true,admin:false},unverified:{uid:'patient-one',emailVerified:false,hasPassword:true},pending:{uid:'pending-provider',emailVerified:true,hasPassword:true,admin:false},pendingCare:{uid:'pending-homecare-provider',email:'pending-care@example.test',emailVerified:true,hasPassword:true,admin:false},admin:{uid:'real-admin',email:'admin@example.test',emailVerified:true,hasPassword:true,admin:true,authTime:Math.floor(Date.now()/1000)}};
